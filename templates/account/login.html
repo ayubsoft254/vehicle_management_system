@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% load cotton %}
+
+{% block title %}Login - Vehicle Management{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+    {% cotton 'card' title="Login to Your Account" %}
+        <form method="post" action="{% url 'account_login' %}">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn-primary w-full">Login</button>
+        </form>
+        <p class="mt-4 text-center">
+            Don't have an account? 
+            <a href="{% url 'account_signup' %}" class="text-blue-600">Register here</a>
+        </p>
+    {% endcotton %}
+</div>
+{% endblock %}
