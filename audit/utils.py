@@ -1,8 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.auth.models import User
 from django.utils import timezone
 from .models import AuditLog, LoginAttempt, UserSession, SystemEvent, DataExport
-import json
 
 
 class AuditLogger:
