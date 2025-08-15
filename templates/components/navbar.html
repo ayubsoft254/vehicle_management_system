@@ -1,0 +1,21 @@
+{% load cotton %}
+
+<nav class="bg-blue-600 text-white shadow-lg">
+    <div class="container mx-auto px-4">
+        <div class="flex justify-between items-center py-4">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-xl font-bold">Vehicle Management</h1>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                {% if user.is_authenticated %}
+                    <span>Welcome, {{ user.username }}!</span>
+                    <a href="{% url 'account_logout' %}" class="btn-primary">Logout</a>
+                {% else %}
+                    <a href="{% url 'account_login' %}" class="btn-primary">Login</a>
+                    <a href="{% url 'account_signup' %}" class="btn-primary">Register</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</nav>
