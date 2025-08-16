@@ -1,9 +1,60 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<div class="text-center py-10">
-    <h1 class="text-3xl font-bold mb-4">Welcome to the Vehicle Management System Dashboard</h1>
-    <p class="text-lg text-gray-600">Quick overview and navigation for your system modules.</p>
-    <!-- Add dashboard widgets or stats here -->
+<div class="py-10">
+    <h1 class="text-3xl font-bold mb-6 text-center">Welcome to the Vehicle Management System Dashboard</h1>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+        <div class="bg-white rounded shadow p-6 text-center">
+            <div class="text-4xl font-bold text-blue-600">{{ vehicle_count }}</div>
+            <div class="text-gray-600 mt-2">Total Vehicles</div>
+            <a href="{% url 'vehicle-list' %}" class="text-blue-500 hover:underline mt-4 inline-block">View All Vehicles</a>
+        </div>
+        <div class="bg-white rounded shadow p-6 text-center">
+            <div class="text-4xl font-bold text-green-600">{{ available_count }}</div>
+            <div class="text-gray-600 mt-2">Available</div>
+        </div>
+        <div class="bg-white rounded shadow p-6 text-center">
+            <div class="text-4xl font-bold text-yellow-600">{{ sold_count }}</div>
+            <div class="text-gray-600 mt-2">Sold</div>
+        </div>
+    </div>
+    <div class="mb-10">
+        <h2 class="text-xl font-semibold mb-4">Quick Links</h2>
+        <div class="flex flex-wrap gap-4 justify-center">
+            <a href="{% url 'vehicle-add' %}" class="btn btn-primary">Add Vehicle</a>
+            <a href="{% url 'vehicle-list' %}" class="btn btn-secondary">Manage Vehicles</a>
+        </div>
+    </div>
+    <div>
+        <h2 class="text-xl font-semibold mb-4">Recently Added Vehicles</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white rounded shadow overflow-hidden">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-2">Make</th>
+                        <th class="px-4 py-2">Model</th>
+                        <th class="px-4 py-2">Year</th>
+                        <th class="px-4 py-2">Status</th>
+                        <th class="px-4 py-2">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in recent_vehicles %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-4 py-2">{{ v.make }}</td>
+                        <td class="px-4 py-2">{{ v.model }}</td>
+                        <td class="px-4 py-2">{{ v.year }}</td>
+                        <td class="px-4 py-2">{{ v.get_status_display }}</td>
+                        <td class="px-4 py-2">
+                            <a href="{% url 'vehicle-detail' v.pk %}" class="text-blue-600 hover:underline">View</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center py-4">No recent vehicles found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 {% endblock %}
