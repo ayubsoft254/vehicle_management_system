@@ -121,6 +121,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+
 # Internationalization
 LANGUAGE_CODE = 'en-us'
 
@@ -130,14 +131,22 @@ USE_I18N = True
 
 USE_TZ = True
 
+# Use custom user model
+AUTH_USER_MODEL = 'core.User'
+
 
 SITE_ID = 1
 
-# Allauth settings
+
+# Allauth settings (updated for new standard)
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
-ACCOUNT_USERNAME_REQUIRED = True
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+ACCOUNT_SIGNUP_FIELDS = [
+    'username*',  # required
+    'email',      # optional (remove * if not required)
+    'password1*', # required
+    'password2*', # required
+]
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 ACCOUNT_LOGOUT_ON_GET = True

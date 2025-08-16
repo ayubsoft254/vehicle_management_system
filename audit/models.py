@@ -1,7 +1,7 @@
 # audit/models.py
 
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.utils import timezone
@@ -34,7 +34,7 @@ class AuditLog(models.Model):
 
     # User who performed the action
     user = models.ForeignKey(
-        User, 
+        settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True,
@@ -122,7 +122,7 @@ class LoginAttempt(models.Model):
     
     # Link to user if login was successful
     user = models.ForeignKey(
-        User, 
+        settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True,
@@ -147,7 +147,7 @@ class UserSession(models.Model):
     """
     Track active user sessions
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sessions')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sessions')
     session_key = models.CharField(max_length=40, unique=True)
     ip_address = models.GenericIPAddressField()
     user_agent = models.TextField(null=True, blank=True)
@@ -199,7 +199,7 @@ class SystemEvent(models.Model):
     timestamp = models.DateTimeField(default=timezone.now)
     resolved = models.BooleanField(default=False)
     resolved_by = models.ForeignKey(
-        User, 
+        settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True,
@@ -232,7 +232,7 @@ class DataExport(models.Model):
         ('XML', 'XML Data'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='exports')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='exports')
     export_type = models.CharField(max_length=20, choices=EXPORT_TYPES)
     module_name = models.CharField(max_length=100)
     description = models.TextField()
@@ -287,7 +287,7 @@ class ComplianceReport(models.Model):
     description = models.TextField(null=True, blank=True)
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
-    generated_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='compliance_reports')
+    generated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='compliance_reports')
     generated_at = models.DateTimeField(default=timezone.now)
     
     # Report statistics
