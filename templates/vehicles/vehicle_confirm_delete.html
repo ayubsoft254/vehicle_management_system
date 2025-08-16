@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Delete Vehicle{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto bg-white rounded shadow p-8 mt-8 text-center">
+    <h1 class="text-2xl font-bold mb-4">Delete Vehicle</h1>
+    <p class="mb-6">Are you sure you want to delete <span class="font-semibold">{{ object.full_name }}</span>?</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Yes, Delete</button>
+        <a href="{% url 'vehicle-detail' object.pk %}" class="ml-4 btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

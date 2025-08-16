@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Vehicle Details{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <a href="{% url 'vehicle-list' %}" class="text-blue-600 hover:underline">&larr; Back to Vehicles</a>
+</div>
+<div class="bg-white rounded shadow p-6 mb-8">
+    <h1 class="text-2xl font-bold mb-2">{{ vehicle.full_name }}</h1>
+    <div class="mb-2 text-gray-600">VIN: {{ vehicle.vin }} | Status: {{ vehicle.get_status_display }}</div>
+    <div class="mb-4">Added by: {{ vehicle.added_by }} | Company: {{ vehicle.company }}</div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <h2 class="font-semibold mb-2">Specifications</h2>
+            <ul class="list-disc ml-6 text-gray-700">
+                <li>Year: {{ vehicle.year }}</li>
+                <li>Engine Size: {{ vehicle.engine_size }} L</li>
+                <li>Transmission: {{ vehicle.get_transmission_display }}</li>
+                <li>Fuel Type: {{ vehicle.get_fuel_type_display }}</li>
+                <li>Mileage: {{ vehicle.mileage }} km</li>
+                <li>Color: {{ vehicle.color }}</li>
+                <li>Doors: {{ vehicle.doors }}</li>
+                <li>Seats: {{ vehicle.seats }}</li>
+                <li>Condition: {{ vehicle.get_condition_display }}</li>
+            </ul>
+        </div>
+        <div>
+            <h2 class="font-semibold mb-2">Pricing</h2>
+            <ul class="list-disc ml-6 text-gray-700">
+                <li>Purchase Price: {{ vehicle.purchase_price }}</li>
+                <li>Selling Price: {{ vehicle.selling_price }}</li>
+                <li>Minimum Deposit: {{ vehicle.minimum_deposit }}</li>
+            </ul>
+        </div>
+    </div>
+    <div class="mt-4">
+        <h2 class="font-semibold mb-2">Notes</h2>
+        <p class="text-gray-700">{{ vehicle.notes|default:'No notes.' }}</p>
+    </div>
+</div>
+
+<div class="mb-8">
+    <h2 class="text-xl font-bold mb-2">Images</h2>
+    <form action="{% url 'vehicleimage-add' vehicle.pk %}" method="post" enctype="multipart/form-data" class="mb-4 flex items-center space-x-2">
+        {% csrf_token %}
+        <input type="file" name="image" required class="border rounded px-2 py-1">
+        <input type="text" name="caption" placeholder="Caption" class="border rounded px-2 py-1">
+        <button type="submit" class="btn btn-primary">Add Image</button>
+    </form>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {% for img in images %}
+        <div class="relative group">
+            <img src="{{ img.image.url }}" alt="{{ img.caption }}" class="rounded shadow w-full h-32 object-cover">
+            <form action="{% url 'vehicleimage-delete' img.id %}" method="post" class="absolute top-2 right-2">
+                {% csrf_token %}
+                <button type="submit" class="bg-red-600 text-white rounded px-2 py-1 text-xs opacity-80 group-hover:opacity-100">Delete</button>
+            </form>
+            <div class="text-xs text-gray-200 mt-1">{{ img.caption }}</div>
+        </div>
+        {% empty %}
+        <div class="col-span-full text-gray-500">No images uploaded.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<div>
+    <h2 class="text-xl font-bold mb-2">Expenses</h2>
+    <form action="{% url 'vehicleexpense-add' vehicle.pk %}" method="post" class="mb-4 flex flex-wrap gap-2 items-end">
+        {% csrf_token %}
+        <input type="text" name="description" placeholder="Description" class="border rounded px-2 py-1" required>
+        <input type="number" name="amount" placeholder="Amount" class="border rounded px-2 py-1" required step="0.01">
+        <input type="date" name="expense_date" class="border rounded px-2 py-1" required>
+        <select name="category" class="border rounded px-2 py-1">
+            {% for key, val in vehicle.expenses.model.EXPENSE_CATEGORIES %}
+                <option value="{{ key }}">{{ val }}</option>
+            {% endfor %}
+        </select>
+        <input type="text" name="vendor" placeholder="Vendor" class="border rounded px-2 py-1">
+        <input type="text" name="receipt_number" placeholder="Receipt #" class="border rounded px-2 py-1">
+        <button type="submit" class="btn btn-primary">Add Expense</button>
+    </form>
+    <table class="min-w-full bg-white rounded shadow overflow-hidden">
+        <thead class="bg-gray-100">
+            <tr>
+                <th class="px-4 py-2">Date</th>
+                <th class="px-4 py-2">Category</th>
+                <th class="px-4 py-2">Description</th>
+                <th class="px-4 py-2">Amount</th>
+                <th class="px-4 py-2">Vendor</th>
+                <th class="px-4 py-2">Receipt #</th>
+                <th class="px-4 py-2">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exp in expenses %}
+            <tr class="border-b hover:bg-gray-50">
+                <td class="px-4 py-2">{{ exp.expense_date }}</td>
+                <td class="px-4 py-2">{{ exp.get_category_display }}</td>
+                <td class="px-4 py-2">{{ exp.description }}</td>
+                <td class="px-4 py-2">{{ exp.amount }}</td>
+                <td class="px-4 py-2">{{ exp.vendor }}</td>
+                <td class="px-4 py-2">{{ exp.receipt_number }}</td>
+                <td class="px-4 py-2">
+                    <form action="{% url 'vehicleexpense-delete' exp.id %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="text-red-600 hover:underline">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center py-4">No expenses found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
