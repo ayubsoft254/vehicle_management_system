@@ -1,9 +1,49 @@
 {% extends 'base.html' %}
 {% block title %}Home{% endblock %}
 {% block content %}
-<div class="text-center py-10">
-    <h1 class="text-4xl font-bold mb-4">Welcome to the Vehicle Management System</h1>
-    <p class="text-lg text-gray-600">Manage vehicles, clients, payments, and more from one place.</p>
-    <a href="/dashboard/" class="mt-6 inline-block px-6 py-2 bg-primary-600 text-white rounded hover:bg-primary-700">Go to Dashboard</a>
+<div class="relative min-h-[70vh] flex flex-col items-center justify-center bg-gradient-to-br from-blue-900 via-indigo-800 to-purple-900 text-white overflow-hidden">
+    <div class="absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-fuchsia-500 via-blue-500 to-transparent"></div>
+    <div class="relative z-10 text-center py-20 px-4">
+        <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight mb-6 drop-shadow-lg animate-fade-in">
+            <span class="bg-gradient-to-r from-blue-400 via-fuchsia-400 to-purple-500 bg-clip-text text-transparent">Vehicle Management System</span>
+        </h1>
+        <p class="text-xl md:text-2xl font-medium mb-10 text-indigo-100 animate-fade-in delay-100">
+            The future of fleet, client, and operations management—today.
+        </p>
+        <a href="/dashboard/" class="inline-block px-8 py-3 rounded-full bg-gradient-to-r from-fuchsia-500 via-blue-500 to-purple-600 text-white font-semibold shadow-lg hover:scale-105 hover:shadow-xl transition-all duration-300 animate-fade-in delay-200">
+            Enter Dashboard
+        </a>
+    </div>
+    <div class="absolute bottom-0 left-0 w-full flex justify-center z-0">
+        <svg width="100%" height="80" viewBox="0 0 1440 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#fff" fill-opacity="0.05" d="M0,80 C480,0 960,160 1440,80 L1440,160 L0,160 Z"></path>
+        </svg>
+    </div>
 </div>
+<div class="relative z-10 max-w-4xl mx-auto mt-12 grid grid-cols-1 md:grid-cols-3 gap-8 px-4">
+    <div class="bg-white/10 backdrop-blur rounded-2xl p-6 text-center shadow-lg border border-white/10">
+        <div class="text-4xl mb-2">🚗</div>
+        <h3 class="font-bold text-lg mb-1">Fleet Management</h3>
+        <p class="text-indigo-100">Track, analyze, and optimize your vehicles with real-time insights and futuristic tools.</p>
+    </div>
+    <div class="bg-white/10 backdrop-blur rounded-2xl p-6 text-center shadow-lg border border-white/10">
+        <div class="text-4xl mb-2">🤝</div>
+        <h3 class="font-bold text-lg mb-1">Client Experience</h3>
+        <p class="text-indigo-100">Deliver seamless service and engagement with AI-powered client management.</p>
+    </div>
+    <div class="bg-white/10 backdrop-blur rounded-2xl p-6 text-center shadow-lg border border-white/10">
+        <div class="text-4xl mb-2">📊</div>
+        <h3 class="font-bold text-lg mb-1">Smart Analytics</h3>
+        <p class="text-indigo-100">Visualize trends, predict needs, and make data-driven decisions for tomorrow.</p>
+    </div>
+</div>
+<style>
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-fade-in { animation: fade-in 1s cubic-bezier(.4,0,.2,1) both; }
+.delay-100 { animation-delay: .1s; }
+.delay-200 { animation-delay: .2s; }
+</style>
 {% endblock %}

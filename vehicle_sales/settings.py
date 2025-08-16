@@ -29,14 +29,12 @@ INSTALLED_APPS = [
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
-    # Add social providers as needed (optional)
-    # 'allauth.socialaccount.providers.google',
-    
+        
     'django_cotton',
     'crispy_forms',
     'crispy_tailwind',
     'django_extensions',
-    'phonenumber_field',
+    'phonenumber_field',    
     
     # my apps
     'vehicles',
@@ -75,7 +73,7 @@ ROOT_URLCONF = 'vehicle_sales.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -84,6 +82,8 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
+        'builtins': ['django_cotton.templatetags.cotton']
+
         },
     },
 ]
