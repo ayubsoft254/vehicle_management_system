@@ -147,7 +147,7 @@ ACCOUNT_SIGNUP_FIELDS = [
     'password2*', # required
 ]
 ACCOUNT_LOGIN_METHODS = {"username", "email"}
-LOGIN_REDIRECT_URL = '/'
+LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 ACCOUNT_LOGOUT_ON_GET = True
 

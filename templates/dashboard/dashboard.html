@@ -1,60 +1,394 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<div class="py-10">
-    <h1 class="text-3xl font-bold mb-6 text-center">Welcome to the Vehicle Management System Dashboard</h1>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
-        <div class="bg-white rounded shadow p-6 text-center">
-            <div class="text-4xl font-bold text-blue-600">{{ vehicle_count }}</div>
-            <div class="text-gray-600 mt-2">Total Vehicles</div>
-            <a href="{% url 'vehicle-list' %}" class="text-blue-500 hover:underline mt-4 inline-block">View All Vehicles</a>
+<style>
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .dashboard-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    
+    .dashboard-header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #2563eb 0%, #7e22ce 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .dashboard-header p {
+        color: #64748b;
+        font-size: 1.1rem;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 5px;
+        height: 100%;
+    }
+    
+    .stat-card:nth-child(1)::before {
+        background: linear-gradient(to bottom, #3b82f6, #2563eb);
+    }
+    
+    .stat-card:nth-child(2)::before {
+        background: linear-gradient(to bottom, #10b981, #059669);
+    }
+    
+    .stat-card:nth-child(3)::before {
+        background: linear-gradient(to bottom, #f59e0b, #d97706);
+    }
+    
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-card:nth-child(1) .stat-value {
+        color: #2563eb;
+    }
+    
+    .stat-card:nth-child(2) .stat-value {
+        color: #059669;
+    }
+    
+    .stat-card:nth-child(3) .stat-value {
+        color: #d97706;
+    }
+    
+    .stat-label {
+        color: #64748b;
+        font-size: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-link {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background: #f1f5f9;
+        color: #475569;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .stat-link:hover {
+        background: #e2e8f0;
+        color: #334155;
+    }
+    
+    .quick-actions {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        margin-bottom: 3rem;
+    }
+    
+    .quick-actions h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #f1f5f9;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .action-btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .action-btn-primary {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+    }
+    
+    .action-btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .action-btn-secondary {
+        background: white;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .action-btn-secondary:hover {
+        background: #f8fafc;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    .recent-section {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    .recent-section h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #f1f5f9;
+    }
+    
+    .vehicle-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .vehicle-table th {
+        background: #f8fafc;
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #475569;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .vehicle-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .vehicle-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .vehicle-table tr:hover {
+        background: #f8fafc;
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .status-available {
+        background: #dcfce7;
+        color: #166534;
+    }
+    
+    .status-sold {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .view-link {
+        color: #2563eb;
+        text-decoration: none;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        transition: color 0.3s ease;
+    }
+    
+    .view-link:hover {
+        color: #1d4ed8;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #64748b;
+    }
+    
+    .empty-state i {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        color: #cbd5e1;
+    }
+    
+    @media (max-width: 768px) {
+        .dashboard-container {
+            padding: 1rem;
+        }
+        
+        .dashboard-header h1 {
+            font-size: 2rem;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+        }
+        
+        .action-btn {
+            justify-content: center;
+        }
+        
+        .vehicle-table {
+            display: block;
+            overflow-x: auto;
+        }
+    }
+</style>
+
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>Welcome to the Vehicle Management System Dashboard</h1>
+        <p>Monitor your vehicle inventory, track availability, and manage your showroom efficiently</p>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ vehicle_count }}</div>
+            <div class="stat-label">Total Vehicles</div>
+            <a href="{% url 'vehicle-list' %}" class="stat-link">
+                <i class="fas fa-eye me-1"></i> View All Vehicles
+            </a>
         </div>
-        <div class="bg-white rounded shadow p-6 text-center">
-            <div class="text-4xl font-bold text-green-600">{{ available_count }}</div>
-            <div class="text-gray-600 mt-2">Available</div>
+        
+        <div class="stat-card">
+            <div class="stat-value">{{ available_count }}</div>
+            <div class="stat-label">Available Vehicles</div>
         </div>
-        <div class="bg-white rounded shadow p-6 text-center">
-            <div class="text-4xl font-bold text-yellow-600">{{ sold_count }}</div>
-            <div class="text-gray-600 mt-2">Sold</div>
+        
+        <div class="stat-card">
+            <div class="stat-value">{{ sold_count }}</div>
+            <div class="stat-label">Sold Vehicles</div>
         </div>
     </div>
-    <div class="mb-10">
-        <h2 class="text-xl font-semibold mb-4">Quick Links</h2>
-        <div class="flex flex-wrap gap-4 justify-center">
-            <a href="{% url 'vehicle-add' %}" class="btn btn-primary">Add Vehicle</a>
-            <a href="{% url 'vehicle-list' %}" class="btn btn-secondary">Manage Vehicles</a>
+    
+    <div class="quick-actions">
+        <h2>Quick Actions</h2>
+        <div class="action-buttons">
+            <a href="{% url 'vehicle-add' %}" class="action-btn action-btn-primary">
+                <i class="fas fa-plus"></i> Add Vehicle
+            </a>
+            <a href="{% url 'vehicle-list' %}" class="action-btn action-btn-secondary">
+                <i class="fas fa-cog"></i> Manage Vehicles
+            </a>
         </div>
     </div>
-    <div>
-        <h2 class="text-xl font-semibold mb-4">Recently Added Vehicles</h2>
+    
+    <div class="recent-section">
+        <h2>Recently Added Vehicles</h2>
         <div class="overflow-x-auto">
-            <table class="min-w-full bg-white rounded shadow overflow-hidden">
-                <thead class="bg-gray-100">
+            <table class="vehicle-table">
+                <thead>
                     <tr>
-                        <th class="px-4 py-2">Make</th>
-                        <th class="px-4 py-2">Model</th>
-                        <th class="px-4 py-2">Year</th>
-                        <th class="px-4 py-2">Status</th>
-                        <th class="px-4 py-2">Actions</th>
+                        <th>Make</th>
+                        <th>Model</th>
+                        <th>Year</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for v in recent_vehicles %}
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="px-4 py-2">{{ v.make }}</td>
-                        <td class="px-4 py-2">{{ v.model }}</td>
-                        <td class="px-4 py-2">{{ v.year }}</td>
-                        <td class="px-4 py-2">{{ v.get_status_display }}</td>
-                        <td class="px-4 py-2">
-                            <a href="{% url 'vehicle-detail' v.pk %}" class="text-blue-600 hover:underline">View</a>
+                    <tr>
+                        <td>{{ v.make }}</td>
+                        <td>{{ v.model }}</td>
+                        <td>{{ v.year }}</td>
+                        <td>
+                            <span class="status-badge {% if v.status == 'available' %}status-available{% else %}status-sold{% endif %}">
+                                {{ v.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'vehicle-detail' v.pk %}" class="view-link">
+                                <i class="fas fa-external-link-alt"></i> View
+                            </a>
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" class="text-center py-4">No recent vehicles found.</td></tr>
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="fas fa-car"></i>
+                                <p>No recent vehicles found.</p>
+                            </div>
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+<script>
+    // Add subtle animations to dashboard elements
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animate stat cards on page load
+        const statCards = document.querySelectorAll('.stat-card');
+        statCards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, 100 * index);
+        });
+        
+        // Add hover effect to table rows
+        const tableRows = document.querySelectorAll('.vehicle-table tr');
+        tableRows.forEach(row => {
+            row.addEventListener('mouseenter', function() {
+                this.style.transition = 'background-color 0.2s ease';
+            });
+        });
+    });
+</script>
 {% endblock %}
