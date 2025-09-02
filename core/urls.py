@@ -1,6 +1,4 @@
-# core/urls.py
-
-from django.urls import path
+from django.urls import path, include
 from .views import (
     DashboardView, LandingPageView,
     UserListView, UserDetailView,
@@ -13,7 +11,7 @@ urlpatterns = [
 
     # Dashboard
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
-
+    
     # User Management
     path('users/', UserListView.as_view(), name='user-list'),
     path('users/<uuid:pk>/', UserDetailView.as_view(), name='user-detail'),
