@@ -1,279 +1,275 @@
-{% extends 'base.html' %}
+{% load i18n %}
 
-{% block title %}Login - Vehicle Management{% endblock %}
-
-{% block content %}
+{% block account_content %}
 <style>
-    .login-container {
-        min-height: 80vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 2rem 1rem;
-        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-    }
-    
+/* Base Styles */
+body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f9fafb;
+}
+
+/* Container */
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 1rem;
+}
+
+/* Card */
+.login-card {
+    width: 100%;
+    max-width: 400px;
+    background-color: #ffffff;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+    border-top: 5px solid #047857; /* Green top border */
+}
+
+/* Title */
+.login-title {
+    text-align: center;
+    color: #047857; /* Green */
+    font-size: 1.75rem;
+    font-weight: bold;
+    margin-bottom: 1.25rem;
+}
+
+/* Form */
+.login-form {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Group */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.875rem;
+    color: #374151; /* Gray-700 */
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid #d1d5db; /* Gray-300 */
+    border-radius: 8px;
+    font-size: 1rem;
+    color: #374151;
+    background-color: #f9fafb;
+    box-sizing: border-box; /* Important for mobile */
+    -webkit-appearance: none; /* Remove iOS styling */
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #047857;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.2);
+}
+
+/* Error messages */
+.form-group .errorlist {
+    list-style-type: none;
+    margin: 0.25rem 0 0;
+    padding: 0;
+    color: #b91c1c;
+    font-size: 0.75rem;
+}
+
+/* Options */
+.form-options {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap; /* Allows wrapping on very small screens */
+    gap: 0.5rem; /* Spacing when wrapped */
+}
+
+.remember-me {
+    font-size: 0.875rem;
+    color: #6b7280; /* Gray-500 */
+    display: flex;
+    align-items: center;
+}
+
+.remember-me input[type="checkbox"] {
+    margin-right: 0.375rem;
+    width: 1rem;
+    height: 1rem;
+}
+
+.forgot-password {
+    font-size: 0.875rem;
+    color: #047857;
+    text-decoration: none;
+}
+
+.forgot-password:hover {
+    text-decoration: underline;
+}
+
+/* Button */
+.submit-button {
+    padding: 0.75rem;
+    background-color: #047857;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-size: 1rem;
+    width: 100%; /* Full width for better mobile tap targets */
+    touch-action: manipulation; /* Better touch behavior */
+}
+
+.submit-button:hover {
+    background-color: #065f46;
+}
+
+.submit-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.4);
+}
+
+/* Sign up link */
+.signup-link {
+    text-align: center;
+    margin-top: 1.25rem;
+    font-size: 0.875rem;
+}
+
+.signup-link a {
+    color: #047857;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.signup-link a:hover {
+    text-decoration: underline;
+}
+
+/* Error box */
+.error-box {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
     .login-card {
-        background: white;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        padding: 2.5rem;
-        width: 100%;
-        max-width: 420px;
-        position: relative;
-        overflow: hidden;
+        padding: 1.25rem;
+        border-radius: 10px;
     }
     
-    .login-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 6px;
-        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    .login-title {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
     }
     
-    .login-header {
-        text-align: center;
-        margin-bottom: 2rem;
+    .form-group input {
+        padding: 0.625rem;
+        font-size: 0.9375rem;
     }
     
-    .login-icon {
-        width: 70px;
-        height: 70px;
-        background: linear-gradient(135deg, #2563eb 0%, #7e22ce 100%);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 1rem;
-        color: white;
-        font-size: 1.8rem;
+    .form-options {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
     }
-    
-    .login-header h2 {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #1e293b;
-        margin-bottom: 0.5rem;
+}
+
+/* Accessibility focus styles */
+:focus {
+    outline: 2px solid rgba(4, 120, 87, 0.5);
+    outline-offset: 2px;
+}
+
+/* Fix for iOS zooming on input fields */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    input {
+        font-size: 16px;
     }
-    
-    .login-header p {
-        color: #64748b;
-        font-size: 0.95rem;
-    }
-    
-    .login-form {
-        margin-bottom: 1.5rem;
-    }
-    
-    .form-group {
-        margin-bottom: 1.5rem;
-        position: relative;
-    }
-    
-    .form-group label {
-        display: block;
-        margin-bottom: 0.5rem;
-        font-weight: 500;
-        color: #374151;
-        font-size: 0.9rem;
-    }
-    
-    .form-input {
-        width: 100%;
-        padding: 0.875rem 1rem;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-        background-color: #f9fafb;
-    }
-    
-    .form-input:focus {
-        outline: none;
-        border-color: #2563eb;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        background-color: white;
-    }
-    
-    .form-input.error {
-        border-color: #ef4444;
-    }
-    
-    .error-message {
-        color: #ef4444;
-        font-size: 0.8rem;
-        margin-top: 0.25rem;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-    
-    .login-btn {
-        width: 100%;
-        padding: 1rem;
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-    }
-    
-    .login-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
-    }
-    
-    .login-btn:active {
-        transform: translateY(0);
-    }
-    
-    .login-footer {
-        text-align: center;
-        padding-top: 1.5rem;
-        border-top: 1px solid #e5e7eb;
-    }
-    
-    .login-footer p {
-        color: #6b7280;
-        margin-bottom: 0.5rem;
-    }
-    
-    .register-link {
-        color: #2563eb;
-        text-decoration: none;
-        font-weight: 500;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        transition: color 0.3s ease;
-    }
-    
-    .register-link:hover {
-        color: #1d4ed8;
-        text-decoration: underline;
-    }
-    
-    /* Forgot password link */
-    .forgot-password {
-        display: block;
-        text-align: right;
-        font-size: 0.85rem;
-        color: #2563eb;
-        text-decoration: none;
-        margin-top: 0.5rem;
-        transition: color 0.3s ease;
-    }
-    
-    .forgot-password:hover {
-        color: #1d4ed8;
-        text-decoration: underline;
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 480px) {
-        .login-card {
-            padding: 2rem 1.5rem;
-        }
-        
-        .login-header h2 {
-            font-size: 1.5rem;
-        }
-    }
+}
 </style>
 
 <div class="login-container">
-    <div class="login-card">
-        <div class="login-header">
-            <div class="login-icon">
-                <i class="fas fa-lock"></i>
-            </div>
-            <h2>Login to Your Account</h2>
-            <p>Access your vehicle management dashboard</p>
-        </div>
-        
-        <form method="post" action="{% url 'account_login' %}" class="login-form">
-            {% csrf_token %}
-            
-            <!-- Manual form rendering for better styling control -->
-            <div class="form-group">
-                <label for="id_login">Username or Email</label>
-                <input type="text" name="login" id="id_login" class="form-input" placeholder="Enter your username or email" required autofocus>
-                {% if form.login.errors %}
-                    <div class="error-message">
-                        <i class="fas fa-exclamation-circle"></i>
-                        {{ form.login.errors.0 }}
-                    </div>
-                {% endif %}
-            </div>
-            
-            <div class="form-group">
-                <label for="id_password">Password</label>
-                <input type="password" name="password" id="id_password" class="form-input" placeholder="Enter your password" required>
-                {% if form.password.errors %}
-                    <div class="error-message">
-                        <i class="fas fa-exclamation-circle"></i>
-                        {{ form.password.errors.0 }}
-                    </div>
-                {% endif %}
-                <a href="{% url 'account_reset_password' %}" class="forgot-password">Forgot password?</a>
-            </div>
-            
-            {% if form.non_field_errors %}
-                <div class="error-message" style="margin-bottom: 1rem;">
-                    <i class="fas fa-exclamation-circle"></i>
-                    {{ form.non_field_errors.0 }}
-                </div>
-            {% endif %}
-            
-            <button type="submit" class="login-btn">
-                <i class="fas fa-sign-in-alt"></i> Login
-            </button>
-        </form>
-        
-        <div class="login-footer">
-            <p>Don't have an account?</p>
-            <a href="{% url 'account_signup' %}" class="register-link">
-                <i class="fas fa-user-plus"></i> Register here
-            </a>
-        </div>
-    </div>
-</div>
+  <div class="login-card">
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Add animation to the login card
-        const loginCard = document.querySelector('.login-card');
-        loginCard.style.opacity = '0';
-        loginCard.style.transform = 'translateY(20px)';
-        
-        setTimeout(() => {
-            loginCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-            loginCard.style.opacity = '1';
-            loginCard.style.transform = 'translateY(0)';
-        }, 100);
-        
-        // Add focus effects to form inputs
-        const formInputs = document.querySelectorAll('.form-input');
-        formInputs.forEach(input => {
-            input.addEventListener('focus', function() {
-                this.parentElement.classList.add('focused');
-            });
-            
-            input.addEventListener('blur', function() {
-                this.parentElement.classList.remove('focused');
-            });
-        });
-    });
-</script>
+    <h2 class="login-title">{% trans "Sign In" %}</h2>
+
+    <form method="POST" action="{% url 'account_login' %}" class="login-form">
+      {% csrf_token %}
+
+      {% if redirect_field_value %}
+        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+      {% endif %}
+
+      {% if form.non_field_errors %}
+        <div class="error-box" role="alert">
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+
+      <div class="form-group">
+        <label for="login">{% trans "Email or Username" %}</label>
+        <input type="text" name="login" id="login" required autocomplete="username" autofocus>
+        {% if form.login.errors %}
+          <ul class="errorlist">
+            {% for error in form.login.errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label for="password">{% trans "Password" %}</label>
+        <input type="password" name="password" id="password" required autocomplete="current-password">
+        {% if form.password.errors %}
+          <ul class="errorlist">
+            {% for error in form.password.errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      <div class="form-options">
+        <label class="remember-me">
+          <input type="checkbox" name="remember">
+          <span>{% trans "Remember Me" %}</span>
+        </label>
+        <a href="{% url 'account_reset_password' %}" class="forgot-password">
+          {% trans "Forgot Password?" %}
+        </a>
+      </div>
+
+      <button type="submit" class="submit-button">
+        {% trans "Sign In" %}
+      </button>
+
+      <div class="signup-link">
+        <p>{% trans "Don't have an account?" %}
+          <a href="{% url 'account_signup' %}">{% trans "Create one" %}</a>
+        </p>
+      </div>
+    </form>
+
+  </div>
+</div>
 {% endblock %}
