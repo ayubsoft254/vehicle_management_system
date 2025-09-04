@@ -12,7 +12,7 @@ urlpatterns = [
     # path('payments/', include('payments.urls')),
     # path('payroll/', include('payroll.urls')),
     # path('expenses/', include('expenses.urls')),
-    # path('auctions/', include('auctions.urls')),
+    path('auctions/', include('auctions.urls')),
     # path('insurance/', include('insurance.urls')),
     # path('documents/', include('documents.urls')),
     # path('reports/', include('reports.urls')),
