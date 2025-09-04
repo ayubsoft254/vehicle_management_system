@@ -1,0 +1,178 @@
+{% load i18n %}
+
+{% block account_content %}
+<style>
+/* Base Styles */
+body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f9fafb;
+}
+
+/* Container */
+.signup-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* Card */
+.signup-card {
+    width: 100%;
+    max-width: 400px;
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+    border-top: 5px solid #047857; /* Green top border */
+}
+
+/* Title */
+.signup-title {
+    text-align: center;
+    color: #047857; /* Green */
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+/* Form */
+.signup-form {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Group */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: #374151; /* Gray-700 */
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db; /* Gray-300 */
+    border-radius: 8px;
+    font-size: 14px;
+    color: #374151;
+    background-color: #f9fafb;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #047857;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.2);
+}
+
+/* Button */
+.submit-button {
+    padding: 10px;
+    background-color: #047857;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-size: 16px;
+    margin-top: 10px;
+}
+
+.submit-button:hover {
+    background-color: #065f46;
+}
+
+/* Error Box */
+.error-box {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+/* Link */
+.login-link {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px;
+}
+
+.login-link a {
+    color: #047857;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.login-link a:hover {
+    text-decoration: underline;
+}
+</style>
+
+<div class="signup-container">
+  <div class="signup-card">
+
+    <h2 class="signup-title">{% trans "Sign Up" %}</h2>
+
+    <form method="POST" action="{% url 'account_signup' %}" class="signup-form">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="error-box">
+          {{ form.non_field_errors }}
+        </div>
+      {% endif %}
+
+      {% for field in form %}
+        <div class="form-group">
+          <label for="{{ field.id_for_label }}">
+            {{ field.label }}
+          </label>
+          {{ field }}
+          {% if field.errors %}
+            <p style="color: #b91c1c; font-size: 12px; margin-top: 5px;">{{ field.errors|striptags }}</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+
+      <div class="mb-4">
+        <label for="id_salutation" class="block text-sm font-medium text-gray-700">Salutation</label>
+        <select name="salutation" id="id_salutation" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-ttu-green focus:border-ttu-green">
+            <option value="" selected>None</option>
+            <option value="Mr.">Mr.</option>
+            <option value="Mrs.">Mrs.</option>
+            <option value="Ms.">Ms.</option>
+            <option value="Dr.">Dr.</option>
+            <option value="Prof.">Prof.</option>
+            <option value="Eng.">Eng.</option>
+            <option value="Hon.">Hon.</option>
+        </select>
+      </div>
+
+      <button type="submit" class="submit-button">
+        {% trans "Create Account" %}
+      </button>
+
+      <div class="login-link">
+        <p>
+          <a href="{% url 'account_login' %}">
+            {% trans "Already have an account? Sign in" %}
+          </a>
+        </p>
+      </div>
+
+    </form>
+
+  </div>
+</div>
+{% endblock %}

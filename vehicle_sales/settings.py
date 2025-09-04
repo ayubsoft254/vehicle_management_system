@@ -137,20 +137,6 @@ AUTH_USER_MODEL = 'core.User'
 
 SITE_ID = 1
 
-
-# Allauth settings (updated for new standard)
-ACCOUNT_EMAIL_VERIFICATION = 'optional'
-ACCOUNT_SIGNUP_FIELDS = [
-    'username*',  # required
-    'email',      # optional (remove * if not required)
-    'password1*', # required
-    'password2*', # required
-]
-ACCOUNT_LOGIN_METHODS = {"username", "email"}
-LOGIN_REDIRECT_URL = '/dashboard/'
-LOGOUT_REDIRECT_URL = '/accounts/login/'
-ACCOUNT_LOGOUT_ON_GET = True
-
 # Crispy Forms
 CRISPY_ALLOWED_TEMPLATE_PACKS = "tailwind"
 CRISPY_TEMPLATE_PACK = "tailwind"
