@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Category Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Category Details</h1>
+    <p><strong>Name:</strong> {{ category.name }}</p>
+    <p><strong>Description:</strong> {{ category.description }}</p>
+    <a href="{% url 'documents:documentcategory-list' %}" class="btn btn-secondary mt-3">Back to Categories</a>
+</div>
+{% endblock %}

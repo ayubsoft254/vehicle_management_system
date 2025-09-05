@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Document Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Document Details</h1>
+    <p><strong>Title:</strong> {{ document.title }}</p>
+    <p><strong>Category:</strong> {{ document.category }}</p>
+    <p><strong>Owner:</strong> {{ document.owner }}</p>
+    <p><strong>Expiry Date:</strong> {{ document.expiry_date|date:'Y-m-d' }}</p>
+    <p><strong>Status:</strong> {% if document.is_expired %}<span class="text-danger">Expired</span>{% else %}<span class="text-success">Valid</span>{% endif %}</p>
+    <p><strong>File:</strong> <a href="{{ document.file.url }}" target="_blank">Download</a></p>
+    <a href="{% url 'documents:document-list' %}" class="btn btn-secondary mt-3">Back to Documents</a>
+</div>
+{% endblock %}
