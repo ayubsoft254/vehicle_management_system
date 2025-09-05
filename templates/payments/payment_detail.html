@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Payment Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Payment Details</h1>
+    <p><strong>Date:</strong> {{ payment.date|date:'Y-m-d' }}</p>
+    <p><strong>Amount:</strong> {{ payment.amount }}</p>
+    <p><strong>Payer:</strong> {{ payment.payer }}</p>
+    <p><strong>Status:</strong> {% if payment.is_overdue %}<span class="text-danger">Overdue</span>{% else %}<span class="text-success">On Time</span>{% endif %}</p>
+    <a href="{% url 'payments:payment-list' %}" class="btn btn-secondary mt-3">Back to Payments</a>
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Template Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Template Details</h1>
+    <p><strong>Name:</strong> {{ template.name }}</p>
+    <p><strong>Subject:</strong> {{ template.subject }}</p>
+    <p><strong>Body:</strong> {{ template.body }}</p>
+    <a href="{% url 'notifications:notificationtemplate-list' %}" class="btn btn-secondary mt-3">Back to Templates</a>
+</div>
+{% endblock %}

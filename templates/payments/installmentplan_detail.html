@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Installment Plan Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Installment Plan Details</h1>
+    <p><strong>Plan Name:</strong> {{ installment_plan.name }}</p>
+    <p><strong>Total Amount:</strong> {{ installment_plan.total_amount }}</p>
+    <p><strong>Total Paid:</strong> {{ installment_plan.total_paid }}</p>
+    <p><strong>Balance Remaining:</strong> {{ installment_plan.balance_remaining }}</p>
+    <p><strong>Status:</strong> {% if installment_plan.is_completed %}<span class="text-success">Completed</span>{% else %}<span class="text-warning">Ongoing</span>{% endif %}</p>
+    <a href="{% url 'payments:installmentplan-list' %}" class="btn btn-secondary mt-3">Back to Installment Plans</a>
+</div>
+{% endblock %}
