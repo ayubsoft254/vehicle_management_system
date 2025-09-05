@@ -3,4 +3,10 @@ from . import views
 
 app_name = 'clients'
 
-urlpatterns = []
+from . import views
+
+urlpatterns = [
+	path('', views.ClientListView.as_view(), name='client-list'),
+	path('create/', views.ClientCreateView.as_view(), name='client-create'),
+	path('<int:pk>/', views.ClientDetailView.as_view(), name='client-detail'),
+]
