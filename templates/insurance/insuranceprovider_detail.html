@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Provider Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Provider Details</h1>
+    <p><strong>Name:</strong> {{ provider.name }}</p>
+    <p><strong>Contact:</strong> {{ provider.contact }}</p>
+    <a href="{% url 'insurance:insuranceprovider-list' %}" class="btn btn-secondary mt-3">Back to Providers</a>
+</div>
+{% endblock %}

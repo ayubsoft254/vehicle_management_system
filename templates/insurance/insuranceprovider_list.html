@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Insurance Providers{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Insurance Providers</h1>
+    <a href="{% url 'insurance:insuranceprovider-create' %}" class="btn btn-primary mb-3">Add Provider</a>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Contact</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for provider in providers %}
+            <tr>
+                <td>{{ provider.name }}</td>
+                <td>{{ provider.contact }}</td>
+                <td>
+                    <a href="{% url 'insurance:insuranceprovider-detail' provider.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3">No providers found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

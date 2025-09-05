@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Insurance Records{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Insurance Records</h1>
+    <a href="{% url 'insurance:insurance-create' %}" class="btn btn-primary mb-3">Add Insurance</a>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Provider</th>
+                <th>Policy Number</th>
+                <th>Vehicle</th>
+                <th>Expiry</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for insurance in insurances %}
+            <tr>
+                <td>{{ insurance.provider }}</td>
+                <td>{{ insurance.policy_number }}</td>
+                <td>{{ insurance.vehicle }}</td>
+                <td>{{ insurance.expiry_date|date:'Y-m-d' }}</td>
+                <td>{% if insurance.is_expired %}<span class="text-danger">Expired</span>{% else %}<span class="text-success">Active</span>{% endif %}</td>
+                <td>
+                    <a href="{% url 'insurance:insurance-detail' insurance.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">No insurance records found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Insurance Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Insurance Details</h1>
+    <p><strong>Provider:</strong> {{ insurance.provider }}</p>
+    <p><strong>Policy Number:</strong> {{ insurance.policy_number }}</p>
+    <p><strong>Vehicle:</strong> {{ insurance.vehicle }}</p>
+    <p><strong>Expiry Date:</strong> {{ insurance.expiry_date|date:'Y-m-d' }}</p>
+    <p><strong>Status:</strong> {% if insurance.is_expired %}<span class="text-danger">Expired</span>{% else %}<span class="text-success">Active</span>{% endif %}</p>
+    <a href="{% url 'insurance:insurance-list' %}" class="btn btn-secondary mt-3">Back to Insurance Records</a>
+</div>
+{% endblock %}
