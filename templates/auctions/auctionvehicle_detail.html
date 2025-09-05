@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Auction Vehicle Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Auction Vehicle Details</h1>
+    <p><strong>Lot Number:</strong> {{ auction_vehicle.lot_number }}</p>
+    <p><strong>Vehicle:</strong> {{ auction_vehicle.vehicle }}</p>
+    <p><strong>Reserve Price:</strong> {{ auction_vehicle.reserve_price }}</p>
+    <p><strong>Starting Bid:</strong> {{ auction_vehicle.starting_bid }}</p>
+    <p><strong>Status:</strong> {{ auction_vehicle.get_status_display }}</p>
+    <p><strong>Valuation Fee:</strong> {{ auction_vehicle.valuation_fee }}</p>
+    <p><strong>Advertisement Fee:</strong> {{ auction_vehicle.advertisement_fee }}</p>
+    <p><strong>Parking Fee:</strong> {{ auction_vehicle.parking_fee }}</p>
+    <p><strong>Other Expenses:</strong> {{ auction_vehicle.other_expenses }}</p>
+    <p><strong>Notes:</strong> {{ auction_vehicle.notes }}</p>
+    <a href="{% url 'auctions:auctionvehicle-list' auction_vehicle.auction.pk %}" class="btn btn-secondary mt-3">Back to Auction Vehicles</a>
+</div>
+{% endblock %}

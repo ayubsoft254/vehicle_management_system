@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Auction Vehicles{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Auction Vehicles</h1>
+    <a href="{% url 'auctions:auctionvehicle-create' %}" class="btn btn-primary mb-3">Add Vehicle to Auction</a>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Lot Number</th>
+                <th>Vehicle</th>
+                <th>Reserve Price</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for auction_vehicle in auction_vehicles %}
+            <tr>
+                <td>{{ auction_vehicle.lot_number }}</td>
+                <td>{{ auction_vehicle.vehicle }}</td>
+                <td>{{ auction_vehicle.reserve_price }}</td>
+                <td>{{ auction_vehicle.get_status_display }}</td>
+                <td>
+                    <a href="{% url 'auctions:auctionvehicle-detail' auction_vehicle.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">No vehicles found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{% url 'auctions:auction-list' %}" class="btn btn-secondary mt-3">Back to Auctions</a>
+</div>
+{% endblock %}

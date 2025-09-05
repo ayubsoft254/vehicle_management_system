@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Auction Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>{{ auction.title }}</h1>
+    <p><strong>Description:</strong> {{ auction.description }}</p>
+    <p><strong>Location:</strong> {{ auction.location }}</p>
+    <p><strong>Start Date:</strong> {{ auction.start_date|date:'Y-m-d H:i' }}</p>
+    <p><strong>End Date:</strong> {{ auction.end_date|date:'Y-m-d H:i' }}</p>
+    <p><strong>Status:</strong> {{ auction.get_status_display }}</p>
+    <p><strong>Registration Fee:</strong> {{ auction.registration_fee }}</p>
+    <hr>
+    <h3>Vehicles in Auction</h3>
+    <a href="{% url 'auctions:auctionvehicle-create' %}" class="btn btn-primary mb-2">Add Vehicle to Auction</a>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Lot Number</th>
+                <th>Vehicle</th>
+                <th>Reserve Price</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for vehicle in auction.auction_vehicles.all %}
+            <tr>
+                <td>{{ vehicle.lot_number }}</td>
+                <td>{{ vehicle.vehicle }}</td>
+                <td>{{ vehicle.reserve_price }}</td>
+                <td>{{ vehicle.get_status_display }}</td>
+                <td>
+                    <a href="{% url 'auctions:auctionvehicle-detail' vehicle.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">No vehicles in this auction.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{% url 'auctions:auction-list' %}" class="btn btn-secondary mt-3">Back to Auctions</a>
+</div>
+{% endblock %}

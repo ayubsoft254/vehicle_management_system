@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Auction Events{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Auction Events</h1>
+    <a href="{% url 'auctions:auction-create' %}" class="btn btn-primary mb-3">Create Auction</a>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Location</th>
+                <th>Start Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for auction in auctions %}
+            <tr>
+                <td>{{ auction.title }}</td>
+                <td>{{ auction.location }}</td>
+                <td>{{ auction.start_date|date:'Y-m-d H:i' }}</td>
+                <td>{{ auction.get_status_display }}</td>
+                <td>
+                    <a href="{% url 'auctions:auction-detail' auction.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">No auctions found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
