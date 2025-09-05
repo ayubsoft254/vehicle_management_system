@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Report Generation Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Report Generation Details</h1>
+    <p><strong>Template:</strong> {{ reportgeneration.template }}</p>
+    <p><strong>Generated At:</strong> {{ reportgeneration.generated_at|date:'Y-m-d H:i' }}</p>
+    <p><strong>Status:</strong> {{ reportgeneration.status }}</p>
+    <a href="{% url 'reports:reportgeneration-list' %}" class="btn btn-secondary mt-3">Back to Report Generations</a>
+</div>
+{% endblock %}

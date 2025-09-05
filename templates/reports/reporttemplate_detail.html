@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Report Template Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Report Template Details</h1>
+    <p><strong>Name:</strong> {{ reporttemplate.name }}</p>
+    <p><strong>Description:</strong> {{ reporttemplate.description }}</p>
+    <p><strong>Created:</strong> {{ reporttemplate.created_at|date:'Y-m-d' }}</p>
+    <a href="{% url 'reports:reporttemplate-list' %}" class="btn btn-secondary mt-3">Back to Report Templates</a>
+</div>
+{% endblock %}

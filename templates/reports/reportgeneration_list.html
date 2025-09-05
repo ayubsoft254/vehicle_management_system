@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Report Generations{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Report Generations</h1>
+    <a href="{% url 'reports:reportgeneration-create' %}" class="btn btn-primary mb-3">Generate Report</a>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Template</th>
+                <th>Generated At</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for reportgeneration in reportgenerations %}
+            <tr>
+                <td>{{ reportgeneration.template }}</td>
+                <td>{{ reportgeneration.generated_at|date:'Y-m-d H:i' }}</td>
+                <td>{{ reportgeneration.status }}</td>
+                <td>
+                    <a href="{% url 'reports:reportgeneration-detail' reportgeneration.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4">No report generations found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
