@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Audit Log Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Audit Log Details</h1>
+    <p><strong>User:</strong> {{ audit_log.user }}</p>
+    <p><strong>Action:</strong> {{ audit_log.get_action_type_display }}</p>
+    <p><strong>Module:</strong> {{ audit_log.module_name }}</p>
+    <p><strong>Description:</strong> {{ audit_log.description }}</p>
+    <p><strong>Timestamp:</strong> {{ audit_log.timestamp|date:'Y-m-d H:i' }}</p>
+    <p><strong>Status:</strong> {% if audit_log.is_successful %}<span class="text-success">Success</span>{% else %}<span class="text-danger">Failed</span>{% endif %}</p>
+    <p><strong>Severity:</strong> {{ audit_log.get_severity_display }}</p>
+    <p><strong>IP Address:</strong> {{ audit_log.ip_address }}</p>
+    <p><strong>Request Method:</strong> {{ audit_log.request_method }}</p>
+    <p><strong>Request URL:</strong> {{ audit_log.request_url }}</p>
+    <p><strong>Changes:</strong> {{ audit_log.get_changes_summary }}</p>
+    <a href="{% url 'audit:auditlog-list' %}" class="btn btn-secondary mt-3">Back to Audit Logs</a>
+</div>
+{% endblock %}

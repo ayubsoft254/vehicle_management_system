@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Data Exports{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Data Exports</h1>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Type</th>
+                <th>Module</th>
+                <th>File Name</th>
+                <th>Timestamp</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for data_export in data_exports %}
+            <tr>
+                <td>{{ data_export.user }}</td>
+                <td>{{ data_export.get_export_type_display }}</td>
+                <td>{{ data_export.module_name }}</td>
+                <td>{{ data_export.file_name }}</td>
+                <td>{{ data_export.timestamp|date:'Y-m-d H:i' }}</td>
+                <td>
+                    <a href="{% url 'audit:dataexport-detail' data_export.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">No data exports found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

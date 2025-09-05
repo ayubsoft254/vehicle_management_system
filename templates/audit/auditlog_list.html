@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Audit Logs{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Audit Logs</h1>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Action</th>
+                <th>Module</th>
+                <th>Timestamp</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for audit_log in audit_logs %}
+            <tr>
+                <td>{{ audit_log.user }}</td>
+                <td>{{ audit_log.get_action_type_display }}</td>
+                <td>{{ audit_log.module_name }}</td>
+                <td>{{ audit_log.timestamp|date:'Y-m-d H:i' }}</td>
+                <td>{% if audit_log.is_successful %}<span class="text-success">Success</span>{% else %}<span class="text-danger">Failed</span>{% endif %}</td>
+                <td>
+                    <a href="{% url 'audit:auditlog-detail' audit_log.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">No audit logs found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

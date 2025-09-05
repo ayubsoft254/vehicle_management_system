@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Login Attempts{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Login Attempts</h1>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>IP Address</th>
+                <th>Status</th>
+                <th>Timestamp</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for login_attempt in login_attempts %}
+            <tr>
+                <td>{{ login_attempt.username }}</td>
+                <td>{{ login_attempt.ip_address }}</td>
+                <td>{% if login_attempt.is_successful %}<span class="text-success">Success</span>{% else %}<span class="text-danger">Failed</span>{% endif %}</td>
+                <td>{{ login_attempt.timestamp|date:'Y-m-d H:i' }}</td>
+                <td>
+                    <a href="{% url 'audit:loginattempt-detail' login_attempt.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">No login attempts found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}User Sessions{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">User Sessions</h1>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Session Key</th>
+                <th>IP Address</th>
+                <th>Login Time</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user_session in user_sessions %}
+            <tr>
+                <td>{{ user_session.user }}</td>
+                <td>{{ user_session.session_key }}</td>
+                <td>{{ user_session.ip_address }}</td>
+                <td>{{ user_session.login_time|date:'Y-m-d H:i' }}</td>
+                <td>{% if user_session.is_active %}<span class="text-success">Active</span>{% else %}<span class="text-danger">Inactive</span>{% endif %}</td>
+                <td>
+                    <a href="{% url 'audit:usersession-detail' user_session.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">No user sessions found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

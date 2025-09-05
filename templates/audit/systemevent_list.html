@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}System Events{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">System Events</h1>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Severity</th>
+                <th>Timestamp</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for system_event in system_events %}
+            <tr>
+                <td>{{ system_event.get_event_type_display }}</td>
+                <td>{{ system_event.description }}</td>
+                <td>{{ system_event.get_severity_display }}</td>
+                <td>{{ system_event.timestamp|date:'Y-m-d H:i' }}</td>
+                <td>{% if system_event.resolved %}<span class="text-success">Resolved</span>{% else %}<span class="text-warning">Unresolved</span>{% endif %}</td>
+                <td>
+                    <a href="{% url 'audit:systemevent-detail' system_event.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">No system events found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Login Attempt Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Login Attempt Details</h1>
+    <p><strong>Username:</strong> {{ login_attempt.username }}</p>
+    <p><strong>IP Address:</strong> {{ login_attempt.ip_address }}</p>
+    <p><strong>Status:</strong> {% if login_attempt.is_successful %}<span class="text-success">Success</span>{% else %}<span class="text-danger">Failed</span>{% endif %}</p>
+    <p><strong>Timestamp:</strong> {{ login_attempt.timestamp|date:'Y-m-d H:i' }}</p>
+    <p><strong>User Agent:</strong> {{ login_attempt.user_agent }}</p>
+    <p><strong>Failure Reason:</strong> {{ login_attempt.failure_reason }}</p>
+    <a href="{% url 'audit:loginattempt-list' %}" class="btn btn-secondary mt-3">Back to Login Attempts</a>
+</div>
+{% endblock %}

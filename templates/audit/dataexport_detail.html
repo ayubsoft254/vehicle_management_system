@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Data Export Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Data Export Details</h1>
+    <p><strong>User:</strong> {{ data_export.user }}</p>
+    <p><strong>Type:</strong> {{ data_export.get_export_type_display }}</p>
+    <p><strong>Module:</strong> {{ data_export.module_name }}</p>
+    <p><strong>Description:</strong> {{ data_export.description }}</p>
+    <p><strong>File Name:</strong> {{ data_export.file_name }}</p>
+    <p><strong>File Size:</strong> {{ data_export.formatted_file_size }}</p>
+    <p><strong>Record Count:</strong> {{ data_export.record_count }}</p>
+    <p><strong>Timestamp:</strong> {{ data_export.timestamp|date:'Y-m-d H:i' }}</p>
+    <p><strong>IP Address:</strong> {{ data_export.ip_address }}</p>
+    <a href="{% url 'audit:dataexport-list' %}" class="btn btn-secondary mt-3">Back to Data Exports</a>
+</div>
+{% endblock %}
