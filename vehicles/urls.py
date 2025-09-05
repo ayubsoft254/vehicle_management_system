@@ -4,6 +4,8 @@ from .views import (
 	add_vehicle_image, delete_vehicle_image, add_vehicle_expense, delete_vehicle_expense
 )
 
+app_name = 'vehicles'
+
 urlpatterns = [
 	path('', VehicleListView.as_view(), name='vehicle-list'),
 	path('add/', VehicleCreateView.as_view(), name='vehicle-add'),

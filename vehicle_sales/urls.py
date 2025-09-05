@@ -16,6 +16,8 @@ urlpatterns = [
     path('insurance/', include('insurance.urls')),
     path('documents/', include('documents.urls')),
     path('reports/', include('reports.urls')),
+    path('notifications/', include('notifications.urls')),
+    path('audit/', include('audit.urls')),
 ]
 
 if settings.DEBUG:
