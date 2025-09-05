@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Employee Loans{% endblock %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Employee Loans</h1>
+    <a href="{% url 'payroll:employeeloan-create' %}" class="btn btn-primary mb-3">Add Employee Loan</a>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for employeeloan in employeeloans %}
+            <tr>
+                <td>{{ employeeloan.employee }}</td>
+                <td>{{ employeeloan.amount }}</td>
+                <td>{{ employeeloan.date|date:'Y-m-d' }}</td>
+                <td>{% if employeeloan.is_repaid %}<span class="text-success">Repaid</span>{% else %}<span class="text-warning">Outstanding</span>{% endif %}</td>
+                <td>
+                    <a href="{% url 'payroll:employeeloan-detail' employeeloan.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">No employee loans found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

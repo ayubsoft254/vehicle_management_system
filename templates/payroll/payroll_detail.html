@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Payroll Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Payroll Details</h1>
+    <p><strong>Employee:</strong> {{ payroll.employee }}</p>
+    <p><strong>Amount:</strong> {{ payroll.amount }}</p>
+    <p><strong>Date:</strong> {{ payroll.date|date:'Y-m-d' }}</p>
+    <p><strong>Status:</strong> {% if payroll.is_paid %}<span class="text-success">Paid</span>{% else %}<span class="text-warning">Pending</span>{% endif %}</p>
+    <a href="{% url 'payroll:payroll-list' %}" class="btn btn-secondary mt-3">Back to Payrolls</a>
+</div>
+{% endblock %}

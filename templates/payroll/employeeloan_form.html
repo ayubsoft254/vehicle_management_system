@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Add Employee Loan{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Add Employee Loan</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Add Employee Loan</button>
+        <a href="{% url 'payroll:employeeloan-list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

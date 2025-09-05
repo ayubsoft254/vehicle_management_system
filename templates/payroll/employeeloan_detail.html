@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Employee Loan Details{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>Employee Loan Details</h1>
+    <p><strong>Employee:</strong> {{ employeeloan.employee }}</p>
+    <p><strong>Amount:</strong> {{ employeeloan.amount }}</p>
+    <p><strong>Date:</strong> {{ employeeloan.date|date:'Y-m-d' }}</p>
+    <p><strong>Status:</strong> {% if employeeloan.is_repaid %}<span class="text-success">Repaid</span>{% else %}<span class="text-warning">Outstanding</span>{% endif %}</p>
+    <a href="{% url 'payroll:employeeloan-list' %}" class="btn btn-secondary mt-3">Back to Employee Loans</a>
+</div>
+{% endblock %}
