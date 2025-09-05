@@ -13,11 +13,12 @@ class User(AbstractUser):
         ('auctioneer', 'Auctioneer'),
         ('manager', 'Manager'),
         ('clerk', 'Clerk'),
+        ('client', 'Client'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     phone = PhoneNumberField(blank=True, null=True)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='clerk')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='client')
     employee_id = models.CharField(max_length=20, unique=True, blank=True, null=True)
     department = models.CharField(max_length=50, blank=True)
     hire_date = models.DateField(blank=True, null=True)
