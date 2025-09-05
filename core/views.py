@@ -87,3 +87,6 @@ class CompanyDetailView(DetailView):
 	model = Company
 	template_name = 'dashboard/company_detail.html'
 	context_object_name = 'company'
+
+def contact(request):
+	return render(request, 'dashboard/contact.html')

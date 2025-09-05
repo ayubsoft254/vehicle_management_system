@@ -2,7 +2,7 @@ from django.urls import path, include
 from .views import (
     DashboardView, LandingPageView,
     UserListView, UserDetailView,
-    CompanyListView, CompanyDetailView,
+    CompanyListView, CompanyDetailView, contact
 )
 
 urlpatterns = [
@@ -19,4 +19,5 @@ urlpatterns = [
     # Company Management
     path('companies/', CompanyListView.as_view(), name='company-list'),
     path('companies/<int:pk>/', CompanyDetailView.as_view(), name='company-detail'),
+    path('contact/', contact, name='contact'),
 ]
