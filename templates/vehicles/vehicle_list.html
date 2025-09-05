@@ -3,7 +3,7 @@
 {% block content %}
 <div class="flex justify-between items-center mb-6">
     <h1 class="text-3xl font-bold">Vehicles</h1>
-    <a href="{% url 'vehicle-add' %}" class="btn btn-primary">Add Vehicle</a>
+    <a href="{% url 'vehicles:vehicle-add' %}" class="btn btn-primary">Add Vehicle</a>
 </div>
 <table class="min-w-full bg-white rounded shadow overflow-hidden">
     <thead class="bg-gray-100">
@@ -25,9 +25,9 @@
             <td class="px-4 py-2">{{ vehicle.vin }}</td>
             <td class="px-4 py-2">{{ vehicle.get_status_display }}</td>
             <td class="px-4 py-2">
-                <a href="{% url 'vehicle-detail' vehicle.pk %}" class="text-blue-600 hover:underline">View</a>
-                <a href="{% url 'vehicle-edit' vehicle.pk %}" class="text-yellow-600 hover:underline ml-2">Edit</a>
-                <a href="{% url 'vehicle-delete' vehicle.pk %}" class="text-red-600 hover:underline ml-2">Delete</a>
+                <a href="{% url 'vehicles:vehicle-detail' vehicle.pk %}" class="text-blue-600 hover:underline">View</a>
+                <a href="{% url 'vehicles:vehicle-edit' vehicle.pk %}" class="text-yellow-600 hover:underline ml-2">Edit</a>
+                <a href="{% url 'vehicles:vehicle-delete' vehicle.pk %}" class="text-red-600 hover:underline ml-2">Delete</a>
             </td>
         </tr>
         {% empty %}
