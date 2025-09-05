@@ -134,6 +134,10 @@ USE_TZ = True
 # Use custom user model
 AUTH_USER_MODEL = 'core.User'
 
+# Django Allauth settings
+
+LOGIN_REDIRECT_URL = 'dashboard'
+
 
 SITE_ID = 1
 

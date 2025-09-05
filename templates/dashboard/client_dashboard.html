@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Client Dashboard{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px; margin:0 auto; padding:2rem;">
+    <h1 style="font-size:2rem; font-weight:700; color:var(--primary); margin-bottom:1.5rem;">Welcome, {{ user.get_full_name }}</h1>
+    <div style="margin-bottom:2rem;">
+        <h2 style="font-size:1.3rem; font-weight:600; margin-bottom:1rem;">My Vehicles</h2>
+        {% if my_vehicles %}
+        <table class="table table-striped" style="width:100%;">
+            <thead>
+                <tr>
+                    <th>Make</th>
+                    <th>Model</th>
+                    <th>Year</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in my_vehicles %}
+                <tr>
+                    <td>{{ v.make }}</td>
+                    <td>{{ v.model }}</td>
+                    <td>{{ v.year }}</td>
+                    <td>{{ v.get_status_display }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No vehicles assigned to you.</p>
+        {% endif %}
+    </div>
+    <div style="margin-bottom:2rem;">
+        <h2 style="font-size:1.3rem; font-weight:600; margin-bottom:1rem;">My Payments</h2>
+        {% if my_payments %}
+        <table class="table table-striped" style="width:100%;">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in my_payments %}
+                <tr>
+                    <td>{{ p.date|date:'Y-m-d' }}</td>
+                    <td>{{ p.amount }}</td>
+                    <td>{{ p.status }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No payments found.</p>
+        {% endif %}
+    </div>
+    <div>
+        <h2 style="font-size:1.3rem; font-weight:600; margin-bottom:1rem;">Notifications</h2>
+        {% if my_notifications %}
+        <ul>
+            {% for n in my_notifications %}
+            <li>{{ n.message }} <span style="color:var(--gray); font-size:0.9rem;">({{ n.created_at|date:'Y-m-d H:i' }})</span></li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No notifications.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
