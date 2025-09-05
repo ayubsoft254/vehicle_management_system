@@ -374,12 +374,36 @@
             <a href="{% url 'vehicles:vehicle-add' %}" class="action-btn action-btn-primary">
                 <i class="fas fa-plus"></i> Add Vehicle
             </a>
-            <a href="{% url 'vehicles:vehicle-list' %}" class="action-btn action-btn-secondary">
-                <i class="fas fa-cog"></i> Manage Vehicles
+            <a href="{% url 'auctions:auction-create' %}" class="action-btn action-btn-primary">
+                <i class="fas fa-gavel"></i> Create Auction
+            </a>
+            <a href="{% url 'clients:client-create' %}" class="action-btn action-btn-primary">
+                <i class="fas fa-user-plus"></i> Add Client
+            </a>
+            <a href="{% url 'payments:payment-create' %}" class="action-btn action-btn-primary">
+                <i class="fas fa-money-bill-wave"></i> Add Payment
+            </a>
+            <a href="{% url 'payroll:payroll-create' %}" class="action-btn action-btn-primary">
+                <i class="fas fa-briefcase"></i> Add Payroll
+            </a>
+            <a href="{% url 'insurance:insurance-create' %}" class="action-btn action-btn-primary">
+                <i class="fas fa-shield-alt"></i> Add Insurance
+            </a>
+            <a href="{% url 'expenses:expense-create' %}" class="action-btn action-btn-primary">
+                <i class="fas fa-receipt"></i> Add Expense
+            </a>
+            <a href="{% url 'documents:document-create' %}" class="action-btn action-btn-primary">
+                <i class="fas fa-file-alt"></i> Add Document
+            </a>
+            <a href="{% url 'notifications:notification-create' %}" class="action-btn action-btn-primary">
+                <i class="fas fa-bell"></i> Add Notification
+            </a>
+            <a href="{% url 'reports:reportgeneration-create' %}" class="action-btn action-btn-primary">
+                <i class="fas fa-chart-bar"></i> Generate Report
             </a>
         </div>
     </div>
-    
+
     <div class="recent-section">
         <h2>Recently Added Vehicles</h2>
         <div class="overflow-x-auto">
@@ -405,7 +429,7 @@
                             </span>
                         </td>
                         <td>
-                            <a href="{% url 'vehicle-detail' v.pk %}" class="view-link">
+                            <a href="{% url 'vehicles:vehicle-detail' v.pk %}" class="view-link">
                                 <i class="fas fa-external-link-alt"></i> View
                             </a>
                         </td>
@@ -416,6 +440,125 @@
                             <div class="empty-state">
                                 <i class="fas fa-car"></i>
                                 <p>No recent vehicles found.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="recent-section" style="margin-top:2rem;">
+        <h2>Recent Payments</h2>
+        <div class="overflow-x-auto">
+            <table class="vehicle-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Payer</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in recent_payments %}
+                    <tr>
+                        <td>{{ p.date|date:'Y-m-d' }}</td>
+                        <td>{{ p.amount }}</td>
+                        <td>{{ p.payer }}</td>
+                        <td>{{ p.status }}</td>
+                        <td>
+                            <a href="{% url 'payments:payment-detail' p.pk %}" class="view-link">
+                                <i class="fas fa-external-link-alt"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="fas fa-money-bill"></i>
+                                <p>No recent payments found.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="recent-section" style="margin-top:2rem;">
+        <h2>Recent Clients</h2>
+        <div class="overflow-x-auto">
+            <table class="vehicle-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in recent_clients %}
+                    <tr>
+                        <td>{{ c.name }}</td>
+                        <td>{{ c.email }}</td>
+                        <td>{{ c.phone }}</td>
+                        <td>
+                            <a href="{% url 'clients:client-detail' c.pk %}" class="view-link">
+                                <i class="fas fa-external-link-alt"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4">
+                            <div class="empty-state">
+                                <i class="fas fa-users"></i>
+                                <p>No recent clients found.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="recent-section" style="margin-top:2rem;">
+        <h2>Recent Auctions</h2>
+        <div class="overflow-x-auto">
+            <table class="vehicle-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in recent_auctions %}
+                    <tr>
+                        <td>{{ a.title }}</td>
+                        <td>{{ a.date|date:'Y-m-d' }}</td>
+                        <td>{{ a.status }}</td>
+                        <td>
+                            <a href="{% url 'auctions:auction-detail' a.pk %}" class="view-link">
+                                <i class="fas fa-external-link-alt"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4">
+                            <div class="empty-state">
+                                <i class="fas fa-gavel"></i>
+                                <p>No recent auctions found.</p>
                             </div>
                         </td>
                     </tr>
