@@ -1,34 +1,296 @@
 {% extends 'base.html' %}
-{% block title %}Expenses{% endblock %}
+{% block title %}Expenses - Vehicle Management{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1 class="mb-4">Expenses</h1>
-    <a href="{% url 'expenses:expense-create' %}" class="btn btn-primary mb-3">Add Expense</a>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>Description</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for expense in expenses %}
-            <tr>
-                <td>{{ expense.date|date:'Y-m-d' }}</td>
-                <td>{{ expense.category }}</td>
-                <td>{{ expense.amount }}</td>
-                <td>{{ expense.description }}</td>
-                <td>
-                    <a href="{% url 'expenses:expense-detail' expense.pk %}" class="btn btn-outline-primary btn-sm">View</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5">No expenses found.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<style>
+    .expenses-container {
+        min-height: 80vh;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    }
+    
+    .expenses-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 1000px;
+        margin: 0 auto;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .expenses-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .expenses-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+    }
+    
+    .expenses-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .expenses-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #2563eb 0%, #7e22ce 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+    }
+    
+    .expenses-header h1 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    
+    .add-expense-btn {
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .add-expense-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .add-expense-btn:active {
+        transform: translateY(0);
+    }
+    
+    .expenses-table-container {
+        overflow-x: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    .expenses-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+    
+    .expenses-table thead {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    }
+    
+    .expenses-table th {
+        padding: 1rem 1.5rem;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.9rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .expenses-table td {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #f3f4f6;
+        color: #4b5563;
+    }
+    
+    .expenses-table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .expenses-table tbody tr:hover {
+        background-color: #f9fafb;
+    }
+    
+    .amount-cell {
+        font-weight: 600;
+        color: #059669;
+    }
+    
+    .view-btn {
+        padding: 0.5rem 1rem;
+        background: transparent;
+        color: #2563eb;
+        border: 1px solid #2563eb;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .view-btn:hover {
+        background-color: #2563eb;
+        color: white;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #6b7280;
+    }
+    
+    .empty-state i {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: #d1d5db;
+    }
+    
+    .empty-state p {
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .expenses-card {
+            padding: 2rem 1.5rem;
+        }
+        
+        .expenses-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        
+        .expenses-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .add-expense-btn {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .expenses-table th,
+        .expenses-table td {
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+        }
+        
+        /* Hide description on mobile for better space */
+        .description-column {
+            display: none;
+        }
+    }
+</style>
+
+<div class="expenses-container">
+    <div class="expenses-card">
+        <div class="expenses-header">
+            <div class="expenses-title">
+                <div class="expenses-icon">
+                    <i class="fas fa-receipt"></i>
+                </div>
+                <h1>Expenses</h1>
+            </div>
+            <a href="{% url 'expenses:expense-create' %}" class="add-expense-btn">
+                <i class="fas fa-plus"></i> Add Expense
+            </a>
+        </div>
+
+        <div class="expenses-table-container">
+            <table class="expenses-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Amount</th>
+                        <th class="description-column">Description</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr>
+                        <td>{{ expense.date|date:'Y-m-d' }}</td>
+                        <td>{{ expense.category }}</td>
+                        <td class="amount-cell">${{ expense.amount }}</td>
+                        <td class="description-column">{{ expense.description|truncatewords:5 }}</td>
+                        <td style="text-align: center;">
+                            <a href="{% url 'expenses:expense-detail' expense.pk %}" class="view-btn">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                                <p>No expenses found.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the expenses card
+        const expensesCard = document.querySelector('.expenses-card');
+        expensesCard.style.opacity = '0';
+        expensesCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            expensesCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            expensesCard.style.opacity = '1';
+            expensesCard.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Add hover effects to table rows
+        const tableRows = document.querySelectorAll('.expenses-table tbody tr');
+        tableRows.forEach(row => {
+            row.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(4px)';
+                this.style.transition = 'transform 0.2s ease';
+            });
+            
+            row.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+            });
+        });
+        
+        // Format currency amounts
+        const amountCells = document.querySelectorAll('.amount-cell');
+        amountCells.forEach(cell => {
+            let amount = cell.textContent.replace('$', '');
+            if (!isNaN(parseFloat(amount))) {
+                cell.textContent = '$' + parseFloat(amount).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+        });
+    });
+</script>
 {% endblock %}

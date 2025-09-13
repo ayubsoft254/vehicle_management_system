@@ -1,17 +1,389 @@
 {% extends 'base.html' %}
-{% block title %}User Session Details{% endblock %}
+{% block title %}User Session Details - Vehicle Management{% endblock %}
 {% block content %}
-<div class="container">
-    <h1>User Session Details</h1>
-    <p><strong>User:</strong> {{ user_session.user }}</p>
-    <p><strong>Session Key:</strong> {{ user_session.session_key }}</p>
-    <p><strong>IP Address:</strong> {{ user_session.ip_address }}</p>
-    <p><strong>Login Time:</strong> {{ user_session.login_time|date:'Y-m-d H:i' }}</p>
-    <p><strong>Last Activity:</strong> {{ user_session.last_activity|date:'Y-m-d H:i' }}</p>
-    <p><strong>Logout Time:</strong> {{ user_session.logout_time|date:'Y-m-d H:i' }}</p>
-    <p><strong>Status:</strong> {% if user_session.is_active %}<span class="text-success">Active</span>{% else %}<span class="text-danger">Inactive</span>{% endif %}</p>
-    <p><strong>User Agent:</strong> {{ user_session.user_agent }}</p>
-    <p><strong>Session Duration:</strong> {{ user_session.session_duration }}</p>
-    <a href="{% url 'audit:usersession-list' %}" class="btn btn-secondary mt-3">Back to User Sessions</a>
+<style>
+    .user-session-container {
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        min-height: 80vh;
+    }
+    
+    .user-session-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        position: relative;
+        overflow: hidden;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .user-session-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .user-session-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .user-session-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .status-active {
+        background-color: #dcfce7;
+        color: #166534;
+    }
+    
+    .status-inactive {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .detail-card {
+        padding: 1.5rem;
+        background-color: #f8fafc;
+        border-radius: 12px;
+        border-left: 4px solid #2563eb;
+    }
+    
+    .detail-card h3 {
+        font-size: 1rem;
+        color: #6b7280;
+        margin-bottom: 1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .detail-item:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+    
+    .detail-label {
+        font-weight: 500;
+        color: #6b7280;
+        flex: 1;
+    }
+    
+    .detail-value {
+        font-weight: 600;
+        color: #1e293b;
+        text-align: right;
+        flex: 2;
+    }
+    
+    .session-timeline {
+        background-color: #f8fafc;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border-left: 4px solid #7e22ce;
+    }
+    
+    .session-timeline h3 {
+        font-size: 1rem;
+        color: #6b7280;
+        margin-bottom: 1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .timeline-items {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .timeline-item {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+        text-align: center;
+    }
+    
+    .timeline-label {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+    
+    .timeline-value {
+        font-size: 0.9rem;
+        color: #1e293b;
+        font-weight: 600;
+    }
+    
+    .user-agent-section {
+        background-color: #f8fafc;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border-left: 4px solid #10b981;
+    }
+    
+    .user-agent-section h3 {
+        font-size: 1rem;
+        color: #6b7280;
+        margin-bottom: 1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .user-agent-content {
+        background-color: white;
+        border-radius: 8px;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+        font-family: monospace;
+        font-size: 0.9rem;
+        color: #374151;
+        word-break: break-all;
+    }
+    
+    .session-duration {
+        background: linear-gradient(135deg, #f8fafc 0%, #e5e7eb 100%);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        text-align: center;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .duration-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2563eb;
+        margin-bottom: 0.5rem;
+    }
+    
+    .duration-label {
+        font-size: 0.9rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+    
+    .back-btn {
+        padding: 0.875rem 1.75rem;
+        background: white;
+        color: #6b7280;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        margin-top: 2rem;
+    }
+    
+    .back-btn:hover {
+        background-color: #f9fafb;
+        border-color: #9ca3af;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .user-session-header {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .details-grid, .timeline-items {
+            grid-template-columns: 1fr;
+        }
+        
+        .detail-item {
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .detail-value {
+            text-align: left;
+        }
+    }
+</style>
+
+<div class="user-session-container">
+    <div class="user-session-card">
+        <div class="user-session-header">
+            <h1 class="user-session-title">User Session Details</h1>
+            <span class="status-badge status-{% if user_session.is_active %}active{% else %}inactive{% endif %}">
+                <i class="fas fa-{% if user_session.is_active %}play-circle{% else %}stop-circle{% endif %}"></i> 
+                {% if user_session.is_active %}Active{% else %}Inactive{% endif %}
+            </span>
+        </div>
+        
+        <div class="details-grid">
+            <div class="detail-card">
+                <h3>User Information</h3>
+                <div class="detail-item">
+                    <span class="detail-label">User</span>
+                    <span class="detail-value">{{ user_session.user }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Session Key</span>
+                    <span class="detail-value">{{ user_session.session_key }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">IP Address</span>
+                    <span class="detail-value">{{ user_session.ip_address }}</span>
+                </div>
+            </div>
+            
+            <div class="detail-card">
+                <h3>Session Status</h3>
+                <div class="detail-item">
+                    <span class="detail-label">Status</span>
+                    <span class="detail-value">
+                        {% if user_session.is_active %}
+                        <span class="status-badge status-active">
+                            <i class="fas fa-play-circle"></i> Active
+                        </span>
+                        {% else %}
+                        <span class="status-badge status-inactive">
+                            <i class="fas fa-stop-circle"></i> Inactive
+                        </span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Session Duration</span>
+                    <span class="detail-value">{{ user_session.session_duration }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="session-timeline">
+            <h3>
+                <i class="fas fa-clock"></i> Session Timeline
+            </h3>
+            <div class="timeline-items">
+                <div class="timeline-item">
+                    <div class="timeline-label">Login Time</div>
+                    <div class="timeline-value">{{ user_session.login_time|date:'Y-m-d H:i' }}</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-label">Last Activity</div>
+                    <div class="timeline-value">{{ user_session.last_activity|date:'Y-m-d H:i' }}</div>
+                </div>
+                {% if user_session.logout_time %}
+                <div class="timeline-item">
+                    <div class="timeline-label">Logout Time</div>
+                    <div class="timeline-value">{{ user_session.logout_time|date:'Y-m-d H:i' }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="session-duration">
+            <div class="duration-number">{{ user_session.session_duration }}</div>
+            <div class="duration-label">Total Session Duration</div>
+        </div>
+        
+        <div class="user-agent-section">
+            <h3>
+                <i class="fas fa-desktop"></i> User Agent Information
+            </h3>
+            <div class="user-agent-content">
+                {{ user_session.user_agent }}
+            </div>
+        </div>
+        
+        <a href="{% url 'audit:usersession-list' %}" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to User Sessions
+        </a>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the user session card
+        const userSessionCard = document.querySelector('.user-session-card');
+        userSessionCard.style.opacity = '0';
+        userSessionCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            userSessionCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            userSessionCard.style.opacity = '1';
+            userSessionCard.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Format session duration if it's in seconds
+        const durationElement = document.querySelector('.duration-number');
+        if (durationElement) {
+            const duration = durationElement.textContent.trim();
+            // If duration is in seconds, convert to more readable format
+            if (duration && !isNaN(duration) && duration.includes(':')) {
+                const parts = duration.split(':');
+                if (parts.length === 3) {
+                    const hours = parseInt(parts[0]);
+                    const minutes = parseInt(parts[1]);
+                    const seconds = parseInt(parts[2]);
+                    
+                    let formattedDuration = '';
+                    if (hours > 0) formattedDuration += hours + 'h ';
+                    if (minutes > 0) formattedDuration += minutes + 'm ';
+                    if (seconds > 0) formattedDuration += seconds + 's';
+                    
+                    if (formattedDuration) {
+                        durationElement.textContent = formattedDuration.trim();
+                    }
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}

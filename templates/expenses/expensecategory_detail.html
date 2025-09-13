@@ -1,10 +1,193 @@
 {% extends 'base.html' %}
-{% block title %}Category Details{% endblock %}
+{% block title %}Category Details - Vehicle Management{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1>Category Details</h1>
-    <p><strong>Name:</strong> {{ category.name }}</p>
-    <p><strong>Description:</strong> {{ category.description }}</p>
-    <a href="{% url 'expenses:expensecategory-list' %}" class="btn btn-secondary mt-3">Back to Categories</a>
+<style>
+    .category-detail-container {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    }
+    
+    .category-detail-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 600px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .category-detail-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .category-detail-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .category-detail-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #2563eb 0%, #7e22ce 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+    }
+    
+    .category-detail-header h1 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    
+    .category-details {
+        margin-bottom: 2rem;
+    }
+    
+    .detail-item {
+        display: flex;
+        flex-direction: column;
+        padding: 1.25rem 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .detail-item:last-child {
+        border-bottom: none;
+    }
+    
+    .detail-label {
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .detail-value {
+        color: #4b5563;
+        line-height: 1.6;
+    }
+    
+    .back-btn {
+        padding: 0.875rem 1.5rem;
+        background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .back-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .back-btn:active {
+        transform: translateY(0);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 640px) {
+        .category-detail-card {
+            padding: 2rem 1.5rem;
+        }
+        
+        .category-detail-header {
+            flex-direction: column;
+            text-align: center;
+            gap: 0.75rem;
+        }
+        
+        .category-detail-header h1 {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+
+<div class="category-detail-container">
+    <div class="category-detail-card">
+        <div class="category-detail-header">
+            <div class="category-detail-icon">
+                <i class="fas fa-folder"></i>
+            </div>
+            <h1>Category Details</h1>
+        </div>
+
+        <div class="category-details">
+            <div class="detail-item">
+                <span class="detail-label">Name:</span>
+                <span class="detail-value">{{ category.name }}</span>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">Description:</span>
+                <span class="detail-value">
+                    {% if category.description %}
+                        {{ category.description }}
+                    {% else %}
+                        <span class="text-gray-400">No description provided</span>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <a href="{% url 'expenses:expensecategory-list' %}" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Back to Categories
+            </a>
+        </div>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the category detail card
+        const categoryDetailCard = document.querySelector('.category-detail-card');
+        categoryDetailCard.style.opacity = '0';
+        categoryDetailCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            categoryDetailCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            categoryDetailCard.style.opacity = '1';
+            categoryDetailCard.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Add subtle animation to detail items
+        const detailItems = document.querySelectorAll('.detail-item');
+        detailItems.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(-10px)';
+            
+            setTimeout(() => {
+                item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                item.style.opacity = '1';
+                item.style.transform = 'translateX(0)';
+            }, 150 + (index * 100));
+        });
+    });
+</script>
 {% endblock %}

@@ -1,12 +1,303 @@
 {% extends 'base.html' %}
 {% block title %}Payment Details{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1>Payment Details</h1>
-    <p><strong>Date:</strong> {{ payment.date|date:'Y-m-d' }}</p>
-    <p><strong>Amount:</strong> {{ payment.amount }}</p>
-    <p><strong>Payer:</strong> {{ payment.payer }}</p>
-    <p><strong>Status:</strong> {% if payment.is_overdue %}<span class="text-danger">Overdue</span>{% else %}<span class="text-success">On Time</span>{% endif %}</p>
-    <a href="{% url 'payments:payment-list' %}" class="btn btn-secondary mt-3">Back to Payments</a>
+<style>
+    .details-container {
+        min-height: calc(100vh - 120px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    }
+    
+    .details-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 600px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .details-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .details-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .details-icon {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #2563eb 0%, #7e22ce 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        color: white;
+        font-size: 1.8rem;
+    }
+    
+    .details-header h1 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+    }
+    
+    .details-header p {
+        color: #64748b;
+        font-size: 0.95rem;
+    }
+    
+    /* Details content */
+    .details-content {
+        margin-bottom: 2rem;
+        background: #f9fafb;
+        border-radius: 12px;
+        padding: 1.5rem;
+    }
+    
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .detail-item:last-child {
+        border-bottom: none;
+    }
+    
+    .detail-label {
+        font-weight: 600;
+        color: #374151;
+        font-size: 1rem;
+    }
+    
+    .detail-value {
+        color: #4b5563;
+        font-size: 1rem;
+        text-align: right;
+    }
+    
+    /* Status badges */
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .status-ontime {
+        background-color: #dcfce7;
+        color: #166534;
+    }
+    
+    .status-overdue {
+        background-color: #fee2e2;
+        color: #b91c1c;
+    }
+    
+    /* Amount styling */
+    .amount-positive {
+        color: #059669;
+        font-weight: 600;
+    }
+    
+    /* Action buttons */
+    .details-actions {
+        display: flex;
+        justify-content: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .btn-secondary {
+        padding: 0.875rem 1.5rem;
+        background: #6b7280;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(108, 115, 128, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .btn-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(108, 115, 128, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    /* Additional info styling */
+    .additional-info {
+        background: #fef3c7;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1.5rem;
+        border-left: 4px solid #f59e0b;
+    }
+    
+    .additional-info p {
+        color: #92400e;
+        font-size: 0.9rem;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 640px) {
+        .details-card {
+            padding: 2rem 1.5rem;
+        }
+        
+        .details-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .detail-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        .detail-value {
+            text-align: left;
+            width: 100%;
+        }
+        
+        .btn-secondary {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="details-container">
+    <div class="details-card">
+        <div class="details-header">
+            <div class="details-icon">
+                <i class="fas fa-receipt"></i>
+            </div>
+            <h1>Payment Details</h1>
+            <p>View detailed information about this payment</p>
+        </div>
+        
+        <div class="details-content">
+            <div class="detail-item">
+                <span class="detail-label">Date:</span>
+                <span class="detail-value">{{ payment.date|date:'Y-m-d' }}</span>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">Amount:</span>
+                <span class="detail-value amount-positive">{{ payment.amount }}</span>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">Payer:</span>
+                <span class="detail-value">{{ payment.payer }}</span>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">Status:</span>
+                <span class="detail-value">
+                    {% if payment.is_overdue %}
+                        <span class="status-badge status-overdue">
+                            <i class="fas fa-exclamation-triangle"></i> Overdue
+                        </span>
+                    {% else %}
+                        <span class="status-badge status-ontime">
+                            <i class="fas fa-check-circle"></i> On Time
+                        </span>
+                    {% endif %}
+                </span>
+            </div>
+            
+            {% if payment.is_overdue %}
+            <div class="additional-info">
+                <p>
+                    <i class="fas fa-info-circle"></i>
+                    This payment is overdue. Please follow up with the payer.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="details-actions">
+            <a href="{% url 'payments:payment-list' %}" class="btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Payments
+            </a>
+        </div>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the details card
+        const detailsCard = document.querySelector('.details-card');
+        detailsCard.style.opacity = '0';
+        detailsCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            detailsCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            detailsCard.style.opacity = '1';
+            detailsCard.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Add subtle animation to detail items
+        const detailItems = document.querySelectorAll('.detail-item');
+        detailItems.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(-10px)';
+            
+            setTimeout(() => {
+                item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                item.style.opacity = '1';
+                item.style.transform = 'translateX(0)';
+            }, 150 + (index * 100));
+        });
+        
+        // Add warning animation for overdue payments
+        const overdueBadge = document.querySelector('.status-overdue');
+        if (overdueBadge) {
+            setTimeout(() => {
+                overdueBadge.style.transition = 'transform 0.3s ease';
+                overdueBadge.style.transform = 'scale(1.05)';
+                
+                setTimeout(() => {
+                    overdueBadge.style.transform = 'scale(1)';
+                }, 300);
+            }, 800);
+        }
+    });
+</script>
 {% endblock %}

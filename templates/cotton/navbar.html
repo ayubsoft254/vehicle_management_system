@@ -1,21 +1,110 @@
+{% extends 'base.html' %}
 {% load cotton %}
 
-<nav class="bg-blue-600 text-white shadow-lg">
-    <div class="container mx-auto px-4">
-        <div class="flex justify-between items-center py-4">
-            <div class="flex items-center space-x-4">
-                <h1 class="text-xl font-bold">Vehicle Management</h1>
-            </div>
-            
-            <div class="flex items-center space-x-4">
-                {% if user.is_authenticated %}
-                    <span>Welcome, {{ user.username }}!</span>
-                    <a href="{% url 'account_logout' %}" class="btn-primary">Logout</a>
-                {% else %}
-                    <a href="{% url 'account_login' %}" class="btn-primary">Login</a>
-                    <a href="{% url 'account_signup' %}" class="btn-primary">Register</a>
-                {% endif %}
-            </div>
+{% block title %}Navigation - Vehicle Management{% endblock %}
+
+{% block content %}
+<style>
+    .navbar {
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        padding: 1rem 1.5rem;
+        border-bottom-left-radius: 12px;
+        border-bottom-right-radius: 12px;
+        position: sticky;
+        top: 0;
+        z-index: 50;
+    }
+
+    .navbar-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .navbar-brand {
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+
+    .navbar-links {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .navbar-links span {
+        font-size: 0.95rem;
+        color: #e0e7ff;
+    }
+
+    .nav-btn {
+        background: white;
+        color: #2563eb;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(255, 255, 255, 0.3);
+    }
+
+    .nav-btn:hover {
+        background: #f9fafb;
+        color: #1d4ed8;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(255, 255, 255, 0.4);
+    }
+
+    .nav-btn:active {
+        transform: translateY(0);
+    }
+
+    @media (max-width: 640px) {
+        .navbar-container {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .navbar-links {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+    }
+</style>
+
+<nav class="navbar">
+    <div class="navbar-container">
+        <div class="navbar-brand">🚗 Vehicle Management</div>
+
+        <div class="navbar-links">
+            {% if user.is_authenticated %}
+                <span>Welcome, {{ user.username }}!</span>
+                <a href="{% url 'account_logout' %}" class="nav-btn">Logout</a>
+            {% else %}
+                <a href="{% url 'account_login' %}" class="nav-btn">Login</a>
+                <a href="{% url 'account_signup' %}" class="nav-btn">Register</a>
+            {% endif %}
         </div>
     </div>
 </nav>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const navbar = document.querySelector('.navbar');
+        navbar.style.opacity = '0';
+        navbar.style.transform = 'translateY(-20px)';
+
+        setTimeout(() => {
+            navbar.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            navbar.style.opacity = '1';
+            navbar.style.transform = 'translateY(0)';
+        }, 100);
+    });
+</script>
+{% endblock %}

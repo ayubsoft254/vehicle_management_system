@@ -1,32 +1,317 @@
 {% extends 'base.html' %}
-{% block title %}Clients{% endblock %}
+{% block title %}Clients - Vehicle Management{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1 class="mb-4">Clients</h1>
-    <a href="{% url 'clients:client-create' %}" class="btn btn-primary mb-3">Add Client</a>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for client in clients %}
-            <tr>
-                <td>{{ client.display_name|default:client.full_name|default:client }}</td>
-                <td>{{ client.email }}</td>
-                <td>{{ client.phone }}</td>
-                <td>
-                    <a href="{% url 'clients:client-detail' client.pk %}" class="btn btn-outline-primary btn-sm">View</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4">No clients found.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<style>
+    .clients-container {
+        min-height: 80vh;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    }
+    
+    .clients-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .clients-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .clients-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+    }
+    
+    .clients-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .clients-icon {
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #2563eb 0%, #7e22ce 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+    }
+    
+    .clients-header h1 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    
+    .add-client-btn {
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .add-client-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .add-client-btn:active {
+        transform: translateY(0);
+    }
+    
+    .clients-table-container {
+        overflow-x: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    .clients-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+    
+    .clients-table thead {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    }
+    
+    .clients-table th {
+        padding: 1rem 1.5rem;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.9rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .clients-table td {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #f3f4f6;
+        color: #4b5563;
+    }
+    
+    .clients-table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .clients-table tbody tr:hover {
+        background-color: #f9fafb;
+    }
+    
+    .client-name {
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .client-email {
+        color: #2563eb;
+    }
+    
+    .client-phone {
+        color: #4b5563;
+    }
+    
+    .view-btn {
+        padding: 0.5rem 1rem;
+        background: transparent;
+        color: #2563eb;
+        border: 1px solid #2563eb;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .view-btn:hover {
+        background-color: #2563eb;
+        color: white;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #6b7280;
+    }
+    
+    .empty-state i {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: #d1d5db;
+    }
+    
+    .empty-state p {
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .clients-card {
+            padding: 2rem 1.5rem;
+        }
+        
+        .clients-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        
+        .clients-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .add-client-btn {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .clients-table th,
+        .clients-table td {
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+        }
+        
+        /* Hide email on mobile for better space */
+        .email-column {
+            display: none;
+        }
+    }
+</style>
+
+<div class="clients-container">
+    <div class="clients-card">
+        <div class="clients-header">
+            <div class="clients-title">
+                <div class="clients-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h1>Clients</h1>
+            </div>
+            <a href="{% url 'clients:client-create' %}" class="add-client-btn">
+                <i class="fas fa-user-plus"></i> Add Client
+            </a>
+        </div>
+
+        <div class="clients-table-container">
+            <table class="clients-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th class="email-column">Email</th>
+                        <th>Phone</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for client in clients %}
+                    <tr>
+                        <td class="client-name">{{ client.display_name|default:client.full_name|default:client }}</td>
+                        <td class="client-email email-column">
+                            {% if client.email %}
+                                {{ client.email }}
+                            {% else %}
+                                <span style="color: #9ca3af; font-style: italic;">No email</span>
+                            {% endif %}
+                        </td>
+                        <td class="client-phone">
+                            {% if client.phone %}
+                                {{ client.phone }}
+                            {% else %}
+                                <span style="color: #9ca3af; font-style: italic;">No phone</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            <a href="{% url 'clients:client-detail' client.pk %}" class="view-btn">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4">
+                            <div class="empty-state">
+                                <i class="fas fa-user-slash"></i>
+                                <p>No clients found.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the clients card
+        const clientsCard = document.querySelector('.clients-card');
+        clientsCard.style.opacity = '0';
+        clientsCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            clientsCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            clientsCard.style.opacity = '1';
+            clientsCard.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Add hover effects to table rows
+        const tableRows = document.querySelectorAll('.clients-table tbody tr');
+        tableRows.forEach(row => {
+            row.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(4px)';
+                this.style.transition = 'transform 0.2s ease';
+            });
+            
+            row.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+            });
+        });
+        
+        // Format phone numbers
+        const phoneCells = document.querySelectorAll('.client-phone');
+        phoneCells.forEach(cell => {
+            const phoneText = cell.textContent.trim();
+            if (phoneText && phoneText !== 'No phone') {
+                const cleaned = phoneText.replace(/\D/g, '');
+                if (cleaned.length === 10) {
+                    const formatted = cleaned.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+                    cell.textContent = formatted;
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}

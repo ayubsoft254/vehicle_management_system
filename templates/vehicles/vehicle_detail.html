@@ -1,115 +1,516 @@
 {% extends 'base.html' %}
-{% block title %}Vehicle Details{% endblock %}
+{% block title %}{{ vehicle.full_name }} - Vehicle Details{% endblock %}
+
 {% block content %}
-<div class="mb-6">
-    <a href="{% url 'vehicles:vehicle-list' %}" class="text-blue-600 hover:underline">&larr; Back to Vehicles</a>
-</div>
-<div class="bg-white rounded shadow p-6 mb-8">
-    <h1 class="text-2xl font-bold mb-2">{{ vehicle.full_name }}</h1>
-    <div class="mb-2 text-gray-600">VIN: {{ vehicle.vin }} | Status: {{ vehicle.get_status_display }}</div>
-    <div class="mb-4">Added by: {{ vehicle.added_by }} | Company: {{ vehicle.company }}</div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-            <h2 class="font-semibold mb-2">Specifications</h2>
-            <ul class="list-disc ml-6 text-gray-700">
-                <li>Year: {{ vehicle.year }}</li>
-                <li>Engine Size: {{ vehicle.engine_size }} L</li>
-                <li>Transmission: {{ vehicle.get_transmission_display }}</li>
-                <li>Fuel Type: {{ vehicle.get_fuel_type_display }}</li>
-                <li>Mileage: {{ vehicle.mileage }} km</li>
-                <li>Color: {{ vehicle.color }}</li>
-                <li>Doors: {{ vehicle.doors }}</li>
-                <li>Seats: {{ vehicle.seats }}</li>
-                <li>Condition: {{ vehicle.get_condition_display }}</li>
-            </ul>
-        </div>
-        <div>
-            <h2 class="font-semibold mb-2">Pricing</h2>
-            <ul class="list-disc ml-6 text-gray-700">
-                <li>Purchase Price: {{ vehicle.purchase_price }}</li>
-                <li>Selling Price: {{ vehicle.selling_price }}</li>
-                <li>Minimum Deposit: {{ vehicle.minimum_deposit }}</li>
-            </ul>
-        </div>
-    </div>
-    <div class="mt-4">
-        <h2 class="font-semibold mb-2">Notes</h2>
-        <p class="text-gray-700">{{ vehicle.notes|default:'No notes.' }}</p>
-    </div>
-</div>
+<style>
+    .vehicle-detail-container {
+        min-height: 80vh;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    }
+    
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        color: #2563eb;
+        text-decoration: none;
+        font-weight: 500;
+        margin-bottom: 1.5rem;
+        transition: color 0.2s ease;
+    }
+    
+    .back-link:hover {
+        color: #1d4ed8;
+        text-decoration: underline;
+    }
+    
+    .vehicle-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+    
+    .vehicle-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .vehicle-header {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .vehicle-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+    }
+    
+    .vehicle-subtitle {
+        color: #64748b;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .vehicle-meta {
+        color: #64748b;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+    
+    .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    @media (min-width: 768px) {
+        .detail-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+    
+    .detail-section {
+        background-color: #f8fafc;
+        border-radius: 12px;
+        padding: 1.5rem;
+        border-left: 4px solid #2563eb;
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .detail-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .detail-item:last-child {
+        border-bottom: none;
+    }
+    
+    .detail-label {
+        font-weight: 600;
+        color: #475569;
+    }
+    
+    .detail-value {
+        color: #1e293b;
+    }
+    
+    .notes-section {
+        background-color: #f8fafc;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+    
+    .notes-content {
+        color: #374151;
+        line-height: 1.6;
+    }
+    
+    /* Images Section */
+    .images-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .images-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #7e22ce 0%, #2563eb 100%);
+    }
+    
+    .image-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        align-items: end;
+    }
+    
+    .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    .submit-btn {
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        white-space: nowrap;
+    }
+    
+    .submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .images-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .image-item {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+    }
+    
+    .image-item:hover {
+        transform: translateY(-4px);
+    }
+    
+    .image-item img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        display: block;
+    }
+    
+    .image-actions {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+    
+    .delete-btn {
+        background: #dc2626;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.2s ease;
+    }
+    
+    .delete-btn:hover {
+        opacity: 1;
+    }
+    
+    .image-caption {
+        padding: 0.5rem;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        font-size: 0.8rem;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #64748b;
+        grid-column: 1 / -1;
+    }
+    
+    /* Expenses Section */
+    .expenses-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .expenses-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #16a34a 0%, #2563eb 100%);
+    }
+    
+    .expense-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .expenses-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+    
+    .expenses-table th {
+        background-color: #f8fafc;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #475569;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .expenses-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        color: #334155;
+    }
+    
+    .expenses-table tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .expenses-table tr:hover {
+        background-color: #f8fafc;
+    }
+    
+    .action-link {
+        color: #dc2626;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
+    }
+    
+    .action-link:hover {
+        color: #b91c1c;
+        text-decoration: underline;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .vehicle-card, .images-card, .expenses-card {
+            padding: 1.5rem;
+        }
+        
+        .image-form, .expense-form {
+            flex-direction: column;
+        }
+        
+        .form-group {
+            min-width: 100%;
+        }
+        
+        .expenses-table {
+            display: block;
+            overflow-x: auto;
+        }
+    }
+</style>
 
-<div class="mb-8">
-    <h2 class="text-xl font-bold mb-2">Images</h2>
-    <form action="{% url 'vehicles:vehicleimage-add' vehicle.pk %}" method="post" enctype="multipart/form-data" class="mb-4 flex items-center space-x-2">
-        {% csrf_token %}
-        <input type="file" name="image" required class="border rounded px-2 py-1">
-        <input type="text" name="caption" placeholder="Caption" class="border rounded px-2 py-1">
-        <button type="submit" class="btn btn-primary">Add Image</button>
-    </form>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {% for img in images %}
-        <div class="relative group">
-            <img src="{{ img.image.url }}" alt="{{ img.caption }}" class="rounded shadow w-full h-32 object-cover">
-            <form action="{% url 'vehicleimage-delete' img.id %}" method="post" class="absolute top-2 right-2">
-                {% csrf_token %}
-                <button type="submit" class="bg-red-600 text-white rounded px-2 py-1 text-xs opacity-80 group-hover:opacity-100">Delete</button>
-            </form>
-            <div class="text-xs text-gray-200 mt-1">{{ img.caption }}</div>
-        </div>
-        {% empty %}
-        <div class="col-span-full text-gray-500">No images uploaded.</div>
-        {% endfor %}
-    </div>
-</div>
+<div class="vehicle-detail-container">
+    <a href="{% url 'vehicles:vehicle-list' %}" class="back-link">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Vehicles
+    </a>
 
-<div>
-    <h2 class="text-xl font-bold mb-2">Expenses</h2>
-    <form action="{% url 'vehicleexpense-add' vehicle.pk %}" method="post" class="mb-4 flex flex-wrap gap-2 items-end">
-        {% csrf_token %}
-        <input type="text" name="description" placeholder="Description" class="border rounded px-2 py-1" required>
-        <input type="number" name="amount" placeholder="Amount" class="border rounded px-2 py-1" required step="0.01">
-        <input type="date" name="expense_date" class="border rounded px-2 py-1" required>
-        <select name="category" class="border rounded px-2 py-1">
-            {% for key, val in vehicle.expenses.model.EXPENSE_CATEGORIES %}
-                <option value="{{ key }}">{{ val }}</option>
-            {% endfor %}
-        </select>
-        <input type="text" name="vendor" placeholder="Vendor" class="border rounded px-2 py-1">
-        <input type="text" name="receipt_number" placeholder="Receipt #" class="border rounded px-2 py-1">
-        <button type="submit" class="btn btn-primary">Add Expense</button>
-    </form>
-    <table class="min-w-full bg-white rounded shadow overflow-hidden">
-        <thead class="bg-gray-100">
-            <tr>
-                <th class="px-4 py-2">Date</th>
-                <th class="px-4 py-2">Category</th>
-                <th class="px-4 py-2">Description</th>
-                <th class="px-4 py-2">Amount</th>
-                <th class="px-4 py-2">Vendor</th>
-                <th class="px-4 py-2">Receipt #</th>
-                <th class="px-4 py-2">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for exp in expenses %}
-            <tr class="border-b hover:bg-gray-50">
-                <td class="px-4 py-2">{{ exp.expense_date }}</td>
-                <td class="px-4 py-2">{{ exp.get_category_display }}</td>
-                <td class="px-4 py-2">{{ exp.description }}</td>
-                <td class="px-4 py-2">{{ exp.amount }}</td>
-                <td class="px-4 py-2">{{ exp.vendor }}</td>
-                <td class="px-4 py-2">{{ exp.receipt_number }}</td>
-                <td class="px-4 py-2">
-                    <form action="{% url 'vehicles:vehicleexpense-delete' exp.id %}" method="post">
+    <!-- Vehicle Details Card -->
+    <div class="vehicle-card">
+        <div class="vehicle-header">
+            <h1 class="vehicle-title">{{ vehicle.full_name }}</h1>
+            <div class="vehicle-subtitle">VIN: {{ vehicle.vin }} | Status: {{ vehicle.get_status_display }}</div>
+            <div class="vehicle-meta">Added by: {{ vehicle.added_by }} | Company: {{ vehicle.company }}</div>
+        </div>
+
+        <div class="detail-grid">
+            <div class="detail-section">
+                <h2 class="section-title"><i class="fas fa-cog"></i> Specifications</h2>
+                <ul class="detail-list">
+                    <li class="detail-item"><span class="detail-label">Year:</span> <span class="detail-value">{{ vehicle.year }}</span></li>
+                    <li class="detail-item"><span class="detail-label">Engine Size:</span> <span class="detail-value">{{ vehicle.engine_size }} L</span></li>
+                    <li class="detail-item"><span class="detail-label">Transmission:</span> <span class="detail-value">{{ vehicle.get_transmission_display }}</span></li>
+                    <li class="detail-item"><span class="detail-label">Fuel Type:</span> <span class="detail-value">{{ vehicle.get_fuel_type_display }}</span></li>
+                    <li class="detail-item"><span class="detail-label">Mileage:</span> <span class="detail-value">{{ vehicle.mileage }} km</span></li>
+                    <li class="detail-item"><span class="detail-label">Color:</span> <span class="detail-value">{{ vehicle.color }}</span></li>
+                    <li class="detail-item"><span class="detail-label">Doors:</span> <span class="detail-value">{{ vehicle.doors }}</span></li>
+                    <li class="detail-item"><span class="detail-label">Seats:</span> <span class="detail-value">{{ vehicle.seats }}</span></li>
+                    <li class="detail-item"><span class="detail-label">Condition:</span> <span class="detail-value">{{ vehicle.get_condition_display }}</span></li>
+                </ul>
+            </div>
+
+            <div class="detail-section">
+                <h2 class="section-title"><i class="fas fa-tag"></i> Pricing</h2>
+                <ul class="detail-list">
+                    <li class="detail-item"><span class="detail-label">Purchase Price:</span> <span class="detail-value">{{ vehicle.purchase_price }}</span></li>
+                    <li class="detail-item"><span class="detail-label">Selling Price:</span> <span class="detail-value">{{ vehicle.selling_price }}</span></li>
+                    <li class="detail-item"><span class="detail-label">Minimum Deposit:</span> <span class="detail-value">{{ vehicle.minimum_deposit }}</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="notes-section">
+            <h2 class="section-title"><i class="fas fa-sticky-note"></i> Notes</h2>
+            <p class="notes-content">{{ vehicle.notes|default:'No notes.' }}</p>
+        </div>
+    </div>
+
+    <!-- Images Section -->
+    <div class="images-card">
+        <h2 class="section-title"><i class="fas fa-images"></i> Images</h2>
+        
+        <form action="{% url 'vehicles:vehicleimage-add' vehicle.pk %}" method="post" enctype="multipart/form-data" class="image-form">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Image</label>
+                <input type="file" name="image" required class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Caption</label>
+                <input type="text" name="caption" placeholder="Caption" class="form-input">
+            </div>
+            <button type="submit" class="submit-btn">
+                <i class="fas fa-plus"></i> Add Image
+            </button>
+        </form>
+
+        <div class="images-grid">
+            {% for img in images %}
+            <div class="image-item">
+                <img src="{{ img.image.url }}" alt="{{ img.caption }}">
+                <div class="image-actions">
+                    <form action="{% url 'vehicleimage-delete' img.id %}" method="post">
                         {% csrf_token %}
-                        <button type="submit" class="text-red-600 hover:underline">Delete</button>
+                        <button type="submit" class="delete-btn" onclick="return confirm('Delete this image?')">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </form>
-                </td>
-            </tr>
+                </div>
+                {% if img.caption %}
+                <div class="image-caption">{{ img.caption }}</div>
+                {% endif %}
+            </div>
             {% empty %}
-            <tr><td colspan="7" class="text-center py-4">No expenses found.</td></tr>
+            <div class="empty-state">
+                <i class="fas fa-image empty-icon" style="font-size: 2rem;"></i>
+                <p>No images uploaded.</p>
+            </div>
             {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% endblock %}
+        </div>
+    </div>
+
+    <!-- Expenses Section -->
+    <div class="expenses-card">
+        <h2 class="section-title"><i class="fas fa-receipt"></i> Expenses</h2>
+        
+        <form action="{% url 'vehicleexpense-add' vehicle.pk %}" method="post" class="expense-form">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <input type="text" name="description" placeholder="Description" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount</label>
+                <input type="number" name="amount" placeholder="Amount" class="form-input" required step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Date</label>
+                <input type="date" name="expense_date" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select name="category" class="form-input">
+                    {% for key, val in vehicle.expenses.model.EXPENSE_CATEGORIES %}
+                        <option value="{{ key }}">{{ val }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Vendor</label>
+                <input type="text" name="vendor" placeholder="Vendor" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Receipt #</label>
+                <input type="text" name="receipt_number" placeholder="Receipt #" class="form-input">
+            </div>
+            <button type="submit" class="submit-btn" style="align-self: end;">
+                <i class="fas fa-plus"></i> Add Expense
+            </button>
+        </form>
+
+        <table class="expenses-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Vendor</th>
+                    <th>Receipt #</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exp in expenses %}
+                <tr>
+                    <td>{{ exp.expense_date }}</td>
+                    <td>{{ exp.get_category_display }}</td>
