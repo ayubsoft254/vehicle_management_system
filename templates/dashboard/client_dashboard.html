@@ -1,12 +1,135 @@
 {% extends 'base.html' %}
-{% block title %}Client Dashboard{% endblock %}
+
+{% block title %}Client Dashboard - Vehicle Management{% endblock %}
+
 {% block content %}
-<div class="container" style="max-width:900px; margin:0 auto; padding:2rem;">
-    <h1 style="font-size:2rem; font-weight:700; color:var(--primary); margin-bottom:1.5rem;">Welcome, {{ user.get_full_name }}</h1>
-    <div style="margin-bottom:2rem;">
-        <h2 style="font-size:1.3rem; font-weight:600; margin-bottom:1rem;">My Vehicles</h2>
+<style>
+    .dashboard-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+        min-height: 85vh;
+    }
+
+    .dashboard-header {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .dashboard-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .dashboard-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, #2563eb, #7e22ce);
+    }
+
+    .dashboard-card h2 {
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: #1e40af;
+    }
+
+    .dashboard-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    .dashboard-table th,
+    .dashboard-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .dashboard-table th {
+        background: #f1f5f9;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    .dashboard-table tr:hover {
+        background: #f9fafb;
+    }
+
+    .dashboard-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .dashboard-list li {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.95rem;
+    }
+
+    .dashboard-list li span {
+        color: #6b7280;
+        font-size: 0.85rem;
+    }
+
+    .empty-message {
+        font-size: 0.95rem;
+        color: #6b7280;
+        padding: 1rem 0;
+    }
+
+    /* Animation */
+    .dashboard-card {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.6s ease forwards;
+    }
+
+    .dashboard-card:nth-child(2) {
+        animation-delay: 0.15s;
+    }
+
+    .dashboard-card:nth-child(3) {
+        animation-delay: 0.3s;
+    }
+
+    .dashboard-card:nth-child(4) {
+        animation-delay: 0.45s;
+    }
+
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<div class="dashboard-container">
+    <h1 class="dashboard-header">Welcome, {{ user.get_full_name }}</h1>
+
+    <div class="dashboard-card">
+        <h2>My Vehicles</h2>
         {% if my_vehicles %}
-        <table class="table table-striped" style="width:100%;">
+        <table class="dashboard-table">
             <thead>
                 <tr>
                     <th>Make</th>
@@ -27,13 +150,14 @@
             </tbody>
         </table>
         {% else %}
-        <p>No vehicles assigned to you.</p>
+        <p class="empty-message">No vehicles assigned to you.</p>
         {% endif %}
     </div>
-    <div style="margin-bottom:2rem;">
-        <h2 style="font-size:1.3rem; font-weight:600; margin-bottom:1rem;">My Payments</h2>
+
+    <div class="dashboard-card">
+        <h2>My Payments</h2>
         {% if my_payments %}
-        <table class="table table-striped" style="width:100%;">
+        <table class="dashboard-table">
             <thead>
                 <tr>
                     <th>Date</th>
@@ -52,19 +176,23 @@
             </tbody>
         </table>
         {% else %}
-        <p>No payments found.</p>
+        <p class="empty-message">No payments found.</p>
         {% endif %}
     </div>
-    <div>
-        <h2 style="font-size:1.3rem; font-weight:600; margin-bottom:1rem;">Notifications</h2>
+
+    <div class="dashboard-card">
+        <h2>Notifications</h2>
         {% if my_notifications %}
-        <ul>
+        <ul class="dashboard-list">
             {% for n in my_notifications %}
-            <li>{{ n.message }} <span style="color:var(--gray); font-size:0.9rem;">({{ n.created_at|date:'Y-m-d H:i' }})</span></li>
+            <li>
+                {{ n.message }}
+                <span>{{ n.created_at|date:'Y-m-d H:i' }}</span>
+            </li>
             {% endfor %}
         </ul>
         {% else %}
-        <p>No notifications.</p>
+        <p class="empty-message">No notifications.</p>
         {% endif %}
     </div>
 </div>

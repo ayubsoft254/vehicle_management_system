@@ -1,11 +1,28 @@
 {% extends 'base.html' %}
 {% block title %}User Details{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1>User Details</h1>
-    <p><strong>Username:</strong> {{ user_obj.username }}</p>
-    <p><strong>Email:</strong> {{ user_obj.email }}</p>
-    <p><strong>Role:</strong> {{ user_obj.role }}</p>
-    <a href="{% url 'core:user-list' %}" class="btn btn-secondary mt-3">Back to Users</a>
+<div class="max-w-3xl mx-auto px-6 py-10">
+    <!-- Card -->
+    <div class="bg-white shadow-md rounded-2xl p-8 transform transition hover:shadow-lg">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-3">
+            User Details
+        </h1>
+
+        <div class="space-y-4 text-gray-700">
+            <p><span class="font-semibold">Username:</span> {{ user_obj.username }}</p>
+            <p><span class="font-semibold">Email:</span> {{ user_obj.email }}</p>
+            <p><span class="font-semibold">Role:</span> {{ user_obj.role }}</p>
+        </div>
+
+        <!-- Back Button -->
+        <div class="mt-8">
+            <a href="{% url 'core:user-list' %}" 
+               class="inline-block px-5 py-2 rounded-xl bg-gray-200 text-gray-700 font-medium 
+                      hover:bg-gray-300 transition">
+                ← Back to Users
+            </a>
+        </div>
+    </div>
 </div>
 {% endblock %}

@@ -1,5 +1,63 @@
-<footer class="bg-gray-800 text-white py-8 mt-12">
-    <div class="container mx-auto px-4 text-center">
-        <p>&copy; 2025 Vehicle Management System. All rights reserved.</p>
-    </div>
+{% extends 'base.html' %}
+
+{% block title %}Footer - Vehicle Management{% endblock %}
+
+{% block content %}
+<style>
+    .footer-container {
+        background: linear-gradient(135deg, #1e3a8a 0%, #7e22ce 100%);
+        color: white;
+        padding: 2rem 1rem;
+        margin-top: 4rem;
+        text-align: center;
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+        box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.2);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .footer-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #38bdf8 0%, #a78bfa 100%);
+    }
+
+    .footer-container p {
+        font-size: 0.95rem;
+        margin: 0;
+        color: #e0e7ff;
+    }
+
+    @media (max-width: 480px) {
+        .footer-container {
+            padding: 1.5rem 1rem;
+        }
+        .footer-container p {
+            font-size: 0.85rem;
+        }
+    }
+</style>
+
+<footer class="footer-container">
+    <p>&copy; 2025 Vehicle Management System. All rights reserved.</p>
 </footer>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const footer = document.querySelector('.footer-container');
+        footer.style.opacity = '0';
+        footer.style.transform = 'translateY(20px)';
+
+        setTimeout(() => {
+            footer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            footer.style.opacity = '1';
+            footer.style.transform = 'translateY(0)';
+        }, 200);
+    });
+</script>
+{% endblock %}

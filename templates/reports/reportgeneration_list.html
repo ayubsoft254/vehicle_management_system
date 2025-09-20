@@ -1,32 +1,310 @@
 {% extends 'base.html' %}
-{% block title %}Report Generations{% endblock %}
+{% block title %}Report Generations - Vehicle Management{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1 class="mb-4">Report Generations</h1>
-    <a href="{% url 'reports:reportgeneration-create' %}" class="btn btn-primary mb-3">Generate Report</a>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Template</th>
-                <th>Generated At</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for reportgeneration in reportgenerations %}
-            <tr>
-                <td>{{ reportgeneration.template }}</td>
-                <td>{{ reportgeneration.generated_at|date:'Y-m-d H:i' }}</td>
-                <td>{{ reportgeneration.status }}</td>
-                <td>
-                    <a href="{% url 'reports:reportgeneration-detail' reportgeneration.pk %}" class="btn btn-outline-primary btn-sm">View</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4">No report generations found.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<style>
+    .reports-container {
+        min-height: 80vh;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    }
+    
+    .reports-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .reports-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .reports-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .reports-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+    }
+    
+    .generate-report-btn {
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .generate-report-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .reports-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1.5rem;
+    }
+    
+    .reports-table th {
+        background-color: #f8fafc;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #475569;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .reports-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        color: #334155;
+    }
+    
+    .reports-table tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .reports-table tr:hover {
+        background-color: #f1f5f9;
+    }
+    
+    .status-badge {
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        display: inline-block;
+    }
+    
+    .status-complete {
+        background-color: #f0fdf4;
+        color: #16a34a;
+    }
+    
+    .status-processing {
+        background-color: #fffbeb;
+        color: #ca8a04;
+    }
+    
+    .status-error {
+        background-color: #fef2f2;
+        color: #dc2626;
+    }
+    
+    .view-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        border: 1px solid #2563eb;
+        color: #2563eb;
+        background: transparent;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .view-btn:hover {
+        background-color: #eff6ff;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #64748b;
+    }
+    
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    /* Toast notification styling */
+    .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #2563eb;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        animation: toastSlideIn 0.3s ease;
+    }
+    
+    @keyframes toastSlideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .reports-card {
+            padding: 1.5rem;
+        }
+        
+        .reports-header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+        
+        .reports-table {
+            display: block;
+            overflow-x: auto;
+        }
+    }
+</style>
+
+<div class="reports-container">
+    <div class="reports-card">
+        <!-- Header Section -->
+        <div class="reports-header">
+            <h1 class="reports-title">Report Generations</h1>
+            <a href="{% url 'reports:reportgeneration-create' %}" class="generate-report-btn">
+                <i class="fas fa-file-alt"></i> Generate Report
+            </a>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table class="reports-table">
+                <thead>
+                    <tr>
+                        <th>Template</th>
+                        <th>Generated At</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reportgeneration in reportgenerations %}
+                    <tr>
+                        <td>{{ reportgeneration.template }}</td>
+                        <td>{{ reportgeneration.generated_at|date:'Y-m-d H:i' }}</td>
+                        <td>
+                            <span class="status-badge 
+                                {% if reportgeneration.status == 'Complete' %}status-complete
+                                {% elif reportgeneration.status == 'Processing' %}status-processing
+                                {% else %}status-error{% endif %}">
+                                {{ reportgeneration.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'reports:reportgeneration-detail' reportgeneration.pk %}" class="view-btn">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="empty-state">
+                            <i class="fas fa-file-excel empty-icon"></i>
+                            <p>No report generations found.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the reports card
+        const reportsCard = document.querySelector('.reports-card');
+        reportsCard.style.opacity = '0';
+        reportsCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            reportsCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            reportsCard.style.opacity = '1';
+            reportsCard.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Add animation to table rows
+        const tableRows = document.querySelectorAll('.reports-table tbody tr');
+        tableRows.forEach((row, index) => {
+            row.style.opacity = '0';
+            row.style.transform = 'translateX(-20px)';
+            
+            setTimeout(() => {
+                row.style.transition = `opacity 0.5s ease ${index * 0.1}s, transform 0.5s ease ${index * 0.1}s`;
+                row.style.opacity = '1';
+                row.style.transform = 'translateX(0)';
+            }, 200 + (index * 100));
+        });
+        
+        // Confirm before navigating to report detail
+        document.querySelectorAll('.view-btn').forEach(button => {
+            button.addEventListener('click', function(event) {
+                const confirmed = confirm('Do you want to view this report?');
+                if (!confirmed) {
+                    event.preventDefault();
+                }
+            });
+        });
+        
+        // Toast notification for empty table
+        const tableBody = document.querySelector('.reports-table tbody');
+        if (tableBody && tableBody.children.length === 1 && 
+            tableBody.children[0].querySelector('.empty-state')) {
+            
+            // Create toast with better styling
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `
+                <i class="fas fa-info-circle"></i>
+                <span>No reports available. Try generating one!</span>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Remove toast after 4 seconds
+            setTimeout(() => {
+                toast.style.animation = 'toastSlideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+    });
+</script>
 {% endblock %}

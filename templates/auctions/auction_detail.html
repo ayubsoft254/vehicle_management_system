@@ -1,43 +1,379 @@
 {% extends 'base.html' %}
-{% block title %}Auction Details{% endblock %}
+{% block title %}{{ auction.title }} - Auction Details{% endblock %}
 {% block content %}
-<div class="container">
-    <h1>{{ auction.title }}</h1>
-    <p><strong>Description:</strong> {{ auction.description }}</p>
-    <p><strong>Location:</strong> {{ auction.location }}</p>
-    <p><strong>Start Date:</strong> {{ auction.start_date|date:'Y-m-d H:i' }}</p>
-    <p><strong>End Date:</strong> {{ auction.end_date|date:'Y-m-d H:i' }}</p>
-    <p><strong>Status:</strong> {{ auction.get_status_display }}</p>
-    <p><strong>Registration Fee:</strong> {{ auction.registration_fee }}</p>
-    <hr>
-    <h3>Vehicles in Auction</h3>
-    <a href="{% url 'auctions:auctionvehicle-create' %}" class="btn btn-primary mb-2">Add Vehicle to Auction</a>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Lot Number</th>
-                <th>Vehicle</th>
-                <th>Reserve Price</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for vehicle in auction.auction_vehicles.all %}
-            <tr>
-                <td>{{ vehicle.lot_number }}</td>
-                <td>{{ vehicle.vehicle }}</td>
-                <td>{{ vehicle.reserve_price }}</td>
-                <td>{{ vehicle.get_status_display }}</td>
-                <td>
-                    <a href="{% url 'auctions:auctionvehicle-detail' vehicle.pk %}" class="btn btn-outline-primary btn-sm">View</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5">No vehicles in this auction.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <a href="{% url 'auctions:auction-list' %}" class="btn btn-secondary mt-3">Back to Auctions</a>
+<style>
+    .auction-container {
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        min-height: 80vh;
+    }
+    
+    .auction-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+    
+    .auction-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .auction-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .auction-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .status-upcoming {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+    
+    .status-active {
+        background-color: #dcfce7;
+        color: #166534;
+    }
+    
+    .status-completed {
+        background-color: #e5e7eb;
+        color: #374151;
+    }
+    
+    .auction-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .detail-item {
+        padding: 1rem;
+        background-color: #f8fafc;
+        border-radius: 8px;
+    }
+    
+    .detail-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+    
+    .detail-value {
+        font-size: 1.1rem;
+        color: #1e293b;
+        font-weight: 600;
+    }
+    
+    .vehicles-section {
+        margin-top: 2rem;
+    }
+    
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .section-title {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin: 0;
+    }
+    
+    .add-vehicle-btn {
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .add-vehicle-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .vehicles-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+    
+    .vehicles-table th {
+        background-color: #f8fafc;
+        padding: 0.875rem 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.9rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .vehicles-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        color: #4b5563;
+    }
+    
+    .vehicles-table tr:hover {
+        background-color: #f9fafb;
+    }
+    
+    .vehicle-status {
+        display: inline-block;
+        padding: 0.35rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .status-available {
+        background-color: #dcfce7;
+        color: #166534;
+    }
+    
+    .status-sold {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .status-reserved {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+    
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+    }
+    
+    .action-view {
+        background-color: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .action-view:hover {
+        background-color: #bfdbfe;
+    }
+    
+    .back-btn {
+        padding: 0.875rem 1.75rem;
+        background: white;
+        color: #6b7280;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        margin-top: 2rem;
+    }
+    
+    .back-btn:hover {
+        background-color: #f9fafb;
+        border-color: #9ca3af;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #6b7280;
+        background-color: #f8fafc;
+        border-radius: 8px;
+        margin-top: 1rem;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        color: #d1d5db;
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state p {
+        font-size: 1.1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .auction-header {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .auction-details {
+            grid-template-columns: 1fr;
+        }
+        
+        .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        
+        .vehicles-table {
+            display: block;
+            overflow-x: auto;
+        }
+    }
+</style>
+
+<div class="auction-container">
+    <div class="auction-card">
+        <div class="auction-header">
+            <h1 class="auction-title">{{ auction.title }}</h1>
+            <span class="status-badge status-{{ auction.status }}">
+                <i class="fas fa-{% if auction.status == 'active' %}play-circle{% elif auction.status == 'completed' %}check-circle{% else %}clock{% endif %}"></i> 
+                {{ auction.get_status_display }}
+            </span>
+        </div>
+        
+        <div class="auction-details">
+            <div class="detail-item">
+                <div class="detail-label">Description</div>
+                <div class="detail-value">{{ auction.description }}</div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-label">Location</div>
+                <div class="detail-value">{{ auction.location }}</div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-label">Start Date</div>
+                <div class="detail-value">{{ auction.start_date|date:'Y-m-d H:i' }}</div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-label">End Date</div>
+                <div class="detail-value">{{ auction.end_date|date:'Y-m-d H:i' }}</div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-label">Registration Fee</div>
+                <div class="detail-value">${{ auction.registration_fee }}</div>
+            </div>
+        </div>
+        
+        <div class="vehicles-section">
+            <div class="section-header">
+                <h2 class="section-title">Vehicles in Auction</h2>
+                <a href="{% url 'auctions:auctionvehicle-create' %}" class="add-vehicle-btn">
+                    <i class="fas fa-plus"></i> Add Vehicle to Auction
+                </a>
+            </div>
+            
+            {% if auction.auction_vehicles.all %}
+            <table class="vehicles-table">
+                <thead>
+                    <tr>
+                        <th>Lot Number</th>
+                        <th>Vehicle</th>
+                        <th>Reserve Price</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vehicle in auction.auction_vehicles.all %}
+                    <tr>
+                        <td>{{ vehicle.lot_number }}</td>
+                        <td>{{ vehicle.vehicle }}</td>
+                        <td>${{ vehicle.reserve_price }}</td>
+                        <td>
+                            <span class="vehicle-status status-{{ vehicle.status }}">
+                                <i class="fas fa-{% if vehicle.status == 'available' %}check-circle{% elif vehicle.status == 'sold' %}dollar-sign{% else %}lock{% endif %}"></i> 
+                                {{ vehicle.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'auctions:auctionvehicle-detail' vehicle.pk %}" class="action-btn action-view">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-car"></i>
+                <p>No vehicles in this auction yet.</p>
+                <a href="{% url 'auctions:auctionvehicle-create' %}" class="add-vehicle-btn">
+                    <i class="fas fa-plus"></i> Add First Vehicle
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        
+        <a href="{% url 'auctions:auction-list' %}" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Back to Auctions
+        </a>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the auction card
+        const auctionCard = document.querySelector('.auction-card');
+        auctionCard.style.opacity = '0';
+        auctionCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            auctionCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            auctionCard.style.opacity = '1';
+            auctionCard.style.transform = 'translateY(0)';
+        }, 100);
+    });
+</script>
 {% endblock %}

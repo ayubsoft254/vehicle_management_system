@@ -1,13 +1,365 @@
 {% extends 'base.html' %}
-{% block title %}Create Auction{% endblock %}
+{% block title %}Create Auction - Vehicle Management{% endblock %}
 {% block content %}
-<div class="container">
-    <h1>Create Auction</h1>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit" class="btn btn-primary">Create Auction</button>
-        <a href="{% url 'auctions:auction-list' %}" class="btn btn-secondary">Cancel</a>
-    </form>
+<style>
+    .auction-form-container {
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        min-height: 80vh;
+    }
+    
+    .auction-form-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        position: relative;
+        overflow: hidden;
+        max-width: 700px;
+        margin: 0 auto;
+    }
+    
+    .auction-form-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .auction-form-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .auction-form-icon {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #2563eb 0%, #7e22ce 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        color: white;
+        font-size: 1.8rem;
+    }
+    
+    .auction-form-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+    }
+    
+    .auction-form {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-row {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group {
+        flex: 1;
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    
+    .form-group-full {
+        width: 100%;
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #374151;
+        font-size: 0.9rem;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background-color: #f9fafb;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        background-color: white;
+    }
+    
+    select.form-input {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        background-size: 1.5em;
+        padding-right: 2.5rem;
+    }
+    
+    textarea.form-input {
+        min-height: 120px;
+        resize: vertical;
+    }
+    
+    .error-message {
+        color: #ef4444;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .btn-primary {
+        padding: 0.875rem 1.75rem;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .btn-secondary {
+        padding: 0.875rem 1.75rem;
+        background: white;
+        color: #6b7280;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #f9fafb;
+        border-color: #9ca3af;
+    }
+    
+    /* Date time picker styling */
+    input[type="datetime-local"] {
+        position: relative;
+    }
+    
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+        position: absolute;
+        right: 0;
+        padding: 0.875rem;
+        cursor: pointer;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .form-row {
+            flex-direction: column;
+            gap: 0;
+        }
+        
+        .form-actions {
+            flex-direction: column;
+        }
+        
+        .btn-primary, .btn-secondary {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+<div class="auction-form-container">
+    <div class="auction-form-card">
+        <div class="auction-form-header">
+            <div class="auction-form-icon">
+                <i class="fas fa-gavel"></i>
+            </div>
+            <h1 class="auction-form-title">Create Auction</h1>
+        </div>
+        
+        <form method="post" class="auction-form">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="error-message" style="margin-bottom: 1.5rem;">
+                    <i class="fas fa-exclamation-circle"></i>
+                    {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+            
+            <div class="form-group-full">
+                <label for="id_title">Auction Title</label>
+                <input type="text" name="title" id="id_title" class="form-input" 
+                       value="{{ form.title.value|default:'' }}" placeholder="Enter auction title" required>
+                {% if form.title.errors %}
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ form.title.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group-full">
+                <label for="id_description">Description</label>
+                <textarea name="description" id="id_description" class="form-input" 
+                          placeholder="Enter auction description" required>{{ form.description.value|default:'' }}</textarea>
+                {% if form.description.errors %}
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ form.description.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="id_location">Location</label>
+                    <input type="text" name="location" id="id_location" class="form-input" 
+                           value="{{ form.location.value|default:'' }}" placeholder="Enter auction location" required>
+                    {% if form.location.errors %}
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ form.location.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_registration_fee">Registration Fee ($)</label>
+                    <input type="number" name="registration_fee" id="id_registration_fee" class="form-input" 
+                           value="{{ form.registration_fee.value|default:'' }}" placeholder="0.00" step="0.01" min="0" required>
+                    {% if form.registration_fee.errors %}
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ form.registration_fee.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="id_start_date">Start Date & Time</label>
+                    <input type="datetime-local" name="start_date" id="id_start_date" class="form-input" 
+                           value="{{ form.start_date.value|default:'' }}" required>
+                    {% if form.start_date.errors %}
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ form.start_date.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_end_date">End Date & Time</label>
+                    <input type="datetime-local" name="end_date" id="id_end_date" class="form-input" 
+                           value="{{ form.end_date.value|default:'' }}" required>
+                    {% if form.end_date.errors %}
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ form.end_date.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <a href="{% url 'auctions:auction-list' %}" class="btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-plus-circle"></i> Create Auction
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the form card
+        const formCard = document.querySelector('.auction-form-card');
+        formCard.style.opacity = '0';
+        formCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            formCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            formCard.style.opacity = '1';
+            formCard.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Add focus effects to form inputs
+        const formInputs = document.querySelectorAll('.form-input');
+        formInputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.classList.add('focused');
+            });
+            
+            input.addEventListener('blur', function() {
+                this.parentElement.classList.remove('focused');
+            });
+        });
+        
+        // Set minimum datetime for start and end dates
+        const startDateInput = document.getElementById('id_start_date');
+        const endDateInput = document.getElementById('id_end_date');
+        
+        // Set current datetime as minimum
+        const now = new Date();
+        const timezoneOffset = now.getTimezoneOffset() * 60000; // Offset in milliseconds
+        const localISOTime = new Date(now - timezoneOffset).toISOString().slice(0, 16);
+        
+        if (startDateInput) {
+            startDateInput.min = localISOTime;
+            
+            startDateInput.addEventListener('change', function() {
+                if (endDateInput) {
+                    endDateInput.min = this.value;
+                    if (endDateInput.value && endDateInput.value < this.value) {
+                        endDateInput.value = this.value;
+                    }
+                }
+            });
+        }
+        
+        if (endDateInput) {
+            endDateInput.min = localISOTime;
+        }
+    });
+</script>
 {% endblock %}

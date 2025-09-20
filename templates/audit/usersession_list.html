@@ -1,35 +1,392 @@
 {% extends 'base.html' %}
-{% block title %}User Sessions{% endblock %}
+{% block title %}User Sessions - Vehicle Management{% endblock %}
 {% block content %}
-<div class="container">
-    <h1 class="mb-4">User Sessions</h1>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>User</th>
-                <th>Session Key</th>
-                <th>IP Address</th>
-                <th>Login Time</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for user_session in user_sessions %}
-            <tr>
-                <td>{{ user_session.user }}</td>
-                <td>{{ user_session.session_key }}</td>
-                <td>{{ user_session.ip_address }}</td>
-                <td>{{ user_session.login_time|date:'Y-m-d H:i' }}</td>
-                <td>{% if user_session.is_active %}<span class="text-success">Active</span>{% else %}<span class="text-danger">Inactive</span>{% endif %}</td>
-                <td>
-                    <a href="{% url 'audit:usersession-detail' user_session.pk %}" class="btn btn-outline-primary btn-sm">View</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6">No user sessions found.</td></tr>
+<style>
+    .user-sessions-container {
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        min-height: 80vh;
+    }
+    
+    .user-sessions-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .user-sessions-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .user-sessions-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .user-sessions-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+    }
+    
+    .user-sessions-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+    
+    .user-sessions-table th {
+        background-color: #f8fafc;
+        padding: 0.875rem 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.9rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .user-sessions-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        color: #4b5563;
+    }
+    
+    .user-sessions-table tr:hover {
+        background-color: #f9fafb;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.35rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .status-active {
+        background-color: #dcfce7;
+        color: #166534;
+    }
+    
+    .status-inactive {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+    }
+    
+    .action-view {
+        background-color: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .action-view:hover {
+        background-color: #bfdbfe;
+    }
+    
+    /* Filter section */
+    .filters-section {
+        background-color: #f8fafc;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .filters-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 1rem;
+    }
+    
+    .filter-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .filter-btn {
+        padding: 0.5rem 1rem;
+        background: white;
+        color: #6b7280;
+        border: 1px solid #d1d5db;
+        border-radius: 50px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .filter-btn.active {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        border-color: #2563eb;
+    }
+    
+    .filter-btn:hover:not(.active) {
+        background-color: #f9fafb;
+        border-color: #9ca3af;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #6b7280;
+        background-color: #f8fafc;
+        border-radius: 8px;
+        margin-top: 1rem;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        color: #d1d5db;
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state p {
+        font-size: 1.1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 2rem;
+        gap: 0.5rem;
+    }
+    
+    .page-item {
+        display: inline-block;
+    }
+    
+    .page-link {
+        padding: 0.5rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        color: #6b7280;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+    
+    .page-link:hover {
+        background-color: #f9fafb;
+        border-color: #9ca3af;
+    }
+    
+    .page-link.active {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        border-color: #2563eb;
+    }
+    
+    /* Session key styling */
+    .session-key {
+        font-family: monospace;
+        font-size: 0.8rem;
+        background-color: #f3f4f6;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        color: #4b5563;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .user-sessions-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        
+        .user-sessions-table {
+            display: block;
+            overflow-x: auto;
+        }
+        
+        .filter-buttons {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .filter-btn {
+            width: 100%;
+        }
+        
+        .user-sessions-table th,
+        .user-sessions-table td {
+            padding: 0.75rem 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .user-sessions-table td:nth-child(2) {
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    }
+</style>
+
+<div class="user-sessions-container">
+    <div class="user-sessions-card">
+        <div class="user-sessions-header">
+            <h1 class="user-sessions-title">User Sessions</h1>
+        </div>
+        
+        <div class="filters-section">
+            <h3 class="filters-title">Filter by Status:</h3>
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="all">All Sessions</button>
+                <button class="filter-btn" data-filter="active">Active</button>
+                <button class="filter-btn" data-filter="inactive">Inactive</button>
+            </div>
+        </div>
+        
+        {% if user_sessions %}
+        <table class="user-sessions-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Session Key</th>
+                    <th>IP Address</th>
+                    <th>Login Time</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user_session in user_sessions %}
+                <tr class="user-session-row" data-status="{% if user_session.is_active %}active{% else %}inactive{% endif %}">
+                    <td>{{ user_session.user }}</td>
+                    <td>
+                        <span class="session-key" title="{{ user_session.session_key }}">
+                            {{ user_session.session_key|truncatechars:20 }}
+                        </span>
+                    </td>
+                    <td>{{ user_session.ip_address }}</td>
+                    <td>{{ user_session.login_time|date:'Y-m-d H:i' }}</td>
+                    <td>
+                        {% if user_session.is_active %}
+                        <span class="status-badge status-active">
+                            <i class="fas fa-play-circle"></i> Active
+                        </span>
+                        {% else %}
+                        <span class="status-badge status-inactive">
+                            <i class="fas fa-stop-circle"></i> Inactive
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'audit:usersession-detail' user_session.pk %}" class="action-btn action-view">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+                <a href="?page=1" class="page-link">&laquo; First</a>
+                <a href="?page={{ page_obj.previous_page_number }}" class="page-link">Previous</a>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <a href="?page={{ num }}" class="page-link active">{{ num }}</a>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <a href="?page={{ num }}" class="page-link">{{ num }}</a>
+                {% endif %}
             {% endfor %}
-        </tbody>
-    </table>
+            
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="page-link">Next</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}" class="page-link">Last &raquo;</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-user-clock"></i>
+            <p>No user sessions found.</p>
+        </div>
+        {% endif %}
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the user sessions card
+        const userSessionsCard = document.querySelector('.user-sessions-card');
+        userSessionsCard.style.opacity = '0';
+        userSessionsCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            userSessionsCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            userSessionsCard.style.opacity = '1';
+            userSessionsCard.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Filter functionality
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        const userSessionRows = document.querySelectorAll('.user-session-row');
+        
+        filterButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                const filter = this.getAttribute('data-filter');
+                
+                userSessionRows.forEach(row => {
+                    if (filter === 'all') {
+                        row.style.display = 'table-row';
+                    } else {
+                        if (row.getAttribute('data-status') === filter) {
+                            row.style.display = 'table-row';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    }
+                });
+            });
+        });
+        
+        // Add tooltips for truncated session keys
+        const sessionKeys = document.querySelectorAll('.session-key');
+        sessionKeys.forEach(key => {
+            key.addEventListener('mouseenter', function() {
+                this.setAttribute('data-tooltip', this.title);
+            });
+        });
+    });
+</script>
 {% endblock %}

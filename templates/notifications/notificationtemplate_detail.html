@@ -1,11 +1,228 @@
 {% extends 'base.html' %}
-{% block title %}Template Details{% endblock %}
+{% block title %}{{ template.name }} - Template Details{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1>Template Details</h1>
-    <p><strong>Name:</strong> {{ template.name }}</p>
-    <p><strong>Subject:</strong> {{ template.subject }}</p>
-    <p><strong>Body:</strong> {{ template.body }}</p>
-    <a href="{% url 'notifications:notificationtemplate-list' %}" class="btn btn-secondary mt-3">Back to Templates</a>
+<style>
+    .template-detail-container {
+        min-height: 80vh;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .template-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 600px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .template-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .template-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .template-icon {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #2563eb 0%, #7e22ce 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        color: white;
+        font-size: 1.8rem;
+    }
+    
+    .template-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+    }
+    
+    .template-subtitle {
+        color: #64748b;
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .details-section {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background-color: #f8fafc;
+        border-radius: 12px;
+        border-left: 4px solid #2563eb;
+    }
+    
+    .detail-item {
+        margin-bottom: 1.5rem;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .detail-label {
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .detail-value {
+        color: #1e293b;
+        font-size: 1.1rem;
+        padding: 0.75rem;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .body-container {
+        padding: 1.5rem;
+        background-color: #f8fafc;
+        border-radius: 12px;
+        border-left: 4px solid #2563eb;
+        margin-bottom: 1.5rem;
+    }
+    
+    .body-content {
+        color: #374151;
+        line-height: 1.6;
+        padding: 1rem;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        margin-top: 0.5rem;
+        white-space: pre-line;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.75rem 1.5rem;
+        background: #f1f5f9;
+        color: #475569;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+    
+    .back-button:hover {
+        background: #e2e8f0;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .template-card {
+            padding: 2rem 1.5rem;
+        }
+        
+        .template-title {
+            font-size: 1.5rem;
+        }
+        
+        .details-section, .body-container {
+            padding: 1rem;
+        }
+    }
+</style>
+
+<div class="template-detail-container">
+    <div class="template-card">
+        <div class="template-header">
+            <div class="template-icon">
+                <i class="fas fa-file-alt"></i>
+            </div>
+            <h1 class="template-title">Template Details</h1>
+            <p class="template-subtitle">Complete information about this notification template</p>
+        </div>
+
+        <div class="details-section">
+            <div class="detail-item">
+                <span class="detail-label">Name</span>
+                <div class="detail-value">{{ template.name }}</div>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">Subject</span>
+                <div class="detail-value">{{ template.subject }}</div>
+            </div>
+        </div>
+
+        <div class="body-container">
+            <span class="detail-label">Body</span>
+            <div class="body-content">
+                {{ template.body }}
+            </div>
+        </div>
+
+        <a href="{% url 'notifications:notificationtemplate-list' %}" class="back-button">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Templates
+        </a>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the template card
+        const templateCard = document.querySelector('.template-card');
+        templateCard.style.opacity = '0';
+        templateCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            templateCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            templateCard.style.opacity = '1';
+            templateCard.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Add animation to detail items
+        const detailItems = document.querySelectorAll('.detail-item');
+        detailItems.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(-20px)';
+            
+            setTimeout(() => {
+                item.style.transition = `opacity 0.5s ease ${index * 0.1}s, transform 0.5s ease ${index * 0.1}s`;
+                item.style.opacity = '1';
+                item.style.transform = 'translateX(0)';
+            }, 200 + (index * 100));
+        });
+        
+        // Add animation to body container
+        const bodyContainer = document.querySelector('.body-container');
+        bodyContainer.style.opacity = '0';
+        bodyContainer.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            bodyContainer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            bodyContainer.style.opacity = '1';
+            bodyContainer.style.transform = 'translateY(0)';
+        }, 500);
+    });
+</script>
 {% endblock %}

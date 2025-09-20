@@ -1,13 +1,333 @@
 {% extends 'base.html' %}
-{% block title %}Installment Plan Details{% endblock %}
+{% block title %}{{ installment_plan.name }} - Installment Plan Details - Vehicle Management{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1>Installment Plan Details</h1>
-    <p><strong>Plan Name:</strong> {{ installment_plan.name }}</p>
-    <p><strong>Total Amount:</strong> {{ installment_plan.total_amount }}</p>
-    <p><strong>Total Paid:</strong> {{ installment_plan.total_paid }}</p>
-    <p><strong>Balance Remaining:</strong> {{ installment_plan.balance_remaining }}</p>
-    <p><strong>Status:</strong> {% if installment_plan.is_completed %}<span class="text-success">Completed</span>{% else %}<span class="text-warning">Ongoing</span>{% endif %}</p>
-    <a href="{% url 'payments:installmentplan-list' %}" class="btn btn-secondary mt-3">Back to Installment Plans</a>
+<style>
+    .plan-detail-container {
+        min-height: 80vh;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .plan-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 700px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .plan-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .plan-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .plan-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #2563eb 0%, #7e22ce 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+    }
+    
+    .plan-header h1 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    
+    .plan-subtitle {
+        color: #64748b;
+        font-size: 1rem;
+        margin-top: 0.5rem;
+    }
+    
+    .details-section {
+        margin-bottom: 2rem;
+    }
+    
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 1.25rem 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .detail-item:last-child {
+        border-bottom: none;
+    }
+    
+    .detail-label {
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.95rem;
+    }
+    
+    .detail-value {
+        color: #4b5563;
+        text-align: right;
+        max-width: 60%;
+    }
+    
+    .amount-value {
+        font-weight: 600;
+        color: #059669;
+    }
+    
+    .balance-value {
+        font-weight: 600;
+        color: #dc2626;
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .status-completed {
+        background-color: #f0fdf4;
+        color: #16a34a;
+        border: 1px solid #bbf7d0;
+    }
+    
+    .status-ongoing {
+        background-color: #fffbeb;
+        color: #ca8a04;
+        border: 1px solid #fde68a;
+    }
+    
+    .progress-container {
+        margin: 2rem 0;
+        padding: 1.5rem;
+        background-color: #f8fafc;
+        border-radius: 12px;
+        border-left: 4px solid #2563eb;
+    }
+    
+    .progress-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+        font-size: 0.95rem;
+        color: #64748b;
+    }
+    
+    .progress-bar {
+        height: 8px;
+        background-color: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+        border-radius: 4px;
+        transition: width 0.5s ease;
+        width: 0;
+    }
+    
+    .back-btn {
+        padding: 0.875rem 1.5rem;
+        background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .back-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .back-btn:active {
+        transform: translateY(0);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .plan-card {
+            padding: 2rem 1.5rem;
+        }
+        
+        .plan-header {
+            flex-direction: column;
+            text-align: center;
+            gap: 0.75rem;
+        }
+        
+        .plan-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .detail-item {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .detail-value {
+            text-align: left;
+            max-width: 100%;
+        }
+        
+        .progress-container {
+            padding: 1rem;
+        }
+    }
+</style>
+
+<div class="plan-detail-container">
+    <div class="plan-card">
+        <div class="plan-header">
+            <div class="plan-icon">
+                <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div>
+                <h1>{{ installment_plan.name }}</h1>
+                <p class="plan-subtitle">Installment Plan Details</p>
+            </div>
+        </div>
+
+        <div class="details-section">
+            <div class="detail-item">
+                <span class="detail-label">Plan Name</span>
+                <span class="detail-value">{{ installment_plan.name }}</span>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">Total Amount</span>
+                <span class="detail-value amount-value">${{ installment_plan.total_amount }}</span>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">Total Paid</span>
+                <span class="detail-value amount-value">${{ installment_plan.total_paid }}</span>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">Balance Remaining</span>
+                <span class="detail-value balance-value">${{ installment_plan.balance_remaining }}</span>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">Status</span>
+                <span class="detail-value">
+                    {% if installment_plan.is_completed %}
+                        <span class="status-badge status-completed">
+                            <i class="fas fa-check-circle"></i> Completed
+                        </span>
+                    {% else %}
+                        <span class="status-badge status-ongoing">
+                            <i class="fas fa-clock"></i> Ongoing
+                        </span>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container">
+            <div class="progress-info">
+                <span>Payment Progress</span>
+                <span>${{ installment_plan.total_paid }} / ${{ installment_plan.total_amount }}</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <a href="{% url 'payments:installmentplan-list' %}" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Back to Installment Plans
+            </a>
+        </div>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the plan card
+        const planCard = document.querySelector('.plan-card');
+        planCard.style.opacity = '0';
+        planCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            planCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            planCard.style.opacity = '1';
+            planCard.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Add animation to detail items
+        const detailItems = document.querySelectorAll('.detail-item');
+        detailItems.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(-20px)';
+            
+            setTimeout(() => {
+                item.style.transition = `opacity 0.3s ease ${index * 0.1}s, transform 0.3s ease ${index * 0.1}s`;
+                item.style.opacity = '1';
+                item.style.transform = 'translateX(0)';
+            }, 150 + (index * 100));
+        });
+        
+        // Calculate and animate progress bar
+        const totalAmount = parseFloat("{{ installment_plan.total_amount }}");
+        const totalPaid = parseFloat("{{ installment_plan.total_paid }}");
+        const progressPercentage = Math.min(100, (totalPaid / totalAmount) * 100);
+        
+        const progressFill = document.getElementById('progressFill');
+        setTimeout(() => {
+            progressFill.style.transition = 'width 1s ease-in-out';
+            progressFill.style.width = progressPercentage + '%';
+        }, 500);
+        
+        // Format currency values
+        const amountValues = document.querySelectorAll('.amount-value, .balance-value');
+        amountValues.forEach(element => {
+            const text = element.textContent.replace('$', '');
+            const amount = parseFloat(text);
+            if (!isNaN(amount)) {
+                element.textContent = '$' + amount.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+        });
+    });
+</script>
 {% endblock %}

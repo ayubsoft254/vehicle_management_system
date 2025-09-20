@@ -1,13 +1,273 @@
 {% extends 'base.html' %}
-{% block title %}Notification Details{% endblock %}
+{% block title %}{{ notification.title }} - Notification Details{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1>Notification Details</h1>
-    <p><strong>Title:</strong> {{ notification.title }}</p>
-    <p><strong>Recipient:</strong> {{ notification.recipient }}</p>
-    <p><strong>Status:</strong> {{ notification.status }}</p>
-    <p><strong>Sent At:</strong> {{ notification.sent_at|date:'Y-m-d H:i' }}</p>
-    <p><strong>Message:</strong> {{ notification.message }}</p>
-    <a href="{% url 'notifications:notification-list' %}" class="btn btn-secondary mt-3">Back to Notifications</a>
+<style>
+    .notification-detail-container {
+        min-height: 80vh;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .notification-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 600px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .notification-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .notification-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .notification-icon {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #2563eb 0%, #7e22ce 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        color: white;
+        font-size: 1.8rem;
+    }
+    
+    .notification-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+    }
+    
+    .notification-subtitle {
+        color: #64748b;
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .details-grid {
+        display: grid;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .detail-item {
+        display: flex;
+        flex-direction: column;
+        padding: 1.5rem;
+        background-color: #f8fafc;
+        border-radius: 12px;
+        border-left: 4px solid #2563eb;
+    }
+    
+    .detail-label {
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .detail-value {
+        color: #1e293b;
+        font-size: 1.1rem;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.4rem 0.8rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .status-sent {
+        background-color: #f0fdf4;
+        color: #16a34a;
+    }
+    
+    .status-pending {
+        background-color: #fffbeb;
+        color: #ca8a04;
+    }
+    
+    .status-failed {
+        background-color: #fef2f2;
+        color: #dc2626;
+    }
+    
+    .message-container {
+        padding: 1.5rem;
+        background-color: #f8fafc;
+        border-radius: 12px;
+        border-left: 4px solid #2563eb;
+        margin-bottom: 1.5rem;
+    }
+    
+    .message-content {
+        color: #374151;
+        line-height: 1.6;
+        padding: 1rem;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        margin-top: 0.5rem;
+    }
+    
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.75rem 1.5rem;
+        background: #f1f5f9;
+        color: #475569;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+    
+    .back-button:hover {
+        background: #e2e8f0;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .notification-card {
+            padding: 2rem 1.5rem;
+        }
+        
+        .notification-title {
+            font-size: 1.5rem;
+        }
+        
+        .detail-item {
+            padding: 1rem;
+        }
+    }
+</style>
+
+<div class="notification-detail-container">
+    <div class="notification-card">
+        <div class="notification-header">
+            <div class="notification-icon">
+                <i class="fas fa-bell"></i>
+            </div>
+            <h1 class="notification-title">Notification Details</h1>
+            <p class="notification-subtitle">Complete information about this notification</p>
+        </div>
+
+        <div class="details-grid">
+            <div class="detail-item">
+                <span class="detail-label">Title</span>
+                <span class="detail-value">{{ notification.title }}</span>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">Recipient</span>
+                <span class="detail-value">{{ notification.recipient }}</span>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">Status</span>
+                <span class="detail-value">
+                    {% if notification.status == 'Sent' %}
+                        <span class="status-badge status-sent">
+                            <i class="fas fa-check-circle"></i> Sent
+                        </span>
+                    {% elif notification.status == 'Pending' %}
+                        <span class="status-badge status-pending">
+                            <i class="fas fa-clock"></i> Pending
+                        </span>
+                    {% else %}
+                        <span class="status-badge status-failed">
+                            <i class="fas fa-exclamation-circle"></i> Failed
+                        </span>
+                    {% endif %}
+                </span>
+            </div>
+            
+            <div class="detail-item">
+                <span class="detail-label">Sent At</span>
+                <span class="detail-value">{{ notification.sent_at|date:'F j, Y H:i' }}</span>
+            </div>
+        </div>
+
+        <div class="message-container">
+            <span class="detail-label">Message</span>
+            <div class="message-content">
+                {{ notification.message }}
+            </div>
+        </div>
+
+        <a href="{% url 'notifications:notification-list' %}" class="back-button">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Notifications
+        </a>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the notification card
+        const notificationCard = document.querySelector('.notification-card');
+        notificationCard.style.opacity = '0';
+        notificationCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            notificationCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            notificationCard.style.opacity = '1';
+            notificationCard.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Add animation to detail items
+        const detailItems = document.querySelectorAll('.detail-item');
+        detailItems.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(-20px)';
+            
+            setTimeout(() => {
+                item.style.transition = `opacity 0.5s ease ${index * 0.1}s, transform 0.5s ease ${index * 0.1}s`;
+                item.style.opacity = '1';
+                item.style.transform = 'translateX(0)';
+            }, 200 + (index * 100));
+        });
+        
+        // Add animation to message container
+        const messageContainer = document.querySelector('.message-container');
+        messageContainer.style.opacity = '0';
+        messageContainer.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            messageContainer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            messageContainer.style.opacity = '1';
+            messageContainer.style.transform = 'translateY(0)';
+        }, 500);
+    });
+</script>
 {% endblock %}

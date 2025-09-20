@@ -1,19 +1,350 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
-{% block title %}Sign Up{% endblock %}
+{% block title %}Sign Up - Vehicle Management{% endblock %}
 
 {% block content %}
-<div class="max-w-md mx-auto">
-    <h1 class="text-2xl font-bold mb-4">Create Your Account</h1>
-    <form method="post" action="{% url 'account_signup' %}">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit" class="btn-primary w-full">Sign Up</button>
-    </form>
-    <p class="mt-4 text-center">
-        Already have an account?
-        <a href="{% url 'account_login' %}" class="text-blue-600">Sign In</a>
-    </p>
-</div>
-{% endblock %}
+<style>
+    .login-container {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    }
+    
+    .login-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 500px; /* Increased from 420px to 500px */
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .login-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .login-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .login-icon {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #2563eb 0%, #7e22ce 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        color: white;
+        font-size: 1.8rem;
+    }
+    
+    .login-header h2 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+    }
+    
+    .login-header p {
+        color: #64748b;
+        font-size: 0.95rem;
+    }
+    
+    .login-form {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #374151;
+        font-size: 0.9rem;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background-color: #f9fafb;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        background-color: white;
+    }
+    
+    .form-input.error {
+        border-color: #ef4444;
+    }
+    
+    .error-message {
+        color: #ef4444;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .login-btn {
+        width: 100%;
+        padding: 1rem;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    
+    .login-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .login-btn:active {
+        transform: translateY(0);
+    }
+    
+    .login-footer {
+        text-align: center;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .login-footer p {
+        color: #6b7280;
+        margin-bottom: 0.5rem;
+    }
+    
+    .register-link {
+        color: #2563eb;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        transition: color 0.3s ease;
+    }
+    
+    .register-link:hover {
+        color: #1d4ed8;
+        text-decoration: underline;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 480px) {
+        .login-card {
+            padding: 2rem 1.5rem;
+        }
+        
+        .login-header h2 {
+            font-size: 1.5rem;
+        }
+    }
+    
+    /* Additional styling for better spacing */
+    .form-row {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-row .form-group {
+        flex: 1;
+        margin-bottom: 0;
+    }
+    
+    .password-requirements {
+        background-color: #f8fafc;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+    
+    .password-requirements ul {
+        margin: 0.5rem 0 0 1rem;
+        padding: 0;
+    }
+    
+    .password-requirements li {
+        margin-bottom: 0.25rem;
+    }
+</style>
 
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-icon">
+                <i class="fas fa-user-plus"></i>
+            </div>
+            <h2>Create Your Account</h2>
+            <p>Join our vehicle management system</p>
+        </div>
+        
+        <form method="post" action="{% url 'account_signup' %}" class="login-form">
+            {% csrf_token %}
+            
+            <!-- Manual form rendering for better styling control -->
+            {% for field in form %}
+                {% if field.name == 'username' or field.name == 'email' %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    <input type="{{ field.field.widget.input_type }}" 
+                           name="{{ field.name }}" 
+                           id="{{ field.id_for_label }}" 
+                           class="form-input {% if field.errors %}error{% endif %}" 
+                           placeholder="Enter your {{ field.label|lower }}"
+                           {% if field.field.required %}required{% endif %}>
+                    
+                    {% if field.errors %}
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ field.errors.0 }}
+                        </div>
+                    {% endif %}
+                    
+                    {% if field.help_text %}
+                        <div style="color: #64748b; font-size: 0.8rem; margin-top: 0.25rem;">
+                            {{ field.help_text }}
+                        </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                {% if field.name == 'password1' %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    <input type="password" 
+                           name="{{ field.name }}" 
+                           id="{{ field.id_for_label }}" 
+                           class="form-input {% if field.errors %}error{% endif %}" 
+                           placeholder="Create a secure password"
+                           {% if field.field.required %}required{% endif %}>
+                    
+                    {% if field.errors %}
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ field.errors.0 }}
+                        </div>
+                    {% endif %}
+                    
+                    {% if field.help_text %}
+                        <div class="password-requirements">
+                            <strong>Password requirements:</strong>
+                            <ul>
+                                <li>At least 8 characters</li>
+                                <li>Include both letters and numbers</li>
+                                <li>Not too similar to your username</li>
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                {% if field.name == 'password2' %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    <input type="password" 
+                           name="{{ field.name }}" 
+                           id="{{ field.id_for_label }}" 
+                           class="form-input {% if field.errors %}error{% endif %}" 
+                           placeholder="Confirm your password"
+                           {% if field.field.required %}required{% endif %}>
+                    
+                    {% if field.errors %}
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ field.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endfor %}
+            
+            {% if form.non_field_errors %}
+                <div class="error-message" style="margin-bottom: 1rem;">
+                    <i class="fas fa-exclamation-circle"></i>
+                    {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+            
+            <button type="submit" class="login-btn">
+                <i class="fas fa-user-plus"></i> Create Account
+            </button>
+        </form>
+        
+        <div class="login-footer">
+            <p>Already have an account?</p>
+            <a href="{% url 'account_login' %}" class="register-link">
+                <i class="fas fa-sign-in-alt"></i> Login here
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the login card
+        const loginCard = document.querySelector('.login-card');
+        loginCard.style.opacity = '0';
+        loginCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            loginCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            loginCard.style.opacity = '1';
+            loginCard.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Add focus effects to form inputs
+        const formInputs = document.querySelectorAll('.form-input');
+        formInputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.classList.add('focused');
+            });
+            
+            input.addEventListener('blur', function() {
+                this.parentElement.classList.remove('focused');
+            });
+        });
+        
+        // Set proper input types for specific fields
+        const emailField = document.querySelector('input[name="email"]');
+        if (emailField) emailField.type = 'email';
+    });
+</script>
+{% endblock %}

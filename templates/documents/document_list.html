@@ -1,34 +1,261 @@
 {% extends 'base.html' %}
-{% block title %}Documents{% endblock %}
+{% block title %}Documents - Vehicle Management{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1 class="mb-4">Documents</h1>
-    <a href="{% url 'documents:document-create' %}" class="btn btn-primary mb-3">Add Document</a>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Category</th>
-                <th>Owner</th>
-                <th>Expiry</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for document in documents %}
-            <tr>
-                <td>{{ document.title }}</td>
-                <td>{{ document.category }}</td>
-                <td>{{ document.owner }}</td>
-                <td>{% if document.is_expired %}<span class="text-danger">Expired</span>{% else %}{{ document.expiry_date|date:'Y-m-d' }}{% endif %}</td>
-                <td>
-                    <a href="{% url 'documents:document-detail' document.pk %}" class="btn btn-outline-primary btn-sm">View</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5">No documents found.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<style>
+    .documents-container {
+        min-height: 80vh;
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    }
+    
+    .documents-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 2.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .documents-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #2563eb 0%, #7e22ce 100%);
+    }
+    
+    .documents-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+    
+    .documents-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    
+    .add-document-btn {
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .add-document-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+    }
+    
+    .documents-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1.5rem;
+    }
+    
+    .documents-table th {
+        background-color: #f8fafc;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #475569;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .documents-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        color: #334155;
+    }
+    
+    .documents-table tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .documents-table tr:hover {
+        background-color: #f8fafc;
+    }
+    
+    .status-badge {
+        padding: 0.4rem 0.8rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .status-expired {
+        background-color: #fef2f2;
+        color: #dc2626;
+    }
+    
+    .status-valid {
+        background-color: #f0fdf4;
+        color: #16a34a;
+    }
+    
+    .view-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        border: 1px solid #2563eb;
+        color: #2563eb;
+        background: transparent;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .view-btn:hover {
+        background-color: #eff6ff;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #64748b;
+    }
+    
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .documents-card {
+            padding: 1.5rem;
+        }
+        
+        .documents-header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+        
+        .documents-table {
+            display: block;
+            overflow-x: auto;
+        }
+        
+        .documents-table th:nth-child(2),
+        .documents-table td:nth-child(2),
+        .documents-table th:nth-child(3),
+        .documents-table td:nth-child(3) {
+            display: none;
+        }
+    }
+</style>
+
+<div class="documents-container">
+    <div class="documents-card">
+        <!-- Header Section -->
+        <div class="documents-header">
+            <h1 class="documents-title">Documents</h1>
+            <a href="{% url 'documents:document-create' %}" class="add-document-btn">
+                <i class="fas fa-plus"></i> Add Document
+            </a>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table class="documents-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Owner</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for document in documents %}
+                    <tr>
+                        <td class="font-medium">{{ document.title }}</td>
+                        <td>{{ document.category }}</td>
+                        <td>{{ document.owner }}</td>
+                        <td>
+                            {% if document.is_expired %}
+                                <span class="status-badge status-expired">
+                                    <i class="fas fa-exclamation-circle"></i> Expired
+                                </span>
+                            {% else %}
+                                <span class="status-badge status-valid">
+                                    <i class="fas fa-check-circle"></i> {{ document.expiry_date|date:'Y-m-d' }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'documents:document-detail' document.pk %}" class="view-btn">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="empty-state">
+                            <i class="fas fa-file-alt empty-icon"></i>
+                            <p>No documents found.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation to the documents card
+        const documentsCard = document.querySelector('.documents-card');
+        documentsCard.style.opacity = '0';
+        documentsCard.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            documentsCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            documentsCard.style.opacity = '1';
+            documentsCard.style.transform = 'translateY(0)';
+        }, 100);
+        
+        // Add animation to table rows
+        const tableRows = document.querySelectorAll('.documents-table tbody tr');
+        tableRows.forEach((row, index) => {
+            // Skip the empty state row for animation
+            if (!row.querySelector('.empty-state')) {
+                row.style.opacity = '0';
+                row.style.transform = 'translateX(-20px)';
+                
+                setTimeout(() => {
+                    row.style.transition = `opacity 0.5s ease ${index * 0.1}s, transform 0.5s ease ${index * 0.1}s`;
+                    row.style.opacity = '1';
+                    row.style.transform = 'translateX(0)';
+                }, 200 + (index * 100));
+            }
+        });
+    });
+</script>
 {% endblock %}
