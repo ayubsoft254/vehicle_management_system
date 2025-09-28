@@ -1,51 +1,51 @@
 # Django and Core Dependencies
-Django==5.2.6
-python-decouple==3.8
+Django
+python-decouple
 
 # Database
-psycopg2-binary==2.9.9
+psycopg2-binary
 
 # Multi-tenancy
-django-tenants==3.6.1
+django-tenants
 
 # Authentication
-django-allauth==0.63.3
+django-allauth
 
 # File handling and media
-Pillow==10.3.0
+Pillow
 
 # PDF Generation
-reportlab==4.2.0
-weasyprint==62.3
+reportlab
+weasyprint
 
 # Excel/CSV handling
-openpyxl==3.1.2
-xlsxwriter==3.2.0
+openpyxl
+xlsxwriter
 
 # Task Queue (for notifications)
-celery==5.3.6
-redis==5.0.3
+celery
+redis
 
 # API (if needed later)
-djangorestframework==3.15.1
+djangorestframework
 
 # Development tools
-django-debug-toolbar==4.3.0
-django-extensions==3.2.3
+django-debug-toolbar
+django-extensions
 
 # Production dependencies
-gunicorn==21.2.0
-whitenoise==6.6.0
+gunicorn
+whitenoise
 
 # Date and time handling
-python-dateutil==2.9.0
+python-dateutil
 
 # Email backend (for production)
-django-ses==3.5.2
+django-ses
 
 # Utilities
-django-crispy-forms==2.1
-crispy-tailwind==0.5.0
+django-crispy-forms
+crispy-tailwind
 
 # Monitoring and logging
-sentry-sdk==2.0.1
+sentry-sdk
