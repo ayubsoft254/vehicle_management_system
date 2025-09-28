@@ -1,13 +1,51 @@
-Django>=5.1,<5.2
-gunicorn
-django-allauth
-django-cotton
-pillow
-reportlab
-openpyxl
-django-crispy-forms
-crispy-tailwind
-django-extensions
-python-decouple
-django-phonenumber-field
-phonenumbers
+# Django and Core Dependencies
+Django==5.2.6
+python-decouple==3.8
+
+# Database
+psycopg2-binary==2.9.9
+
+# Multi-tenancy
+django-tenants==3.6.1
+
+# Authentication
+django-allauth==0.63.3
+
+# File handling and media
+Pillow==10.3.0
+
+# PDF Generation
+reportlab==4.2.0
+weasyprint==62.3
+
+# Excel/CSV handling
+openpyxl==3.1.2
+xlsxwriter==3.2.0
+
+# Task Queue (for notifications)
+celery==5.3.6
+redis==5.0.3
+
+# API (if needed later)
+djangorestframework==3.15.1
+
+# Development tools
+django-debug-toolbar==4.3.0
+django-extensions==3.2.3
+
+# Production dependencies
+gunicorn==21.2.0
+whitenoise==6.6.0
+
+# Date and time handling
+python-dateutil==2.9.0
+
+# Email backend (for production)
+django-ses==3.5.2
+
+# Utilities
+django-crispy-forms==2.1
+crispy-tailwind==0.5.0
+
+# Monitoring and logging
+sentry-sdk==2.0.1
