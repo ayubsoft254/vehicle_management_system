@@ -14,7 +14,7 @@ urlpatterns = [
     path('accounts/', include('allauth.urls')),
     
     # Core App (Dashboard, Profile, etc.)
-    path('', include('apps.core.urls', namespace='core')),
+    path('', include('core.urls', namespace='core')),
     
     # Vehicle Management
     # path('vehicles/', include('apps.vehicles.urls', namespace='vehicles')),

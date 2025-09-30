@@ -51,25 +51,26 @@ SHARED_APPS = [
     'crispy_tailwind',
     'django_extensions',
     'import_export',
+    'debug_toolbar',
     
     # Core app (shared across tenants)
-    'apps.core',
+    'core',
 ]
 
 TENANT_APPS = [
     # Tenant-specific apps
-    'apps.vehicles',
-    'apps.clients',
-    'apps.payments',
-    'apps.payroll',
-    'apps.expenses',
-    'apps.repossessions',
-    'apps.auctions',
-    'apps.insurance',
-    'apps.notifications',
-    'apps.documents',
-    'apps.reports',
-    'apps.audit',
+    'vehicles',
+    'clients',
+    'payments',
+    'payroll',
+    'expenses',
+    'repossessions',
+    'auctions',
+    'insurance',
+    'notifications',
+    'documents',
+    'reports',
+    'audit',
 ]
 
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
@@ -80,6 +81,7 @@ TENANT_DOMAIN_MODEL = "core.Domain"
 
 MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -273,3 +275,9 @@ os.makedirs(BASE_DIR / 'logs', exist_ok=True)
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Debug Toolbar Settings
+INTERNAL_IPS = [
+    '127.0.0.1',
+    'localhost',
+]

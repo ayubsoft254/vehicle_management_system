@@ -21,6 +21,7 @@ weasyprint
 # Excel/CSV handling
 openpyxl
 xlsxwriter
+django-import-export
 
 # Task Queue (for notifications)
 celery
