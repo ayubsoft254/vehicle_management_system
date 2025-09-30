@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ page_title }} - Vehicle Sales Management{% endblock %}</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .sidebar-link {
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar-link:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-left: 4px solid #3B82F6;
+        }
+        
+        .sidebar-link.active {
+            background-color: rgba(59, 130, 246, 0.15);
+            border-left: 4px solid #3B82F6;
+            font-weight: 600;
+        }
+        
+        .dropdown-menu {
+            display: none;
+        }
+        
+        .dropdown-menu.show {
+            display: block;
+        }
+        
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-100">
+    {% if user.is_authenticated %}
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white shadow-lg no-print" id="sidebar">
+            <div class="flex flex-col h-full">
+                <!-- Logo -->
+                <div class="flex items-center justify-center h-20 border-b border-gray-200">
+                    <h1 class="text-2xl font-bold text-blue-600">
+                        <i class="fas fa-car"></i> VehiclePro
+                    </h1>
+                </div>
+                
+                <!-- Navigation -->
+                <nav class="flex-1 overflow-y-auto py-4">
+                    <ul class="space-y-1 px-3">
+                        <!-- Dashboard -->
+                        <li>
+                            <a href="{% url 'core:dashboard' %}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                                <i class="fas fa-home w-5"></i>
+                                <span class="ml-3">Dashboard</span>
+                            </a>
+                        </li>
+                        
+                        <!-- Vehicles -->
+                        <li>
+                            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                                <i class="fas fa-car w-5"></i>
+                                <span class="ml-3">Vehicles</span>
+                            </a>
+                        </li>
+                        
+                        <!-- Clients -->
+                        <li>
+                            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                                <i class="fas fa-users w-5"></i>
+                                <span class="ml-3">Clients</span>
+                            </a>
+                        </li>
+                        
+                        <!-- Payments -->
+                        <li>
+                            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                                <i class="fas fa-credit-card w-5"></i>
+                                <span class="ml-3">Payments</span>
+                            </a>
+                        </li>
+                        
+                        <!-- Payroll (Admin/Accountant only) -->
+                        {% if user.role in 'admin,accountant,manager' %}
+                        <li>
+                            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                                <i class="fas fa-money-bill-wave w-5"></i>
+                                <span class="ml-3">Payroll</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        <!-- Expenses -->
+                        <li>
+                            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                                <i class="fas fa-receipt w-5"></i>
+                                <span class="ml-3">Expenses</span>
+                            </a>
+                        </li>
+                        
+                        <!-- Repossessions -->
+                        {% if user.role in 'admin,manager,auctioneer' %}
+                        <li>
+                            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                                <i class="fas fa-exclamation-triangle w-5"></i>
+                                <span class="ml-3">Repossessions</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        <!-- Auctions -->
+                        {% if user.role in 'admin,manager,auctioneer' %}
+                        <li>
+                            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                                <i class="fas fa-gavel w-5"></i>
+                                <span class="ml-3">Auctions</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        <!-- Insurance -->
+                        <li>
+                            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                                <i class="fas fa-shield-alt w-5"></i>
+                                <span class="ml-3">Insurance</span>
+                            </a>
+                        </li>
+                        
+                        <!-- Documents -->
+                        <li>
+                            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                                <i class="fas fa-folder-open w-5"></i>
+                                <span class="ml-3">Documents</span>
+                            </a>
+                        </li>
+                        
+                        <!-- Reports -->
+                        <li>
+                            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                                <i class="fas fa-chart-bar w-5"></i>
+                                <span class="ml-3">Reports</span>
+                            </a>
+                        </li>
+                        
+                        <!-- Notifications -->
+                        <li>
+                            <a href="#" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                                <i class="fas fa-bell w-5"></i>
+                                <span class="ml-3">Notifications</span>
+                                <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-1">3</span>
+                            </a>
+                        </li>
+                        
+                        <!-- Settings (Admin only) -->
+                        {% if user.role == 'admin' %}
+                        <li>
+                            <a href="{% url 'core:settings' %}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg">
+                                <i class="fas fa-cog w-5"></i>
+                                <span class="ml-3">Settings</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                
+                <!-- User Profile -->
+                <div class="border-t border-gray-200 p-4">
+                    <div class="flex items-center">
+                        <img src="{% if user.profile_picture %}{{ user.profile_picture.url }}{% else %}https://ui-avatars.com/api/?name={{ user.get_full_name|urlencode }}{% endif %}" 
+                             alt="Profile" 
+                             class="w-10 h-10 rounded-full">
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-700">{{ user.get_full_name }}</p>
+                            <p class="text-xs text-gray-500">{{ user.get_role_display }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Top Navigation -->
+            <header class="bg-white shadow-sm no-print">
+                <div class="flex items-center justify-between px-6 py-4">
+                    <div class="flex items-center">
+                        <button id="sidebarToggle" class="text-gray-600 focus:outline-none lg:hidden">
+                            <i class="fas fa-bars text-xl"></i>
+                        </button>
+                        <h2 class="text-2xl font-semibold text-gray-800 ml-4">{{ page_title }}</h2>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <!-- Search -->
+                        <div class="relative hidden md:block">
+                            <input type="text" 
+                                   placeholder="Search..." 
+                                   class="w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
+                        </div>
+                        
+                        <!-- Notifications -->
+                        <button class="relative text-gray-600 hover:text-gray-800">
+                            <i class="fas fa-bell text-xl"></i>
+                            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">3</span>
+                        </button>
+                        
+                        <!-- User Dropdown -->
+                        <div class="relative" id="userDropdown">
+                            <button class="flex items-center space-x-2 text-gray-700 hover:text-gray-900 focus:outline-none" id="userMenuButton">
+                                <img src="{% if user.profile_picture %}{{ user.profile_picture.url }}{% else %}https://ui-avatars.com/api/?name={{ user.get_full_name|urlencode }}{% endif %}" 
+                                     alt="Profile" 
+                                     class="w-8 h-8 rounded-full">
+                                <span class="hidden md:block">{{ user.first_name }}</span>
+                                <i class="fas fa-chevron-down text-sm"></i>
+                            </button>
+                            
+                            <!-- Dropdown Menu -->
+                            <div class="dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
+                                <a href="{% url 'core:profile' %}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-user mr-2"></i> My Profile
+                                </a>
+                                <a href="{% url 'core:settings' %}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-cog mr-2"></i> Settings
+                                </a>
+                                <hr class="my-2">
+                                <a href="{% url 'account_logout' %}" class="block px-4 py-2 text-red-600 hover:bg-gray-100">
+                                    <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Page Content -->
+            <main class="flex-1 overflow-y-auto bg-gray-100 p-6">
+                <!-- Messages -->
+                {% if messages %}
+                <div class="mb-4 space-y-2">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} bg-{% if message.tags == 'error' %}red{% elif message.tags == 'success' %}green{% elif message.tags == 'warning' %}yellow{% else %}blue{% endif %}-100 border border-{% if message.tags == 'error' %}red{% elif message.tags == 'success' %}green{% elif message.tags == 'warning' %}yellow{% else %}blue{% endif %}-400 text-{% if message.tags == 'error' %}red{% elif message.tags == 'success' %}green{% elif message.tags == 'warning' %}yellow{% else %}blue{% endif %}-700 px-4 py-3 rounded relative" role="alert">
+                        <span class="block sm:inline">{{ message }}</span>
+                        <button class="absolute top-0 bottom-0 right-0 px-4 py-3" onclick="this.parentElement.remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <!-- Content Block -->
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    {% else %}
+    <!-- Not Authenticated Layout -->
+    <div class="min-h-screen">
+        {% block auth_content %}{% endblock %}
+    </div>
+    {% endif %}
+    
+    <!-- JavaScript -->
+    <script>
+        // Sidebar Toggle (Mobile)
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('sidebar');
+        
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('-translate-x-full');
+            });
+        }
+        
+        // User Dropdown Toggle
+        const userMenuButton = document.getElementById('userMenuButton');
+        const userDropdown = document.getElementById('userDropdown');
+        
+        if (userMenuButton) {
+            userMenuButton.addEventListener('click', () => {
+                const menu = userDropdown.querySelector('.dropdown-menu');
+                menu.classList.toggle('show');
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!userDropdown.contains(e.target)) {
+                    const menu = userDropdown.querySelector('.dropdown-menu');
+                    menu.classList.remove('show');
+                }
+            });
+        }
+        
+        // Active Link Highlighting
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.sidebar-link').forEach(link => {
+            if (link.getAttribute('href') === currentPath) {
+                link.classList.add('active');
+            }
+        });
+        
+        // Auto-hide alerts after 5 seconds
+        setTimeout(() => {
+            document.querySelectorAll('.alert').forEach(alert => {
+                alert.style.transition = 'opacity 0.5s';
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 5000);
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
