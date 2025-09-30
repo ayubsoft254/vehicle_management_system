@@ -125,4 +125,180 @@ vehicle_sales_system/
 | **Admin** | Full system access |
 | **Manager** | Full access except settings |
 | **Sales** | Vehicles, clients, payments |
-| **Account
+| **Accountant** | Payments, payroll, expenses, reports |
+| **Auctioneer** | Repossessions, auctions |
+| **Staff** | View-only access to basic modules |
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Key environment variables in `.env`:
+
+```env
+# Django
+SECRET_KEY=your-secret-key
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Database
+DB_NAME=vehicle_sales_db
+DB_USER=postgres
+DB_PASSWORD=your-password
+DB_HOST=localhost
+DB_PORT=5432
+
+# Email
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=your-email@example.com
+EMAIL_HOST_PASSWORD=your-app-password
+
+# SMS (Twilio)
+TWILIO_ACCOUNT_SID=your-sid
+TWILIO_AUTH_TOKEN=your-token
+TWILIO_PHONE_NUMBER=+1234567890
+```
+
+## 📱 Multi-Tenancy Setup
+
+### Creating a New Tenant
+
+```python
+from apps.core.models import Client, Domain
+
+# Create tenant
+tenant = Client(
+    schema_name='company_schema',
+    name='Company Name',
+    company_name='Company Full Name',
+    company_email='info@company.com',
+    company_phone='+1234567890'
+)
+tenant.save()
+
+# Create domain
+domain = Domain()
+domain.domain = 'company.yourdomain.com'
+domain.tenant = tenant
+domain.is_primary = True
+domain.save()
+
+# Run tenant migrations
+python manage.py migrate_schemas --tenant=company_schema
+```
+
+## 📊 Running the Application
+
+### Development
+
+```bash
+# Run development server
+python manage.py runserver
+
+# Run Celery worker (for background tasks)
+celery -A config worker -l info
+
+# Run Celery beat (for scheduled tasks)
+celery -A config beat -l info
+```
+
+### Production
+
+```bash
+# Collect static files
+python manage.py collectstatic --noinput
+
+# Run with Gunicorn
+gunicorn config.wsgi:application --bind 0.0.0.0:8000
+```
+
+## 🧪 Testing
+
+```bash
+# Run tests
+python manage.py test
+
+# Run tests with coverage
+coverage run --source='.' manage.py test
+coverage report
+```
+
+## 📝 Management Commands
+
+```bash
+# Setup default role permissions
+python manage.py setup_roles
+
+# Create tenant
+python manage.py create_tenant
+
+# Migrate all tenants
+python manage.py migrate_schemas
+
+# Migrate specific tenant
+python manage.py migrate_schemas --tenant=schema_name
+```
+
+## 🎨 Customization
+
+### Theme Colors
+
+Each tenant can customize their theme colors in the admin panel or via the Client model:
+
+- `primary_color`: Main brand color (default: #3B82F6)
+- `secondary_color`: Secondary brand color (default: #10B981)
+
+### Company Branding
+
+Update tenant information:
+- Company Name
+- Logo
+- Contact Details
+- Address
+
+## 📚 API Documentation
+
+*(To be added when API endpoints are implemented)*
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🐛 Known Issues
+
+- None currently
+
+## 📞 Support
+
+For support, email support@yourcompany.com or create an issue in the repository.
+
+## ✨ Roadmap
+
+- [ ] REST API implementation
+- [ ] Mobile application
+- [ ] Advanced analytics dashboard
+- [ ] Integration with accounting software
+- [ ] WhatsApp notifications
+- [ ] Vehicle tracking with GPS
+- [ ] Online payment gateway integration
+- [ ] Multi-language support
+
+## 🙏 Acknowledgments
+
+- Django Framework
+- Tailwind CSS
+- Font Awesome Icons
+- All open-source contributors
+
+---
+
+**Built with ❤️ using Django 5.2.6**
