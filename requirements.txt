@@ -1,6 +1,7 @@
 # Django and Core Dependencies
 Django
 python-decouple
+dj-database-url
 
 # Database
 psycopg2-binary
