@@ -1,5 +1,5 @@
 """
-Main URL Configuration for Vehicle Sales Management System - Tenant URLs
+URL Configuration for Tenant Schemas (Tenant-specific)
 """
 from django.contrib import admin
 from django.urls import path, include
@@ -66,8 +66,3 @@ if settings.DEBUG:
         ] + urlpatterns
     except ImportError:
         pass
-
-# Customize admin site
-admin.site.site_header = "Vehicle Sales Management Admin"
-admin.site.site_title = "Vehicle Sales Admin Portal"
-admin.site.index_title = "Welcome to Vehicle Sales Management System"
