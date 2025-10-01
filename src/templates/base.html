@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{% block title %}Vehicle Sales Management System{% endblock %}</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Alpine.js for interactivity -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Custom CSS -->
+    <style>
+        [x-cloak] { display: none !important; }
+        
+        .sidebar-link {
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar-link:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .sidebar-link.active {
+            background-color: rgba(59, 130, 246, 0.2);
+            border-left: 4px solid #3b82f6;
+            font-weight: 600;
+        }
+        
+        .toast {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50">
+    <div x-data="{ sidebarOpen: true }" class="flex h-screen">
+        
+        <!-- Sidebar -->
+        <aside 
+            x-show="sidebarOpen" 
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="-translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transition ease-in duration-300"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="-translate-x-full"
+            class="fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg overflow-y-auto"
+        >
+            <!-- Logo -->
+            <div class="flex items-center justify-center h-16 bg-blue-600">
+                <h1 class="text-white text-xl font-bold">
+                    <i class="fas fa-car mr-2"></i>VSMS
+                </h1>
+            </div>
+            
+            <!-- Navigation -->
+            <nav class="mt-6 px-3">
+                {% block sidebar %}
+                <a href="{% url 'dashboard:home' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                    <i class="fas fa-home w-6"></i>
+                    <span class="ml-3">Dashboard</span>
+                </a>
+                
+                {% if user.is_authenticated %}
+                    <a href="{% url 'vehicles:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-car w-6"></i>
+                        <span class="ml-3">Vehicles</span>
+                    </a>
+                    
+                    <a href="{% url 'clients:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-users w-6"></i>
+                        <span class="ml-3">Clients</span>
+                    </a>
+                    
+                    <a href="{% url 'payments:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-money-bill w-6"></i>
+                        <span class="ml-3">Payments</span>
+                    </a>
+                    
+                    <a href="{% url 'payroll:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-wallet w-6"></i>
+                        <span class="ml-3">Payroll</span>
+                    </a>
+                    
+                    <a href="{% url 'expenses:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-receipt w-6"></i>
+                        <span class="ml-3">Expenses</span>
+                    </a>
+                    
+                    <a href="{% url 'repossessions:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-undo w-6"></i>
+                        <span class="ml-3">Repossessions</span>
+                    </a>
+                    
+                    <a href="{% url 'auctions:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-gavel w-6"></i>
+                        <span class="ml-3">Auctions</span>
+                    </a>
+                    
+                    <a href="{% url 'insurance:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-shield-alt w-6"></i>
+                        <span class="ml-3">Insurance</span>
+                    </a>
+                    
+                    <a href="{% url 'documents:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-file-alt w-6"></i>
+                        <span class="ml-3">Documents</span>
+                    </a>
+                    
+                    <a href="{% url 'reports:dashboard' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-chart-bar w-6"></i>
+                        <span class="ml-3">Reports</span>
+                    </a>
+                    
+                    {% if user.is_superuser or user.role == 'admin' %}
+                    <a href="{% url 'audit:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-history w-6"></i>
+                        <span class="ml-3">Audit Logs</span>
+                    </a>
+                    
+                    <a href="{% url 'permissions:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-lock w-6"></i>
+                        <span class="ml-3">Permissions</span>
+                    </a>
+                    {% endif %}
+                {% endif %}
+                {% endblock %}
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col" :class="{ 'ml-64': sidebarOpen }">
+            
+            <!-- Top Navigation -->
+            <header class="bg-white shadow-sm z-20">
+                <div class="flex items-center justify-between px-6 py-4">
+                    <button @click="sidebarOpen = !sidebarOpen" class="text-gray-500 focus:outline-none">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    
+                    <div class="flex items-center space-x-4">
+                        {% if user.is_authenticated %}
+                        <!-- Notifications -->
+                        <div x-data="{ open: false }" class="relative">
+                            <button @click="open = !open" class="relative text-gray-600 hover:text-gray-800">
+                                <i class="fas fa-bell text-xl"></i>
+                                <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500"></span>
+                            </button>
+                            
+                            <div x-show="open" @click.away="open = false" x-cloak
+                                 class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-2">
+                                <div class="px-4 py-2 border-b">
+                                    <h3 class="font-semibold">Notifications</h3>
+                                </div>
+                                <div class="max-h-64 overflow-y-auto">
+                                    <a href="#" class="block px-4 py-3 hover:bg-gray-50">
+                                        <p class="text-sm text-gray-800">Payment reminder for Client XYZ</p>
+                                        <p class="text-xs text-gray-500 mt-1">2 hours ago</p>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- User Menu -->
+                        <div x-data="{ open: false }" class="relative">
+                            <button @click="open = !open" class="flex items-center space-x-2 text-gray-700 hover:text-gray-900">
+                                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white">
+                                    {{ user.get_full_name.0|upper }}
+                                </div>
+                                <span class="font-medium">{{ user.get_full_name }}</span>
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                            
+                            <div x-show="open" @click.away="open = false" x-cloak
+                                 class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2">
+                                <a href="{% url 'authentication:profile' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-user mr-2"></i>Profile
+                                </a>
+                                <a href="{% url 'account_logout' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                                </a>
+                            </div>
+                        </div>
+                        {% else %}
+                        <a href="{% url 'account_login' %}" class="text-blue-600 hover:text-blue-800">Login</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Main Content Area -->
+            <main class="flex-1 overflow-y-auto p-6">
+                <!-- Messages/Alerts -->
+                {% if messages %}
+                <div class="mb-4 space-y-2">
+                    {% for message in messages %}
+                    <div class="toast p-4 rounded-lg {% if message.tags == 'error' %}bg-red-100 text-red-800{% elif message.tags == 'success' %}bg-green-100 text-green-800{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                        <div class="flex items-center justify-between">
+                            <span>{{ message }}</span>
+                            <button onclick="this.parentElement.parentElement.remove()" class="ml-4">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script>
+        // Auto-hide messages after 5 seconds
+        setTimeout(() => {
+            document.querySelectorAll('.toast').forEach(el => {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 300);
+            });
+        }, 5000);
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
