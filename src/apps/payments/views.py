@@ -757,6 +757,68 @@ def payment_chart_data_api(request):
     return JsonResponse({'data': monthly_data})
 
 
+# ==================== PDF GENERATION VIEWS ====================
+
+@login_required
+def generate_agreement_pdf_view(request, client_vehicle_pk):
+    """
+    Generate and download sales agreement PDF
+    """
+    from .utils import generate_agreement_pdf
+    
+    client_vehicle = get_object_or_404(
+        ClientVehicle.objects.select_related('client', 'vehicle'),
+        pk=client_vehicle_pk
+    )
+    
+    log_audit(
+        request.user, 'view', 'ClientVehicle',
+        f'Generated agreement PDF for {client_vehicle.client.get_full_name()}'
+    )
+    
+    return generate_agreement_pdf(client_vehicle)
+
+
+@login_required
+def generate_proforma_invoice_pdf_view(request, client_vehicle_pk):
+    """
+    Generate and download proforma invoice PDF
+    """
+    from .utils import generate_performa_invoice_pdf
+    
+    client_vehicle = get_object_or_404(
+        ClientVehicle.objects.select_related('client', 'vehicle'),
+        pk=client_vehicle_pk
+    )
+    
+    log_audit(
+        request.user, 'view', 'ClientVehicle',
+        f'Generated proforma invoice for {client_vehicle.client.get_full_name()}'
+    )
+    
+    return generate_performa_invoice_pdf(client_vehicle)
+
+
+@login_required
+def generate_payment_tracker_pdf_view(request, client_vehicle_pk):
+    """
+    Generate and download payment tracker PDF
+    """
+    from .utils import generate_payment_tracker_pdf
+    
+    client_vehicle = get_object_or_404(
+        ClientVehicle.objects.select_related('client', 'vehicle'),
+        pk=client_vehicle_pk
+    )
+    
+    log_audit(
+        request.user, 'view', 'ClientVehicle',
+        f'Generated payment tracker PDF for {client_vehicle.client.get_full_name()}'
+    )
+    
+    return generate_payment_tracker_pdf(client_vehicle)
+
+
 # ==================== HELPER FUNCTIONS ====================
 
 def update_payment_schedules(payment, client_vehicle):
