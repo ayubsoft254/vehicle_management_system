@@ -1,53 +1,16 @@
-# Django and Core Dependencies
-Django
-python-decouple
-dj-database-url
-
-# Database
-psycopg2-binary
-
-# Multi-tenancy
-django-tenants
-
-# Authentication
-django-allauth
-
-# File handling and media
-Pillow
-
-# PDF Generation
-reportlab
-weasyprint
-
-# Excel/CSV handling
-openpyxl
-xlsxwriter
-django-import-export
-
-# Task Queue (for notifications)
-celery
-redis
-
-# API (if needed later)
-djangorestframework
-
-# Development tools
-django-debug-toolbar
-django-extensions
-
-# Production dependencies
-gunicorn
-whitenoise
-
-# Date and time handling
-python-dateutil
-
-# Email backend (for production)
-django-ses
-
-# Utilities
-django-crispy-forms
-crispy-tailwind
-
-# Monitoring and logging
-sentry-sdk
+Django==5.1
+django-allauth==65.0.2
+python-decouple==3.8
+Pillow==10.4.0
+reportlab==4.2.5
+xhtml2pdf==0.2.16
+pandas==2.2.2
+openpyxl==3.1.5
+django-crispy-forms==2.3
+crispy-tailwind==1.0.3
+python-dateutil==2.9.0
+requests==2.32.3
+twilio==9.3.2
+celery==5.4.0
+redis==5.0.8
+django-celery-beat==2.7.0
