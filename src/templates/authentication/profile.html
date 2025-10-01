@@ -1,0 +1,174 @@
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}My Profile - VSMS{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">My Profile</h1>
+        <p class="text-gray-600 mt-2">Manage your account information and preferences</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Profile Summary Card -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="text-center">
+                    {% if user.profile_picture %}
+                        <img src="{{ user.profile_picture.url }}" alt="{{ user.get_full_name }}" 
+                             class="w-32 h-32 rounded-full mx-auto mb-4 object-cover">
+                    {% else %}
+                        <div class="w-32 h-32 rounded-full mx-auto mb-4 bg-blue-500 flex items-center justify-center">
+                            <span class="text-white text-4xl font-bold">{{ user.initials }}</span>
+                        </div>
+                    {% endif %}
+                    
+                    <h2 class="text-xl font-bold text-gray-800">{{ user.get_full_name }}</h2>
+                    <p class="text-gray-600">{{ user.email }}</p>
+                    
+                    <div class="mt-4">
+                        <span class="inline-block px-3 py-1 text-sm font-semibold rounded-full {{ user.get_role_display_badge }}">
+                            {{ user.get_role_display }}
+                        </span>
+                    </div>
+                    
+                    <div class="mt-6 space-y-3 text-left">
+                        <div class="flex items-center text-sm">
+                            <i class="fas fa-phone w-5 text-gray-400"></i>
+                            <span class="ml-2 text-gray-700">{{ user.phone|default:"Not provided" }}</span>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <i class="fas fa-map-marker-alt w-5 text-gray-400"></i>
+                            <span class="ml-2 text-gray-700">{{ user.city|default:"Not provided" }}</span>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <i class="fas fa-calendar w-5 text-gray-400"></i>
+                            <span class="ml-2 text-gray-700">Joined {{ user.created_at|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Forms -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Personal Information -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-user mr-2 text-blue-600"></i>
+                    Personal Information
+                </h3>
+                
+                <form method="post" enctype="multipart/form-data" class="space-y-4">
+                    {% csrf_token %}
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            {{ user_form.email }}
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                            {{ user_form.phone }}
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                            {{ user_form.first_name }}
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                            {{ user_form.last_name }}
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                            {{ user_form.city }}
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Profile Picture</label>
+                            {{ user_form.profile_picture }}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                        {{ user_form.address }}
+                    </div>
+                    
+                    <hr class="my-6">
+                    
+                    <h4 class="text-lg font-semibold text-gray-800 mb-3">Additional Information</h4>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+                        {{ profile_form.bio }}
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                            {{ profile_form.date_of_birth }}
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">National ID</label>
+                            {{ profile_form.national_id }}
+                        </div>
+                    </div>
+                    
+                    <hr class="my-6">
+                    
+                    <h4 class="text-lg font-semibold text-gray-800 mb-3">Emergency Contact</h4>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                            {{ profile_form.emergency_contact_name }}
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                            {{ profile_form.emergency_contact_phone }}
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
+                            {{ profile_form.emergency_contact_relationship }}
+                        </div>
+                    </div>
+                    
+                    <hr class="my-6">
+                    
+                    <h4 class="text-lg font-semibold text-gray-800 mb-3">Notification Preferences</h4>
+                    
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            {{ profile_form.email_notifications }}
+                            <span class="ml-2 text-gray-700">Receive email notifications</span>
+                        </label>
+                        <label class="flex items-center">
+                            {{ profile_form.sms_notifications }}
+                            <span class="ml-2 text-gray-700">Receive SMS notifications</span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <a href="{% url 'dashboard:home' %}" 
+                           class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-save mr-2"></i>Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
