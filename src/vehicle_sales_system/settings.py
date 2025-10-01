@@ -14,6 +14,7 @@ from pathlib import Path
 from decouple import config, Csv
 import os
 import dj_database_url
+from urllib.parse import urlparse, parse_qsl
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -121,13 +122,20 @@ WSGI_APPLICATION = 'vehicle_sales_system.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 # PostgreSQL database configuration with dj-database-url support
+tmpPostgres = urlparse(config('DATABASE_URL'))
+
 DATABASES = {
-    'default': dj_database_url.config(
-        default=f'postgresql://{config("DB_USER", default="postgres")}:{config("DB_PASSWORD", default="password")}@{config("DB_HOST", default="localhost")}:{config("DB_PORT", default="5432")}/{config("DB_NAME", default="vehicle_sales_db")}',
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': tmpPostgres.path.replace('/', ''),
+        'USER': tmpPostgres.username,
+        'PASSWORD': tmpPostgres.password,
+        'HOST': tmpPostgres.hostname,
+        'PORT': 5432,
+        'OPTIONS': dict(parse_qsl(tmpPostgres.query)),
+    }
 }
+
 
 # Ensure we use the django-tenants PostgreSQL backend
 DATABASES['default']['ENGINE'] = 'django_tenants.postgresql_backend'
