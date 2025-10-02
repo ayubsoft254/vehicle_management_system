@@ -15,6 +15,7 @@ from django.core.files.storage import default_storage
 from django.conf import settings
 from django.utils import timezone
 from django.db.models import Q
+from django.core.mail import send_mail
 
 
 # ============================================================================
