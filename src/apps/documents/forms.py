@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from .models import (
-    Document, DocumentCategory, DocumentShare, DocumentTag
+    Document, DocumentCategory, DocumentShare
 )
 import os
 
@@ -43,8 +43,8 @@ class DocumentForm(forms.ModelForm):
         model = Document
         fields = [
             'title', 'description', 'category', 'file', 
-            'related_vehicle', 'related_client', 'is_public',
-            'is_archived', 'expiry_date'
+            'document_number', 'issue_date', 'expiry_date',
+            'is_private', 'notes'
         ]
         widgets = {
             'title': forms.TextInput(attrs={
@@ -63,23 +63,25 @@ class DocumentForm(forms.ModelForm):
                 'class': 'form-control',
                 'accept': '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.txt'
             }),
-            'related_vehicle': forms.Select(attrs={
-                'class': 'form-control select2',
-                'data-placeholder': 'Select related vehicle (optional)'
+            'document_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Document reference number (optional)'
             }),
-            'related_client': forms.Select(attrs={
-                'class': 'form-control select2',
-                'data-placeholder': 'Select related client (optional)'
-            }),
-            'is_public': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
-            }),
-            'is_archived': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
+            'issue_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
             }),
             'expiry_date': forms.DateInput(attrs={
                 'class': 'form-control',
                 'type': 'date'
+            }),
+            'is_private': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Additional notes (optional)'
             })
         }
     
@@ -87,14 +89,16 @@ class DocumentForm(forms.ModelForm):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
-        # Make related fields optional
-        self.fields['related_vehicle'].required = False
-        self.fields['related_client'].required = False
+        # Make optional fields not required
+        self.fields['document_number'].required = False
+        self.fields['issue_date'].required = False
+        self.fields['expiry_date'].required = False
+        self.fields['notes'].required = False
         
-        # Set initial tags if editing
+        # Set initial tags if editing (DocumentTag model doesn't exist - skip for now)
         if self.instance.pk:
-            tags = self.instance.tags.all()
-            self.fields['tags'].initial = ', '.join([tag.name for tag in tags])
+            # TODO: Implement tags when DocumentTag model is created
+            pass
     
     def clean_file(self):
         """Validate file upload."""
@@ -133,15 +137,10 @@ class DocumentForm(forms.ModelForm):
         """Additional validation."""
         cleaned_data = super().clean()
         
-        # At least one relationship or category must be specified
+        # Category is required
         category = cleaned_data.get('category')
-        related_vehicle = cleaned_data.get('related_vehicle')
-        related_client = cleaned_data.get('related_client')
-        
-        if not category and not related_vehicle and not related_client:
-            raise ValidationError(
-                'Please specify at least a category, related vehicle, or related client.'
-            )
+        if not category:
+            raise ValidationError('Please specify a category.')
         
         return cleaned_data
     
@@ -156,16 +155,11 @@ class DocumentForm(forms.ModelForm):
         if commit:
             document.save()
             
-            # Handle tags
+            # Handle tags (DocumentTag model doesn't exist - skip for now)
             tags_input = self.cleaned_data.get('tags', '')
             if tags_input:
-                tag_names = [tag.strip() for tag in tags_input.split(',') if tag.strip()]
-                document.tags.clear()
-                for tag_name in tag_names:
-                    tag, created = DocumentTag.objects.get_or_create(
-                        name=tag_name.lower()
-                    )
-                    document.tags.add(tag)
+                # TODO: Implement tags when DocumentTag model is created
+                pass
         
         return document
 
@@ -175,7 +169,7 @@ class DocumentCategoryForm(forms.ModelForm):
     
     class Meta:
         model = DocumentCategory
-        fields = ['name', 'description', 'parent', 'icon', 'color']
+        fields = ['name', 'description', 'icon', 'color']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -185,10 +179,6 @@ class DocumentCategoryForm(forms.ModelForm):
                 'class': 'form-control',
                 'rows': 3,
                 'placeholder': 'Category description'
-            }),
-            'parent': forms.Select(attrs={
-                'class': 'form-control',
-                'data-placeholder': 'Select parent category (optional)'
             }),
             'icon': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -213,94 +203,24 @@ class DocumentCategoryForm(forms.ModelForm):
             )
 
 
-class DocumentVersionForm(forms.ModelForm):
-    """Form for uploading new document versions."""
-    
-    version_notes = forms.CharField(
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'rows': 3,
-            'placeholder': 'Describe the changes in this version'
-        }),
-        help_text='Explain what changed in this version'
-    )
-    
-    class Meta:
-        model = DocumentVersion
-        fields = ['file', 'version_notes']
-        widgets = {
-            'file': forms.FileInput(attrs={
-                'class': 'form-control',
-                'required': True
-            })
-        }
-    
-    def __init__(self, *args, **kwargs):
-        self.document = kwargs.pop('document', None)
-        self.user = kwargs.pop('user', None)
-        super().__init__(*args, **kwargs)
-    
-    def clean_file(self):
-        """Validate file upload."""
-        file = self.cleaned_data.get('file')
-        
-        if file:
-            # Check file size (max 50MB)
-            if file.size > 50 * 1024 * 1024:
-                raise ValidationError('File size cannot exceed 50MB.')
-            
-            # Should be same type as original document
-            if self.document:
-                original_ext = os.path.splitext(self.document.file.name)[1].lower()
-                new_ext = os.path.splitext(file.name)[1].lower()
-                
-                if original_ext != new_ext:
-                    raise ValidationError(
-                        f'New version must be the same file type as original ({original_ext}).'
-                    )
-        
-        return file
-    
-    def save(self, commit=True):
-        """Save new version."""
-        version = super().save(commit=False)
-        
-        if self.document:
-            version.document = self.document
-        
-        if self.user:
-            version.uploaded_by = self.user
-        
-        # Auto-increment version number
-        if self.document:
-            last_version = self.document.versions.order_by('-version_number').first()
-            if last_version:
-                version.version_number = last_version.version_number + 1
-            else:
-                version.version_number = 1
-        
-        if commit:
-            version.save()
-        
-        return version
-
-
 class DocumentShareForm(forms.ModelForm):
     """Form for sharing documents with users."""
     
     class Meta:
         model = DocumentShare
-        fields = ['shared_with', 'can_edit', 'can_delete', 'expires_at']
+        fields = ['password', 'allow_download', 'max_downloads', 'expires_at']
         widgets = {
-            'shared_with': forms.Select(attrs={
-                'class': 'form-control select2',
-                'data-placeholder': 'Select user'
+            'password': forms.PasswordInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Optional password protection'
             }),
-            'can_edit': forms.CheckboxInput(attrs={
+            'allow_download': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
-            'can_delete': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
+            'max_downloads': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Maximum downloads (optional)',
+                'min': 1
             }),
             'expires_at': forms.DateTimeInput(attrs={
                 'class': 'form-control',
@@ -362,41 +282,6 @@ class DocumentShareForm(forms.ModelForm):
             share.save()
         
         return share
-
-
-class DocumentCommentForm(forms.ModelForm):
-    """Form for adding comments to documents."""
-    
-    class Meta:
-        model = DocumentComment
-        fields = ['comment']
-        widgets = {
-            'comment': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Add your comment...'
-            })
-        }
-    
-    def __init__(self, *args, **kwargs):
-        self.document = kwargs.pop('document', None)
-        self.user = kwargs.pop('user', None)
-        super().__init__(*args, **kwargs)
-    
-    def save(self, commit=True):
-        """Save comment."""
-        comment = super().save(commit=False)
-        
-        if self.document:
-            comment.document = self.document
-        
-        if self.user:
-            comment.user = self.user
-        
-        if commit:
-            comment.save()
-        
-        return comment
 
 
 class DocumentSearchForm(forms.Form):

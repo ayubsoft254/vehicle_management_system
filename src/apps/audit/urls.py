@@ -9,48 +9,24 @@ app_name = 'audit'
 
 urlpatterns = [
     # Dashboard / List Views
-    path('', views.audit_log_list, name='log_list'),
-    path('logs/', views.audit_log_list, name='audit_logs'),
+    path('', views.audit_list_view, name='log_list'),
+    path('logs/', views.audit_list_view, name='audit_logs'),
     
     # Detail View
-    path('logs/<int:pk>/', views.audit_log_detail, name='log_detail'),
+    path('logs/<int:pk>/', views.audit_detail_view, name='log_detail'),
     
-    # Filtered Views
-    path('logs/user/<int:user_id>/', views.audit_logs_by_user, name='logs_by_user'),
-    path('logs/action/<str:action_type>/', views.audit_logs_by_action, name='logs_by_action'),
-    path('logs/date-range/', views.audit_logs_by_date_range, name='logs_by_date_range'),
-    path('logs/model/<str:model_name>/', views.audit_logs_by_model, name='logs_by_model'),
+    # User Activity
+    path('user/<int:user_id>/', views.user_activity_view, name='user_activity'),
     
-    # Export Endpoints
-    path('export/csv/', views.export_audit_logs_csv, name='export_csv'),
-    path('export/pdf/', views.export_audit_logs_pdf, name='export_pdf'),
-    path('export/excel/', views.export_audit_logs_excel, name='export_excel'),
+    # Export
+    path('export/', views.audit_export_view, name='export_csv'),
     
-    # Search & Filter
-    path('search/', views.audit_log_search, name='search'),
-    path('advanced-filter/', views.audit_log_advanced_filter, name='advanced_filter'),
+    # Login History
+    path('logins/', views.login_history_view, name='login_history'),
     
-    # Analytics & Reports
-    path('analytics/', views.audit_analytics, name='analytics'),
-    path('analytics/user-activity/', views.user_activity_report, name='user_activity'),
-    path('analytics/system-activity/', views.system_activity_report, name='system_activity'),
-    path('analytics/by-module/', views.activity_by_module, name='activity_by_module'),
+    # Dashboard Stats (AJAX)
+    path('api/stats/', views.dashboard_stats_view, name='dashboard_stats'),
     
-    # Compliance & Security
-    path('compliance-report/', views.compliance_report, name='compliance_report'),
-    path('security-events/', views.security_events, name='security_events'),
-    path('failed-logins/', views.failed_login_attempts, name='failed_logins'),
-    
-    # Settings & Configuration
-    path('settings/', views.audit_settings, name='settings'),
-    path('retention-policy/', views.retention_policy, name='retention_policy'),
-    
-    # Bulk Operations
-    path('bulk-delete/', views.bulk_delete_logs, name='bulk_delete'),
-    path('archive/', views.archive_old_logs, name='archive_logs'),
-    
-    # API Endpoints (for AJAX calls)
-    path('api/recent-activities/', views.recent_activities_api, name='recent_activities_api'),
-    path('api/activity-chart/', views.activity_chart_data, name='activity_chart_data'),
-    path('api/log-count/', views.log_count_api, name='log_count_api'),
+    # Cleanup (Admin only)
+    path('cleanup/', views.audit_cleanup_view, name='cleanup'),
 ]

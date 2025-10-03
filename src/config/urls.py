@@ -118,14 +118,7 @@ if settings.DEBUG:
     # DEBUG TOOLBAR (Development Only)
     # ============================================================================
     
-    # Django Debug Toolbar (if installed)
-    try:
-        import debug_toolbar
-        urlpatterns = [
-            path('__debug__/', include(debug_toolbar.urls)),
-        ] + urlpatterns
-    except ImportError:
-        pass
+    # Django Debug Toolbar removed
 
 # ============================================================================
 # ERROR HANDLERS (Production)
