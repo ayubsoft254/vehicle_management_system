@@ -14,3 +14,4 @@ twilio==9.3.2
 celery==5.4.0
 redis==5.0.8
 django-celery-beat==2.7.0
+python-magic-bin==0.4.14

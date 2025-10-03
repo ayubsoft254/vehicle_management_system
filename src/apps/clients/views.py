@@ -15,7 +15,8 @@ import csv
 import json
 from decimal import Decimal
 
-from .models import Client, ClientVehicle, ClientDocument, Payment, InstallmentPlan
+from .models import Client, ClientVehicle, ClientDocument
+from apps.payments.models import Payment, InstallmentPlan
 from .forms import (
     ClientForm, ClientVehicleForm, PaymentForm, 
     ClientDocumentForm, ClientSearchForm, InstallmentPlanForm

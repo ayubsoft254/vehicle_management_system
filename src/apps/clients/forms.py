@@ -6,7 +6,8 @@ from django import forms
 from django.core.validators import RegexValidator, MinValueValidator
 from django.core.exceptions import ValidationError
 from decimal import Decimal
-from .models import Client, ClientVehicle, ClientDocument, Payment, InstallmentPlan
+from .models import Client, ClientVehicle, ClientDocument
+from apps.payments.models import Payment, InstallmentPlan
 from apps.vehicles.models import Vehicle
 
 
@@ -42,16 +43,16 @@ class ClientForm(forms.ModelForm):
     class Meta:
         model = Client
         fields = [
-            'first_name', 'middle_name', 'last_name',
+            'first_name', 'other_names', 'last_name',
             'id_type', 'id_number',
             'phone_primary', 'phone_secondary', 'email',
             'physical_address', 'postal_address',
             'city', 'county',
             'date_of_birth', 'gender',
-            'occupation', 'employer_name', 'employer_phone',
-            'monthly_income', 'credit_limit',
-            'emergency_contact_name', 'emergency_contact_phone',
-            'emergency_contact_relationship',
+            'occupation', 'employer',
+            'monthly_income',
+            'next_of_kin_name', 'next_of_kin_phone',
+            'next_of_kin_relationship', 'next_of_kin_address',
             'notes'
         ]
         
@@ -60,9 +61,9 @@ class ClientForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': 'First Name'
             }),
-            'middle_name': forms.TextInput(attrs={
+            'other_names': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Middle Name (Optional)'
+                'placeholder': 'Other Names (Optional)'
             }),
             'last_name': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
@@ -107,35 +108,31 @@ class ClientForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': 'Occupation (Optional)'
             }),
-            'employer_name': forms.TextInput(attrs={
+            'employer': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Employer Name (Optional)'
-            }),
-            'employer_phone': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Employer Phone (Optional)'
+                'placeholder': 'Employer (Optional)'
             }),
             'monthly_income': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '0.00',
                 'step': '0.01'
             }),
-            'credit_limit': forms.NumberInput(attrs={
+            'next_of_kin_name': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': '0.00',
-                'step': '0.01'
+                'placeholder': 'Next of Kin Name'
             }),
-            'emergency_contact_name': forms.TextInput(attrs={
+            'next_of_kin_phone': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Emergency Contact Name'
+                'placeholder': 'Next of Kin Phone'
             }),
-            'emergency_contact_phone': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Emergency Contact Phone'
-            }),
-            'emergency_contact_relationship': forms.TextInput(attrs={
+            'next_of_kin_relationship': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': 'Relationship (e.g., Spouse, Parent)'
+            }),
+            'next_of_kin_address': forms.Textarea(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': 'Next of Kin Address',
+                'rows': 3
             }),
             'notes': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',

@@ -7,7 +7,7 @@ from django.core.validators import MinValueValidator
 from decimal import Decimal
 from utils.constants import ClientStatus, DocumentType
 from utils.validators import (
-    validate_phone_number, validate_id_number, 
+    validate_phone_number, 
     validate_passport_number
 )
 import os

@@ -7,7 +7,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from decimal import Decimal
 from utils.constants import VehicleStatus
-from utils.validators import validate_vin, validate_registration_number
+from utils.validators import validate_vin, validate_license_plate
 import os
 
 
@@ -80,7 +80,7 @@ class Vehicle(models.Model):
         'Registration Number',
         max_length=20,
         unique=True,
-        validators=[validate_registration_number],
+        validators=[validate_license_plate],
         blank=True,
         null=True,
         help_text='Vehicle registration/license plate number (e.g., KAA 123A)'
