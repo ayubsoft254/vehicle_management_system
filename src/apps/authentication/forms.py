@@ -4,10 +4,81 @@ Complete form definitions for user management
 """
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from allauth.account.forms import SignupForm
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Row, Column, Submit, Field
 from .models import User, UserProfile
 from utils.constants import UserRole
+
+
+class CustomSignupForm(SignupForm):
+    """
+    Custom signup form for django-allauth
+    Adds first_name and last_name fields to the registration
+    """
+    first_name = forms.CharField(
+        max_length=150,
+        label='First Name',
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Enter your first name',
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+        })
+    )
+    
+    last_name = forms.CharField(
+        max_length=150,
+        label='Last Name',
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Enter your last name',
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+        })
+    )
+    
+    phone = forms.CharField(
+        max_length=20,
+        required=False,
+        label='Phone Number',
+        widget=forms.TextInput(attrs={
+            'placeholder': '+254712345678 or 0712345678',
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+        }),
+        help_text='Format: +254712345678 or 0712345678'
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Add Tailwind CSS classes to existing fields
+        self.fields['email'].widget.attrs.update({
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+            'placeholder': 'Enter your email address'
+        })
+        self.fields['password1'].widget.attrs.update({
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+            'placeholder': 'Enter your password'
+        })
+        self.fields['password2'].widget.attrs.update({
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+            'placeholder': 'Confirm your password'
+        })
+    
+    def save(self, request):
+        """
+        Save the user with additional fields
+        """
+        user = super().save(request)
+        
+        # Set additional fields
+        user.first_name = self.cleaned_data['first_name']
+        user.last_name = self.cleaned_data['last_name']
+        user.phone = self.cleaned_data.get('phone', '')
+        
+        # Set default role for new signups
+        if not user.role:
+            user.role = UserRole.CLERK  # Default role for self-registered users
+        
+        user.save()
+        return user
 
 
 class CustomUserCreationForm(UserCreationForm):

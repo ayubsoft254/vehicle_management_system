@@ -189,10 +189,10 @@ LOGIN_URL = '/accounts/login/'
 # Adapter for custom signup behavior
 ACCOUNT_ADAPTER = 'apps.authentication.adapters.CustomAccountAdapter'
 
-# Forms (if you want to customize)
-# ACCOUNT_FORMS = {
-#     'signup': 'apps.authentication.forms.CustomSignupForm',
-# }
+# Forms (custom signup form)
+ACCOUNT_FORMS = {
+    'signup': 'apps.authentication.forms.CustomSignupForm',
+}
 
 # ==============================================================================
 # CRISPY FORMS CONFIGURATION (Tailwind CSS)
