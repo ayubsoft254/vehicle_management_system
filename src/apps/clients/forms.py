@@ -186,7 +186,7 @@ class ClientVehicleForm(forms.ModelForm):
             'client', 'vehicle',
             'purchase_date', 'purchase_price',
             'deposit_paid', 'monthly_installment', 'installment_months',
-            'interest_rate', 'contract_number',
+            'interest_rate',
             'notes'
         ]
         
@@ -226,10 +226,6 @@ class ClientVehicleForm(forms.ModelForm):
                 'placeholder': '0.00',
                 'step': '0.01',
                 'min': '0'
-            }),
-            'contract_number': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Contract Number (Optional)'
             }),
             'notes': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
