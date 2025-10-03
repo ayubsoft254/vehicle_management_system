@@ -49,6 +49,51 @@ from .widgets import (
 
 
 # ============================================================================
+# LANDING PAGE VIEW
+# ============================================================================
+
+def landing_page(request):
+    """Public landing page for the Vehicle Management System"""
+    context = {
+        'system_name': 'Vehicle Management System',
+        'tagline': 'Streamline Your Vehicle Operations',
+        'features': [
+            {
+                'icon': 'fas fa-car',
+                'title': 'Vehicle Inventory',
+                'description': 'Comprehensive vehicle tracking and management'
+            },
+            {
+                'icon': 'fas fa-users',
+                'title': 'Client Management',
+                'description': 'Manage customer relationships and sales'
+            },
+            {
+                'icon': 'fas fa-dollar-sign',
+                'title': 'Financial Tracking',
+                'description': 'Track payments, expenses, and financial metrics'
+            },
+            {
+                'icon': 'fas fa-chart-bar',
+                'title': 'Reports & Analytics',
+                'description': 'Generate insights with comprehensive reporting'
+            },
+            {
+                'icon': 'fas fa-shield-alt',
+                'title': 'Insurance Management',
+                'description': 'Handle insurance policies and claims'
+            },
+            {
+                'icon': 'fas fa-gavel',
+                'title': 'Auction Management',
+                'description': 'Manage vehicle auctions and bidding processes'
+            }
+        ]
+    }
+    return render(request, 'dashboard/landing_page.html', context)
+
+
+# ============================================================================
 # MAIN DASHBOARD VIEW
 # ============================================================================
 

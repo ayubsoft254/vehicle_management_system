@@ -29,8 +29,7 @@ urlpatterns = [
     # ============================================================================
     
     # Dashboard - Main interface
-    path('', include('apps.dashboard.urls')),  # Dashboard at root
-    path('dashboard/', include(('apps.dashboard.urls', 'apps.dashboard'), namespace='dashboard_alt')),  # Also accessible via /dashboard/
+    path('', include('apps.dashboard.urls')),  # Landing page at root, dashboard at /dashboard/
     
     # Vehicles - Vehicle inventory management
     path('vehicles/', include('apps.vehicles.urls')),

@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - {{ dashboard.name }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow">
+        <div class="px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-6">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-gray-900">
+                        {% if dashboard %}
+                            {{ dashboard.name }}
+                        {% else %}
+                            Dashboard
+                        {% endif %}
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-700">Welcome, {{ user.get_full_name|default:user.username }}</span>
+                    <a href="/accounts/logout/" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition duration-300">
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div class="px-4 sm:px-6 lg:px-8 py-8">
+        {% if dashboard %}
+            <!-- Dashboard Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Sample widgets - you can customize these based on your data -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-car text-blue-600 text-2xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Total Vehicles</p>
+                            <p class="text-2xl font-semibold text-gray-900">
+                                {% if overview_data.total_vehicles %}{{ overview_data.total_vehicles }}{% else %}--{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-users text-green-600 text-2xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Active Clients</p>
+                            <p class="text-2xl font-semibold text-gray-900">
+                                {% if overview_data.total_clients %}{{ overview_data.total_clients }}{% else %}--{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-dollar-sign text-yellow-600 text-2xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Monthly Revenue</p>
+                            <p class="text-2xl font-semibold text-gray-900">
+                                {% if overview_data.monthly_revenue %}${{ overview_data.monthly_revenue|floatformat:0 }}{% else %}$0{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-chart-line text-purple-600 text-2xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Pending Sales</p>
+                            <p class="text-2xl font-semibold text-gray-900">
+                                {% if overview_data.pending_sales %}{{ overview_data.pending_sales }}{% else %}0{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Widgets Section -->
+            {% if widgets %}
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {% for widget in widgets %}
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">{{ widget.title }}</h3>
+                            <div class="text-gray-600">
+                                {{ widget.description|default:"Widget content will be displayed here." }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="bg-white rounded-lg shadow p-8 text-center">
+                    <i class="fas fa-chart-bar text-4xl text-gray-400 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">No Widgets Configured</h3>
+                    <p class="text-gray-600 mb-4">Start by adding some widgets to your dashboard to see your data.</p>
+                    <button class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition duration-300">
+                        Add Widget
+                    </button>
+                </div>
+            {% endif %}
+        {% else %}
+            <!-- No Dashboard Found -->
+            <div class="bg-white rounded-lg shadow p-8 text-center">
+                <i class="fas fa-exclamation-triangle text-4xl text-yellow-500 mb-4"></i>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">No Dashboard Found</h3>
+                <p class="text-gray-600 mb-4">It looks like you don't have a dashboard set up yet.</p>
+                <button class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition duration-300">
+                    Create Dashboard
+                </button>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Navigation -->
+    <div class="fixed bottom-6 right-6">
+        <div class="bg-white rounded-lg shadow-lg p-4">
+            <p class="text-sm font-medium text-gray-900 mb-2">Quick Links</p>
+            <div class="space-y-2">
+                <a href="/vehicles/" class="block text-blue-600 hover:text-blue-800 text-sm">
+                    <i class="fas fa-car mr-2"></i>Vehicles
+                </a>
+                <a href="/clients/" class="block text-blue-600 hover:text-blue-800 text-sm">
+                    <i class="fas fa-users mr-2"></i>Clients
+                </a>
+                <a href="/payments/" class="block text-blue-600 hover:text-blue-800 text-sm">
+                    <i class="fas fa-credit-card mr-2"></i>Payments
+                </a>
+                <a href="/reports/" class="block text-blue-600 hover:text-blue-800 text-sm">
+                    <i class="fas fa-chart-bar mr-2"></i>Reports
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

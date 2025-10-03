@@ -9,8 +9,11 @@ from . import views
 app_name = 'dashboard'
 
 urlpatterns = [
-    # Main dashboard
-    path('', views.dashboard_home, name='index'),
+    # Public landing page
+    path('', views.landing_page, name='landing'),
+    
+    # Main dashboard (now at /dashboard/)
+    path('dashboard/', views.dashboard_home, name='index'),
     path('<uuid:pk>/', views.dashboard_detail, name='dashboard_detail'),
     
     # Widget management
