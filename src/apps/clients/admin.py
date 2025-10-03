@@ -21,9 +21,9 @@ class ClientVehicleInline(admin.TabularInline):
     extra = 0
     fields = [
         'vehicle', 'purchase_date', 'purchase_price', 
-        'deposit_paid', 'balance', 'paid_off'
+        'deposit_paid', 'balance', 'is_paid_off'
     ]
-    readonly_fields = ['balance', 'paid_off']
+    readonly_fields = ['balance', 'is_paid_off']
     can_delete = False
 
 
@@ -267,7 +267,7 @@ class ClientVehicleAdmin(admin.ModelAdmin):
     ]
     
     list_filter = [
-        'paid_off', 'purchase_date', 'created_at'
+        'is_paid_off', 'purchase_date', 'created_at'
     ]
     
     search_fields = [
@@ -277,7 +277,7 @@ class ClientVehicleAdmin(admin.ModelAdmin):
     ]
     
     readonly_fields = [
-        'balance', 'total_paid', 'paid_off', 'created_at', 'updated_at', 'created_by',
+        'balance', 'total_paid', 'is_paid_off', 'created_at', 'updated_at', 'created_by',
         'payment_progress_display'
     ]
     
@@ -297,7 +297,7 @@ class ClientVehicleAdmin(admin.ModelAdmin):
                 ('monthly_installment', 'installment_months'),
                 'interest_rate',
                 'payment_progress_display',
-                'paid_off',
+                'is_paid_off',
             )
         }),
         ('Additional Information', {
@@ -371,7 +371,7 @@ class ClientVehicleAdmin(admin.ModelAdmin):
     
     def paid_off_badge(self, obj):
         """Display paid off status as badge"""
-        if obj.paid_off:
+        if obj.is_paid_off:
             return format_html(
                 '<span style="background-color: #28a745; color: white; padding: 3px 10px; '
                 'border-radius: 3px; font-size: 11px; font-weight: bold;">PAID OFF</span>'
@@ -381,7 +381,7 @@ class ClientVehicleAdmin(admin.ModelAdmin):
             'border-radius: 3px; font-size: 11px; font-weight: bold;">PENDING</span>'
         )
     paid_off_badge.short_description = 'Status'
-    paid_off_badge.admin_order_field = 'paid_off'
+    paid_off_badge.admin_order_field = 'is_paid_off'
     
     def save_model(self, request, obj, form, change):
         """Save model with user tracking"""

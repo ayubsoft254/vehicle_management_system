@@ -460,7 +460,7 @@ class NotificationTemplate(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='created_templates'
+        related_name='created_notification_templates'
     )
     
     class Meta:

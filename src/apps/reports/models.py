@@ -393,7 +393,8 @@ class ReportTemplate(models.Model):
         User,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='created_templates'
+        blank=True,
+        related_name='created_report_templates'
     )
     
     class Meta:

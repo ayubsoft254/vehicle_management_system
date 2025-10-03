@@ -562,3 +562,43 @@ def export_dashboard(request, pk):
     response['Content-Disposition'] = f'attachment; filename="{dashboard.name}.json"'
     
     return response
+
+
+# ============================================================================
+# ERROR HANDLERS
+# ============================================================================
+
+def bad_request(request, exception):
+    """Custom 400 error handler"""
+    return render(request, 'errors/400.html', {
+        'error_code': 400,
+        'error_message': 'Bad Request',
+        'error_description': 'The request could not be understood by the server.'
+    }, status=400)
+
+
+def permission_denied(request, exception):
+    """Custom 403 error handler"""
+    return render(request, 'errors/403.html', {
+        'error_code': 403,
+        'error_message': 'Permission Denied',
+        'error_description': 'You do not have permission to access this resource.'
+    }, status=403)
+
+
+def page_not_found(request, exception):
+    """Custom 404 error handler"""
+    return render(request, 'errors/404.html', {
+        'error_code': 404,
+        'error_message': 'Page Not Found',
+        'error_description': 'The requested page could not be found.'
+    }, status=404)
+
+
+def server_error(request):
+    """Custom 500 error handler"""
+    return render(request, 'errors/500.html', {
+        'error_code': 500,
+        'error_message': 'Server Error',
+        'error_description': 'An internal server error occurred.'
+    }, status=500)

@@ -169,8 +169,11 @@ ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGOUT_ON_GET = False  # Require POST for logout
 ACCOUNT_SESSION_REMEMBER = True  # Remember user session
 ACCOUNT_SIGNUP_PASSWORD_ENTER_TWICE = True
-ACCOUNT_LOGIN_ATTEMPTS_LIMIT = 5
-ACCOUNT_LOGIN_ATTEMPTS_TIMEOUT = 300  # 5 minutes
+
+# Rate limiting (Updated for allauth v65+)
+ACCOUNT_RATE_LIMITS = {
+    'login_failed': '5/5m',  # 5 attempts per 5 minutes
+}
 
 # Email confirmation settings
 ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3

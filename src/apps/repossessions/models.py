@@ -286,7 +286,7 @@ class RepossessionNote(models.Model):
     repossession = models.ForeignKey(
         Repossession,
         on_delete=models.CASCADE,
-        related_name='notes'
+        related_name='activity_notes'
     )
     
     note = models.TextField()

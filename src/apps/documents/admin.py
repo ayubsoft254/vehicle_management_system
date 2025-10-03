@@ -16,8 +16,8 @@ class DocumentShareInline(admin.TabularInline):
     """Inline admin for document shares."""
     model = DocumentShare
     extra = 0
-    readonly_fields = ('shared_by', 'shared_at')
-    fields = ('shared_with', 'shared_by', 'can_edit', 'can_delete', 'expires_at', 'shared_at')
+    readonly_fields = ('created_by', 'created_at')
+    fields = ('share_token', 'created_by', 'allow_download', 'expires_at', 'created_at')
 
 
 @admin.register(Document)
@@ -50,14 +50,14 @@ class DocumentCategoryAdmin(admin.ModelAdmin):
 class DocumentShareAdmin(admin.ModelAdmin):
     """Admin interface for document shares."""
     
-    list_display = ('document', 'shared_with', 'shared_by', 'can_edit', 'can_delete', 'shared_at')
-    list_filter = ('can_edit', 'can_delete', 'shared_at')
-    readonly_fields = ('shared_by', 'shared_at')
+    list_display = ('document', 'share_token', 'created_by', 'allow_download', 'is_active', 'created_at')
+    list_filter = ('allow_download', 'is_active', 'created_at')
+    readonly_fields = ('created_by', 'created_at')
     
     def save_model(self, request, obj, form, change):
         """Save model with user tracking."""
         if not change:  # New object
-            obj.shared_by = request.user
+            obj.created_by = request.user
         super().save_model(request, obj, form, change)
 
 
@@ -74,6 +74,6 @@ class DocumentAccessAdmin(admin.ModelAdmin):
 class DocumentPermissionAdmin(admin.ModelAdmin):
     """Admin interface for document permissions."""
     
-    list_display = ('document', 'user', 'permission_type', 'granted_at')
-    list_filter = ('permission_type', 'granted_at')
+    list_display = ('document', 'user', 'permission', 'granted_at')
+    list_filter = ('permission', 'granted_at')
     readonly_fields = ('granted_at',)
