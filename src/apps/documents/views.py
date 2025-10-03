@@ -17,13 +17,11 @@ import os
 import mimetypes
 
 from .models import (
-    Document, DocumentCategory, DocumentVersion, 
-    DocumentShare, DocumentComment, DocumentTag
+    Document, DocumentCategory, DocumentShare
 )
 from .forms import (
-    DocumentForm, DocumentCategoryForm, DocumentVersionForm,
-    DocumentShareForm, DocumentCommentForm, DocumentSearchForm,
-    BulkDocumentActionForm
+    DocumentForm, DocumentCategoryForm, DocumentShareForm,
+    DocumentSearchForm, BulkDocumentActionForm
 )
 
 

@@ -9,6 +9,7 @@ from decimal import Decimal
 from .models import Client, ClientVehicle, ClientDocument
 from apps.payments.models import Payment, InstallmentPlan
 from apps.vehicles.models import Vehicle
+from utils.constants import ClientStatus
 
 
 class ClientForm(forms.ModelForm):
@@ -402,7 +403,7 @@ class ClientSearchForm(forms.Form):
     
     status = forms.ChoiceField(
         required=False,
-        choices=[('', 'All Status')] + Client.STATUS_CHOICES,
+        choices=[('', 'All Status')] + ClientStatus.CHOICES,
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
         })
@@ -410,7 +411,12 @@ class ClientSearchForm(forms.Form):
     
     id_type = forms.ChoiceField(
         required=False,
-        choices=[('', 'All ID Types')] + Client.ID_TYPE_CHOICES,
+        choices=[
+            ('', 'All ID Types'),
+            ('national_id', 'National ID'),
+            ('passport', 'Passport'),
+            ('other', 'Other'),
+        ],
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
         })

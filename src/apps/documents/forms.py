@@ -8,8 +8,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from .models import (
-    Document, DocumentCategory, DocumentVersion, 
-    DocumentShare, DocumentComment, DocumentTag
+    Document, DocumentCategory, DocumentShare, DocumentTag
 )
 import os
 
