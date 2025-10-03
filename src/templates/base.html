@@ -76,72 +76,66 @@
             <!-- Navigation -->
             <nav class="mt-6 px-3">
                 {% block sidebar %}
-                <a href="{% url 'dashboard:home' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                    <i class="fas fa-home w-6"></i>
-                    <span class="ml-3">Dashboard</span>
-                </a>
+                <!-- Dashboard Link (available to all users) -->
+                {% if user.is_authenticated %}
+                    <a href="{% url 'dashboard:index' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-home w-6"></i>
+                        <span class="ml-3">Dashboard</span>
+                    </a>
+                {% else %}
+                    <a href="/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-home w-6"></i>
+                        <span class="ml-3">Home</span>
+                    </a>
+                {% endif %}
                 
                 {% if user.is_authenticated %}
-                    <a href="{% url 'vehicles:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                    <!-- Core Business Apps -->
+                    <a href="/vehicles/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
                         <i class="fas fa-car w-6"></i>
                         <span class="ml-3">Vehicles</span>
                     </a>
                     
-                    <a href="{% url 'clients:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                    <a href="/clients/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
                         <i class="fas fa-users w-6"></i>
                         <span class="ml-3">Clients</span>
                     </a>
                     
-                    <a href="{% url 'payments:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-money-bill w-6"></i>
+                    <!-- Financial Management -->
+                    <a href="/payments/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                        <i class="fas fa-credit-card w-6"></i>
                         <span class="ml-3">Payments</span>
                     </a>
                     
-                    <a href="{% url 'payroll:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-wallet w-6"></i>
-                        <span class="ml-3">Payroll</span>
-                    </a>
-                    
-                    <a href="{% url 'expenses:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                    <a href="/expenses/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
                         <i class="fas fa-receipt w-6"></i>
                         <span class="ml-3">Expenses</span>
                     </a>
                     
-                    <a href="{% url 'repossessions:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-undo w-6"></i>
-                        <span class="ml-3">Repossessions</span>
-                    </a>
-                    
-                    <a href="{% url 'auctions:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                    <!-- Operational Apps -->
+                    <a href="/auctions/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
                         <i class="fas fa-gavel w-6"></i>
                         <span class="ml-3">Auctions</span>
                     </a>
                     
-                    <a href="{% url 'insurance:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                    <a href="/insurance/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
                         <i class="fas fa-shield-alt w-6"></i>
                         <span class="ml-3">Insurance</span>
                     </a>
                     
-                    <a href="{% url 'documents:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-file-alt w-6"></i>
-                        <span class="ml-3">Documents</span>
-                    </a>
-                    
-                    <a href="{% url 'reports:dashboard' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-chart-bar w-6"></i>
-                        <span class="ml-3">Reports</span>
-                    </a>
-                    
-                    {% if user.is_superuser or user.role == 'admin' %}
-                    <a href="{% url 'audit:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-history w-6"></i>
-                        <span class="ml-3">Audit Logs</span>
-                    </a>
-                    
-                    <a href="{% url 'permissions:list' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-lock w-6"></i>
-                        <span class="ml-3">Permissions</span>
-                    </a>
+                    <!-- Admin Features (for superuser/admin only) -->
+                    {% if user.is_superuser %}
+                    <div class="border-t border-gray-200 mt-4 pt-4">
+                        <a href="/admin/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                            <i class="fas fa-cog w-6"></i>
+                            <span class="ml-3">Admin Panel</span>
+                        </a>
+                        
+                        <a href="/audit/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
+                            <i class="fas fa-history w-6"></i>
+                            <span class="ml-3">Audit Logs</span>
+                        </a>
+                    </div>
                     {% endif %}
                 {% endif %}
                 {% endblock %}
