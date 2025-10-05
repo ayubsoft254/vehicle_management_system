@@ -175,7 +175,7 @@ WIDGET_TEMPLATES = {
         'widget_type': 'list',
         'data_source': 'Client',
         'query_config': {
-            'fields': ['name', 'email', 'phone', 'created_at'],
+            'fields': ['first_name', 'last_name', 'email', 'phone_primary', 'date_registered'],
             'limit': 5,
         },
         'size': 'medium',
