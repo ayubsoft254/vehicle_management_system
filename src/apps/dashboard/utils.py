@@ -31,7 +31,7 @@ def get_dashboard_overview_data(user=None):
     
     from apps.vehicles.models import Vehicle
     from apps.clients.models import Client
-    from apps.payments.models import Payment
+    from apps.payments.models import Payment, PaymentSchedule
     from apps.auctions.models import Auction
     
     today = timezone.now().date()
@@ -50,11 +50,10 @@ def get_dashboard_overview_data(user=None):
         },
         'payments': {
             'total_today': Payment.objects.filter(
-                payment_date=today,
-                status='completed'
+                payment_date=today
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00'),
             'count_today': Payment.objects.filter(payment_date=today).count(),
-            'pending': Payment.objects.filter(status='pending').count(),
+            'pending': PaymentSchedule.objects.pending().count(),
         },
         'auctions': {
             'active': Auction.objects.filter(status='active').count(),
@@ -92,8 +91,7 @@ def get_financial_summary(date_from=None, date_to=None):
     # Revenue
     payments = Payment.objects.filter(
         payment_date__gte=date_from,
-        payment_date__lte=date_to,
-        status='completed'
+        payment_date__lte=date_to
     )
     total_revenue = payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     
@@ -147,8 +145,7 @@ def get_sales_metrics(days=30):
     
     # Revenue
     revenue = Payment.objects.filter(
-        payment_date__gte=cutoff.date(),
-        status='completed'
+        payment_date__gte=cutoff.date()
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     
     data = {
@@ -485,8 +482,7 @@ def get_revenue_trend(days=30):
     
     while current <= end_date:
         daily_revenue = Payment.objects.filter(
-            payment_date=current,
-            status='completed'
+            payment_date=current
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
         trend.append({
