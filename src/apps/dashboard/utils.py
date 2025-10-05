@@ -46,7 +46,7 @@ def get_dashboard_overview_data(user=None):
         'clients': {
             'total': Client.objects.count(),
             'active': Client.objects.filter(is_active=True).count(),
-            'new_today': Client.objects.filter(created_at__date=today).count(),
+            'new_today': Client.objects.filter(date_registered__date=today).count(),
         },
         'payments': {
             'total_today': Payment.objects.filter(

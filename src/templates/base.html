@@ -1,237 +1,348 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-gray-50">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>{% block title %}Vehicle Sales Management System{% endblock %}</title>
+    <title>{% block title %}Vehicle Management System{% endblock %}</title>
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Font Awesome -->
+    <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Alpine.js for interactivity -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    
-    <!-- Custom CSS -->
-    <style>
-        [x-cloak] { display: none !important; }
-        
-        .sidebar-link {
-            transition: all 0.3s ease;
-        }
-        
-        .sidebar-link:hover {
-            background-color: rgba(59, 130, 246, 0.1);
-            border-left: 4px solid #3b82f6;
-        }
-        
-        .sidebar-link.active {
-            background-color: rgba(59, 130, 246, 0.2);
-            border-left: 4px solid #3b82f6;
-            font-weight: 600;
-        }
-        
-        .toast {
-            animation: slideIn 0.3s ease-out;
-        }
-        
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
             }
-            to {
-                transform: translateX(0);
-                opacity: 1;
+        }
+    </script>
+    
+    <!-- Custom Styles -->
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+            }
+            .scrollbar-hide {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
             }
         }
     </style>
     
     {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-gray-50">
-    <div x-data="{ sidebarOpen: true }" class="flex h-screen">
+<body class="h-full">
+    <div class="min-h-full">
         
-        <!-- Sidebar -->
-        <aside 
-            x-show="sidebarOpen" 
-            x-transition:enter="transition ease-out duration-300"
-            x-transition:enter-start="-translate-x-full"
-            x-transition:enter-end="translate-x-0"
-            x-transition:leave="transition ease-in duration-300"
-            x-transition:leave-start="translate-x-0"
-            x-transition:leave-end="-translate-x-full"
-            class="fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg overflow-y-auto"
-        >
-            <!-- Logo -->
-            <div class="flex items-center justify-center h-16 bg-blue-600">
-                <h1 class="text-white text-xl font-bold">
-                    <i class="fas fa-car mr-2"></i>VSMS
-                </h1>
-            </div>
-            
-            <!-- Navigation -->
-            <nav class="mt-6 px-3">
-                {% block sidebar %}
-                <!-- Dashboard Link (available to all users) -->
-                {% if user.is_authenticated %}
-                    <a href="{% url 'dashboard:index' %}" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-home w-6"></i>
-                        <span class="ml-3">Dashboard</span>
-                    </a>
-                {% else %}
-                    <a href="/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-home w-6"></i>
-                        <span class="ml-3">Home</span>
-                    </a>
-                {% endif %}
+        <!-- Mobile Menu Overlay -->
+        <div id="mobile-menu-overlay" class="fixed inset-0 bg-gray-600 bg-opacity-75 z-40 hidden lg:hidden"></div>
+        
+        <!-- Sidebar for Desktop & Mobile -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
+            <div class="flex flex-col h-full">
+                <!-- Logo -->
+                <div class="flex items-center justify-between h-16 px-6 border-b border-gray-200">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-car text-white text-xl"></i>
+                        </div>
+                        <span class="text-xl font-bold text-gray-900">VMS</span>
+                    </div>
+                    <button id="close-sidebar" class="lg:hidden text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
                 
-                {% if user.is_authenticated %}
-                    <!-- Core Business Apps -->
-                    <a href="/vehicles/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-car w-6"></i>
-                        <span class="ml-3">Vehicles</span>
-                    </a>
-                    
-                    <a href="/clients/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-users w-6"></i>
-                        <span class="ml-3">Clients</span>
-                    </a>
-                    
-                    <!-- Financial Management -->
-                    <a href="/payments/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-credit-card w-6"></i>
-                        <span class="ml-3">Payments</span>
-                    </a>
-                    
-                    <a href="/expenses/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-receipt w-6"></i>
-                        <span class="ml-3">Expenses</span>
-                    </a>
-                    
-                    <!-- Operational Apps -->
-                    <a href="/auctions/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-gavel w-6"></i>
-                        <span class="ml-3">Auctions</span>
-                    </a>
-                    
-                    <a href="/insurance/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                        <i class="fas fa-shield-alt w-6"></i>
-                        <span class="ml-3">Insurance</span>
-                    </a>
-                    
-                    <!-- Admin Features (for superuser/admin only) -->
-                    {% if user.is_superuser %}
-                    <div class="border-t border-gray-200 mt-4 pt-4">
-                        <a href="/admin/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                            <i class="fas fa-cog w-6"></i>
-                            <span class="ml-3">Admin Panel</span>
+                <!-- Navigation -->
+                <nav class="flex-1 px-4 py-6 overflow-y-auto scrollbar-hide">
+                    <div class="space-y-1">
+                        <!-- Dashboard -->
+                        <a href="{% url 'dashboard:index' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                            <i class="fas fa-home w-5 text-gray-400 group-hover:text-primary-600"></i>
+                            <span class="ml-3 font-medium">Dashboard</span>
                         </a>
                         
-                        <a href="/audit/" class="sidebar-link flex items-center px-4 py-3 mb-2 text-gray-700 rounded-lg">
-                            <i class="fas fa-history w-6"></i>
-                            <span class="ml-3">Audit Logs</span>
+                        <!-- Vehicles -->
+                        <a href="{% url 'vehicles:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                            <i class="fas fa-car w-5 text-gray-400 group-hover:text-primary-600"></i>
+                            <span class="ml-3 font-medium">Vehicles</span>
+                        </a>
+                        
+                        <!-- Clients -->
+                        <a href="{% url 'clients:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                            <i class="fas fa-users w-5 text-gray-400 group-hover:text-primary-600"></i>
+                            <span class="ml-3 font-medium">Clients</span>
+                        </a>
+                        
+                        <!-- Divider -->
+                        <div class="pt-4 pb-2">
+                            <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Financial</p>
+                        </div>
+                        
+                        <!-- Payments -->
+                        <a href="{% url 'payments:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                            <i class="fas fa-credit-card w-5 text-gray-400 group-hover:text-primary-600"></i>
+                            <span class="ml-3 font-medium">Payments</span>
+                        </a>
+                        
+                        <!-- Expenses -->
+                        <a href="{% url 'expenses:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                            <i class="fas fa-receipt w-5 text-gray-400 group-hover:text-primary-600"></i>
+                            <span class="ml-3 font-medium">Expenses</span>
+                        </a>
+                        
+                        <!-- Payroll -->
+                        <a href="{% url 'payroll:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                            <i class="fas fa-money-bill-wave w-5 text-gray-400 group-hover:text-primary-600"></i>
+                            <span class="ml-3 font-medium">Payroll</span>
+                        </a>
+                        
+                        <!-- Divider -->
+                        <div class="pt-4 pb-2">
+                            <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Operations</p>
+                        </div>
+                        
+                        <!-- Auctions -->
+                        <a href="{% url 'auctions:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                            <i class="fas fa-gavel w-5 text-gray-400 group-hover:text-primary-600"></i>
+                            <span class="ml-3 font-medium">Auctions</span>
+                        </a>
+                        
+                        <!-- Insurance -->
+                        <a href="{% url 'insurance:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                            <i class="fas fa-shield-alt w-5 text-gray-400 group-hover:text-primary-600"></i>
+                            <span class="ml-3 font-medium">Insurance</span>
+                        </a>
+                        
+                        <!-- Repossessions -->
+                        <a href="{% url 'repossessions:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                            <i class="fas fa-truck-loading w-5 text-gray-400 group-hover:text-primary-600"></i>
+                            <span class="ml-3 font-medium">Repossessions</span>
+                        </a>
+                        
+                        <!-- Divider -->
+                        <div class="pt-4 pb-2">
+                            <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Management</p>
+                        </div>
+                        
+                        <!-- Reports -->
+                        <a href="{% url 'reports:dashboard' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                            <i class="fas fa-chart-bar w-5 text-gray-400 group-hover:text-primary-600"></i>
+                            <span class="ml-3 font-medium">Reports</span>
+                        </a>
+                        
+                        <!-- Documents -->
+                        <a href="{% url 'documents:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                            <i class="fas fa-folder w-5 text-gray-400 group-hover:text-primary-600"></i>
+                            <span class="ml-3 font-medium">Documents</span>
+                        </a>
+                        
+                        <!-- Audit -->
+                        <a href="{% url 'audit:log' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                            <i class="fas fa-history w-5 text-gray-400 group-hover:text-primary-600"></i>
+                            <span class="ml-3 font-medium">Audit Log</span>
                         </a>
                     </div>
-                    {% endif %}
-                {% endif %}
-                {% endblock %}
-            </nav>
+                </nav>
+                
+                <!-- User Profile Section -->
+                <div class="border-t border-gray-200 p-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center">
+                            <span class="text-white font-semibold text-sm">
+                                {% if user.is_authenticated %}{{ user.first_name|first|upper }}{{ user.last_name|first|upper }}{% else %}U{% endif %}
+                            </span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate">
+                                {% if user.is_authenticated %}{{ user.get_full_name|default:user.username }}{% else %}Guest{% endif %}
+                            </p>
+                            <p class="text-xs text-gray-500 truncate">
+                                {% if user.is_authenticated %}{{ user.email }}{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </aside>
         
-        <!-- Main Content -->
-        <div class="flex-1 flex flex-col" :class="{ 'ml-64': sidebarOpen }">
-            
-            <!-- Top Navigation -->
-            <header class="bg-white shadow-sm z-20">
-                <div class="flex items-center justify-between px-6 py-4">
-                    <button @click="sidebarOpen = !sidebarOpen" class="text-gray-500 focus:outline-none">
-                        <i class="fas fa-bars text-xl"></i>
-                    </button>
-                    
-                    <div class="flex items-center space-x-4">
-                        {% if user.is_authenticated %}
-                        <!-- Notifications -->
-                        <div x-data="{ open: false }" class="relative">
-                            <button @click="open = !open" class="relative text-gray-600 hover:text-gray-800">
+        <!-- Main Content Area -->
+        <div class="lg:pl-64">
+            <!-- Top Navigation Bar -->
+            <header class="sticky top-0 z-30 bg-white border-b border-gray-200">
+                <div class="px-4 sm:px-6 lg:px-8">
+                    <div class="flex items-center justify-between h-16">
+                        <!-- Mobile Menu Button -->
+                        <button id="open-sidebar" class="lg:hidden text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-bars text-xl"></i>
+                        </button>
+                        
+                        <!-- Search Bar (Desktop) -->
+                        <div class="hidden md:flex flex-1 max-w-2xl mx-4">
+                            <div class="w-full">
+                                <label for="search" class="sr-only">Search</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i class="fas fa-search text-gray-400"></i>
+                                    </div>
+                                    <input type="text" name="search" id="search" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent sm:text-sm transition-colors duration-200" placeholder="Search vehicles, clients, transactions...">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Right Side Actions -->
+                        <div class="flex items-center space-x-4">
+                            <!-- Notifications -->
+                            <button class="relative p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-lg transition-colors duration-200">
                                 <i class="fas fa-bell text-xl"></i>
-                                <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500"></span>
+                                <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                             </button>
                             
-                            <div x-show="open" @click.away="open = false" x-cloak
-                                 class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-2">
-                                <div class="px-4 py-2 border-b">
-                                    <h3 class="font-semibold">Notifications</h3>
-                                </div>
-                                <div class="max-h-64 overflow-y-auto">
-                                    <a href="#" class="block px-4 py-3 hover:bg-gray-50">
-                                        <p class="text-sm text-gray-800">Payment reminder for Client XYZ</p>
-                                        <p class="text-xs text-gray-500 mt-1">2 hours ago</p>
+                            <!-- User Menu Dropdown -->
+                            <div class="relative" x-data="{ open: false }">
+                                <button @click="open = !open" class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center">
+                                        <span class="text-white font-semibold text-xs">
+                                            {% if user.is_authenticated %}{{ user.first_name|first|upper }}{{ user.last_name|first|upper }}{% else %}U{% endif %}
+                                        </span>
+                                    </div>
+                                    <i class="fas fa-chevron-down text-gray-400 text-sm hidden sm:block"></i>
+                                </button>
+                                
+                                <!-- Dropdown Menu -->
+                                <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
+                                    <a href="{% url 'authentication:profile' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <i class="fas fa-user-circle mr-2"></i> Profile
+                                    </a>
+                                    <a href="{% url 'authentication:settings' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <i class="fas fa-cog mr-2"></i> Settings
+                                    </a>
+                                    <div class="border-t border-gray-200 my-1"></div>
+                                    <a href="{% url 'authentication:logout' %}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                                        <i class="fas fa-sign-out-alt mr-2"></i> Logout
                                     </a>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- User Menu -->
-                        <div x-data="{ open: false }" class="relative">
-                            <button @click="open = !open" class="flex items-center space-x-2 text-gray-700 hover:text-gray-900">
-                                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white">
-                                    {{ user.get_full_name.0|upper }}
-                                </div>
-                                <span class="font-medium">{{ user.get_full_name }}</span>
-                                <i class="fas fa-chevron-down text-xs"></i>
-                            </button>
-                            
-                            <div x-show="open" @click.away="open = false" x-cloak
-                                 class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2">
-                                <a href="{% url 'authentication:profile' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    <i class="fas fa-user mr-2"></i>Profile
-                                </a>
-                                <a href="{% url 'account_logout' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                                </a>
-                            </div>
-                        </div>
-                        {% else %}
-                        <a href="{% url 'account_login' %}" class="text-blue-600 hover:text-blue-800">Login</a>
-                        {% endif %}
                     </div>
                 </div>
             </header>
             
-            <!-- Main Content Area -->
-            <main class="flex-1 overflow-y-auto p-6">
-                <!-- Messages/Alerts -->
+            <!-- Page Content -->
+            <main class="py-6 px-4 sm:px-6 lg:px-8">
+                <!-- Flash Messages -->
                 {% if messages %}
-                <div class="mb-4 space-y-2">
+                <div class="mb-6 space-y-3">
                     {% for message in messages %}
-                    <div class="toast p-4 rounded-lg {% if message.tags == 'error' %}bg-red-100 text-red-800{% elif message.tags == 'success' %}bg-green-100 text-green-800{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-800{% else %}bg-blue-100 text-blue-800{% endif %}">
-                        <div class="flex items-center justify-between">
-                            <span>{{ message }}</span>
-                            <button onclick="this.parentElement.parentElement.remove()" class="ml-4">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
+                    <div class="rounded-lg p-4 {% if message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200{% elif message.tags == 'success' %}bg-green-50 text-green-800 border border-green-200{% elif message.tags == 'warning' %}bg-yellow-50 text-yellow-800 border border-yellow-200{% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %} flex items-start">
+                        <i class="fas {% if message.tags == 'error' %}fa-exclamation-circle{% elif message.tags == 'success' %}fa-check-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} mt-0.5 mr-3"></i>
+                        <div class="flex-1">{{ message }}</div>
+                        <button onclick="this.parentElement.remove()" class="ml-3 text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
                     {% endfor %}
                 </div>
                 {% endif %}
                 
+                <!-- Page Content Block -->
                 {% block content %}{% endblock %}
             </main>
+            
+            <!-- Footer -->
+            <footer class="bg-white border-t border-gray-200 mt-12">
+                <div class="px-4 sm:px-6 lg:px-8 py-6">
+                    <div class="md:flex md:items-center md:justify-between">
+                        <div class="text-center md:text-left">
+                            <p class="text-sm text-gray-500">
+                                &copy; 2025 Vehicle Management System. All rights reserved.
+                            </p>
+                        </div>
+                        <div class="mt-4 md:mt-0">
+                            <div class="flex justify-center md:justify-end space-x-6">
+                                <a href="#" class="text-gray-400 hover:text-gray-500">
+                                    <i class="fab fa-facebook-f"></i>
+                                </a>
+                                <a href="#" class="text-gray-400 hover:text-gray-500">
+                                    <i class="fab fa-twitter"></i>
+                                </a>
+                                <a href="#" class="text-gray-400 hover:text-gray-500">
+                                    <i class="fab fa-instagram"></i>
+                                </a>
+                                <a href="#" class="text-gray-400 hover:text-gray-500">
+                                    <i class="fab fa-linkedin-in"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </footer>
         </div>
     </div>
     
-    <!-- Scripts -->
+    <!-- Alpine.js for Dropdown Functionality -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Custom JavaScript -->
     <script>
+        // Mobile Sidebar Toggle
+        const sidebar = document.getElementById('sidebar');
+        const openSidebarBtn = document.getElementById('open-sidebar');
+        const closeSidebarBtn = document.getElementById('close-sidebar');
+        const overlay = document.getElementById('mobile-menu-overlay');
+        
+        function openSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+        }
+        
+        function closeSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
+        
+        openSidebarBtn?.addEventListener('click', openSidebar);
+        closeSidebarBtn?.addEventListener('click', closeSidebar);
+        overlay?.addEventListener('click', closeSidebar);
+        
+        // Active Link Highlighting
+        const currentPath = window.location.pathname;
+        const navLinks = document.querySelectorAll('aside nav a');
+        
+        navLinks.forEach(link => {
+            if (link.getAttribute('href') === currentPath) {
+                link.classList.add('bg-primary-50', 'text-primary-700');
+                link.classList.remove('text-gray-700');
+            }
+        });
+        
         // Auto-hide messages after 5 seconds
         setTimeout(() => {
-            document.querySelectorAll('.toast').forEach(el => {
-                el.style.opacity = '0';
-                setTimeout(() => el.remove(), 300);
+            const messages = document.querySelectorAll('[class*="bg-red-50"], [class*="bg-green-50"], [class*="bg-yellow-50"], [class*="bg-blue-50"]');
+            messages.forEach(msg => {
+                msg.style.transition = 'opacity 0.5s';
+                msg.style.opacity = '0';
+                setTimeout(() => msg.remove(), 500);
             });
         }, 5000);
     </script>
