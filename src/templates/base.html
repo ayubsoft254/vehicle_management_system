@@ -100,19 +100,19 @@
                         </div>
                         
                         <!-- Payments -->
-                        <a href="{% url 'payments:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                        <a href="{% url 'payments:payment_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                             <i class="fas fa-credit-card w-5 text-gray-400 group-hover:text-primary-600"></i>
                             <span class="ml-3 font-medium">Payments</span>
                         </a>
                         
                         <!-- Expenses -->
-                        <a href="{% url 'expenses:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                        <a href="{% url 'expenses:expense_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                             <i class="fas fa-receipt w-5 text-gray-400 group-hover:text-primary-600"></i>
                             <span class="ml-3 font-medium">Expenses</span>
                         </a>
                         
                         <!-- Payroll -->
-                        <a href="{% url 'payroll:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                        <a href="{% url 'payroll:payroll_dashboard' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                             <i class="fas fa-money-bill-wave w-5 text-gray-400 group-hover:text-primary-600"></i>
                             <span class="ml-3 font-medium">Payroll</span>
                         </a>
@@ -123,19 +123,19 @@
                         </div>
                         
                         <!-- Auctions -->
-                        <a href="{% url 'auctions:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                        <a href="{% url 'auctions:auction_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                             <i class="fas fa-gavel w-5 text-gray-400 group-hover:text-primary-600"></i>
                             <span class="ml-3 font-medium">Auctions</span>
                         </a>
                         
                         <!-- Insurance -->
-                        <a href="{% url 'insurance:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                        <a href="{% url 'insurance:policy_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                             <i class="fas fa-shield-alt w-5 text-gray-400 group-hover:text-primary-600"></i>
                             <span class="ml-3 font-medium">Insurance</span>
                         </a>
                         
                         <!-- Repossessions -->
-                        <a href="{% url 'repossessions:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                        <a href="{% url 'repossessions:repossession_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                             <i class="fas fa-truck-loading w-5 text-gray-400 group-hover:text-primary-600"></i>
                             <span class="ml-3 font-medium">Repossessions</span>
                         </a>
@@ -152,13 +152,13 @@
                         </a>
                         
                         <!-- Documents -->
-                        <a href="{% url 'documents:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                        <a href="{% url 'documents:document_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                             <i class="fas fa-folder w-5 text-gray-400 group-hover:text-primary-600"></i>
                             <span class="ml-3 font-medium">Documents</span>
                         </a>
                         
                         <!-- Audit -->
-                        <a href="{% url 'audit:log' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                        <a href="{% url 'audit:log_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                             <i class="fas fa-history w-5 text-gray-400 group-hover:text-primary-600"></i>
                             <span class="ml-3 font-medium">Audit Log</span>
                         </a>
@@ -234,11 +234,11 @@
                                     <a href="{% url 'authentication:profile' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                         <i class="fas fa-user-circle mr-2"></i> Profile
                                     </a>
-                                    <a href="{% url 'authentication:settings' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <a href="{% url 'account_email' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                         <i class="fas fa-cog mr-2"></i> Settings
                                     </a>
                                     <div class="border-t border-gray-200 my-1"></div>
-                                    <a href="{% url 'authentication:logout' %}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                                    <a href="{% url 'account_logout' %}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">
                                         <i class="fas fa-sign-out-alt mr-2"></i> Logout
                                     </a>
                                 </div>
