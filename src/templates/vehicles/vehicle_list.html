@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %} extends 'base.html' %}
+{% load static %}
+
+{% block title %}Vehicles - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Vehicle Inventory</h1>
+            <p class="mt-1 text-sm text-gray-600">Manage and track your vehicle inventory</p>
+        </div>
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            <a href="{% url 'vehicles:create' %}" 
+               class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Add Vehicle
+            </a>
+            <a href="{% url 'vehicles:export' %}?{{ request.GET.urlencode }}" 
+               class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Export CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <!-- Total Vehicles -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-blue-100 rounded-md p-3">
+                    <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Total</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ total_vehicles }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Available -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-green-100 rounded-md p-3">
+                    <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Available</p>
+                    <p class="text-2xl font-bold text-green-600">{{ available_count }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sold -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-purple-100 rounded-md p-3">
+                    <svg class="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Sold</p>
+                    <p class="text-2xl font-bold text-purple-600">{{ sold_count }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reserved -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-yellow-100 rounded-md p-3">
+                    <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Reserved</p>
+                    <p class="text-2xl font-bold text-yellow-600">{{ reserved_count }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Value -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-indigo-100 rounded-md p-3">
+                    <svg class="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Total Value</p>
+                    <p class="text-2xl font-bold text-indigo-600">${{ total_inventory_value|floatformat:0|intcomma }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Form -->
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-900">Search & Filter</h2>
+                <button type="button" 
+                        id="toggleFilters" 
+                        class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    Show Filters
+                </button>
+            </div>
+            
+            <form method="get" action="{% url 'vehicles:list' %}" id="searchForm">
+                <!-- Quick Search -->
+                <div class="mb-4">
+                    <label for="search" class="block text-sm font-medium text-gray-700 mb-2">Quick Search</label>
+                    <div class="flex gap-2">
+                        <input type="text" 
+                               name="search" 
+                               id="search" 
+                               value="{{ form.search.value|default:'' }}"
+                               placeholder="Search by make, model, VIN, registration, color..."
+                               class="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <button type="submit" 
+                                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150">
+                            Search
+                        </button>
+                        <a href="{% url 'vehicles:list' %}" 
+                           class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150">
+                            Clear
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Advanced Filters (Collapsible) -->
+                <div id="advancedFilters" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Status Filter -->
+                    <div>
+                        <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        {{ form.status }}
+                    </div>
+
+                    <!-- Make Filter -->
+                    <div>
+                        <label for="make" class="block text-sm font-medium text-gray-700 mb-2">Make</label>
+                        {{ form.make }}
+                    </div>
+
+                    <!-- Year From -->
+                    <div>
+                        <label for="year_from" class="block text-sm font-medium text-gray-700 mb-2">Year From</label>
+                        {{ form.year_from }}
+                    </div>
+
+                    <!-- Year To -->
+                    <div>
+                        <label for="year_to" class="block text-sm font-medium text-gray-700 mb-2">Year To</label>
+                        {{ form.year_to }}
+                    </div>
+
+                    <!-- Price From -->
+                    <div>
+                        <label for="price_from" class="block text-sm font-medium text-gray-700 mb-2">Price From</label>
+                        {{ form.price_from }}
+                    </div>
+
+                    <!-- Price To -->
+                    <div>
+                        <label for="price_to" class="block text-sm font-medium text-gray-700 mb-2">Price To</label>
+                        {{ form.price_to }}
+                    </div>
+
+                    <!-- Fuel Type -->
+                    <div>
+                        <label for="fuel_type" class="block text-sm font-medium text-gray-700 mb-2">Fuel Type</label>
+                        {{ form.fuel_type }}
+                    </div>
+
+                    <!-- Transmission -->
+                    <div>
+                        <label for="transmission" class="block text-sm font-medium text-gray-700 mb-2">Transmission</label>
+                        {{ form.transmission }}
+                    </div>
+
+                    <!-- Body Type -->
+                    <div>
+                        <label for="body_type" class="block text-sm font-medium text-gray-700 mb-2">Body Type</label>
+                        {{ form.body_type }}
+                    </div>
+
+                    <!-- Apply Filters Button -->
+                    <div class="flex items-end">
+                        <button type="submit" 
+                                class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150">
+                            Apply Filters
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Vehicles Grid -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    Vehicles ({{ page_obj.paginator.count }})
+                </h2>
+                
+                <!-- Bulk Actions (if applicable) -->
+                <div class="flex items-center gap-2">
+                    <select id="bulkAction" class="rounded-lg border-gray-300 text-sm">
+                        <option value="">Bulk Actions</option>
+                        <option value="activate">Activate</option>
+                        <option value="deactivate">Deactivate</option>
+                        <option value="feature">Mark as Featured</option>
+                        <option value="unfeature">Remove Featured</option>
+                    </select>
+                    <button type="button" 
+                            id="applyBulkAction"
+                            class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg">
+                        Apply
+                    </button>
+                </div>
+            </div>
+
+            {% if page_obj %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {% for vehicle in page_obj %}
+                        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition duration-300">
+                            <!-- Vehicle Image -->
+                            <div class="relative h-48 bg-gray-200">
+                                {% if vehicle.photos.first %}
+                                    <img src="{{ vehicle.photos.first.image.url }}" 
+                                         alt="{{ vehicle.full_name }}"
+                                         class="w-full h-full object-cover">
+                                {% else %}
+                                    <div class="flex items-center justify-center h-full">
+                                        <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                        </svg>
+                                    </div>
+                                {% endif %}
+                                
+                                <!-- Featured Badge -->
+                                {% if vehicle.is_featured %}
+                                    <span class="absolute top-2 right-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded">
+                                        FEATURED
+                                    </span>
+                                {% endif %}
+                                
+                                <!-- Status Badge -->
+                                <span class="absolute top-2 left-2 px-2 py-1 rounded text-xs font-bold
+                                    {% if vehicle.status == 'available' %}bg-green-500 text-white
+                                    {% elif vehicle.status == 'sold' %}bg-purple-500 text-white
+                                    {% elif vehicle.status == 'reserved' %}bg-yellow-500 text-white
+                                    {% elif vehicle.status == 'repossessed' %}bg-red-500 text-white
+                                    {% else %}bg-gray-500 text-white{% endif %}">
+                                    {{ vehicle.get_status_display|upper }}
+                                </span>
+
+                                <!-- Checkbox for Bulk Selection -->
+                                <input type="checkbox" 
+                                       class="absolute bottom-2 left-2 vehicle-checkbox w-4 h-4 text-blue-600 rounded" 
+                                       value="{{ vehicle.pk }}">
+                            </div>
+
+                            <!-- Vehicle Info -->
+                            <div class="p-4">
+                                <h3 class="text-lg font-bold text-gray-900 mb-1">
+                                    <a href="{% url 'vehicles:detail' vehicle.pk %}" class="hover:text-blue-600">
+                                        {{ vehicle.full_name }}
+                                    </a>
+                                </h3>
+                                
+                                <div class="space-y-2 text-sm text-gray-600 mb-4">
+                                    <div class="flex items-center">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                        {{ vehicle.year }}
+                                    </div>
+                                    <div class="flex items-center">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                        </svg>
+                                        {{ vehicle.mileage|intcomma }} km
+                                    </div>
+                                    <div class="flex items-center">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+                                        </svg>
+                                        {{ vehicle.color }}
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                                    <span class="text-2xl font-bold text-blue-600">
+                                        ${{ vehicle.selling_price|floatformat:0|intcomma }}
+                                    </span>
+                                    <a href="{% url 'vehicles:detail' vehicle.pk %}" 
+                                       class="text-blue-600 hover:text-blue-800 font-medium text-sm">
+                                        View Details →
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                    <div class="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+                        <div class="text-sm text-gray-700">
+                            Showing 
+                            <span class="font-medium">{{ page_obj.start_index }}</span>
+                            to
+                            <span class="font-medium">{{ page_obj.end_index }}</span>
+                            of
+                            <span class="font-medium">{{ page_obj.paginator.count }}</span>
+                            results
+                        </div>
+                        
+                        <nav class="flex gap-2">
+                            {% if page_obj.has_previous %}
+                                <a href="?page=1{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
+                                   class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                    First
+                                </a>
+                                <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
+                                   class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                    Previous
+                                </a>
+                            {% endif %}
+
+                            <span class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">
+                                {{ page_obj.number }}
+                            </span>
+
+                            {% if page_obj.has_next %}
+                                <a href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
+                                   class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                    Next
+                                </a>
+                                <a href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" 
+                                   class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                    Last
+                                </a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                {% endif %}
+
+            {% else %}
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No vehicles found</h3>
+                    <p class="mt-1 text-sm text-gray-500">Try adjusting your search or filters.</p>
+                    <div class="mt-6">
+                        <a href="{% url 'vehicles:create' %}" 
+                           class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Add First Vehicle
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Interactions -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle advanced filters
+    const toggleBtn = document.getElementById('toggleFilters');
+    const advancedFilters = document.getElementById('advancedFilters');
+    
+    toggleBtn.addEventListener('click', function() {
+        advancedFilters.classList.toggle('hidden');
+        toggleBtn.textContent = advancedFilters.classList.contains('hidden') ? 'Show Filters' : 'Hide Filters';
+    });
+
+    // Bulk actions
+    const bulkActionSelect = document.getElementById('bulkAction');
+    const applyBulkBtn = document.getElementById('applyBulkAction');
+    const checkboxes = document.querySelectorAll('.vehicle-checkbox');
+
+    applyBulkBtn.addEventListener('click', function() {
+        const action = bulkActionSelect.value;
+        const selectedIds = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+
+        if (!action) {
+            alert('Please select an action');
+            return;
+        }
+
+        if (selectedIds.length === 0) {
+            alert('Please select at least one vehicle');
+            return;
+        }
+
+        if (confirm(`Apply "${action}" to ${selectedIds.length} vehicle(s)?`)) {
+            // Create and submit form
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{% url "vehicles:bulk_action" %}';
+            
+            // Add CSRF token
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfToken) {
+                form.appendChild(csrfToken.cloneNode());
+            }
+            
+            // Add action
+            const actionInput = document.createElement('input');
+            actionInput.type = 'hidden';
+            actionInput.name = 'action';
+            actionInput.value = action;
+            form.appendChild(actionInput);
+            
+            // Add vehicle IDs
+            const idsInput = document.createElement('input');
+            idsInput.type = 'hidden';
+            idsInput.name = 'vehicle_ids';
+            idsInput.value = selectedIds.join(',');
+            form.appendChild(idsInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+
+    // Select all checkbox functionality
+    const selectAllBtn = document.createElement('button');
+    selectAllBtn.textContent = 'Select All';
+    selectAllBtn.className = 'text-sm text-blue-600 hover:text-blue-800 mr-2';
+    selectAllBtn.type = 'button';
+    
+    selectAllBtn.addEventListener('click', function() {
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        checkboxes.forEach(cb => cb.checked = !allChecked);
+        selectAllBtn.textContent = allChecked ? 'Select All' : 'Deselect All';
+    });
+    
+    if (bulkActionSelect && checkboxes.length > 0) {
+        bulkActionSelect.parentElement.insertBefore(selectAllBtn, bulkActionSelect);
+    }
+});
+</script>
+
+{% endblock %}

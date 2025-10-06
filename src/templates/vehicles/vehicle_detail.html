@@ -1,0 +1,550 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ vehicle.full_name }} - Vehicle Details{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Breadcrumb -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'dashboard:home' %}" class="text-gray-700 hover:text-blue-600 inline-flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
+                    </svg>
+                    Dashboard
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <a href="{% url 'vehicles:list' %}" class="text-gray-700 hover:text-blue-600 ml-1 md:ml-2">Vehicles</a>
+                </div>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span class="text-gray-500 ml-1 md:ml-2">{{ vehicle.full_name }}</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Header with Actions -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div class="flex items-center">
+            <h1 class="text-3xl font-bold text-gray-900">{{ vehicle.full_name }}</h1>
+            {% if vehicle.is_featured %}
+                <span class="ml-3 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                    </svg>
+                    Featured
+                </span>
+            {% endif %}
+            
+            <!-- Status Badge -->
+            <span class="ml-3 inline-flex items-center px-3 py-1 rounded-full text-sm font-bold
+                {% if vehicle.status == 'available' %}bg-green-100 text-green-800
+                {% elif vehicle.status == 'sold' %}bg-purple-100 text-purple-800
+                {% elif vehicle.status == 'reserved' %}bg-yellow-100 text-yellow-800
+                {% elif vehicle.status == 'repossessed' %}bg-red-100 text-red-800
+                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                {{ vehicle.get_status_display }}
+            </span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            <a href="{% url 'vehicles:update' vehicle.pk %}" 
+               class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+                Edit
+            </a>
+            
+            <a href="{% url 'vehicles:change_status' vehicle.pk %}" 
+               class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                </svg>
+                Change Status
+            </a>
+            
+            <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" 
+               class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition duration-150">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                Add Photos
+            </a>
+
+            <form action="{% url 'vehicles:toggle_featured' vehicle.pk %}" method="post" class="inline">
+                {% csrf_token %}
+                <button type="submit" 
+                        class="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition duration-150">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                    </svg>
+                    {% if vehicle.is_featured %}Remove Featured{% else %}Mark Featured{% endif %}
+                </button>
+            </form>
+            
+            <a href="{% url 'vehicles:delete' vehicle.pk %}" 
+               class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition duration-150">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Delete
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Column: Photos and Main Info -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Photo Gallery -->
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                {% if vehicle.photos.all %}
+                    <!-- Main Photo Display -->
+                    <div class="relative bg-gray-900">
+                        <img id="mainPhoto" 
+                             src="{{ vehicle.photos.first.image.url }}" 
+                             alt="{{ vehicle.full_name }}"
+                             class="w-full h-96 object-contain">
+                        
+                        <!-- Photo Navigation -->
+                        {% if vehicle.photos.count > 1 %}
+                            <button id="prevPhoto" 
+                                    class="absolute left-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-75 text-white p-2 rounded-full transition">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                                </svg>
+                            </button>
+                            <button id="nextPhoto" 
+                                    class="absolute right-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-75 text-white p-2 rounded-full transition">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </button>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Thumbnail Gallery -->
+                    {% if vehicle.photos.count > 1 %}
+                        <div class="p-4 bg-gray-50">
+                            <div class="flex gap-2 overflow-x-auto" id="thumbnailGallery">
+                                {% for photo in vehicle.photos.all %}
+                                    <div class="flex-shrink-0 relative group">
+                                        <img src="{{ photo.image.url }}" 
+                                             alt="Photo {{ forloop.counter }}"
+                                             data-index="{{ forloop.counter0 }}"
+                                             class="thumbnail w-20 h-20 object-cover rounded cursor-pointer border-2 {% if forloop.first %}border-blue-500{% else %}border-gray-300{% endif %} hover:border-blue-400 transition">
+                                        
+                                        <!-- Delete Button -->
+                                        <a href="{% url 'vehicles:delete_photo' vehicle.pk photo.pk %}"
+                                           class="absolute top-0 right-0 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"
+                                           onclick="return confirm('Delete this photo?')">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <!-- No Photos Placeholder -->
+                    <div class="flex flex-col items-center justify-center h-96 bg-gray-100">
+                        <svg class="w-24 h-24 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <p class="text-gray-500 mb-4">No photos available</p>
+                        <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" 
+                           class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                            Upload Photos
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Vehicle Specifications -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-900">Vehicle Specifications</h2>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Make & Model -->
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Make & Model</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ vehicle.make }} {{ vehicle.model }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Year -->
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Year</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ vehicle.year }}</p>
+                            </div>
+                        </div>
+
+                        <!-- VIN -->
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">VIN</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ vehicle.vin }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Registration Number -->
+                        {% if vehicle.registration_number %}
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Registration Number</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ vehicle.registration_number }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Color -->
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Color</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ vehicle.color }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Mileage -->
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Mileage</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ vehicle.mileage|intcomma }} km</p>
+                            </div>
+                        </div>
+
+                        <!-- Fuel Type -->
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Fuel Type</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ vehicle.get_fuel_type_display }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Transmission -->
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Transmission</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ vehicle.get_transmission_display }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Body Type -->
+                        {% if vehicle.body_type %}
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Body Type</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ vehicle.get_body_type_display }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Description -->
+                    {% if vehicle.description %}
+                        <div class="mt-6 pt-6 border-t border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-3">Description</h3>
+                            <p class="text-gray-700 leading-relaxed">{{ vehicle.description|linebreaks }}</p>
+                        </div>
+                    {% endif %}
+
+                    <!-- Features -->
+                    {% if vehicle.features %}
+                        <div class="mt-6 pt-6 border-t border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-3">Features</h3>
+                            <p class="text-gray-700 leading-relaxed">{{ vehicle.features|linebreaks }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- History Timeline -->
+            {% if history %}
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-900">Change History</h2>
+                </div>
+                <div class="p-6">
+                    <div class="flow-root">
+                        <ul class="-mb-8">
+                            {% for item in history %}
+                            <li>
+                                <div class="relative pb-8">
+                                    {% if not forloop.last %}
+                                    <span class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
+                                    {% endif %}
+                                    <div class="relative flex space-x-3">
+                                        <div>
+                                            <span class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center ring-8 ring-white">
+                                                <svg class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                                                </svg>
+                                            </span>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div>
+                                                <p class="text-sm text-gray-900">
+                                                    <span class="font-medium">{{ item.changed_by.get_full_name|default:item.changed_by.username }}</span>
+                                                    {{ item.change_type }}
+                                                </p>
+                                                <p class="mt-0.5 text-sm text-gray-500">
+                                                    {{ item.timestamp|date:"M d, Y g:i A" }}
+                                                </p>
+                                            </div>
+                                            {% if item.notes %}
+                                            <div class="mt-2 text-sm text-gray-700">
+                                                <p>{{ item.notes }}</p>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column: Pricing and Metadata -->
+        <div class="space-y-6">
+            
+            <!-- Pricing Card -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-900">Pricing Information</h2>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500 mb-1">Purchase Price</p>
+                        <p class="text-2xl font-bold text-gray-900">${{ vehicle.purchase_price|floatformat:2|intcomma }}</p>
+                    </div>
+                    
+                    <div class="pt-4 border-t border-gray-200">
+                        <p class="text-sm font-medium text-gray-500 mb-1">Selling Price</p>
+                        <p class="text-3xl font-bold text-blue-600">${{ vehicle.selling_price|floatformat:2|intcomma }}</p>
+                    </div>
+                    
+                    <div class="pt-4 border-t border-gray-200">
+                        <p class="text-sm font-medium text-gray-500 mb-1">Potential Profit</p>
+                        <p class="text-2xl font-bold {% if vehicle.profit >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                            ${{ vehicle.profit|floatformat:2|intcomma }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metadata Card -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-900">Additional Information</h2>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-500">Status</span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                            {% if vehicle.status == 'available' %}bg-green-100 text-green-800
+                            {% elif vehicle.status == 'sold' %}bg-purple-100 text-purple-800
+                            {% elif vehicle.status == 'reserved' %}bg-yellow-100 text-yellow-800
+                            {% elif vehicle.status == 'repossessed' %}bg-red-100 text-red-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ vehicle.get_status_display }}
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between pt-2 border-t border-gray-200">
+                        <span class="text-sm font-medium text-gray-500">Active</span>
+                        <span class="inline-flex items-center">
+                            {% if vehicle.is_active %}
+                                <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                </svg>
+                            {% else %}
+                                <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                </svg>
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between pt-2 border-t border-gray-200">
+                        <span class="text-sm font-medium text-gray-500">Featured</span>
+                        <span class="inline-flex items-center">
+                            {% if vehicle.is_featured %}
+                                <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                </svg>
+                            {% else %}
+                                <svg class="w-5 h-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                </svg>
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="pt-4 border-t border-gray-200">
+                        <p class="text-sm font-medium text-gray-500 mb-1">Added By</p>
+                        <p class="text-sm text-gray-900">{{ vehicle.added_by.get_full_name|default:vehicle.added_by.username }}</p>
+                    </div>
+                    
+                    <div class="pt-2 border-t border-gray-200">
+                        <p class="text-sm font-medium text-gray-500 mb-1">Date Added</p>
+                        <p class="text-sm text-gray-900">{{ vehicle.date_added|date:"M d, Y g:i A" }}</p>
+                    </div>
+                    
+                    <div class="pt-2 border-t border-gray-200">
+                        <p class="text-sm font-medium text-gray-500 mb-1">Last Updated</p>
+                        <p class="text-sm text-gray-900">{{ vehicle.updated_at|date:"M d, Y g:i A" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                <div class="space-y-2">
+                    <a href="{% url 'vehicles:update' vehicle.pk %}" 
+                       class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
+                        Edit Vehicle
+                    </a>
+                    <a href="{% url 'vehicles:change_status' vehicle.pk %}" 
+                       class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
+                        Change Status
+                    </a>
+                    <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" 
+                       class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
+                        Upload Photos
+                    </a>
+                    <button onclick="window.print()" 
+                            class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
+                        Print Details
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Photo Gallery -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const photos = {{ vehicle.photos.all|length }};
+    
+    if (photos > 1) {
+        const mainPhoto = document.getElementById('mainPhoto');
+        const thumbnails = document.querySelectorAll('.thumbnail');
+        const prevBtn = document.getElementById('prevPhoto');
+        const nextBtn = document.getElementById('nextPhoto');
+        
+        let currentIndex = 0;
+        const photoUrls = Array.from(thumbnails).map(thumb => thumb.src);
+        
+        function showPhoto(index) {
+            mainPhoto.src = photoUrls[index];
+            thumbnails.forEach((thumb, i) => {
+                if (i === index) {
+                    thumb.classList.add('border-blue-500');
+                    thumb.classList.remove('border-gray-300');
+                } else {
+                    thumb.classList.remove('border-blue-500');
+                    thumb.classList.add('border-gray-300');
+                }
+            });
+            currentIndex = index;
+        }
+        
+        // Thumbnail clicks
+        thumbnails.forEach((thumb, index) => {
+            thumb.addEventListener('click', () => showPhoto(index));
+        });
+        
+        // Navigation buttons
+        prevBtn.addEventListener('click', () => {
+            const newIndex = (currentIndex - 1 + photos) % photos;
+            showPhoto(newIndex);
+        });
+        
+        nextBtn.addEventListener('click', () => {
+            const newIndex = (currentIndex + 1) % photos;
+            showPhoto(newIndex);
+        });
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') prevBtn.click();
+            if (e.key === 'ArrowRight') nextBtn.click();
+        });
+    }
+});
+</script>
+
+{% endblock %}
