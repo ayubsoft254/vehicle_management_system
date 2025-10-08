@@ -1,0 +1,587 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if vehicle %}Edit{{ else }}Add New{% endif %} Vehicle - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-5xl">
+    
+    <!-- Breadcrumb -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'dashboard:index' %}" class="text-gray-700 hover:text-blue-600 inline-flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
+                    </svg>
+                    Dashboard
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <a href="{% url 'vehicles:list' %}" class="text-gray-700 hover:text-blue-600 ml-1 md:ml-2">Vehicles</a>
+                </div>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span class="text-gray-500 ml-1 md:ml-2">{% if vehicle %}Edit{% else %}Add New{% endif %}</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">{{ title }}</h1>
+        <p class="mt-1 text-sm text-gray-600">
+            {% if vehicle %}
+                Update the vehicle information below
+            {% else %}
+                Fill in the details to add a new vehicle to your inventory
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="bg-white rounded-lg shadow">
+        <form method="post" enctype="multipart/form-data" id="vehicleForm" class="p-6">
+            {% csrf_token %}
+
+            <!-- Display non-field errors -->
+            {% if form.non_field_errors %}
+                <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800">There were errors with your submission</h3>
+                            <div class="mt-2 text-sm text-red-700">
+                                {{ form.non_field_errors }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Basic Information Section -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                    Basic Information
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Make -->
+                    <div>
+                        <label for="{{ form.make.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Make <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.make }}
+                        {% if form.make.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.make.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.make.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.make.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Model -->
+                    <div>
+                        <label for="{{ form.model.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Model <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.model }}
+                        {% if form.model.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.model.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.model.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.model.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Year -->
+                    <div>
+                        <label for="{{ form.year.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Year <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.year }}
+                        {% if form.year.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.year.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.year.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.year.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- VIN -->
+                    <div>
+                        <label for="{{ form.vin.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            VIN (Vehicle Identification Number) <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.vin }}
+                        {% if form.vin.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.vin.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.vin.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.vin.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Registration Number -->
+                    <div>
+                        <label for="{{ form.registration_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Registration Number
+                        </label>
+                        {{ form.registration_number }}
+                        {% if form.registration_number.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.registration_number.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.registration_number.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.registration_number.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Color -->
+                    <div>
+                        <label for="{{ form.color.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Color <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.color }}
+                        {% if form.color.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.color.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.color.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.color.help_text }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Technical Specifications Section -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                    Technical Specifications
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Mileage -->
+                    <div>
+                        <label for="{{ form.mileage.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Mileage (km) <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.mileage }}
+                        {% if form.mileage.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.mileage.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.mileage.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.mileage.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Fuel Type -->
+                    <div>
+                        <label for="{{ form.fuel_type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Fuel Type <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.fuel_type }}
+                        {% if form.fuel_type.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.fuel_type.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.fuel_type.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.fuel_type.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Transmission -->
+                    <div>
+                        <label for="{{ form.transmission.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Transmission <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.transmission }}
+                        {% if form.transmission.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.transmission.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.transmission.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.transmission.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Body Type -->
+                    <div>
+                        <label for="{{ form.body_type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Body Type
+                        </label>
+                        {{ form.body_type }}
+                        {% if form.body_type.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.body_type.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.body_type.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.body_type.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Engine Size -->
+                    <div>
+                        <label for="{{ form.engine_size.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Engine Size (cc)
+                        </label>
+                        {{ form.engine_size }}
+                        {% if form.engine_size.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.engine_size.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.engine_size.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.engine_size.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Number of Doors -->
+                    <div>
+                        <label for="{{ form.doors.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Number of Doors
+                        </label>
+                        {{ form.doors }}
+                        {% if form.doors.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.doors.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.doors.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.doors.help_text }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pricing Information Section -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                    Pricing Information
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Purchase Price -->
+                    <div>
+                        <label for="{{ form.purchase_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Purchase Price ($) <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-gray-500 sm:text-sm">$</span>
+                            </div>
+                            {{ form.purchase_price }}
+                        </div>
+                        {% if form.purchase_price.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.purchase_price.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.purchase_price.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.purchase_price.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Selling Price -->
+                    <div>
+                        <label for="{{ form.selling_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Selling Price ($) <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-gray-500 sm:text-sm">$</span>
+                            </div>
+                            {{ form.selling_price }}
+                        </div>
+                        {% if form.selling_price.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.selling_price.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.selling_price.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.selling_price.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Profit Display (Read-only, calculated) -->
+                    <div class="md:col-span-2">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div class="flex items-center">
+                                <svg class="w-5 h-5 text-blue-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                </svg>
+                                <p class="text-sm text-blue-700">
+                                    <span class="font-medium">Profit Calculation:</span> 
+                                    <span id="profitDisplay">Selling Price - Purchase Price = Profit</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Section -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                    Status & Availability
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Status -->
+                    <div>
+                        <label for="{{ form.status.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Status <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.status }}
+                        {% if form.status.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.status.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.status.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.status.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Checkboxes -->
+                    <div class="space-y-4">
+                        <!-- Is Active -->
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                {{ form.is_active }}
+                            </div>
+                            <div class="ml-3">
+                                <label for="{{ form.is_active.id_for_label }}" class="font-medium text-gray-700">
+                                    Active
+                                </label>
+                                <p class="text-sm text-gray-500">Vehicle is active and visible in listings</p>
+                                {% if form.is_active.errors %}
+                                    <p class="mt-1 text-sm text-red-600">{{ form.is_active.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Is Featured -->
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                {{ form.is_featured }}
+                            </div>
+                            <div class="ml-3">
+                                <label for="{{ form.is_featured.id_for_label }}" class="font-medium text-gray-700">
+                                    Featured
+                                </label>
+                                <p class="text-sm text-gray-500">Mark as featured vehicle (appears prominently)</p>
+                                {% if form.is_featured.errors %}
+                                    <p class="mt-1 text-sm text-red-600">{{ form.is_featured.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Description & Features Section -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                    Description & Features
+                </h2>
+                <div class="space-y-6">
+                    
+                    <!-- Description -->
+                    <div>
+                        <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Description
+                        </label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.description.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500">Detailed description of the vehicle's condition and history</p>
+                    </div>
+
+                    <!-- Features -->
+                    <div>
+                        <label for="{{ form.features.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Features & Extras
+                        </label>
+                        {{ form.features }}
+                        {% if form.features.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.features.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500">List all special features, upgrades, and additional equipment</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes Section (if exists in form) -->
+            {% if form.notes %}
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                    Internal Notes
+                </h2>
+                <div>
+                    <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        Notes
+                    </label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.notes.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-sm text-gray-500">Internal notes (not visible to customers)</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Form Actions -->
+            <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                <a href="{% if vehicle %}{% url 'vehicles:detail' vehicle.pk %}{% else %}{% url 'vehicles:list' %}{% endif %}" 
+                   class="inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    Cancel
+                </a>
+                
+                <div class="flex gap-3">
+                    {% if vehicle %}
+                    <button type="submit" name="save_continue" 
+                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Save & Continue Editing
+                    </button>
+                    {% endif %}
+                    
+                    <button type="submit" 
+                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                        </svg>
+                        {% if vehicle %}Update Vehicle{% else %}Add Vehicle{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- JavaScript for form enhancements -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add Tailwind classes to form fields
+    const textInputs = document.querySelectorAll('input[type="text"], input[type="number"], input[type="email"], input[type="url"], textarea');
+    textInputs.forEach(input => {
+        if (!input.classList.contains('vehicle-checkbox')) {
+            input.classList.add('w-full', 'rounded-lg', 'border-gray-300', 'shadow-sm', 'focus:border-blue-500', 'focus:ring-blue-500');
+        }
+    });
+
+    // Style select fields
+    const selects = document.querySelectorAll('select');
+    selects.forEach(select => {
+        select.classList.add('w-full', 'rounded-lg', 'border-gray-300', 'shadow-sm', 'focus:border-blue-500', 'focus:ring-blue-500');
+    });
+
+    // Style checkboxes
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.classList.add('h-4', 'w-4', 'text-blue-600', 'focus:ring-blue-500', 'border-gray-300', 'rounded');
+    });
+
+    // Add pl-7 to price inputs (for $ symbol)
+    const purchasePrice = document.querySelector('input[name="purchase_price"]');
+    const sellingPrice = document.querySelector('input[name="selling_price"]');
+    if (purchasePrice) purchasePrice.classList.add('pl-7');
+    if (sellingPrice) sellingPrice.classList.add('pl-7');
+
+    // Profit calculation
+    function calculateProfit() {
+        const purchase = parseFloat(purchasePrice?.value) || 0;
+        const selling = parseFloat(sellingPrice?.value) || 0;
+        const profit = selling - purchase;
+        
+        const profitDisplay = document.getElementById('profitDisplay');
+        if (profitDisplay) {
+            const profitColor = profit >= 0 ? 'text-green-700' : 'text-red-700';
+            profitDisplay.innerHTML = `Selling Price ($${selling.toFixed(2)}) - Purchase Price ($${purchase.toFixed(2)}) = <span class="${profitColor} font-bold">$${profit.toFixed(2)}</span>`;
+        }
+    }
+
+    if (purchasePrice && sellingPrice) {
+        purchasePrice.addEventListener('input', calculateProfit);
+        sellingPrice.addEventListener('input', calculateProfit);
+        calculateProfit(); // Initial calculation
+    }
+
+    // Form validation
+    const form = document.getElementById('vehicleForm');
+    form.addEventListener('submit', function(e) {
+        // Add any custom validation here
+        const requiredFields = form.querySelectorAll('[required]');
+        let isValid = true;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('border-red-500');
+            } else {
+                field.classList.remove('border-red-500');
+            }
+        });
+
+        if (!isValid) {
+            e.preventDefault();
+            alert('Please fill in all required fields');
+            // Scroll to first error
+            const firstError = form.querySelector('.border-red-500');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstError.focus();
+            }
+        }
+    });
+
+    // Uppercase VIN automatically
+    const vinInput = document.querySelector('input[name="vin"]');
+    if (vinInput) {
+        vinInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    }
+
+    // Confirmation before leaving page with unsaved changes
+    let formChanged = false;
+    const formInputs = form.querySelectorAll('input, select, textarea');
+    
+    formInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            formChanged = true;
+        });
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (formChanged) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    form.addEventListener('submit', function() {
+        formChanged = false; // Allow form submission without warning
+    });
+});
+</script>
+
+<style>
+/* Custom styles for textarea */
+textarea {
+    min-height: 100px;
+}
+
+/* Custom styles for number inputs */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    opacity: 1;
+}
+</style>
+
+{% endblock %}

@@ -13,7 +13,9 @@ urlpatterns = [
     path('', views.landing_page, name='landing'),
     
     # Main dashboard (now at /dashboard/)
+    # Keep existing 'index' name and also provide a 'home' alias for backwards compatibility
     path('dashboard/', views.dashboard_home, name='index'),
+    path('dashboard/', views.dashboard_home, name='home'),
     path('<uuid:pk>/', views.dashboard_detail, name='dashboard_detail'),
     
     # Widget management
