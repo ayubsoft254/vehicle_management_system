@@ -1,0 +1,293 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Photo - {{ vehicle.full_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    
+    <!-- Breadcrumb -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'dashboard:home' %}" class="text-gray-700 hover:text-blue-600 inline-flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
+                    </svg>
+                    Dashboard
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <a href="{% url 'vehicles:list' %}" class="text-gray-700 hover:text-blue-600 ml-1 md:ml-2">Vehicles</a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <a href="{% url 'vehicles:detail' vehicle.pk %}" class="text-gray-700 hover:text-blue-600 ml-1 md:ml-2">{{ vehicle.full_name }}</a>
+                </div>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span class="text-gray-500 ml-1 md:ml-2">Delete Photo</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Warning Card -->
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        
+        <!-- Danger Header -->
+        <div class="bg-red-600 px-6 py-4">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <svg class="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h1 class="text-2xl font-bold text-white">Delete Photo</h1>
+                    <p class="text-red-100 text-sm mt-1">This action cannot be undone</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6">
+            
+            <!-- Warning Message -->
+            <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">
+                            Warning: Permanent Deletion
+                        </h3>
+                        <div class="mt-2 text-sm text-red-700">
+                            <p>You are about to permanently delete this photo. This action <strong>cannot be reversed</strong>.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vehicle Context -->
+            <div class="mb-6">
+                <h2 class="text-sm font-medium text-gray-500 mb-2">Vehicle</h2>
+                <div class="flex items-center bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    {% if vehicle.photos.first and vehicle.photos.first != photo %}
+                        <img src="{{ vehicle.photos.first.image.url }}" 
+                             alt="{{ vehicle.full_name }}"
+                             class="w-16 h-16 object-cover rounded">
+                    {% else %}
+                        <div class="w-16 h-16 bg-gray-200 rounded flex items-center justify-center">
+                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                    {% endif %}
+                    <div class="ml-4">
+                        <h3 class="font-semibold text-gray-900">{{ vehicle.full_name }}</h3>
+                        <p class="text-sm text-gray-500">{{ vehicle.year }} • {{ vehicle.vin }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Photo to be Deleted -->
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Photo to be Deleted:</h2>
+                
+                <div class="bg-gray-900 rounded-lg overflow-hidden">
+                    <img src="{{ photo.image.url }}" 
+                         alt="Photo to delete"
+                         class="w-full max-h-96 object-contain">
+                </div>
+
+                <!-- Photo Details -->
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {% if photo.caption %}
+                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <p class="text-xs text-gray-500 mb-1">Caption</p>
+                        <p class="text-sm font-medium text-gray-900">{{ photo.caption }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if photo.uploaded_by %}
+                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <p class="text-xs text-gray-500 mb-1">Uploaded By</p>
+                        <p class="text-sm font-medium text-gray-900">{{ photo.uploaded_by.get_full_name|default:photo.uploaded_by.username }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if photo.uploaded_at %}
+                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <p class="text-xs text-gray-500 mb-1">Uploaded Date</p>
+                        <p class="text-sm font-medium text-gray-900">{{ photo.uploaded_at|date:"M d, Y g:i A" }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Photo Count Info -->
+            <div class="mb-6">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-blue-800">Photo Count</h3>
+                            <div class="mt-2 text-sm text-blue-700">
+                                <p>
+                                    This vehicle currently has <strong>{{ vehicle.photos.count }} photo{{ vehicle.photos.count|pluralize }}</strong>.
+                                    {% if vehicle.photos.count == 1 %}
+                                        <span class="font-semibold">Deleting this photo will leave the vehicle with no photos.</span>
+                                    {% else %}
+                                        After deletion, it will have <strong>{{ vehicle.photos.count|add:"-1" }} photo{{ vehicle.photos.count|add:"-1"|pluralize }}</strong>.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Warning for Primary/Last Photo -->
+            {% if vehicle.photos.count == 1 %}
+            <div class="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800">Last Photo Warning</h3>
+                        <div class="mt-2 text-sm text-yellow-700">
+                            <p>This is the only photo for this vehicle. Vehicles without photos may be less appealing to potential buyers.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Confirmation Form -->
+            <form method="post" id="deleteForm" class="mb-4">
+                {% csrf_token %}
+                
+                <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+                    <a href="{% url 'vehicles:detail' vehicle.pk %}" 
+                       class="inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        Cancel - Keep Photo
+                    </a>
+                    
+                    <button type="submit" 
+                            id="deleteButton"
+                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Yes, Delete Photo
+                    </button>
+                </div>
+            </form>
+
+            <!-- Alternative Action -->
+            <div class="pt-4 border-t border-gray-200">
+                <p class="text-sm text-gray-600 text-center">
+                    Need more photos? 
+                    <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" class="text-blue-600 hover:text-blue-800 font-medium">
+                        Upload new photos instead →
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remaining Photos Preview -->
+    {% if vehicle.photos.count > 1 %}
+    <div class="mt-6 bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">Remaining Photos After Deletion</h2>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {% for existing_photo in vehicle.photos.all %}
+                    {% if existing_photo.pk != photo.pk %}
+                    <div class="relative group">
+                        <img src="{{ existing_photo.image.url }}" 
+                             alt="Photo {{ forloop.counter }}"
+                             class="w-full h-32 object-cover rounded-lg border-2 border-gray-200">
+                        {% if existing_photo.caption %}
+                        <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs p-2 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                            {{ existing_photo.caption|truncatewords:5 }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- JavaScript for confirmation -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('deleteForm');
+    const deleteButton = document.getElementById('deleteButton');
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const vehicleName = '{{ vehicle.full_name|escapejs }}';
+        const photoCount = {{ vehicle.photos.count }};
+        
+        let confirmMessage = `Are you sure you want to delete this photo?\n\n`;
+        confirmMessage += `Vehicle: ${vehicleName}\n`;
+        
+        if (photoCount === 1) {
+            confirmMessage += `\nWARNING: This is the ONLY photo for this vehicle.\n`;
+            confirmMessage += `The vehicle will have NO photos after deletion.\n`;
+        }
+        
+        confirmMessage += `\nThis action cannot be undone.\n\n`;
+        confirmMessage += `Click OK to delete or Cancel to go back.`;
+        
+        const confirmed = confirm(confirmMessage);
+        
+        if (confirmed) {
+            // Show loading state
+            deleteButton.disabled = true;
+            deleteButton.innerHTML = `
+                <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Deleting...
+            `;
+            this.submit();
+        }
+    });
+});
+</script>
+
+{% endblock %}
