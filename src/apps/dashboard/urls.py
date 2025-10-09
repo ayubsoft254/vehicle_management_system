@@ -28,16 +28,16 @@ urlpatterns = [
     path('dashboards/<uuid:pk>/share/', views.share_dashboard, name='share_dashboard'),
     path('dashboards/<uuid:pk>/snapshot/', views.create_snapshot, name='create_snapshot'),
     
-    # Widget management
-    path('dashboards/<uuid:dashboard_pk>/widgets/create/', views.widget_create, name='widget_create'),
-    path('dashboards/<uuid:dashboard_pk>/widget-templates/', views.widget_templates, name='widget_templates'),
-    path('dashboards/<uuid:dashboard_pk>/add-widget/', views.add_widget_from_template, name='add_widget_from_template'),
-    path('widgets/<uuid:pk>/edit/', views.widget_update, name='widget_update'),
-    path('widgets/<uuid:pk>/delete/', views.widget_delete, name='widget_delete'),
-    path('widgets/<uuid:pk>/data/', views.widget_data_api, name='widget_data_api'),
+    # Widget management (COMMENTED OUT)
+    # path('dashboards/<uuid:dashboard_pk>/widgets/create/', views.widget_create, name='widget_create'),
+    # path('dashboards/<uuid:dashboard_pk>/widget-templates/', views.widget_templates, name='widget_templates'),
+    # path('dashboards/<uuid:dashboard_pk>/add-widget/', views.add_widget_from_template, name='add_widget_from_template'),
+    # path('widgets/<uuid:pk>/edit/', views.widget_update, name='widget_update'),
+    # path('widgets/<uuid:pk>/delete/', views.widget_delete, name='widget_delete'),
+    # path('widgets/<uuid:pk>/data/', views.widget_data_api, name='widget_data_api'),
     
-    # Preferences and settings
-    path('preferences/', views.preferences, name='preferences'),
+    # Quick actions
+    # path('preferences/', views.preferences, name='preferences'),
     path('quick-actions/', views.quick_actions, name='quick_actions'),
     
     # Templates
@@ -49,5 +49,5 @@ urlpatterns = [
     # API endpoints
     path('api/data/', views.dashboard_data_api, name='dashboard_data_api'),
     path('api/financial/', views.financial_data_api, name='financial_data_api'),
-    path('api/widgets/position/', views.update_widget_position, name='update_widget_position'),
+    # path('api/widgets/position/', views.update_widget_position, name='update_widget_position'),
 ]

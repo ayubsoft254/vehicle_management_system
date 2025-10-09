@@ -215,118 +215,118 @@ class DashboardDeleteView(LoginRequiredMixin, DeleteView):
 
 
 # ============================================================================
-# WIDGET VIEWS
+# WIDGET VIEWS (COMMENTED OUT)
 # ============================================================================
 
-@login_required
-def widget_create(request, dashboard_pk):
-    """Create new widget"""
-    
-    dashboard = get_object_or_404(Dashboard, pk=dashboard_pk)
-    
-    if request.method == 'POST':
-        form = WidgetForm(request.POST)
-        if form.is_valid():
-            widget = form.save(commit=False)
-            widget.dashboard = dashboard
-            widget.save()
-            
-            log_dashboard_activity(dashboard, request.user, 'widget_added', f'Added widget: {widget.name}')
-            messages.success(request, 'Widget added successfully.')
-            return redirect('dashboard:dashboard_detail', pk=dashboard.pk)
-    else:
-        form = WidgetForm(initial={'dashboard': dashboard})
-    
-    context = {
-        'form': form,
-        'dashboard': dashboard,
-    }
-    
-    return render(request, 'dashboard/widget_form.html', context)
+# @login_required
+# def widget_create(request, dashboard_pk):
+#     """Create new widget"""
+#     
+#     dashboard = get_object_or_404(Dashboard, pk=dashboard_pk)
+#     
+#     if request.method == 'POST':
+#         form = WidgetForm(request.POST)
+#         if form.is_valid():
+#             widget = form.save(commit=False)
+#             widget.dashboard = dashboard
+#             widget.save()
+#             
+#             log_dashboard_activity(dashboard, request.user, 'widget_added', f'Added widget: {widget.name}')
+#             messages.success(request, 'Widget added successfully.')
+#             return redirect('dashboard:dashboard_detail', pk=dashboard.pk)
+#     else:
+#         form = WidgetForm(initial={'dashboard': dashboard})
+#     
+#     context = {
+#         'form': form,
+#         'dashboard': dashboard,
+#     }
+#     
+#     return render(request, 'dashboard/widget_form.html', context)
 
 
-@login_required
-def widget_update(request, pk):
-    """Update existing widget"""
-    
-    widget = get_object_or_404(Widget, pk=pk)
-    dashboard = widget.dashboard
-    
-    if request.method == 'POST':
-        form = WidgetForm(request.POST, instance=widget)
-        if form.is_valid():
-            form.save()
-            
-            log_dashboard_activity(widget.dashboard, request.user, 'widget_updated', f'Updated widget: {widget.name}')
-            messages.success(request, 'Widget updated successfully.')
-            return redirect('dashboard:dashboard_detail', pk=widget.dashboard.pk)
-    else:
-        form = WidgetForm(instance=widget)
-    
-    context = {
-        'form': form,
-        'widget': widget,
-        'dashboard': dashboard,
-    }
-    
-    return render(request, 'dashboard/widget_form.html', context)
+# @login_required
+# def widget_update(request, pk):
+#     """Update existing widget"""
+#     
+#     widget = get_object_or_404(Widget, pk=pk)
+#     dashboard = widget.dashboard
+#     
+#     if request.method == 'POST':
+#         form = WidgetForm(request.POST, instance=widget)
+#         if form.is_valid():
+#             form.save()
+#             
+#             log_dashboard_activity(widget.dashboard, request.user, 'widget_updated', f'Updated widget: {widget.name}')
+#             messages.success(request, 'Widget updated successfully.')
+#             return redirect('dashboard:dashboard_detail', pk=widget.dashboard.pk)
+#     else:
+#         form = WidgetForm(instance=widget)
+#     
+#     context = {
+#         'form': form,
+#         'widget': widget,
+#         'dashboard': dashboard,
+#     }
+#     
+#     return render(request, 'dashboard/widget_form.html', context)
 
 
-@login_required
-@require_POST
-def widget_delete(request, pk):
-    """Delete widget"""
-    
-    widget = get_object_or_404(Widget, pk=pk)
-    dashboard_pk = widget.dashboard.pk
-    
-    log_dashboard_activity(widget.dashboard, request.user, 'widget_removed', f'Removed widget: {widget.name}')
-    widget.delete()
-    
-    messages.success(request, 'Widget deleted successfully.')
-    return redirect('dashboard:dashboard_detail', pk=dashboard_pk)
+# @login_required
+# @require_POST
+# def widget_delete(request, pk):
+#     """Delete widget"""
+#     
+#     widget = get_object_or_404(Widget, pk=pk)
+#     dashboard_pk = widget.dashboard.pk
+#     
+#     log_dashboard_activity(widget.dashboard, request.user, 'widget_removed', f'Removed widget: {widget.name}')
+#     widget.delete()
+#     
+#     messages.success(request, 'Widget deleted successfully.')
+#     return redirect('dashboard:dashboard_detail', pk=dashboard_pk)
 
 
-@login_required
-def widget_data_api(request, pk):
-    """Get widget data (AJAX)"""
-    
-    widget = get_object_or_404(Widget, pk=pk)
-    
-    # Check dashboard access
-    if not widget.dashboard.can_user_access(request.user):
-        return JsonResponse({'error': 'Access denied'}, status=403)
-    
-    data = get_widget_data(widget)
-    
-    return JsonResponse(data)
+# @login_required
+# def widget_data_api(request, pk):
+#     """Get widget data (AJAX)"""
+#     
+#     widget = get_object_or_404(Widget, pk=pk)
+#     
+#     # Check dashboard access
+#     if not widget.dashboard.can_user_access(request.user):
+#         return JsonResponse({'error': 'Access denied'}, status=403)
+#     
+#     data = get_widget_data(widget)
+#     
+#     return JsonResponse(data)
 
 
 # ============================================================================
-# USER PREFERENCES
+# USER PREFERENCES (REMOVED)
 # ============================================================================
 
-@login_required
-def preferences(request):
-    """Manage user dashboard preferences"""
-    
-    preference, created = UserDashboardPreference.objects.get_or_create(user=request.user)
-    
-    if request.method == 'POST':
-        form = UserDashboardPreferenceForm(request.POST, instance=preference, user=request.user)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Preferences updated successfully.')
-            return redirect('dashboard:home')
-    else:
-        form = UserDashboardPreferenceForm(instance=preference, user=request.user)
-    
-    context = {
-        'form': form,
-        'preference': preference,
-    }
-    
-    return render(request, 'dashboard/preferences.html', context)
+# @login_required
+# def preferences(request):
+#     """Manage user dashboard preferences"""
+#     
+#     preference, created = UserDashboardPreference.objects.get_or_create(user=request.user)
+#     
+#     if request.method == 'POST':
+#         form = UserDashboardPreferenceForm(request.POST, instance=preference, user=request.user)
+#         if form.is_valid():
+#             form.save()
+#             messages.success(request, 'Preferences updated successfully.')
+#             return redirect('dashboard:home')
+#     else:
+#         form = UserDashboardPreferenceForm(instance=preference, user=request.user)
+#     
+#     context = {
+#         'form': form,
+#         'preference': preference,
+#     }
+#     
+#     return render(request, 'dashboard/preferences.html', context)
 
 
 # ============================================================================
@@ -387,37 +387,37 @@ def create_from_template(request):
     return render(request, 'dashboard/create_from_template.html', context)
 
 
-@login_required
-def widget_templates(request, dashboard_pk):
-    """Display available widget templates"""
-    
-    dashboard = get_object_or_404(Dashboard, pk=dashboard_pk)
-    templates = get_all_widget_templates()
-    
-    context = {
-        'dashboard': dashboard,
-        'templates': templates,
-    }
-    
-    return render(request, 'dashboard/widget_templates.html', context)
+# @login_required
+# def widget_templates(request, dashboard_pk):
+#     """Display available widget templates"""
+#     
+#     dashboard = get_object_or_404(Dashboard, pk=dashboard_pk)
+#     templates = get_all_widget_templates()
+#     
+#     context = {
+#         'dashboard': dashboard,
+#         'templates': templates,
+#     }
+#     
+#     return render(request, 'dashboard/widget_templates.html', context)
 
 
-@login_required
-@require_POST
-def add_widget_from_template(request, dashboard_pk):
-    """Add widget from template"""
-    
-    dashboard = get_object_or_404(Dashboard, pk=dashboard_pk)
-    template_name = request.POST.get('template_name')
-    
-    try:
-        widget = create_widget_from_template(dashboard, template_name)
-        log_dashboard_activity(dashboard, request.user, 'widget_added', f'Added widget from template: {widget.name}')
-        messages.success(request, f'Widget "{widget.name}" added successfully.')
-    except ValueError as e:
-        messages.error(request, str(e))
-    
-    return redirect('dashboard:dashboard_detail', pk=dashboard.pk)
+# @login_required
+# @require_POST
+# def add_widget_from_template(request, dashboard_pk):
+#     """Add widget from template"""
+#     
+#     dashboard = get_object_or_404(Dashboard, pk=dashboard_pk)
+#     template_name = request.POST.get('template_name')
+#     
+#     try:
+#         widget = create_widget_from_template(dashboard, template_name)
+#         log_dashboard_activity(dashboard, request.user, 'widget_added', f'Added widget from template: {widget.name}')
+#         messages.success(request, f'Widget "{widget.name}" added successfully.')
+#     except ValueError as e:
+#         messages.error(request, str(e))
+#     
+#     return redirect('dashboard:dashboard_detail', pk=dashboard.pk)
 
 
 # ============================================================================
@@ -535,24 +535,24 @@ def financial_data_api(request):
     return JsonResponse(data)
 
 
-@login_required
-def update_widget_position(request):
-    """Update widget position (AJAX drag & drop)"""
-    
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        widget_id = data.get('widget_id')
-        position_x = data.get('position_x')
-        position_y = data.get('position_y')
-        
-        widget = get_object_or_404(Widget, pk=widget_id)
-        widget.position_x = position_x
-        widget.position_y = position_y
-        widget.save(update_fields=['position_x', 'position_y'])
-        
-        return JsonResponse({'status': 'success'})
-    
-    return JsonResponse({'status': 'error'}, status=400)
+# @login_required
+# def update_widget_position(request):
+#     """Update widget position (AJAX drag & drop)"""
+#     
+#     if request.method == 'POST':
+#         data = json.loads(request.body)
+#         widget_id = data.get('widget_id')
+#         position_x = data.get('position_x')
+#         position_y = data.get('position_y')
+#         
+#         widget = get_object_or_404(Widget, pk=widget_id)
+#         widget.position_x = position_x
+#         widget.position_y = position_y
+#         widget.save(update_fields=['position_x', 'position_y'])
+#         
+#         return JsonResponse({'status': 'success'})
+#     
+#     return JsonResponse({'status': 'error'}, status=400)
 
 
 @login_required
