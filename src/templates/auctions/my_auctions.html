@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}My Auctions - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">My Registered Auctions</h1>
+        <p class="mt-1 text-sm text-gray-600">Auctions you have registered to participate in</p>
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase">Total Registered</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ total_registrations }}</p>
+        </div>
+        <div class="bg-yellow-50 rounded-lg shadow-sm border border-yellow-200 p-4">
+            <p class="text-xs font-medium text-yellow-700 uppercase">Pending Approval</p>
+            <p class="text-2xl font-bold text-yellow-700 mt-1">{{ pending_count }}</p>
+        </div>
+        <div class="bg-green-50 rounded-lg shadow-sm border border-green-200 p-4">
+            <p class="text-xs font-medium text-green-700 uppercase">Approved</p>
+            <p class="text-2xl font-bold text-green-700 mt-1">{{ approved_count }}</p>
+        </div>
+        <div class="bg-blue-50 rounded-lg shadow-sm border border-blue-200 p-4">
+            <p class="text-xs font-medium text-blue-700 uppercase">Active</p>
+            <p class="text-2xl font-bold text-blue-700 mt-1">{{ active_count }}</p>
+        </div>
+    </div>
+
+    <!-- Auctions Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {% for registration in registrations %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <!-- Auction Header -->
+            <div class="p-4 border-b border-gray-200 bg-gray-50">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900">{{ registration.auction.title }}</h3>
+                        <p class="text-xs text-gray-500 mt-1">{{ registration.auction.vehicle }}</p>
+                    </div>
+                    {% if registration.auction.status == 'ACTIVE' %}
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span class="w-2 h-2 bg-green-600 rounded-full mr-1 animate-pulse"></span>
+                        LIVE
+                    </span>
+                    {% else %}
+                    <span class="px-2 py-1 text-xs font-medium rounded-full 
+                        {% if registration.auction.status == 'SCHEDULED' %}bg-blue-100 text-blue-800
+                        {% elif registration.auction.status == 'COMPLETED' %}bg-gray-100 text-gray-800
+                        {% elif registration.auction.status == 'CANCELLED' %}bg-red-100 text-red-800
+                        {% endif %}">
+                        {{ registration.auction.get_status_display }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Registration Details -->
+            <div class="p-4">
+                <div class="space-y-3">
+                    <!-- Registration Status -->
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Registration Status:</span>
+                        <span class="px-2 py-1 text-xs font-medium rounded-full 
+                            {% if registration.status == 'PENDING' %}bg-yellow-100 text-yellow-800
+                            {% elif registration.status == 'APPROVED' %}bg-green-100 text-green-800
+                            {% elif registration.status == 'REJECTED' %}bg-red-100 text-red-800
+                            {% endif %}">
+                            {{ registration.get_status_display }}
+                        </span>
+                    </div>
+
+                    <!-- Registration Date -->
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Registered:</span>
+                        <span class="text-sm font-medium text-gray-900">{{ registration.created_at|date:"M d, Y" }}</span>
+                    </div>
+
+                    <!-- Deposit Status -->
+                    {% if registration.deposit_paid %}
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Deposit:</span>
+                        <span class="text-sm font-medium text-green-600">
+                            <i class="fas fa-check-circle mr-1"></i> Paid
+                        </span>
+                    </div>
+                    {% elif registration.auction.require_deposit %}
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Deposit Required:</span>
+                        <span class="text-sm font-medium text-red-600">
+                            KES {{ registration.auction.deposit_amount|floatformat:0 }}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Current Bid -->
+                    {% if registration.auction.status == 'ACTIVE' %}
+                    <div class="mt-4 p-3 bg-gray-50 rounded-lg">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600">Current Bid:</span>
+                            <span class="text-lg font-bold text-primary-600">
+                                KES {{ registration.auction.current_bid|floatformat:0 }}
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-xs text-gray-500">Time Remaining:</span>
+                            <span class="text-xs font-medium text-red-600">
+                                <i class="fas fa-clock mr-1"></i>
+                                <!-- Time remaining would be calculated in JavaScript -->
+                                {{ registration.auction.time_remaining }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="mt-4 flex space-x-2">
+                    {% if registration.status == 'APPROVED' and registration.auction.status == 'ACTIVE' %}
+                    <a href="{% url 'auctions:auction_detail' registration.auction.pk %}" 
+                       class="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                        <i class="fas fa-gavel mr-2"></i> Bid Now
+                    </a>
+                    {% else %}
+                    <a href="{% url 'auctions:auction_detail' registration.auction.pk %}" 
+                       class="flex-1 inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition duration-150 ease-in-out">
+                        <i class="fas fa-eye mr-2"></i> View Details
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <!-- Empty State -->
+        <div class="col-span-2">
+            <div class="text-center py-12">
+                <i class="fas fa-clipboard-list text-6xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500 text-lg mb-4">You haven't registered for any auctions yet</p>
+                <a href="{% url 'auctions:auction_list' %}" 
+                   class="inline-flex items-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                    <i class="fas fa-search mr-2"></i> Browse Auctions
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Delete Auction - {{ auction.title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-2xl">
+    
+    <!-- Back Button -->
+    <div class="mb-4">
+        <a href="{% url 'auctions:auction_detail' auction.pk %}" 
+           class="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Auction
+        </a>
+    </div>
+
+    <!-- Warning Header -->
+    <div class="bg-red-50 border-2 border-red-200 rounded-lg p-6 mb-6">
+        <div class="flex items-center mb-4">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-red-600 text-4xl"></i>
+            </div>
+            <div class="ml-4">
+                <h1 class="text-2xl font-bold text-red-900">Confirm Auction Deletion</h1>
+                <p class="mt-1 text-sm text-red-700">This action cannot be undone</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auction Details -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">Auction Details</h2>
+        <dl class="space-y-3">
+            <div class="flex justify-between">
+                <dt class="text-sm text-gray-600">Title:</dt>
+                <dd class="text-sm font-medium text-gray-900">{{ auction.title }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-sm text-gray-600">Vehicle:</dt>
+                <dd class="text-sm font-medium text-gray-900">{{ auction.vehicle }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-sm text-gray-600">Auction Number:</dt>
+                <dd class="text-sm font-medium text-gray-900">{{ auction.auction_number }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-sm text-gray-600">Status:</dt>
+                <dd>
+                    <span class="px-2 py-1 text-xs font-medium rounded-full 
+                        {% if auction.status == 'DRAFT' %}bg-gray-100 text-gray-800
+                        {% elif auction.status == 'SCHEDULED' %}bg-blue-100 text-blue-800
+                        {% elif auction.status == 'ACTIVE' %}bg-green-100 text-green-800
+                        {% elif auction.status == 'COMPLETED' %}bg-purple-100 text-purple-800
+                        {% elif auction.status == 'CANCELLED' %}bg-red-100 text-red-800
+                        {% endif %}">
+                        {{ auction.get_status_display }}
+                    </span>
+                </dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-sm text-gray-600">Current Bid:</dt>
+                <dd class="text-sm font-bold text-primary-600">KES {{ auction.current_bid|floatformat:0 }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-sm text-gray-600">Total Bids:</dt>
+                <dd class="text-sm font-medium text-gray-900">{{ auction.bid_count }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-sm text-gray-600">Registered Participants:</dt>
+                <dd class="text-sm font-medium text-gray-900">{{ auction.registered_count }}</dd>
+            </div>
+        </dl>
+    </div>
+
+    <!-- Impact Warning -->
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <h3 class="text-sm font-bold text-yellow-900 mb-3 flex items-center">
+            <i class="fas fa-info-circle mr-2"></i>
+            What will happen when you delete this auction:
+        </h3>
+        <ul class="space-y-2 text-sm text-yellow-800">
+            {% if auction.bid_count > 0 %}
+            <li class="flex items-start">
+                <i class="fas fa-gavel text-yellow-600 mr-2 mt-0.5"></i>
+                <span><strong>{{ auction.bid_count }}</strong> bid(s) will be deleted</span>
+            </li>
+            {% endif %}
+            {% if auction.registered_count > 0 %}
+            <li class="flex items-start">
+                <i class="fas fa-users text-yellow-600 mr-2 mt-0.5"></i>
+                <span><strong>{{ auction.registered_count }}</strong> participant registration(s) will be deleted</span>
+            </li>
+            {% endif %}
+            {% if auction.watchlist_count > 0 %}
+            <li class="flex items-start">
+                <i class="fas fa-star text-yellow-600 mr-2 mt-0.5"></i>
+                <span>This auction will be removed from <strong>{{ auction.watchlist_count }}</strong> watchlist(s)</span>
+            </li>
+            {% endif %}
+            <li class="flex items-start">
+                <i class="fas fa-database text-yellow-600 mr-2 mt-0.5"></i>
+                <span>All auction history and data will be permanently deleted</span>
+            </li>
+            <li class="flex items-start">
+                <i class="fas fa-car text-yellow-600 mr-2 mt-0.5"></i>
+                <span>The vehicle <strong>{{ auction.vehicle }}</strong> will remain in the system but no longer linked to this auction</span>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Additional Warnings -->
+    {% if auction.status == 'ACTIVE' %}
+    <div class="bg-red-50 border border-red-300 rounded-lg p-4 mb-6">
+        <div class="flex items-start">
+            <i class="fas fa-exclamation-circle text-red-600 text-xl mr-3 mt-0.5"></i>
+            <div>
+                <h3 class="text-sm font-bold text-red-900 mb-1">Active Auction Warning</h3>
+                <p class="text-sm text-red-800">
+                    This auction is currently <strong>ACTIVE</strong> with ongoing bidding. Deleting it may cause 
+                    confusion for participants and could result in disputes. Consider cancelling the auction instead 
+                    of deleting it to maintain a record.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Confirmation Form -->
+    <form method="post" class="bg-white rounded-lg shadow-sm border-2 border-red-300">
+        {% csrf_token %}
+        
+        <div class="p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-4">Type DELETE to confirm</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                To confirm deletion, please type <strong>DELETE</strong> in the box below:
+            </p>
+            <input type="text" 
+                   name="confirm_delete" 
+                   id="confirm_delete"
+                   required
+                   autocomplete="off"
+                   class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                   placeholder="Type DELETE here">
+        </div>
+
+        <!-- Form Actions -->
+        <div class="p-6 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+            <a href="{% url 'auctions:auction_detail' auction.pk %}" 
+               class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition duration-150 ease-in-out">
+                Cancel
+            </a>
+            <button type="submit" 
+                    id="delete_button"
+                    disabled
+                    class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas fa-trash-alt mr-2"></i> Delete Auction
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmInput = document.getElementById('confirm_delete');
+    const deleteButton = document.getElementById('delete_button');
+
+    confirmInput.addEventListener('input', function() {
+        if (this.value === 'DELETE') {
+            deleteButton.disabled = false;
+        } else {
+            deleteButton.disabled = true;
+        }
+    });
+});
+</script>
+{% endblock %}
