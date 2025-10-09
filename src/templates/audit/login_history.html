@@ -1,0 +1,343 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Login History - Audit{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <div class="mb-6">
+        <nav class="flex items-center text-sm text-gray-600">
+            <a href="{% url 'audit:log_list' %}" class="hover:text-primary-600">Audit Logs</a>
+            <i class="fas fa-chevron-right mx-2 text-xs"></i>
+            <span class="text-gray-800 font-medium">Login History</span>
+        </nav>
+    </div>
+
+    <!-- Page Header -->
+    <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg p-8 text-white mb-8">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mr-6">
+                    <i class="fas fa-sign-in-alt text-3xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold mb-2">Login History</h1>
+                    <p class="text-blue-100">Monitor user authentication and security events</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-blue-100 text-sm font-medium">Total Logins</p>
+                    <p class="text-3xl font-bold mt-2">{{ total_logins|default:0 }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-sign-in-alt text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-green-100 text-sm font-medium">Successful</p>
+                    <p class="text-3xl font-bold mt-2">{{ successful_logins|default:0 }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-check-circle text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-red-100 text-sm font-medium">Failed</p>
+                    <p class="text-3xl font-bold mt-2">{{ failed_logins|default:0 }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-exclamation-triangle text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-yellow-100 text-sm font-medium">Suspicious</p>
+                    <p class="text-3xl font-bold mt-2">{{ suspicious_logins|default:0 }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-shield-alt text-2xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- Filters Sidebar -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-filter text-primary-600 mr-2"></i>Filters
+                </h3>
+                <form method="get" class="space-y-4">
+                    <!-- Success Status -->
+                    <div>
+                        <label for="success" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <select id="success" name="success" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="">All</option>
+                            <option value="1" {% if success == '1' %}selected{% endif %}>Successful</option>
+                            <option value="0" {% if success == '0' %}selected{% endif %}>Failed</option>
+                        </select>
+                    </div>
+
+                    <!-- User -->
+                    <div>
+                        <label for="user" class="block text-sm font-medium text-gray-700 mb-2">User</label>
+                        <select id="user" name="user" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="">All Users</option>
+                            {% for u in users %}
+                                <option value="{{ u.pk }}" {% if user == u.pk|stringformat:'s' %}selected{% endif %}>{{ u.get_full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Date From -->
+                    <div>
+                        <label for="date_from" class="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                        <input type="date" id="date_from" name="date_from" value="{{ date_from }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    </div>
+
+                    <!-- Date To -->
+                    <div>
+                        <label for="date_to" class="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                        <input type="date" id="date_to" name="date_to" value="{{ date_to }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="space-y-2">
+                        <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-semibold transition duration-200">
+                            <i class="fas fa-search mr-2"></i>Apply Filters
+                        </button>
+                        <a href="{% url 'audit:login_history' %}" class="block w-full text-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold transition duration-200">
+                            <i class="fas fa-times mr-2"></i>Clear
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Security Info -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                <h4 class="text-sm font-semibold text-yellow-800 mb-2">
+                    <i class="fas fa-shield-alt mr-2"></i>Security Monitoring
+                </h4>
+                <ul class="text-xs text-yellow-700 space-y-1">
+                    <li><i class="fas fa-check text-yellow-600 mr-1"></i>Login attempts tracked</li>
+                    <li><i class="fas fa-check text-yellow-600 mr-1"></i>IP addresses logged</li>
+                    <li><i class="fas fa-check text-yellow-600 mr-1"></i>Suspicious activity detected</li>
+                    <li><i class="fas fa-check text-yellow-600 mr-1"></i>Session durations recorded</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Login History Table -->
+        <div class="lg:col-span-3">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-xl font-semibold text-gray-800">Login Attempts</h3>
+                </div>
+
+                {% if page_obj %}
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Security</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for login in page_obj %}
+                                    <tr class="hover:bg-gray-50">
+                                        <!-- User -->
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center">
+                                                <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center mr-3">
+                                                    <i class="fas fa-user text-primary-600"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="text-sm font-medium text-gray-900">{{ login.user.get_full_name }}</div>
+                                                    <div class="text-sm text-gray-500">{{ login.user.email }}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <!-- Status -->
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            {% if login.success %}
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                    <i class="fas fa-check-circle mr-1"></i>Success
+                                                </span>
+                                            {% else %}
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                    <i class="fas fa-times-circle mr-1"></i>Failed
+                                                </span>
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- Timestamp -->
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">{{ login.login_time|date:"M d, Y" }}</div>
+                                            <div class="text-sm text-gray-500">{{ login.login_time|date:"g:i A" }}</div>
+                                        </td>
+
+                                        <!-- IP Address -->
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-mono text-gray-900">{{ login.ip_address|default:"-" }}</div>
+                                        </td>
+
+                                        <!-- Location -->
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">
+                                                {% if login.location %}
+                                                    <i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>{{ login.location }}
+                                                {% else %}
+                                                    <span class="text-gray-400">-</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+
+                                        <!-- Duration -->
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            {% if login.success and login.logout_time %}
+                                                <div class="text-sm text-gray-900">
+                                                    <i class="fas fa-clock text-gray-400 mr-1"></i>
+                                                    {% with duration=login.get_duration %}
+                                                        {% if duration %}
+                                                            {{ duration }}
+                                                        {% else %}
+                                                            -
+                                                        {% endif %}
+                                                    {% endwith %}
+                                                </div>
+                                            {% elif login.success %}
+                                                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                    <i class="fas fa-circle text-xs mr-1 animate-pulse"></i>Active
+                                                </span>
+                                            {% else %}
+                                                <span class="text-gray-400">-</span>
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- Security -->
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            {% if login.is_suspicious %}
+                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                    <i class="fas fa-shield-alt mr-1"></i>Suspicious
+                                                </span>
+                                            {% else %}
+                                                <span class="text-gray-400">
+                                                    <i class="fas fa-check-circle"></i>
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+
+                                    <!-- Failure Reason (if applicable) -->
+                                    {% if not login.success and login.failure_reason %}
+                                        <tr class="bg-red-50">
+                                            <td colspan="7" class="px-6 py-2">
+                                                <div class="text-sm text-red-700">
+                                                    <i class="fas fa-exclamation-circle mr-2"></i>
+                                                    <strong>Failure Reason:</strong> {{ login.failure_reason }}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+
+                                    <!-- User Agent (expandable) -->
+                                    {% if login.user_agent %}
+                                        <tr class="bg-gray-50 text-xs text-gray-600">
+                                            <td colspan="7" class="px-6 py-2">
+                                                <details>
+                                                    <summary class="cursor-pointer hover:text-primary-600">
+                                                        <i class="fas fa-desktop mr-1"></i>User Agent
+                                                    </summary>
+                                                    <div class="mt-2 pl-5 font-mono text-xs break-all">{{ login.user_agent }}</div>
+                                                </details>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                        <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <div class="text-sm text-gray-700">
+                                    Showing page <span class="font-medium">{{ page_obj.number }}</span> of <span class="font-medium">{{ page_obj.paginator.num_pages }}</span>
+                                </div>
+                                <nav class="flex items-center gap-2">
+                                    {% if page_obj.has_previous %}
+                                        <a href="?page=1{% if success %}&success={{ success }}{% endif %}{% if user %}&user={{ user }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">First</a>
+                                        <a href="?page={{ page_obj.previous_page_number }}{% if success %}&success={{ success }}{% endif %}{% if user %}&user={{ user }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Previous</a>
+                                    {% endif %}
+
+                                    <span class="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium">{{ page_obj.number }}</span>
+
+                                    {% if page_obj.has_next %}
+                                        <a href="?page={{ page_obj.next_page_number }}{% if success %}&success={{ success }}{% endif %}{% if user %}&user={{ user }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Next</a>
+                                        <a href="?page={{ page_obj.paginator.num_pages }}{% if success %}&success={{ success }}{% endif %}{% if user %}&user={{ user }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Last</a>
+                                    {% endif %}
+                                </nav>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <!-- Empty State -->
+                    <div class="text-center py-16">
+                        <i class="fas fa-sign-in-alt text-6xl text-gray-300 mb-4"></i>
+                        <h3 class="text-xl font-semibold text-gray-700 mb-2">No Login History</h3>
+                        <p class="text-gray-500">No login attempts have been recorded yet</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Suspicious Activity Alert -->
+            {% if suspicious_logins > 0 %}
+                <div class="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-shield-alt text-yellow-400 text-xl"></i>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-yellow-800">
+                                Suspicious Activity Detected
+                            </h3>
+                            <div class="mt-2 text-sm text-yellow-700">
+                                <p>{{ suspicious_logins }} suspicious login attempt{{ suspicious_logins|pluralize }} detected. Please review and take appropriate action if necessary.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

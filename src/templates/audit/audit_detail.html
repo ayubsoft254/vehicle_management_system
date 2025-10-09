@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Audit Log Detail - Audit{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <div class="mb-6">
+        <nav class="flex items-center text-sm text-gray-600">
+            <a href="{% url 'audit:log_list' %}" class="hover:text-primary-600">Audit Logs</a>
+            <i class="fas fa-chevron-right mx-2 text-xs"></i>
+            <span class="text-gray-800 font-medium">Log Detail</span>
+        </nav>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Log Header -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="bg-gradient-to-r 
+                    {% if log.action == 'create' %}from-green-600 to-green-700
+                    {% elif log.action == 'update' %}from-yellow-600 to-yellow-700
+                    {% elif log.action == 'delete' %}from-red-600 to-red-700
+                    {% elif log.action == 'read' %}from-blue-600 to-blue-700
+                    {% elif log.action == 'login' %}from-green-600 to-green-700
+                    {% elif log.action == 'logout' %}from-gray-600 to-gray-700
+                    {% elif log.action == 'export' %}from-purple-600 to-purple-700
+                    {% else %}from-gray-600 to-gray-700{% endif %}
+                    p-6 text-white">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="flex items-center mb-2">
+                                <i class="fas {{ log.get_action_icon }} text-2xl mr-3"></i>
+                                <span class="text-2xl font-bold">{{ log.get_action_display }}</span>
+                            </div>
+                            <p class="text-white text-opacity-90">{{ log.timestamp|date:"F d, Y \a\t g:i A" }}</p>
+                        </div>
+                        <span class="bg-white bg-opacity-20 px-4 py-2 rounded-lg font-semibold">
+                            ID: {{ log.pk }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Description</h2>
+                    <p class="text-gray-700 text-lg">{{ log.description }}</p>
+                </div>
+            </div>
+
+            <!-- User Information -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-user text-primary-600 mr-2"></i>User Information
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">User</h3>
+                        {% if log.user %}
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center mr-3">
+                                    <i class="fas fa-user text-primary-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-900">{{ log.user.get_full_name }}</p>
+                                    <p class="text-sm text-gray-500">{{ log.user.email }}</p>
+                                </div>
+                            </div>
+                        {% else %}
+                            <p class="text-gray-500">System / Anonymous</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">IP Address</h3>
+                        <p class="text-gray-900">{{ log.ip_address|default:"Not recorded" }}</p>
+                    </div>
+
+                    {% if log.user_agent %}
+                        <div class="md:col-span-2">
+                            <h3 class="text-sm font-medium text-gray-700 mb-2">User Agent</h3>
+                            <p class="text-sm text-gray-600 break-all">{{ log.user_agent }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                {% if log.user %}
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <a href="{% url 'audit:user_activity' log.user.pk %}" class="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium">
+                            <i class="fas fa-history mr-2"></i>View All Activity for This User
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Object Information -->
+            {% if log.model_name or log.object_id %}
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-database text-primary-600 mr-2"></i>Object Information
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {% if log.model_name %}
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-700 mb-2">Model</h3>
+                                <span class="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-gray-100 text-gray-800">
+                                    {{ log.model_name }}
+                                </span>
+                            </div>
+                        {% endif %}
+
+                        {% if log.object_id %}
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-700 mb-2">Object ID</h3>
+                                <p class="text-gray-900 font-mono">{{ log.object_id }}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Changes Information -->
+            {% if log.changes %}
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-exchange-alt text-primary-600 mr-2"></i>Changes Made
+                    </h2>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <table class="min-w-full">
+                            <thead>
+                                <tr class="border-b border-gray-200">
+                                    <th class="text-left py-2 px-3 text-sm font-medium text-gray-700">Field</th>
+                                    <th class="text-left py-2 px-3 text-sm font-medium text-gray-700">Old Value</th>
+                                    <th class="text-left py-2 px-3 text-sm font-medium text-gray-700">New Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for field, values in log.changes.items %}
+                                    <tr class="border-b border-gray-100">
+                                        <td class="py-3 px-3 text-sm font-medium text-gray-900">{{ field|title }}</td>
+                                        <td class="py-3 px-3 text-sm text-gray-600">
+                                            {% if values.old %}
+                                                <span class="bg-red-100 text-red-800 px-2 py-1 rounded">{{ values.old }}</span>
+                                            {% else %}
+                                                <span class="text-gray-400">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-3 px-3 text-sm text-gray-600">
+                                            {% if values.new %}
+                                                <span class="bg-green-100 text-green-800 px-2 py-1 rounded">{{ values.new }}</span>
+                                            {% else %}
+                                                <span class="text-gray-400">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- JSON View -->
+                    <div class="mt-4">
+                        <button onclick="toggleJson()" class="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                            <i class="fas fa-code mr-1"></i>View JSON
+                        </button>
+                        <div id="json-view" class="hidden mt-3 bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                            <pre class="text-green-400 text-xs font-mono">{{ log.changes|safe }}</pre>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Request Information -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-globe text-primary-600 mr-2"></i>Request Information
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">HTTP Method</h3>
+                        {% if log.request_method %}
+                            <span class="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium
+                                {% if log.request_method == 'GET' %}bg-blue-100 text-blue-800
+                                {% elif log.request_method == 'POST' %}bg-green-100 text-green-800
+                                {% elif log.request_method == 'PUT' %}bg-yellow-100 text-yellow-800
+                                {% elif log.request_method == 'DELETE' %}bg-red-100 text-red-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ log.request_method }}
+                            </span>
+                        {% else %}
+                            <p class="text-gray-500">Not recorded</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Timestamp</h3>
+                        <p class="text-gray-900">{{ log.timestamp|date:"Y-m-d H:i:s" }}</p>
+                    </div>
+
+                    {% if log.request_path %}
+                        <div class="md:col-span-2">
+                            <h3 class="text-sm font-medium text-gray-700 mb-2">Request Path</h3>
+                            <p class="text-sm text-gray-900 font-mono bg-gray-50 p-2 rounded">{{ log.request_path }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Additional Data -->
+            {% if log.additional_data %}
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-info-circle text-primary-600 mr-2"></i>Additional Data
+                    </h2>
+                    <div class="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                        <pre class="text-green-400 text-xs font-mono">{{ log.additional_data|safe }}</pre>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Quick Info -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Quick Info</h3>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Log ID</span>
+                        <span class="font-medium text-gray-900">{{ log.pk }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Action</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                            {% if log.action == 'create' %}bg-green-100 text-green-800
+                            {% elif log.action == 'update' %}bg-yellow-100 text-yellow-800
+                            {% elif log.action == 'delete' %}bg-red-100 text-red-800
+                            {% elif log.action == 'read' %}bg-blue-100 text-blue-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ log.get_action_display }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Date</span>
+                        <span class="font-medium text-gray-900">{{ log.timestamp|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Time</span>
+                        <span class="font-medium text-gray-900">{{ log.timestamp|date:"g:i A" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h3>
+                <div class="space-y-3">
+                    <a href="{% url 'audit:log_list' %}" class="flex items-center justify-between w-full bg-primary-50 hover:bg-primary-100 text-primary-700 px-4 py-3 rounded-lg font-medium transition duration-200">
+                        <span><i class="fas fa-list mr-2"></i>All Logs</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+
+                    {% if log.user %}
+                        <a href="{% url 'audit:user_activity' log.user.pk %}" class="flex items-center justify-between w-full bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-3 rounded-lg font-medium transition duration-200">
+                            <span><i class="fas fa-history mr-2"></i>User Activity</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    {% endif %}
+
+                    {% if log.model_name %}
+                        <a href="{% url 'audit:log_list' %}?model={{ log.model_name }}" class="flex items-center justify-between w-full bg-green-50 hover:bg-green-100 text-green-700 px-4 py-3 rounded-lg font-medium transition duration-200">
+                            <span><i class="fas fa-filter mr-2"></i>Same Model</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    {% endif %}
+
+                    <a href="{% url 'audit:log_list' %}?action={{ log.action }}" class="flex items-center justify-between w-full bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-4 py-3 rounded-lg font-medium transition duration-200">
+                        <span><i class="fas fa-filter mr-2"></i>Same Action</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Related Logs -->
+            {% if related_logs %}
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-link text-primary-600 mr-2"></i>Related Logs
+                    </h3>
+                    <div class="space-y-3">
+                        {% for related in related_logs %}
+                            <div class="border-l-4 {% if related.action == 'create' %}border-green-500{% elif related.action == 'update' %}border-yellow-500{% elif related.action == 'delete' %}border-red-500{% else %}border-blue-500{% endif %} pl-3 py-2">
+                                <a href="{% url 'audit:log_detail' related.pk %}" class="text-sm hover:text-primary-600">
+                                    <div class="font-medium text-gray-800">{{ related.get_action_display }}</div>
+                                    <div class="text-xs text-gray-500 mt-1">{{ related.timestamp|date:"M d, Y g:i A" }}</div>
+                                    <div class="text-xs text-gray-600 mt-1 truncate">{{ related.description|truncatewords:10 }}</div>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% if log.model_name and log.object_id %}
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <a href="{% url 'audit:log_list' %}?model={{ log.model_name }}&search={{ log.object_id }}" class="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                                View All Related Logs <i class="fas fa-arrow-right ml-1"></i>
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleJson() {
+    const jsonView = document.getElementById('json-view');
+    jsonView.classList.toggle('hidden');
+}
+</script>
+{% endblock %}

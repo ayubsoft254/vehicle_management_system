@@ -1,0 +1,281 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}User Activity - {{ user_obj.get_full_name }} - Audit{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <div class="mb-6">
+        <nav class="flex items-center text-sm text-gray-600">
+            <a href="{% url 'audit:log_list' %}" class="hover:text-primary-600">Audit Logs</a>
+            <i class="fas fa-chevron-right mx-2 text-xs"></i>
+            <span class="text-gray-800 font-medium">User Activity</span>
+        </nav>
+    </div>
+
+    <!-- User Header -->
+    <div class="bg-gradient-to-r from-primary-600 to-primary-700 rounded-xl shadow-lg p-8 text-white mb-8">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <div class="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mr-6">
+                    <i class="fas fa-user text-4xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold mb-2">{{ user_obj.get_full_name }}</h1>
+                    <p class="text-primary-100">{{ user_obj.email }}</p>
+                    <p class="text-primary-100 text-sm mt-1">Role: {{ user_obj.get_role_display }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-blue-100 text-sm font-medium">Total Actions</p>
+                    <p class="text-3xl font-bold mt-2">{{ total_actions|default:0 }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-tasks text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-green-100 text-sm font-medium">Last 24 Hours</p>
+                    <p class="text-3xl font-bold mt-2">{{ recent_actions|default:0 }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-clock text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-purple-100 text-sm font-medium">Action Types</p>
+                    <p class="text-3xl font-bold mt-2">{{ action_breakdown.count|default:0 }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-chart-pie text-2xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Breakdown and Filters -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <!-- Action Breakdown -->
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-chart-bar text-primary-600 mr-2"></i>Action Breakdown
+            </h3>
+            {% if action_breakdown %}
+                <div class="space-y-3">
+                    {% for item in action_breakdown %}
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="font-medium text-gray-700">{{ item.action|title }}</span>
+                                <span class="text-gray-600">{{ item.count }}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="{% if item.action == 'create' %}bg-green-600{% elif item.action == 'update' %}bg-yellow-600{% elif item.action == 'delete' %}bg-red-600{% else %}bg-blue-600{% endif %} h-2 rounded-full" style="width: {% widthratio item.count 100 total_actions %}%"></div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-gray-500 text-sm">No actions yet</p>
+            {% endif %}
+        </div>
+
+        <!-- Filters -->
+        <div class="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Filter Activity</h3>
+            <form method="get" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label for="action" class="block text-sm font-medium text-gray-700 mb-2">Action Type</label>
+                        <select id="action" name="action" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="">All Actions</option>
+                            {% for value, label in action_choices %}
+                                <option value="{{ value }}" {% if action == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="date_from" class="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                        <input type="date" id="date_from" name="date_from" value="{{ date_from }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    </div>
+
+                    <div>
+                        <label for="date_to" class="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                        <input type="date" id="date_to" name="date_to" value="{{ date_to }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-semibold transition duration-200">
+                        <i class="fas fa-filter mr-2"></i>Apply Filters
+                    </button>
+                    <a href="{% url 'audit:user_activity' user_obj.pk %}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-semibold transition duration-200">
+                        <i class="fas fa-times mr-2"></i>Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Daily Activity Chart -->
+    {% if daily_activity %}
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-chart-line text-primary-600 mr-2"></i>Daily Activity (Last 30 Days)
+            </h3>
+            <div class="space-y-3">
+                {% for day in daily_activity %}
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="font-medium text-gray-700">{{ day.day }}</span>
+                            <span class="text-gray-600">{{ day.count }} action{{ day.count|pluralize }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            {% with max_count=daily_activity.0.count %}
+                                <div class="bg-primary-600 h-2 rounded-full" style="width: {% widthratio day.count 100 max_count %}%"></div>
+                            {% endwith %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Activity Timeline -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+            <h3 class="text-xl font-semibold text-gray-800">Activity Timeline</h3>
+        </div>
+
+        {% if page_obj %}
+            <div class="p-6">
+                <div class="space-y-6">
+                    {% for log in page_obj %}
+                        <div class="flex">
+                            <!-- Timeline Marker -->
+                            <div class="flex flex-col items-center mr-6">
+                                <div class="w-12 h-12 rounded-full flex items-center justify-center
+                                    {% if log.action == 'create' %}bg-green-100 text-green-600
+                                    {% elif log.action == 'update' %}bg-yellow-100 text-yellow-600
+                                    {% elif log.action == 'delete' %}bg-red-100 text-red-600
+                                    {% elif log.action == 'read' %}bg-blue-100 text-blue-600
+                                    {% elif log.action == 'login' %}bg-green-100 text-green-600
+                                    {% elif log.action == 'logout' %}bg-gray-100 text-gray-600
+                                    {% elif log.action == 'export' %}bg-purple-100 text-purple-600
+                                    {% else %}bg-gray-100 text-gray-600{% endif %}">
+                                    <i class="fas {{ log.get_action_icon }}"></i>
+                                </div>
+                                {% if not forloop.last %}
+                                    <div class="w-0.5 h-full bg-gray-200 flex-1 mt-2"></div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Timeline Content -->
+                            <div class="flex-1 bg-gray-50 rounded-lg p-4 hover:shadow-md transition duration-200">
+                                <div class="flex items-start justify-between mb-2">
+                                    <div>
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+                                            {% if log.action == 'create' %}bg-green-100 text-green-800
+                                            {% elif log.action == 'update' %}bg-yellow-100 text-yellow-800
+                                            {% elif log.action == 'delete' %}bg-red-100 text-red-800
+                                            {% elif log.action == 'read' %}bg-blue-100 text-blue-800
+                                            {% elif log.action == 'login' %}bg-green-100 text-green-800
+                                            {% elif log.action == 'logout' %}bg-gray-100 text-gray-800
+                                            {% elif log.action == 'export' %}bg-purple-100 text-purple-800
+                                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                            {{ log.get_action_display }}
+                                        </span>
+                                        {% if log.model_name %}
+                                            <span class="ml-2 inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-200 text-gray-700">
+                                                {{ log.model_name }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <span class="text-sm text-gray-500">{{ log.timestamp|date:"M d, Y g:i A" }}</span>
+                                </div>
+
+                                <p class="text-gray-800 mb-2">{{ log.description }}</p>
+
+                                <div class="flex items-center gap-4 text-xs text-gray-500 mt-3">
+                                    {% if log.ip_address %}
+                                        <span><i class="fas fa-network-wired mr-1"></i>{{ log.ip_address }}</span>
+                                    {% endif %}
+                                    {% if log.request_method %}
+                                        <span><i class="fas fa-code mr-1"></i>{{ log.request_method }}</span>
+                                    {% endif %}
+                                    <a href="{% url 'audit:log_detail' log.pk %}" class="text-primary-600 hover:text-primary-700 font-medium">
+                                        <i class="fas fa-eye mr-1"></i>View Details
+                                    </a>
+                                </div>
+
+                                {% if log.changes %}
+                                    <div class="mt-3 pt-3 border-t border-gray-200">
+                                        <p class="text-xs text-gray-600 font-medium mb-1">Changes Made:</p>
+                                        <div class="text-xs text-gray-600 space-y-1">
+                                            {% for field, values in log.changes.items %}
+                                                <div class="flex items-start">
+                                                    <span class="font-medium mr-2">{{ field|title }}:</span>
+                                                    <span class="text-red-600">{{ values.old|truncatewords:5 }}</span>
+                                                    <i class="fas fa-arrow-right mx-2 text-gray-400"></i>
+                                                    <span class="text-green-600">{{ values.new|truncatewords:5 }}</span>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Showing page <span class="font-medium">{{ page_obj.number }}</span> of <span class="font-medium">{{ page_obj.paginator.num_pages }}</span>
+                        </div>
+                        <nav class="flex items-center gap-2">
+                            {% if page_obj.has_previous %}
+                                <a href="?page=1{% if action %}&action={{ action }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">First</a>
+                                <a href="?page={{ page_obj.previous_page_number }}{% if action %}&action={{ action }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Previous</a>
+                            {% endif %}
+
+                            <span class="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium">{{ page_obj.number }}</span>
+
+                            {% if page_obj.has_next %}
+                                <a href="?page={{ page_obj.next_page_number }}{% if action %}&action={{ action }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Next</a>
+                                <a href="?page={{ page_obj.paginator.num_pages }}{% if action %}&action={{ action }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Last</a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-16">
+                <i class="fas fa-history text-6xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">No Activity Found</h3>
+                <p class="text-gray-500">This user hasn't performed any actions yet</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
