@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-6">
+        <ol class="list-none p-0 inline-flex">
+            <li class="flex items-center">
+                <a href="{% url 'payroll:payroll_dashboard' %}" class="text-primary-600 hover:text-primary-700">Payroll</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="flex items-center">
+                <a href="{% url 'payroll:deduction_list' %}" class="text-primary-600 hover:text-primary-700">Deductions</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="text-gray-500">{{ title }}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">
+            <i class="fas fa-minus-circle text-red-600 mr-2"></i>{{ title }}
+        </h1>
+        <p class="text-gray-600 mt-1">Set up a deduction that will be applied to employee's salary</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Form -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+
+                    <!-- Error Messages -->
+                    {% if form.non_field_errors %}
+                        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                            <div class="flex">
+                                <i class="fas fa-exclamation-circle text-red-500 mr-3 mt-1"></i>
+                                <div>
+                                    <h3 class="text-red-800 font-medium">Please correct the errors below:</h3>
+                                    <ul class="list-disc list-inside text-red-700 text-sm mt-2">
+                                        {% for error in form.non_field_errors %}
+                                            <li>{{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Employee -->
+                    <div>
+                        <label for="{{ form.employee.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Employee <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.employee }}
+                        {% if form.employee.help_text %}
+                            <p class="text-xs text-gray-500 mt-1">{{ form.employee.help_text }}</p>
+                        {% endif %}
+                        {% if form.employee.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.employee.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Deduction Type and Name -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="{{ form.deduction_type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Deduction Type <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.deduction_type }}
+                            {% if form.deduction_type.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.deduction_type.help_text }}</p>
+                            {% endif %}
+                            {% if form.deduction_type.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.deduction_type.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Deduction Name <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.name.help_text }}</p>
+                            {% endif %}
+                            {% if form.name.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.name.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Amount Type and Amount -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="{{ form.amount_type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Amount Type <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.amount_type }}
+                            {% if form.amount_type.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.amount_type.help_text }}</p>
+                            {% endif %}
+                            {% if form.amount_type.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.amount_type.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="{{ form.amount.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Amount <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.amount }}
+                            {% if form.amount.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.amount.help_text }}</p>
+                            {% endif %}
+                            {% if form.amount.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.amount.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Frequency and Priority -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="{{ form.frequency.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Frequency <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.frequency }}
+                            {% if form.frequency.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.frequency.help_text }}</p>
+                            {% endif %}
+                            {% if form.frequency.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.frequency.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="{{ form.priority.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Priority <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.priority }}
+                            {% if form.priority.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.priority.help_text }}</p>
+                            {% endif %}
+                            {% if form.priority.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.priority.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Start Date and End Date -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="{{ form.start_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Start Date <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.start_date }}
+                            {% if form.start_date.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.start_date.help_text }}</p>
+                            {% endif %}
+                            {% if form.start_date.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.start_date.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="{{ form.end_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                End Date
+                            </label>
+                            {{ form.end_date }}
+                            {% if form.end_date.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.end_date.help_text }}</p>
+                            {% endif %}
+                            {% if form.end_date.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.end_date.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Description
+                        </label>
+                        {{ form.description }}
+                        {% if form.description.help_text %}
+                            <p class="text-xs text-gray-500 mt-1">{{ form.description.help_text }}</p>
+                        {% endif %}
+                        {% if form.description.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.description.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Is Active -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <label class="flex items-center cursor-pointer">
+                            {{ form.is_active }}
+                            <div class="ml-3">
+                                <span class="font-medium text-gray-900">Active</span>
+                                <p class="text-sm text-gray-500 mt-1">Enable this deduction immediately</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="flex items-center gap-4 pt-6 border-t">
+                        <button type="submit" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200">
+                            <i class="fas fa-save mr-2"></i>Save Deduction
+                        </button>
+                        <a href="{% url 'payroll:deduction_list' %}" class="flex-1 text-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold transition duration-200">
+                            <i class="fas fa-times mr-2"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Deduction Types Card -->
+            <div class="bg-blue-50 rounded-xl border border-blue-200 p-6">
+                <h3 class="text-lg font-bold text-blue-900 mb-4">
+                    <i class="fas fa-info-circle mr-2"></i>Deduction Types
+                </h3>
+                <div class="space-y-3 text-sm text-blue-800">
+                    <div class="flex items-start">
+                        <i class="fas fa-receipt text-blue-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Tax</p>
+                            <p class="text-xs text-blue-700">Income tax deductions</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-piggy-bank text-blue-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Pension</p>
+                            <p class="text-xs text-blue-700">Retirement contributions</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-briefcase-medical text-blue-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Insurance</p>
+                            <p class="text-xs text-blue-700">Health/life insurance premiums</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-hand-holding-usd text-blue-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Loan/Advance</p>
+                            <p class="text-xs text-blue-700">Loan repayments or salary advances</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-ellipsis-h text-blue-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Other</p>
+                            <p class="text-xs text-blue-700">Miscellaneous deductions</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Amount Type Card -->
+            <div class="bg-purple-50 rounded-xl border border-purple-200 p-6">
+                <h3 class="text-lg font-bold text-purple-900 mb-4">
+                    <i class="fas fa-calculator mr-2"></i>Amount Types
+                </h3>
+                <div class="space-y-3 text-sm text-purple-800">
+                    <div>
+                        <p class="font-medium">Fixed Amount</p>
+                        <p class="text-xs text-purple-700">Exact dollar amount (e.g., $100)</p>
+                    </div>
+                    <div>
+                        <p class="font-medium">Percentage</p>
+                        <p class="text-xs text-purple-700">Percentage of gross salary (e.g., 5%)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="bg-yellow-50 rounded-xl border border-yellow-200 p-6">
+                <h3 class="text-lg font-bold text-yellow-900 mb-4">
+                    <i class="fas fa-lightbulb mr-2"></i>Tips
+                </h3>
+                <ul class="space-y-2 text-sm text-yellow-800">
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Leave end date blank for ongoing deductions</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Priority determines processing order</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Frequency controls how often it's applied</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Inactive deductions won't be processed</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

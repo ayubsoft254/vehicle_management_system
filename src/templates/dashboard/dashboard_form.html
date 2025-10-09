@@ -1,0 +1,365 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if object %}Edit Dashboard{% else %}Create Dashboard{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-6">
+        <ol class="list-none p-0 inline-flex">
+            <li class="flex items-center">
+                <a href="{% url 'dashboard:home' %}" class="text-primary-600 hover:text-primary-700">Dashboard</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="flex items-center">
+                <a href="{% url 'dashboard:dashboard_list' %}" class="text-primary-600 hover:text-primary-700">Dashboards</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="text-gray-500">{% if object %}Edit{% else %}Create{% endif %}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">
+            <i class="fas {% if object %}fa-edit{% else %}fa-plus{% endif %} text-blue-600 mr-2"></i>
+            {% if object %}Edit Dashboard{% else %}Create New Dashboard{% endif %}
+        </h1>
+        <p class="text-gray-600 mt-1">{% if object %}Update your dashboard settings{% else %}Configure your custom dashboard{% endif %}</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Form -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+
+                    <!-- Error Messages -->
+                    {% if form.non_field_errors %}
+                        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                            <div class="flex">
+                                <i class="fas fa-exclamation-circle text-red-500 mr-3 mt-1"></i>
+                                <div>
+                                    <h3 class="text-red-800 font-medium">Please correct the errors below:</h3>
+                                    <ul class="list-disc list-inside text-red-700 text-sm mt-2">
+                                        {% for error in form.non_field_errors %}
+                                            <li>{{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Basic Information Section -->
+                    <div class="border-b border-gray-200 pb-6">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4">
+                            <i class="fas fa-info-circle text-blue-600 mr-2"></i>Basic Information
+                        </h3>
+
+                        <!-- Dashboard Name -->
+                        <div class="mb-4">
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Dashboard Name <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.name.help_text }}</p>
+                            {% endif %}
+                            {% if form.name.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.name.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Description -->
+                        <div>
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Description
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.description.help_text }}</p>
+                            {% endif %}
+                            {% if form.description.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.description.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Layout Configuration -->
+                    <div class="border-b border-gray-200 pb-6">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4">
+                            <i class="fas fa-th text-purple-600 mr-2"></i>Layout Configuration
+                        </h3>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Layout Type -->
+                            <div>
+                                <label for="{{ form.layout.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Layout Type <span class="text-red-500">*</span>
+                                </label>
+                                {{ form.layout }}
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    Choose how widgets are arranged
+                                </p>
+                                {% if form.layout.errors %}
+                                    <p class="text-xs text-red-500 mt-1">{{ form.layout.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+
+                            <!-- Number of Columns -->
+                            <div>
+                                <label for="{{ form.columns.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Number of Columns <span class="text-red-500">*</span>
+                                </label>
+                                {{ form.columns }}
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    Grid columns (2-4 recommended)
+                                </p>
+                                {% if form.columns.errors %}
+                                    <p class="text-xs text-red-500 mt-1">{{ form.columns.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Appearance Settings -->
+                    <div class="border-b border-gray-200 pb-6">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4">
+                            <i class="fas fa-palette text-green-600 mr-2"></i>Appearance
+                        </h3>
+
+                        <!-- Theme Selection -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Color Theme
+                            </label>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <label class="relative flex items-center justify-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
+                                    <input type="radio" name="{{ form.theme.html_name }}" value="blue" {% if form.theme.value == 'blue' or not form.theme.value %}checked{% endif %} class="sr-only peer">
+                                    <div class="text-center">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg mx-auto mb-2"></div>
+                                        <span class="text-sm font-medium">Blue</span>
+                                    </div>
+                                    <div class="absolute top-2 right-2 hidden peer-checked:block">
+                                        <i class="fas fa-check-circle text-blue-600"></i>
+                                    </div>
+                                </label>
+
+                                <label class="relative flex items-center justify-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-purple-500 transition-colors">
+                                    <input type="radio" name="{{ form.theme.html_name }}" value="purple" {% if form.theme.value == 'purple' %}checked{% endif %} class="sr-only peer">
+                                    <div class="text-center">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg mx-auto mb-2"></div>
+                                        <span class="text-sm font-medium">Purple</span>
+                                    </div>
+                                    <div class="absolute top-2 right-2 hidden peer-checked:block">
+                                        <i class="fas fa-check-circle text-purple-600"></i>
+                                    </div>
+                                </label>
+
+                                <label class="relative flex items-center justify-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-green-500 transition-colors">
+                                    <input type="radio" name="{{ form.theme.html_name }}" value="green" {% if form.theme.value == 'green' %}checked{% endif %} class="sr-only peer">
+                                    <div class="text-center">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-lg mx-auto mb-2"></div>
+                                        <span class="text-sm font-medium">Green</span>
+                                    </div>
+                                    <div class="absolute top-2 right-2 hidden peer-checked:block">
+                                        <i class="fas fa-check-circle text-green-600"></i>
+                                    </div>
+                                </label>
+
+                                <label class="relative flex items-center justify-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-orange-500 transition-colors">
+                                    <input type="radio" name="{{ form.theme.html_name }}" value="orange" {% if form.theme.value == 'orange' %}checked{% endif %} class="sr-only peer">
+                                    <div class="text-center">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg mx-auto mb-2"></div>
+                                        <span class="text-sm font-medium">Orange</span>
+                                    </div>
+                                    <div class="absolute top-2 right-2 hidden peer-checked:block">
+                                        <i class="fas fa-check-circle text-orange-600"></i>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Behavior Settings -->
+                    <div class="border-b border-gray-200 pb-6">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4">
+                            <i class="fas fa-cogs text-indigo-600 mr-2"></i>Behavior Settings
+                        </h3>
+
+                        <div class="space-y-4">
+                            <!-- Auto Refresh -->
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ form.auto_refresh }}
+                                </div>
+                                <div class="ml-3">
+                                    <label for="{{ form.auto_refresh.id_for_label }}" class="font-medium text-gray-700">
+                                        Enable Auto-Refresh
+                                    </label>
+                                    <p class="text-xs text-gray-500">Automatically update dashboard data at regular intervals</p>
+                                </div>
+                            </div>
+
+                            <!-- Refresh Interval -->
+                            <div id="refreshIntervalContainer" class="ml-8 {% if not form.auto_refresh.value %}hidden{% endif %}">
+                                <label for="{{ form.refresh_interval.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Refresh Interval (seconds)
+                                </label>
+                                {{ form.refresh_interval }}
+                                <p class="text-xs text-gray-500 mt-1">How often to refresh data (minimum 60 seconds)</p>
+                            </div>
+
+                            <!-- Is Default -->
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_default }}
+                                </div>
+                                <div class="ml-3">
+                                    <label for="{{ form.is_default.id_for_label }}" class="font-medium text-gray-700">
+                                        Set as Default Dashboard
+                                    </label>
+                                    <p class="text-xs text-gray-500">Make this your default dashboard when logging in</p>
+                                </div>
+                            </div>
+
+                            <!-- Is Public -->
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_public }}
+                                </div>
+                                <div class="ml-3">
+                                    <label for="{{ form.is_public.id_for_label }}" class="font-medium text-gray-700">
+                                        Make Public
+                                    </label>
+                                    <p class="text-xs text-gray-500">Allow all users to view this dashboard</p>
+                                </div>
+                            </div>
+
+                            <!-- Is Active -->
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_active }}
+                                </div>
+                                <div class="ml-3">
+                                    <label for="{{ form.is_active.id_for_label }}" class="font-medium text-gray-700">
+                                        Active
+                                    </label>
+                                    <p class="text-xs text-gray-500">Enable or disable this dashboard</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="flex items-center gap-4 pt-6">
+                        <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200">
+                            <i class="fas fa-save mr-2"></i>{% if object %}Update Dashboard{% else %}Create Dashboard{% endif %}
+                        </button>
+                        <a href="{% url 'dashboard:dashboard_list' %}" class="flex-1 text-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold transition duration-200">
+                            <i class="fas fa-times mr-2"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Layout Types Info -->
+            <div class="bg-blue-50 rounded-xl border border-blue-200 p-6">
+                <h3 class="text-lg font-bold text-blue-900 mb-4">
+                    <i class="fas fa-info-circle mr-2"></i>Layout Types
+                </h3>
+                <div class="space-y-3 text-sm text-blue-800">
+                    <div>
+                        <p class="font-medium mb-1"><i class="fas fa-th mr-2"></i>Grid</p>
+                        <p class="text-xs text-blue-700">Fixed grid layout with equal-sized cells</p>
+                    </div>
+                    <div>
+                        <p class="font-medium mb-1"><i class="fas fa-list mr-2"></i>List</p>
+                        <p class="text-xs text-blue-700">Stacked vertical layout, one widget per row</p>
+                    </div>
+                    <div>
+                        <p class="font-medium mb-1"><i class="fas fa-border-all mr-2"></i>Masonry</p>
+                        <p class="text-xs text-blue-700">Pinterest-style flowing layout</p>
+                    </div>
+                    <div>
+                        <p class="font-medium mb-1"><i class="fas fa-grip-horizontal mr-2"></i>Freeform</p>
+                        <p class="text-xs text-blue-700">Drag and position widgets anywhere</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="bg-yellow-50 rounded-xl border border-yellow-200 p-6">
+                <h3 class="text-lg font-bold text-yellow-900 mb-4">
+                    <i class="fas fa-lightbulb mr-2"></i>Tips
+                </h3>
+                <ul class="space-y-2 text-sm text-yellow-800">
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Choose a descriptive name for easy identification</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Grid layout works best with 3-4 columns</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Auto-refresh is useful for real-time monitoring</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>You can add widgets after creating the dashboard</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-purple-50 rounded-xl border border-purple-200 p-6">
+                <h3 class="text-lg font-bold text-purple-900 mb-4">
+                    <i class="fas fa-bolt mr-2"></i>Quick Actions
+                </h3>
+                <div class="space-y-2">
+                    <a href="{% url 'dashboard:create_from_template' %}" class="flex items-center justify-between bg-white hover:bg-purple-100 text-purple-800 px-4 py-3 rounded-lg border border-purple-300 transition duration-200">
+                        <span class="flex items-center text-sm font-medium">
+                            <i class="fas fa-magic mr-2"></i>Use Template
+                        </span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                    <a href="{% url 'dashboard:dashboard_list' %}" class="flex items-center justify-between bg-white hover:bg-purple-100 text-purple-800 px-4 py-3 rounded-lg border border-purple-300 transition duration-200">
+                        <span class="flex items-center text-sm font-medium">
+                            <i class="fas fa-list mr-2"></i>View All Dashboards
+                        </span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Toggle refresh interval field based on auto_refresh checkbox
+document.addEventListener('DOMContentLoaded', function() {
+    const autoRefreshCheckbox = document.getElementById('{{ form.auto_refresh.id_for_label }}');
+    const refreshIntervalContainer = document.getElementById('refreshIntervalContainer');
+
+    if (autoRefreshCheckbox) {
+        autoRefreshCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                refreshIntervalContainer.classList.remove('hidden');
+            } else {
+                refreshIntervalContainer.classList.add('hidden');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

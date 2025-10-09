@@ -1,0 +1,368 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-6">
+        <ol class="list-none p-0 inline-flex">
+            <li class="flex items-center">
+                <a href="{% url 'payroll:payroll_dashboard' %}" class="text-primary-600 hover:text-primary-700">Payroll</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="flex items-center">
+                <a href="{% url 'payroll:leave_list' %}" class="text-primary-600 hover:text-primary-700">Leaves</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="text-gray-500">{{ title }}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">
+            <i class="fas fa-calendar-times text-orange-600 mr-2"></i>{{ title }}
+        </h1>
+        <p class="text-gray-600 mt-1">Submit a leave request for approval</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Form -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+
+                    <!-- Error Messages -->
+                    {% if form.non_field_errors %}
+                        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                            <div class="flex">
+                                <i class="fas fa-exclamation-circle text-red-500 mr-3 mt-1"></i>
+                                <div>
+                                    <h3 class="text-red-800 font-medium">Please correct the errors below:</h3>
+                                    <ul class="list-disc list-inside text-red-700 text-sm mt-2">
+                                        {% for error in form.non_field_errors %}
+                                            <li>{{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Employee -->
+                    <div>
+                        <label for="{{ form.employee.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Employee <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.employee }}
+                        {% if form.employee.help_text %}
+                            <p class="text-xs text-gray-500 mt-1">{{ form.employee.help_text }}</p>
+                        {% endif %}
+                        {% if form.employee.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.employee.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Leave Type -->
+                    <div>
+                        <label for="{{ form.leave_type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Leave Type <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.leave_type }}
+                        {% if form.leave_type.help_text %}
+                            <p class="text-xs text-gray-500 mt-1">{{ form.leave_type.help_text }}</p>
+                        {% endif %}
+                        {% if form.leave_type.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.leave_type.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Date Range -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="{{ form.start_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Start Date <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.start_date }}
+                            {% if form.start_date.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.start_date.help_text }}</p>
+                            {% endif %}
+                            {% if form.start_date.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.start_date.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="{{ form.end_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                End Date <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.end_date }}
+                            {% if form.end_date.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.end_date.help_text }}</p>
+                            {% endif %}
+                            {% if form.end_date.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.end_date.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Days Requested -->
+                    <div>
+                        <label for="{{ form.days_requested.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Days Requested <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.days_requested }}
+                        <p class="text-xs text-gray-500 mt-1">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            This will be automatically calculated based on start and end dates. You can override if needed.
+                        </p>
+                        {% if form.days_requested.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.days_requested.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Reason -->
+                    <div>
+                        <label for="{{ form.reason.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Reason <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.reason }}
+                        {% if form.reason.help_text %}
+                            <p class="text-xs text-gray-500 mt-1">{{ form.reason.help_text }}</p>
+                        {% endif %}
+                        {% if form.reason.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.reason.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Contact During Leave -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="{{ form.contact_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Contact Number
+                            </label>
+                            {{ form.contact_number }}
+                            {% if form.contact_number.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.contact_number.help_text }}</p>
+                            {% endif %}
+                            {% if form.contact_number.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.contact_number.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="{{ form.emergency_contact.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Emergency Contact
+                            </label>
+                            {{ form.emergency_contact }}
+                            {% if form.emergency_contact.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.emergency_contact.help_text }}</p>
+                            {% endif %}
+                            {% if form.emergency_contact.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.emergency_contact.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Additional Notes -->
+                    <div>
+                        <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Additional Notes
+                        </label>
+                        {{ form.notes }}
+                        {% if form.notes.help_text %}
+                            <p class="text-xs text-gray-500 mt-1">{{ form.notes.help_text }}</p>
+                        {% endif %}
+                        {% if form.notes.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.notes.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="flex items-center gap-4 pt-6 border-t">
+                        <button type="submit" class="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200">
+                            <i class="fas fa-paper-plane mr-2"></i>Submit Request
+                        </button>
+                        <a href="{% url 'payroll:leave_list' %}" class="flex-1 text-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold transition duration-200">
+                            <i class="fas fa-times mr-2"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Leave Types Card -->
+            <div class="bg-blue-50 rounded-xl border border-blue-200 p-6">
+                <h3 class="text-lg font-bold text-blue-900 mb-4">
+                    <i class="fas fa-info-circle mr-2"></i>Leave Types
+                </h3>
+                <div class="space-y-3 text-sm text-blue-800">
+                    <div class="flex items-start">
+                        <i class="fas fa-umbrella-beach text-blue-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Annual Leave</p>
+                            <p class="text-xs text-blue-700">Paid vacation - typically 21 days/year</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-clinic-medical text-red-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Sick Leave</p>
+                            <p class="text-xs text-blue-700">Medical reasons - may require certificate</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-baby text-pink-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Maternity Leave</p>
+                            <p class="text-xs text-blue-700">Pregnancy/childbirth - up to 90 days</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-male text-indigo-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Paternity Leave</p>
+                            <p class="text-xs text-blue-700">Newborn care - typically 14 days</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-heart-broken text-purple-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Compassionate Leave</p>
+                            <p class="text-xs text-blue-700">Bereavement/family emergency</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-hand-paper text-gray-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Unpaid Leave</p>
+                            <p class="text-xs text-blue-700">Extended absence without pay</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leave Balance Card -->
+            <div class="bg-green-50 rounded-xl border border-green-200 p-6">
+                <h3 class="text-lg font-bold text-green-900 mb-4">
+                    <i class="fas fa-calendar-check mr-2"></i>Leave Balance
+                </h3>
+                <div class="space-y-3">
+                    {% if employee %}
+                        <div class="bg-white rounded-lg p-4 border border-green-300">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-medium text-gray-600">Annual Leave</span>
+                                <span class="text-lg font-bold text-green-600">{{ employee.leave_balance|default:"N/A" }}</span>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                <div class="flex justify-between">
+                                    <span>Allocated:</span>
+                                    <span>{{ employee.annual_leave_allocation|default:"21" }} days</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Used:</span>
+                                    <span>{{ employee.annual_leave_used|default:"0" }} days</span>
+                                </div>
+                                <div class="flex justify-between font-medium text-green-700 mt-1 pt-1 border-t">
+                                    <span>Remaining:</span>
+                                    <span>{{ employee.leave_balance|default:"21" }} days</span>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="text-sm text-green-800">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Select an employee to view their leave balance
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Notice Period Card -->
+            <div class="bg-purple-50 rounded-xl border border-purple-200 p-6">
+                <h3 class="text-lg font-bold text-purple-900 mb-4">
+                    <i class="fas fa-bell mr-2"></i>Notice Requirements
+                </h3>
+                <div class="space-y-2 text-sm text-purple-800">
+                    <div class="flex items-start">
+                        <i class="fas fa-check text-purple-600 mr-2 mt-1"></i>
+                        <span><strong>Annual Leave:</strong> 2 weeks advance notice</span>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-check text-purple-600 mr-2 mt-1"></i>
+                        <span><strong>Sick Leave:</strong> Notify ASAP, certificate required if 3+ days</span>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-check text-purple-600 mr-2 mt-1"></i>
+                        <span><strong>Maternity:</strong> 4 weeks notice before expected date</span>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-check text-purple-600 mr-2 mt-1"></i>
+                        <span><strong>Emergency:</strong> Inform supervisor immediately</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="bg-yellow-50 rounded-xl border border-yellow-200 p-6">
+                <h3 class="text-lg font-bold text-yellow-900 mb-4">
+                    <i class="fas fa-lightbulb mr-2"></i>Tips
+                </h3>
+                <ul class="space-y-2 text-sm text-yellow-800">
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Submit leave requests well in advance</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Ensure your work is covered during absence</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Keep emergency contacts up to date</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Check leave balance before requesting</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Medical certificates may be required for sick leave</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Calculate days requested automatically
+document.addEventListener('DOMContentLoaded', function() {
+    const startDateInput = document.getElementById('{{ form.start_date.id_for_label }}');
+    const endDateInput = document.getElementById('{{ form.end_date.id_for_label }}');
+    const daysRequestedInput = document.getElementById('{{ form.days_requested.id_for_label }}');
+
+    function calculateDays() {
+        if (startDateInput.value && endDateInput.value) {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+            
+            if (endDate >= startDate) {
+                // Calculate difference in days
+                const timeDiff = endDate.getTime() - startDate.getTime();
+                const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1; // +1 to include both start and end dates
+                daysRequestedInput.value = daysDiff;
+            }
+        }
+    }
+
+    startDateInput.addEventListener('change', calculateDays);
+    endDateInput.addEventListener('change', calculateDays);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,303 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-6">
+        <ol class="list-none p-0 inline-flex">
+            <li class="flex items-center">
+                <a href="{% url 'payroll:payroll_dashboard' %}" class="text-primary-600 hover:text-primary-700">Payroll</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="flex items-center">
+                <a href="{% url 'payroll:attendance_list' %}" class="text-primary-600 hover:text-primary-700">Attendance</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="text-gray-500">{{ title }}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">
+            <i class="fas fa-user-check text-blue-600 mr-2"></i>{{ title }}
+        </h1>
+        <p class="text-gray-600 mt-1">Record employee attendance for the day</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Form -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+
+                    <!-- Error Messages -->
+                    {% if form.non_field_errors %}
+                        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                            <div class="flex">
+                                <i class="fas fa-exclamation-circle text-red-500 mr-3 mt-1"></i>
+                                <div>
+                                    <h3 class="text-red-800 font-medium">Please correct the errors below:</h3>
+                                    <ul class="list-disc list-inside text-red-700 text-sm mt-2">
+                                        {% for error in form.non_field_errors %}
+                                            <li>{{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Employee -->
+                    <div>
+                        <label for="{{ form.employee.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Employee <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.employee }}
+                        {% if form.employee.help_text %}
+                            <p class="text-xs text-gray-500 mt-1">{{ form.employee.help_text }}</p>
+                        {% endif %}
+                        {% if form.employee.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.employee.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Attendance Date -->
+                    <div>
+                        <label for="{{ form.attendance_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Attendance Date <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.attendance_date }}
+                        {% if form.attendance_date.help_text %}
+                            <p class="text-xs text-gray-500 mt-1">{{ form.attendance_date.help_text }}</p>
+                        {% endif %}
+                        {% if form.attendance_date.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.attendance_date.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Status -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">
+                            Attendance Status <span class="text-red-500">*</span>
+                        </label>
+                        <div class="space-y-3">
+                            <div class="flex items-start">
+                                <input type="radio" id="status_present" name="{{ form.status.html_name }}" value="PRESENT" 
+                                       {% if form.status.value == 'PRESENT' %}checked{% endif %}
+                                       class="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300">
+                                <label for="status_present" class="ml-3 flex-1 cursor-pointer">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-check-circle text-green-600 mr-2"></i>
+                                        <span class="font-medium text-gray-900">Present</span>
+                                    </div>
+                                    <p class="text-sm text-gray-500 mt-1">Employee was present for the full day</p>
+                                </label>
+                            </div>
+
+                            <div class="flex items-start">
+                                <input type="radio" id="status_absent" name="{{ form.status.html_name }}" value="ABSENT" 
+                                       {% if form.status.value == 'ABSENT' %}checked{% endif %}
+                                       class="mt-1 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300">
+                                <label for="status_absent" class="ml-3 flex-1 cursor-pointer">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-times-circle text-red-600 mr-2"></i>
+                                        <span class="font-medium text-gray-900">Absent</span>
+                                    </div>
+                                    <p class="text-sm text-gray-500 mt-1">Employee was absent without leave</p>
+                                </label>
+                            </div>
+
+                            <div class="flex items-start">
+                                <input type="radio" id="status_leave" name="{{ form.status.html_name }}" value="LEAVE" 
+                                       {% if form.status.value == 'LEAVE' %}checked{% endif %}
+                                       class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                <label for="status_leave" class="ml-3 flex-1 cursor-pointer">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-calendar-check text-blue-600 mr-2"></i>
+                                        <span class="font-medium text-gray-900">On Leave</span>
+                                    </div>
+                                    <p class="text-sm text-gray-500 mt-1">Employee is on approved leave</p>
+                                </label>
+                            </div>
+
+                            <div class="flex items-start">
+                                <input type="radio" id="status_half" name="{{ form.status.html_name }}" value="HALF_DAY" 
+                                       {% if form.status.value == 'HALF_DAY' %}checked{% endif %}
+                                       class="mt-1 h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300">
+                                <label for="status_half" class="ml-3 flex-1 cursor-pointer">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-adjust text-yellow-600 mr-2"></i>
+                                        <span class="font-medium text-gray-900">Half Day</span>
+                                    </div>
+                                    <p class="text-sm text-gray-500 mt-1">Employee worked half a day</p>
+                                </label>
+                            </div>
+
+                            <div class="flex items-start">
+                                <input type="radio" id="status_late" name="{{ form.status.html_name }}" value="LATE" 
+                                       {% if form.status.value == 'LATE' %}checked{% endif %}
+                                       class="mt-1 h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300">
+                                <label for="status_late" class="ml-3 flex-1 cursor-pointer">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-clock text-orange-600 mr-2"></i>
+                                        <span class="font-medium text-gray-900">Late</span>
+                                    </div>
+                                    <p class="text-sm text-gray-500 mt-1">Employee arrived late</p>
+                                </label>
+                            </div>
+                        </div>
+                        {% if form.status.errors %}
+                            <p class="text-xs text-red-500 mt-2">{{ form.status.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Check In and Check Out Time -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="{{ form.check_in_time.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Check In Time
+                            </label>
+                            {{ form.check_in_time }}
+                            {% if form.check_in_time.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.check_in_time.help_text }}</p>
+                            {% endif %}
+                            {% if form.check_in_time.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.check_in_time.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="{{ form.check_out_time.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Check Out Time
+                            </label>
+                            {{ form.check_out_time }}
+                            {% if form.check_out_time.help_text %}
+                                <p class="text-xs text-gray-500 mt-1">{{ form.check_out_time.help_text }}</p>
+                            {% endif %}
+                            {% if form.check_out_time.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.check_out_time.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div>
+                        <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Notes
+                        </label>
+                        {{ form.notes }}
+                        {% if form.notes.help_text %}
+                            <p class="text-xs text-gray-500 mt-1">{{ form.notes.help_text }}</p>
+                        {% endif %}
+                        {% if form.notes.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.notes.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="flex items-center gap-4 pt-6 border-t">
+                        <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200">
+                            <i class="fas fa-save mr-2"></i>Save Attendance
+                        </button>
+                        <a href="{% url 'payroll:attendance_list' %}" class="flex-1 text-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold transition duration-200">
+                            <i class="fas fa-times mr-2"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Status Guide Card -->
+            <div class="bg-blue-50 rounded-xl border border-blue-200 p-6">
+                <h3 class="text-lg font-bold text-blue-900 mb-4">
+                    <i class="fas fa-info-circle mr-2"></i>Status Guide
+                </h3>
+                <div class="space-y-3 text-sm text-blue-800">
+                    <div class="flex items-start">
+                        <i class="fas fa-check-circle text-green-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Present</p>
+                            <p class="text-xs text-blue-700">Full working day - counts as 1 day</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-times-circle text-red-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Absent</p>
+                            <p class="text-xs text-blue-700">Unexcused absence - may affect salary</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-calendar-check text-blue-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">On Leave</p>
+                            <p class="text-xs text-blue-700">Approved leave - counts as 1 day</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-adjust text-yellow-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Half Day</p>
+                            <p class="text-xs text-blue-700">Partial work - counts as 0.5 days</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-clock text-orange-600 mr-2 mt-1"></i>
+                        <div>
+                            <p class="font-medium">Late</p>
+                            <p class="text-xs text-blue-700">Late arrival - full day counted</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="bg-green-50 rounded-xl border border-green-200 p-6">
+                <h3 class="text-lg font-bold text-green-900 mb-4">
+                    <i class="fas fa-bolt mr-2"></i>Quick Actions
+                </h3>
+                <div class="space-y-2">
+                    <a href="{% url 'payroll:attendance_list' %}" class="flex items-center justify-between bg-white hover:bg-green-100 text-green-800 px-4 py-3 rounded-lg border border-green-300 transition duration-200">
+                        <span class="flex items-center text-sm font-medium">
+                            <i class="fas fa-list mr-2"></i>View All Attendance
+                        </span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="bg-yellow-50 rounded-xl border border-yellow-200 p-6">
+                <h3 class="text-lg font-bold text-yellow-900 mb-4">
+                    <i class="fas fa-lightbulb mr-2"></i>Tips
+                </h3>
+                <ul class="space-y-2 text-sm text-yellow-800">
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Check-in/out times are optional for most statuses</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Use notes to explain unusual circumstances</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Attendance affects payroll calculations</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>For leave, ensure leave request is approved first</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

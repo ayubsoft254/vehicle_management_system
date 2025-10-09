@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Dashboards{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-6">
+        <ol class="list-none p-0 inline-flex">
+            <li class="flex items-center">
+                <a href="{% url 'dashboard:home' %}" class="text-primary-600 hover:text-primary-700">Dashboard</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="text-gray-500">My Dashboards</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">
+                    <i class="fas fa-th-large text-blue-600 mr-2"></i>My Dashboards
+                </h1>
+                <p class="text-gray-600 mt-1">Manage and organize your custom dashboards</p>
+            </div>
+            <div class="mt-4 md:mt-0 flex gap-2">
+                <a href="{% url 'dashboard:create_from_template' %}" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition duration-150">
+                    <i class="fas fa-magic mr-2"></i>From Template
+                </a>
+                <button onclick="showCreateModal()" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150">
+                    <i class="fas fa-plus mr-2"></i>New Dashboard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Bar -->
+    <div class="bg-white rounded-xl shadow-md p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="md:col-span-2">
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="Search dashboards..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+            <div>
+                <select id="layoutFilter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">All Layouts</option>
+                    <option value="grid">Grid</option>
+                    <option value="list">List</option>
+                    <option value="masonry">Masonry</option>
+                </select>
+            </div>
+            <div>
+                <select id="filterType" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="all">All Dashboards</option>
+                    <option value="my">My Dashboards</option>
+                    <option value="shared">Shared with Me</option>
+                    <option value="public">Public</option>
+                    <option value="default">Default</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-blue-100 text-sm mb-1">Total Dashboards</p>
+                    <p class="text-3xl font-bold">{{ page_obj.paginator.count }}</p>
+                </div>
+                <div class="bg-white/20 rounded-full p-3">
+                    <i class="fas fa-th-large text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-md p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-green-100 text-sm mb-1">My Dashboards</p>
+                    <p class="text-3xl font-bold">{{ dashboards|length }}</p>
+                </div>
+                <div class="bg-white/20 rounded-full p-3">
+                    <i class="fas fa-user text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-md p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-purple-100 text-sm mb-1">Shared</p>
+                    <p class="text-3xl font-bold">0</p>
+                </div>
+                <div class="bg-white/20 rounded-full p-3">
+                    <i class="fas fa-share-alt text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-md p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-orange-100 text-sm mb-1">Public</p>
+                    <p class="text-3xl font-bold">0</p>
+                </div>
+                <div class="bg-white/20 rounded-full p-3">
+                    <i class="fas fa-globe text-2xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboards Grid -->
+    {% if dashboards %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {% for dashboard in dashboards %}
+                <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group">
+                    <!-- Dashboard Preview/Header -->
+                    <div class="h-32 bg-gradient-to-br from-{{ dashboard.theme|default:'blue' }}-400 to-{{ dashboard.theme|default:'blue' }}-600 p-6 relative overflow-hidden">
+                        <div class="absolute inset-0 opacity-10">
+                            <div class="absolute inset-0" style="background-image: url('data:image/svg+xml,%3Csvg width=&quot;60&quot; height=&quot;60&quot; viewBox=&quot;0 0 60 60&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;%3E%3Cg fill=&quot;none&quot; fill-rule=&quot;evenodd&quot;%3E%3Cg fill=&quot;%23ffffff&quot; fill-opacity=&quot;1&quot;%3E%3Cpath d=&quot;M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4z&quot;/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
+                        </div>
+                        <div class="relative">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-xl font-bold text-white truncate">{{ dashboard.name }}</h3>
+                                {% if dashboard.is_default %}
+                                    <span class="bg-yellow-400 text-gray-900 text-xs px-2 py-1 rounded-full font-medium">
+                                        <i class="fas fa-star"></i> Default
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                {% if dashboard.is_public %}
+                                    <span class="inline-flex items-center bg-white/20 text-white text-xs px-2 py-1 rounded-full">
+                                        <i class="fas fa-globe mr-1"></i> Public
+                                    </span>
+                                {% endif %}
+                                <span class="inline-flex items-center bg-white/20 text-white text-xs px-2 py-1 rounded-full">
+                                    <i class="fas fa-th mr-1"></i> {{ dashboard.widgets.count }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Info -->
+                    <div class="p-6">
+                        {% if dashboard.description %}
+                            <p class="text-gray-600 text-sm mb-4 line-clamp-2">{{ dashboard.description }}</p>
+                        {% else %}
+                            <p class="text-gray-400 text-sm mb-4 italic">No description provided</p>
+                        {% endif %}
+
+                        <div class="flex items-center justify-between text-xs text-gray-500 mb-4 pb-4 border-b">
+                            <div class="flex items-center">
+                                <i class="fas fa-user-circle mr-1"></i>
+                                <span>{{ dashboard.created_by.get_full_name|default:dashboard.created_by.username|truncatewords:2 }}</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-clock mr-1"></i>
+                                <span>{{ dashboard.updated_at|timesince }} ago</span>
+                            </div>
+                        </div>
+
+                        <!-- Dashboard Details -->
+                        <div class="grid grid-cols-3 gap-2 mb-4">
+                            <div class="text-center">
+                                <div class="text-blue-600 font-bold">{{ dashboard.get_layout_display }}</div>
+                                <div class="text-xs text-gray-500">Layout</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-purple-600 font-bold">{{ dashboard.columns }}</div>
+                                <div class="text-xs text-gray-500">Columns</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-green-600 font-bold">{{ dashboard.widgets.count }}</div>
+                                <div class="text-xs text-gray-500">Widgets</div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex gap-2">
+                            <a href="{% url 'dashboard:dashboard_detail' dashboard.pk %}" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center px-4 py-2 rounded-lg font-medium transition duration-150">
+                                <i class="fas fa-eye mr-1"></i> View
+                            </a>
+                            
+                            {% if dashboard.created_by == request.user %}
+                                <div class="relative" x-data="{ open: false }">
+                                    <button @click="open = !open" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium transition duration-150">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+
+                                    <div x-show="open" 
+                                         @click.away="open = false"
+                                         x-transition
+                                         class="absolute right-0 mt-2 w-48 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50">
+                                        <div class="py-1">
+                                            <button onclick="editDashboard('{{ dashboard.pk }}')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                <i class="fas fa-edit mr-2"></i> Edit
+                                            </button>
+                                            <a href="{% url 'dashboard:share_dashboard' dashboard.pk %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                <i class="fas fa-share-alt mr-2"></i> Share
+                                            </a>
+                                            <button onclick="duplicateDashboard('{{ dashboard.pk }}')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                <i class="fas fa-copy mr-2"></i> Duplicate
+                                            </button>
+                                            <a href="{% url 'dashboard:export_dashboard' dashboard.pk %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                <i class="fas fa-download mr-2"></i> Export
+                                            </a>
+                                            <div class="border-t border-gray-100"></div>
+                                            <form action="{% url 'dashboard:set_default_dashboard' dashboard.pk %}" method="post" class="block">
+                                                {% csrf_token %}
+                                                <button type="submit" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                    <i class="fas fa-star mr-2"></i> Set as Default
+                                                </button>
+                                            </form>
+                                            <div class="border-t border-gray-100"></div>
+                                            <button onclick="deleteDashboard('{{ dashboard.pk }}', '{{ dashboard.name }}')" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                                                <i class="fas fa-trash mr-2"></i> Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+            <div class="flex items-center justify-center gap-2">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                    <a href="?page={{ page_obj.previous_page_number }}" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                {% endif %}
+
+                <span class="px-4 py-2 bg-blue-600 text-white rounded-lg">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+
+    {% else %}
+        <!-- Empty State -->
+        <div class="bg-white rounded-xl shadow-md p-12 text-center">
+            <svg class="mx-auto h-24 w-24 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+            </svg>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">No Dashboards Yet</h3>
+            <p class="text-gray-600 mb-6">Create your first dashboard to start organizing your data</p>
+            <div class="flex justify-center gap-3">
+                <a href="{% url 'dashboard:create_from_template' %}" class="inline-flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition">
+                    <i class="fas fa-magic mr-2"></i>Use Template
+                </a>
+                <button onclick="showCreateModal()" class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition">
+                    <i class="fas fa-plus mr-2"></i>Create Dashboard
+                </button>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Create Dashboard Modal (Optional - can redirect to form) -->
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script>
+function showCreateModal() {
+    // Redirect to create page or show modal
+    window.location.href = "{% url 'dashboard:dashboard_create' %}";
+}
+
+function editDashboard(dashboardId) {
+    window.location.href = `/dashboard/${dashboardId}/edit/`;
+}
+
+function duplicateDashboard(dashboardId) {
+    if (confirm('Create a copy of this dashboard?')) {
+        // Implement duplication logic
+        alert('Dashboard duplication feature coming soon!');
+    }
+}
+
+function deleteDashboard(dashboardId, dashboardName) {
+    if (confirm(`Are you sure you want to delete "${dashboardName}"? This action cannot be undone.`)) {
+        window.location.href = `/dashboard/${dashboardId}/delete/`;
+    }
+}
+
+// Search functionality
+document.getElementById('searchInput').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    // Implement search filtering
+    console.log('Searching for:', searchTerm);
+});
+
+// Filter functionality
+document.getElementById('filterType').addEventListener('change', function(e) {
+    const filterValue = e.target.value;
+    // Implement filtering logic
+    console.log('Filter:', filterValue);
+});
+
+document.getElementById('layoutFilter').addEventListener('change', function(e) {
+    const layoutValue = e.target.value;
+    // Implement layout filtering
+    console.log('Layout filter:', layoutValue);
+});
+</script>
+{% endblock %}

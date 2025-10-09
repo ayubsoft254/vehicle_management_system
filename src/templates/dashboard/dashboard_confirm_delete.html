@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-2xl">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-6">
+        <ol class="list-none p-0 inline-flex">
+            <li class="flex items-center">
+                <a href="{% url 'dashboard:home' %}" class="text-primary-600 hover:text-primary-700">Dashboard</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="flex items-center">
+                <a href="{% url 'dashboard:dashboard_list' %}" class="text-primary-600 hover:text-primary-700">Dashboards</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="text-gray-500">Delete</li>
+        </ol>
+    </nav>
+
+    <!-- Warning Box -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-red-500 to-red-600 px-6 py-8 text-center">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-white/20 rounded-full mb-4">
+                <i class="fas fa-exclamation-triangle text-white text-4xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-white mb-2">Delete Dashboard?</h1>
+            <p class="text-red-100">This action cannot be undone</p>
+        </div>
+
+        <!-- Content -->
+        <div class="p-8">
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-circle text-red-500 text-xl"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-red-800 font-medium mb-2">Warning</h3>
+                        <p class="text-sm text-red-700">
+                            You are about to permanently delete this dashboard and all its associated data.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Info -->
+            <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Dashboard Details</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Name:</span>
+                        <span class="font-medium text-gray-900">{{ object.name }}</span>
+                    </div>
+                    {% if object.description %}
+                        <div class="flex items-start justify-between">
+                            <span class="text-sm text-gray-600">Description:</span>
+                            <span class="font-medium text-gray-900 text-right max-w-xs">{{ object.description }}</span>
+                        </div>
+                    {% endif %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Created:</span>
+                        <span class="font-medium text-gray-900">{{ object.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Layout:</span>
+                        <span class="font-medium text-gray-900">{{ object.get_layout_display }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Widgets:</span>
+                        <span class="font-medium text-gray-900">{{ object.widgets.count }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What Will Be Deleted -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+                <h4 class="font-bold text-yellow-900 mb-3">
+                    <i class="fas fa-list-ul mr-2"></i>What will be deleted:
+                </h4>
+                <ul class="space-y-2 text-sm text-yellow-800">
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>The dashboard configuration and settings</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>All {{ object.widgets.count }} widget{{ object.widgets.count|pluralize }} associated with this dashboard</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Dashboard sharing settings and permissions</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>All dashboard snapshots and history</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
+                        <span>Activity logs related to this dashboard</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Confirmation Form -->
+            <form method="post">
+                {% csrf_token %}
+                
+                <!-- Confirmation Checkbox -->
+                <div class="mb-6">
+                    <label class="flex items-start cursor-pointer">
+                        <input type="checkbox" id="confirmDelete" required class="mt-1 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded">
+                        <span class="ml-3 text-sm text-gray-700">
+                            I understand that this action is <strong class="text-red-600">permanent and cannot be undone</strong>. 
+                            I want to proceed with deleting "<strong>{{ object.name }}</strong>".
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button type="submit" id="deleteButton" disabled class="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition duration-200">
+                        <i class="fas fa-trash-alt mr-2"></i>Yes, Delete Dashboard
+                    </button>
+                    <a href="{% url 'dashboard:dashboard_detail' object.pk %}" class="flex-1 text-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold transition duration-200">
+                        <i class="fas fa-times mr-2"></i>No, Keep It
+                    </a>
+                </div>
+            </form>
+
+            <!-- Alternative Actions -->
+            <div class="mt-6 pt-6 border-t border-gray-200">
+                <p class="text-sm text-gray-600 mb-3">Instead of deleting, you might want to:</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <a href="{% url 'dashboard:dashboard_update' object.pk %}" class="flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg border border-blue-200 transition duration-200">
+                        <i class="fas fa-edit mr-2"></i>
+                        <span class="text-sm font-medium">Edit Dashboard</span>
+                    </a>
+                    <button onclick="archiveDashboard()" class="flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-2 rounded-lg border border-gray-200 transition duration-200">
+                        <i class="fas fa-archive mr-2"></i>
+                        <span class="text-sm font-medium">Archive Instead</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Enable delete button only when checkbox is checked
+document.getElementById('confirmDelete').addEventListener('change', function() {
+    document.getElementById('deleteButton').disabled = !this.checked;
+});
+
+function archiveDashboard() {
+    alert('Archive feature coming soon! This will hide the dashboard without deleting it.');
+}
+</script>
+{% endblock %}
