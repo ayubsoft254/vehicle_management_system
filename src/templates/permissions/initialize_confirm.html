@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Initialize Default Permissions{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-6">
+        <ol class="list-none p-0 inline-flex">
+            <li class="flex items-center">
+                <a href="{% url 'permissions:list' %}" class="text-primary-600 hover:text-primary-700">Permissions</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="text-gray-500">Initialize Defaults</li>
+        </ol>
+    </nav>
+
+    <!-- Warning Header -->
+    <div class="mb-8 bg-gradient-to-r from-green-600 to-green-700 rounded-xl shadow-lg p-8 text-white">
+        <div class="flex items-center">
+            <div class="w-16 h-16 bg-white bg-opacity-30 rounded-full flex items-center justify-center mr-4">
+                <i class="fas fa-sync text-3xl"></i>
+            </div>
+            <div>
+                <h1 class="text-3xl font-bold mb-2">Initialize Default Permissions</h1>
+                <p class="text-green-100">Set up role-based permissions with smart defaults</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- What This Does -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">
+            <i class="fas fa-info-circle text-primary-600 mr-2"></i>What This Does
+        </h2>
+        <p class="text-gray-700 mb-4">
+            This will create default permission sets for all 6 system roles across all 14 modules. 
+            The system will intelligently assign appropriate access levels based on each role's typical responsibilities.
+        </p>
+        
+        <div class="bg-blue-50 rounded-lg p-4 mb-4">
+            <h3 class="font-bold text-blue-900 mb-2">
+                <i class="fas fa-calculator mr-2"></i>Expected Result
+            </h3>
+            <p class="text-blue-800 text-sm">
+                Approximately <span class="font-bold">84 permission records</span> will be created 
+                (6 roles × 14 modules = 84 combinations)
+            </p>
+        </div>
+    </div>
+
+    <!-- Role Defaults -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">
+            <i class="fas fa-users text-primary-600 mr-2"></i>Default Permission Matrix
+        </h2>
+        
+        <div class="space-y-4">
+            <!-- Admin -->
+            <div class="border-l-4 border-red-500 pl-4 py-3 bg-red-50 rounded-r-lg">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-crown text-red-600 mr-2"></i>
+                    <h3 class="font-bold text-red-900">Admin</h3>
+                </div>
+                <p class="text-sm text-red-800">
+                    <i class="fas fa-check-circle text-red-600 mr-1"></i>
+                    Full access to all modules with complete control
+                </p>
+            </div>
+
+            <!-- Manager -->
+            <div class="border-l-4 border-blue-500 pl-4 py-3 bg-blue-50 rounded-r-lg">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-user-tie text-blue-600 mr-2"></i>
+                    <h3 class="font-bold text-blue-900">Manager</h3>
+                </div>
+                <p class="text-sm text-blue-800">
+                    <i class="fas fa-check-circle text-blue-600 mr-1"></i>
+                    Full access to most modules, read-only access to audit and permissions
+                </p>
+            </div>
+
+            <!-- Sales -->
+            <div class="border-l-4 border-green-500 pl-4 py-3 bg-green-50 rounded-r-lg">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-handshake text-green-600 mr-2"></i>
+                    <h3 class="font-bold text-green-900">Sales</h3>
+                </div>
+                <p class="text-sm text-green-800 mb-2">
+                    <i class="fas fa-check-circle text-green-600 mr-1"></i>
+                    Specialized for customer-facing operations:
+                </p>
+                <ul class="text-sm text-green-700 space-y-1 ml-6">
+                    <li>• Read/Write: Vehicles, Clients, Payments, Insurance, Documents</li>
+                    <li>• Read-Only: Dashboard, Reports</li>
+                    <li>• No Access: Payroll, Audit, Permissions (sensitive areas)</li>
+                </ul>
+            </div>
+
+            <!-- Accountant -->
+            <div class="border-l-4 border-purple-500 pl-4 py-3 bg-purple-50 rounded-r-lg">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-calculator text-purple-600 mr-2"></i>
+                    <h3 class="font-bold text-purple-900">Accountant</h3>
+                </div>
+                <p class="text-sm text-purple-800 mb-2">
+                    <i class="fas fa-check-circle text-purple-600 mr-1"></i>
+                    Specialized for financial operations:
+                </p>
+                <ul class="text-sm text-purple-700 space-y-1 ml-6">
+                    <li>• Full Access: Payments, Payroll, Expenses, Reports</li>
+                    <li>• Read-Only: Repossessions, Auctions</li>
+                    <li>• No Access: Permissions (security restriction)</li>
+                </ul>
+            </div>
+
+            <!-- Auctioneer -->
+            <div class="border-l-4 border-orange-500 pl-4 py-3 bg-orange-50 rounded-r-lg">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-gavel text-orange-600 mr-2"></i>
+                    <h3 class="font-bold text-orange-900">Auctioneer</h3>
+                </div>
+                <p class="text-sm text-orange-800 mb-2">
+                    <i class="fas fa-check-circle text-orange-600 mr-1"></i>
+                    Specialized for auction operations:
+                </p>
+                <ul class="text-sm text-orange-700 space-y-1 ml-6">
+                    <li>• Full Access: Auctions</li>
+                    <li>• Read/Write: Repossessions</li>
+                    <li>• No Access: Payroll, Permissions (restricted areas)</li>
+                </ul>
+            </div>
+
+            <!-- Clerk -->
+            <div class="border-l-4 border-gray-500 pl-4 py-3 bg-gray-50 rounded-r-lg">
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-user-clock text-gray-600 mr-2"></i>
+                    <h3 class="font-bold text-gray-900">Clerk</h3>
+                </div>
+                <p class="text-sm text-gray-800 mb-2">
+                    <i class="fas fa-check-circle text-gray-600 mr-1"></i>
+                    Basic access for data entry:
+                </p>
+                <ul class="text-sm text-gray-700 space-y-1 ml-6">
+                    <li>• Read-Only: Dashboard, Vehicles, Clients, Documents</li>
+                    <li>• No Access: All other modules (least privilege principle)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Important Notes -->
+    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-lg mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-yellow-400 text-2xl"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-lg font-medium text-yellow-800 mb-2">Important Notes</h3>
+                <div class="text-sm text-yellow-700 space-y-2">
+                    <p class="flex items-start">
+                        <i class="fas fa-circle text-xs mr-2 mt-1"></i>
+                        <span>Existing permissions will NOT be overwritten - only missing ones will be created</span>
+                    </p>
+                    <p class="flex items-start">
+                        <i class="fas fa-circle text-xs mr-2 mt-1"></i>
+                        <span>This is safe to run multiple times - it only creates missing records</span>
+                    </p>
+                    <p class="flex items-start">
+                        <i class="fas fa-circle text-xs mr-2 mt-1"></i>
+                        <span>You can modify any permission after initialization through the normal edit process</span>
+                    </p>
+                    <p class="flex items-start">
+                        <i class="fas fa-circle text-xs mr-2 mt-1"></i>
+                        <span>All created permissions will be marked as active by default</span>
+                    </p>
+                    <p class="flex items-start">
+                        <i class="fas fa-circle text-xs mr-2 mt-1"></i>
+                        <span>The creation action will be logged for audit purposes</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- When to Use This -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">
+            <i class="fas fa-lightbulb text-primary-600 mr-2"></i>When to Use This
+        </h2>
+        <div class="space-y-3 text-gray-700">
+            <div class="flex items-start">
+                <i class="fas fa-check text-green-500 mr-3 mt-1"></i>
+                <p><span class="font-medium">Initial Setup:</span> When setting up the system for the first time</p>
+            </div>
+            <div class="flex items-start">
+                <i class="fas fa-check text-green-500 mr-3 mt-1"></i>
+                <p><span class="font-medium">After Updates:</span> When new modules are added to the system</p>
+            </div>
+            <div class="flex items-start">
+                <i class="fas fa-check text-green-500 mr-3 mt-1"></i>
+                <p><span class="font-medium">Missing Permissions:</span> To fill in any gaps in the permission matrix</p>
+            </div>
+            <div class="flex items-start">
+                <i class="fas fa-check text-green-500 mr-3 mt-1"></i>
+                <p><span class="font-medium">Reset Baseline:</span> To ensure all role-module combinations exist</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Form -->
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <p class="text-gray-700 text-center mb-4">
+                Are you ready to initialize default permissions for all roles?
+            </p>
+            <p class="text-sm text-gray-500 text-center">
+                This will create permission records where they don't already exist.
+            </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-4">
+            <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200 flex items-center justify-center">
+                <i class="fas fa-check mr-2"></i>
+                Yes, Initialize Permissions
+            </button>
+            <a href="{% url 'permissions:list' %}" class="flex-1 text-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold transition duration-200">
+                <i class="fas fa-times mr-2"></i>
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

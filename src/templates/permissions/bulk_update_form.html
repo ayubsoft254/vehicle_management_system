@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bulk Update Permissions{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-6">
+        <ol class="list-none p-0 inline-flex">
+            <li class="flex items-center">
+                <a href="{% url 'permissions:list' %}" class="text-primary-600 hover:text-primary-700">Permissions</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="text-gray-500">Bulk Update</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg p-8 text-white">
+        <div class="flex items-center">
+            <div class="w-16 h-16 bg-white bg-opacity-30 rounded-full flex items-center justify-center mr-4">
+                <i class="fas fa-edit text-3xl"></i>
+            </div>
+            <div>
+                <h1 class="text-3xl font-bold mb-2">Bulk Update Permissions</h1>
+                <p class="text-blue-100">Update all module permissions for a specific role at once</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white rounded-xl shadow-md p-8">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Error Messages -->
+            {% if form.non_field_errors %}
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                    <div class="flex">
+                        <i class="fas fa-exclamation-circle text-red-500 mr-3 mt-1"></i>
+                        <div>
+                            <h3 class="text-red-800 font-medium">Please correct the errors below:</h3>
+                            <ul class="list-disc list-inside text-red-700 text-sm mt-2">
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Step 1: Select Role -->
+            <div class="border-l-4 border-primary-500 pl-6">
+                <div class="flex items-center mb-3">
+                    <div class="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center font-bold mr-3">1</div>
+                    <h2 class="text-xl font-bold text-gray-800">Select Role</h2>
+                </div>
+                <p class="text-gray-600 text-sm mb-4">Choose which role's permissions you want to update</p>
+                
+                <div>
+                    <label for="{{ form.role.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        Role <span class="text-red-500">*</span>
+                    </label>
+                    <select id="{{ form.role.id_for_label }}" name="{{ form.role.html_name }}" 
+                            class="w-full px-4 py-2 border {% if form.role.errors %}border-red-500{% else %}border-gray-300{% endif %} rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" required>
+                        <option value="">Select Role</option>
+                        <option value="admin" {% if form.role.value == 'admin' %}selected{% endif %}>Admin</option>
+                        <option value="manager" {% if form.role.value == 'manager' %}selected{% endif %}>Manager</option>
+                        <option value="sales" {% if form.role.value == 'sales' %}selected{% endif %}>Sales</option>
+                        <option value="accountant" {% if form.role.value == 'accountant' %}selected{% endif %}>Accountant</option>
+                        <option value="auctioneer" {% if form.auctioneer.value == 'auctioneer' %}selected{% endif %}>Auctioneer</option>
+                        <option value="clerk" {% if form.role.value == 'clerk' %}selected{% endif %}>Clerk</option>
+                    </select>
+                    {% if form.role.errors %}
+                        <p class="text-xs text-red-500 mt-1">{{ form.role.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Step 2: Set Common Access Level -->
+            <div class="border-l-4 border-primary-500 pl-6">
+                <div class="flex items-center mb-3">
+                    <div class="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center font-bold mr-3">2</div>
+                    <h2 class="text-xl font-bold text-gray-800">Set Access Level</h2>
+                </div>
+                <p class="text-gray-600 text-sm mb-4">This access level will be applied to all modules for the selected role</p>
+                
+                <div class="space-y-3">
+                    <div class="flex items-start">
+                        <input type="radio" id="access_no" name="{{ form.access_level.html_name }}" value="no_access" 
+                               {% if form.access_level.value == 'no_access' %}checked{% endif %}
+                               class="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300">
+                        <label for="access_no" class="ml-3 flex-1 cursor-pointer">
+                            <div class="flex items-center">
+                                <span class="font-medium text-gray-900">No Access</span>
+                                <span class="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-1">Block access to all modules</p>
+                        </label>
+                    </div>
+
+                    <div class="flex items-start">
+                        <input type="radio" id="access_read" name="{{ form.access_level.html_name }}" value="read_only" 
+                               {% if form.access_level.value == 'read_only' %}checked{% endif %}
+                               class="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300">
+                        <label for="access_read" class="ml-3 flex-1 cursor-pointer">
+                            <div class="flex items-center">
+                                <span class="font-medium text-gray-900">Read Only</span>
+                                <span class="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Limited</span>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-1">View-only access to all modules</p>
+                        </label>
+                    </div>
+
+                    <div class="flex items-start">
+                        <input type="radio" id="access_write" name="{{ form.access_level.html_name }}" value="read_write" 
+                               {% if form.access_level.value == 'read_write' %}checked{% endif %}
+                               class="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300">
+                        <label for="access_write" class="ml-3 flex-1 cursor-pointer">
+                            <div class="flex items-center">
+                                <span class="font-medium text-gray-900">Read/Write</span>
+                                <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Standard</span>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-1">View and modify access based on granular permissions</p>
+                        </label>
+                    </div>
+
+                    <div class="flex items-start">
+                        <input type="radio" id="access_full" name="{{ form.access_level.html_name }}" value="full_access" 
+                               {% if form.access_level.value == 'full_access' %}checked{% endif %}
+                               class="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300">
+                        <label for="access_full" class="ml-3 flex-1 cursor-pointer">
+                            <div class="flex items-center">
+                                <span class="font-medium text-gray-900">Full Access</span>
+                                <span class="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Complete</span>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-1">Complete control over all modules</p>
+                        </label>
+                    </div>
+                </div>
+                {% if form.access_level.errors %}
+                    <p class="text-xs text-red-500 mt-2">{{ form.access_level.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Step 3: Set Common Granular Permissions -->
+            <div class="border-l-4 border-primary-500 pl-6">
+                <div class="flex items-center mb-3">
+                    <div class="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center font-bold mr-3">3</div>
+                    <h2 class="text-xl font-bold text-gray-800">Set Granular Permissions</h2>
+                </div>
+                <p class="text-gray-600 text-sm mb-4">These permissions will be applied to all modules</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" id="{{ form.can_create.id_for_label }}" name="{{ form.can_create.html_name }}" 
+                                   {% if form.can_create.value %}checked{% endif %}
+                                   class="h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded">
+                            <div class="ml-3">
+                                <span class="font-medium text-gray-900 flex items-center">
+                                    <i class="fas fa-plus-circle text-green-600 mr-2"></i>Can Create
+                                </span>
+                                <p class="text-xs text-gray-500 mt-1">Add new records in all modules</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" id="{{ form.can_edit.id_for_label }}" name="{{ form.can_edit.html_name }}" 
+                                   {% if form.can_edit.value %}checked{% endif %}
+                                   class="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <div class="ml-3">
+                                <span class="font-medium text-gray-900 flex items-center">
+                                    <i class="fas fa-edit text-blue-600 mr-2"></i>Can Edit
+                                </span>
+                                <p class="text-xs text-gray-500 mt-1">Modify records in all modules</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" id="{{ form.can_delete.id_for_label }}" name="{{ form.can_delete.html_name }}" 
+                                   {% if form.can_delete.value %}checked{% endif %}
+                                   class="h-5 w-5 text-red-600 focus:ring-red-500 border-gray-300 rounded">
+                            <div class="ml-3">
+                                <span class="font-medium text-gray-900 flex items-center">
+                                    <i class="fas fa-trash-alt text-red-600 mr-2"></i>Can Delete
+                                </span>
+                                <p class="text-xs text-gray-500 mt-1">Remove records from all modules</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" id="{{ form.can_export.id_for_label }}" name="{{ form.can_export.html_name }}" 
+                                   {% if form.can_export.value %}checked{% endif %}
+                                   class="h-5 w-5 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                            <div class="ml-3">
+                                <span class="font-medium text-gray-900 flex items-center">
+                                    <i class="fas fa-download text-purple-600 mr-2"></i>Can Export
+                                </span>
+                                <p class="text-xs text-gray-500 mt-1">Export data from all modules</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warning -->
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                <div class="flex">
+                    <i class="fas fa-exclamation-triangle text-yellow-400 text-xl mr-3"></i>
+                    <div>
+                        <h3 class="text-yellow-800 font-medium mb-1">Warning</h3>
+                        <p class="text-sm text-yellow-700">This will update ALL existing permissions for the selected role across all modules. Existing settings will be overwritten.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center gap-4 pt-6 border-t">
+                <button type="submit" class="flex-1 bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200">
+                    <i class="fas fa-check mr-2"></i>Apply to All Modules
+                </button>
+                <a href="{% url 'permissions:list' %}" class="flex-1 text-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold transition duration-200">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Info Box -->
+    <div class="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
+        <div class="flex items-start">
+            <i class="fas fa-info-circle text-blue-500 text-2xl mr-4"></i>
+            <div>
+                <h3 class="text-lg font-bold text-blue-900 mb-2">About Bulk Update</h3>
+                <p class="text-blue-800 text-sm mb-3">
+                    Bulk update is useful when you need to quickly set consistent permissions across all modules for a role. 
+                    For more fine-grained control, use the Role Matrix editor instead.
+                </p>
+                <ul class="space-y-1 text-blue-700 text-sm">
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-blue-500 mr-2 mt-1"></i>
+                        <span>All 14 system modules will be updated at once</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-blue-500 mr-2 mt-1"></i>
+                        <span>Existing permissions will be overwritten</span>
+                    </li>
+                    <li class="flex items-start">
+                        <i class="fas fa-check text-blue-500 mr-2 mt-1"></i>
+                        <span>All changes are logged in permission history</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
