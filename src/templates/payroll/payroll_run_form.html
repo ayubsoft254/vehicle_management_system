@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Create Payroll Run{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-2xl">
+    
+    <!-- Back Button -->
+    <div class="mb-4">
+        <a href="{% url 'payroll:payroll_run_list' %}" 
+           class="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Payroll Runs
+        </a>
+    </div>
+
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">
+            {% if form.instance.pk %}Edit{% else %}Create{% endif %} Payroll Run
+        </h1>
+        <p class="mt-1 text-sm text-gray-600">Set up a new payroll processing period</p>
+    </div>
+
+    <!-- Info Box -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div class="flex items-start">
+            <i class="fas fa-info-circle text-blue-600 text-xl mr-3 mt-1"></i>
+            <div>
+                <h3 class="text-sm font-bold text-blue-900 mb-2">Before You Begin</h3>
+                <ul class="text-sm text-blue-800 space-y-1">
+                    <li>• Ensure all employee salary structures are up to date</li>
+                    <li>• Verify that attendance records for the period are complete</li>
+                    <li>• Review and approve all pending commissions and deductions</li>
+                    <li>• Check that all leave applications have been processed</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="post" class="bg-white rounded-lg shadow-sm border border-gray-200">
+        {% csrf_token %}
+        
+        <!-- Basic Information -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-calendar text-primary-600 mr-2"></i>
+                Payroll Period
+            </h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payroll Month *</label>
+                    {{ form.month }}
+                    <p class="mt-1 text-xs text-gray-500">Select the month for this payroll run</p>
+                    {% if form.month.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.month.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payroll Run Name *</label>
+                    {{ form.name }}
+                    <p class="mt-1 text-xs text-gray-500">e.g., "January 2025 Payroll" or "Mid-Month Bonus"</p>
+                    {% if form.name.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    {{ form.description }}
+                    <p class="mt-1 text-xs text-gray-500">Additional notes or details about this payroll run</p>
+                    {% if form.description.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.description.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Working Days -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-business-time text-primary-600 mr-2"></i>
+                Working Period
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Period Start Date *</label>
+                    {{ form.period_start }}
+                    {% if form.period_start.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.period_start.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Period End Date *</label>
+                    {{ form.period_end }}
+                    {% if form.period_end.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.period_end.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Working Days</label>
+                {{ form.working_days }}
+                <p class="mt-1 text-xs text-gray-500">Number of working days in this period (excluding weekends/holidays)</p>
+                {% if form.working_days.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ form.working_days.errors.0 }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Payment Schedule -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-money-check text-primary-600 mr-2"></i>
+                Payment Schedule
+            </h2>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Payment Date *</label>
+                {{ form.payment_date }}
+                <p class="mt-1 text-xs text-gray-500">Scheduled date for salary disbursement</p>
+                {% if form.payment_date.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ form.payment_date.errors.0 }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Additional Options -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-cog text-primary-600 mr-2"></i>
+                Additional Options
+            </h2>
+            <div class="space-y-3">
+                <label class="flex items-start">
+                    {{ form.include_commissions }}
+                    <span class="ml-2 text-sm text-gray-700">
+                        <span class="font-medium">Include Commissions</span>
+                        <span class="block text-xs text-gray-500">Process all approved commissions for this period</span>
+                    </span>
+                </label>
+                <label class="flex items-start">
+                    {{ form.include_bonuses }}
+                    <span class="ml-2 text-sm text-gray-700">
+                        <span class="font-medium">Include Bonuses</span>
+                        <span class="block text-xs text-gray-500">Add performance bonuses to this payroll</span>
+                    </span>
+                </label>
+                <label class="flex items-start">
+                    {{ form.include_overtime }}
+                    <span class="ml-2 text-sm text-gray-700">
+                        <span class="font-medium">Include Overtime</span>
+                        <span class="block text-xs text-gray-500">Calculate and include overtime payments</span>
+                    </span>
+                </label>
+                <label class="flex items-start">
+                    {{ form.auto_calculate_deductions }}
+                    <span class="ml-2 text-sm text-gray-700">
+                        <span class="font-medium">Auto-Calculate Deductions</span>
+                        <span class="block text-xs text-gray-500">Automatically apply statutory and recurring deductions</span>
+                    </span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Quick Summary (if editing) -->
+        {% if form.instance.pk %}
+        <div class="p-6 border-b border-gray-200 bg-gray-50">
+            <h2 class="text-lg font-bold text-gray-900 mb-3">Current Summary</h2>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <p class="text-gray-600">Total Employees:</p>
+                    <p class="font-bold text-gray-900">{{ form.instance.total_employees|default:"0" }}</p>
+                </div>
+                <div>
+                    <p class="text-gray-600">Status:</p>
+                    <p class="font-bold text-gray-900">{{ form.instance.get_status_display }}</p>
+                </div>
+                <div>
+                    <p class="text-gray-600">Total Gross:</p>
+                    <p class="font-bold text-green-600">KES {{ form.instance.total_gross|floatformat:0|default:"0" }}</p>
+                </div>
+                <div>
+                    <p class="text-gray-600">Total Net:</p>
+                    <p class="font-bold text-primary-600">KES {{ form.instance.total_net|floatformat:0|default:"0" }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Form Actions -->
+        <div class="p-6 bg-gray-50 flex justify-end space-x-3">
+            <a href="{% url 'payroll:payroll_run_list' %}" 
+               class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition duration-150 ease-in-out">
+                Cancel
+            </a>
+            <button type="submit" name="action" value="save_draft"
+                    class="px-6 py-2 border border-primary-600 text-primary-600 font-medium rounded-lg hover:bg-primary-50 transition duration-150 ease-in-out">
+                <i class="fas fa-save mr-2"></i> Save as Draft
+            </button>
+            <button type="submit" name="action" value="save_and_process"
+                    class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                <i class="fas fa-play-circle mr-2"></i> Save & Process
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+input[type="text"],
+input[type="date"],
+input[type="number"],
+input[type="month"],
+input[type="checkbox"],
+textarea {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+}
+input[type="checkbox"] {
+    @apply w-5 h-5;
+}
+textarea {
+    @apply min-h-[80px];
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-populate name from month selection
+    const monthInput = document.querySelector('input[name="month"]');
+    const nameInput = document.querySelector('input[name="name"]');
+    
+    if (monthInput && nameInput && !nameInput.value) {
+        monthInput.addEventListener('change', function() {
+            if (this.value) {
+                const date = new Date(this.value + '-01');
+                const monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                nameInput.value = monthName + ' Payroll';
+            }
+        });
+    }
+
+    // Calculate working days based on period
+    const startDate = document.querySelector('input[name="period_start"]');
+    const endDate = document.querySelector('input[name="period_end"]');
+    const workingDaysInput = document.querySelector('input[name="working_days"]');
+
+    function calculateWorkingDays() {
+        if (startDate.value && endDate.value) {
+            const start = new Date(startDate.value);
+            const end = new Date(endDate.value);
+            
+            let workingDays = 0;
+            let currentDate = new Date(start);
+            
+            while (currentDate <= end) {
+                const dayOfWeek = currentDate.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Exclude Sunday (0) and Saturday (6)
+                    workingDays++;
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            if (!workingDaysInput.value || confirm('Auto-calculate working days?')) {
+                workingDaysInput.value = workingDays;
+            }
+        }
+    }
+
+    if (startDate && endDate && workingDaysInput) {
+        startDate.addEventListener('change', calculateWorkingDays);
+        endDate.addEventListener('change', calculateWorkingDays);
+    }
+});
+</script>
+{% endblock %}
