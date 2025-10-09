@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Payment Details - {{ payment.receipt_number }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Breadcrumb -->
+    <nav class="flex mb-4" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li>
+                <a href="{% url 'dashboard:dashboard' %}" class="text-gray-700 hover:text-primary-600">
+                    <i class="fas fa-home"></i>
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <a href="{% url 'payments:payment_list' %}" class="text-gray-700 hover:text-primary-600">Payments</a>
+                </div>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">{{ payment.receipt_number }}</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Payment Details</h1>
+            <p class="mt-1 text-sm text-gray-600">Receipt #{{ payment.receipt_number }}</p>
+        </div>
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            <a href="{% url 'payments:payment_receipt' payment.pk %}" 
+               class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm" target="_blank">
+                <i class="fas fa-print mr-2"></i>
+                Print Receipt
+            </a>
+            <a href="{% url 'payments:payment_list' %}" 
+               class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to List
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Payment Information -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-money-bill-wave text-primary-600 mr-2"></i>
+                    Payment Information
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Receipt Number</label>
+                        <p class="text-base font-semibold text-gray-900">{{ payment.receipt_number }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Payment Date</label>
+                        <p class="text-base font-semibold text-gray-900">
+                            <i class="fas fa-calendar text-gray-400 mr-1"></i>
+                            {{ payment.payment_date|date:"F d, Y" }}
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Amount Paid</label>
+                        <p class="text-2xl font-bold text-green-600">KES {{ payment.amount|floatformat:2 }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Payment Method</label>
+                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full 
+                            {% if payment.payment_method == 'mpesa' %}bg-green-100 text-green-800
+                            {% elif payment.payment_method == 'cash' %}bg-blue-100 text-blue-800
+                            {% elif payment.payment_method == 'bank_transfer' %}bg-purple-100 text-purple-800
+                            {% elif payment.payment_method == 'cheque' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            <i class="fas fa-credit-card mr-1"></i>
+                            {{ payment.get_payment_method_display }}
+                        </span>
+                    </div>
+                    {% if payment.transaction_reference %}
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Transaction Reference</label>
+                        <p class="text-base font-mono bg-gray-50 px-3 py-2 rounded border border-gray-200">
+                            {{ payment.transaction_reference }}
+                        </p>
+                    </div>
+                    {% endif %}
+                    {% if payment.notes %}
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Notes</label>
+                        <p class="text-base text-gray-700 bg-gray-50 px-3 py-2 rounded border border-gray-200">
+                            {{ payment.notes }}
+                        </p>
+                    </div>
+                    {% endif %}
+                    <div class="md:col-span-2 pt-4 border-t border-gray-200">
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Recorded By</label>
+                        <p class="text-base text-gray-900">
+                            <i class="fas fa-user text-gray-400 mr-1"></i>
+                            {{ payment.created_by.get_full_name|default:payment.created_by.username }}
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">
+                            {{ payment.created_at|date:"F d, Y, g:i A" }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Client Information -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-user text-primary-600 mr-2"></i>
+                    Client Information
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Full Name</label>
+                        <p class="text-base font-semibold text-gray-900">
+                            <a href="{% url 'clients:client_detail' payment.client_vehicle.client.pk %}" class="hover:text-primary-600">
+                                {{ payment.client_vehicle.client.get_full_name }}
+                            </a>
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">ID Number</label>
+                        <p class="text-base text-gray-900">{{ payment.client_vehicle.client.id_number }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Phone Number</label>
+                        <p class="text-base text-gray-900">
+                            <i class="fas fa-phone text-gray-400 mr-1"></i>
+                            {{ payment.client_vehicle.client.phone_number }}
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Email</label>
+                        <p class="text-base text-gray-900">
+                            <i class="fas fa-envelope text-gray-400 mr-1"></i>
+                            {{ payment.client_vehicle.client.email|default:"Not provided" }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vehicle Information -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-car text-primary-600 mr-2"></i>
+                    Vehicle Information
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Registration Number</label>
+                        <p class="text-base font-semibold text-gray-900">
+                            <a href="{% url 'vehicles:vehicle_detail' payment.client_vehicle.vehicle.pk %}" class="hover:text-primary-600">
+                                {{ payment.client_vehicle.vehicle.registration_number }}
+                            </a>
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Make & Model</label>
+                        <p class="text-base text-gray-900">
+                            {{ payment.client_vehicle.vehicle.make }} {{ payment.client_vehicle.vehicle.model }}
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Year</label>
+                        <p class="text-base text-gray-900">{{ payment.client_vehicle.vehicle.year|default:"N/A" }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Purchase Date</label>
+                        <p class="text-base text-gray-900">
+                            <i class="fas fa-calendar text-gray-400 mr-1"></i>
+                            {{ payment.client_vehicle.purchase_date|date:"M d, Y" }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            
+            <!-- Purchase Summary -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-chart-pie text-primary-600 mr-2"></i>
+                    Purchase Summary
+                </h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Total Price</span>
+                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.total_price|floatformat:2 }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Deposit Paid</span>
+                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.deposit_amount|floatformat:2 }}</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-gray-200">
+                        <span class="text-sm text-gray-600">Amount Financed</span>
+                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.balance_amount|floatformat:2 }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Total Paid</span>
+                        <span class="text-base font-semibold text-green-600">KES {{ payment.client_vehicle.total_paid|floatformat:2 }}</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-gray-200">
+                        <span class="text-sm font-semibold text-gray-700">Remaining Balance</span>
+                        <span class="text-lg font-bold text-red-600">KES {{ payment.client_vehicle.remaining_balance|floatformat:2 }}</span>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="pt-2">
+                        <div class="flex justify-between text-sm text-gray-600 mb-1">
+                            <span>Payment Progress</span>
+                            <span>{{ payment.client_vehicle.payment_percentage|floatformat:1 }}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-green-600 h-3 rounded-full transition-all duration-500" style="width: {{ payment.client_vehicle.payment_percentage }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Status -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-info-circle text-primary-600 mr-2"></i>
+                    Payment Status
+                </h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Status</span>
+                        <span class="px-3 py-1 text-xs font-semibold rounded-full
+                            {% if payment.client_vehicle.payment_status == 'paid' %}bg-green-100 text-green-800
+                            {% elif payment.client_vehicle.payment_status == 'partial' %}bg-yellow-100 text-yellow-800
+                            {% elif payment.client_vehicle.payment_status == 'overdue' %}bg-red-100 text-red-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ payment.client_vehicle.get_payment_status_display }}
+                        </span>
+                    </div>
+                    
+                    {% if payment.client_vehicle.installment_plan %}
+                    <div class="pt-3 border-t border-gray-200">
+                        <p class="text-sm text-gray-600 mb-2">Installment Plan</p>
+                        <div class="bg-blue-50 rounded p-3 space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Monthly Payment</span>
+                                <span class="font-semibold text-gray-900">KES {{ payment.client_vehicle.installment_plan.monthly_payment|floatformat:2 }}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Duration</span>
+                                <span class="font-semibold text-gray-900">{{ payment.client_vehicle.installment_plan.duration_months }} months</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Interest Rate</span>
+                                <span class="font-semibold text-gray-900">{{ payment.client_vehicle.installment_plan.interest_rate }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-bolt text-primary-600 mr-2"></i>
+                    Quick Actions
+                </h3>
+                <div class="space-y-2">
+                    <a href="{% url 'clients:client_vehicle_detail' payment.client_vehicle.pk %}" 
+                       class="block w-full text-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                        <i class="fas fa-file-alt mr-2"></i>
+                        View Purchase Details
+                    </a>
+                    <a href="{% url 'payments:record_payment' payment.client_vehicle.pk %}" 
+                       class="block w-full text-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                        <i class="fas fa-plus mr-2"></i>
+                        Record New Payment
+                    </a>
+                    <a href="{% url 'clients:client_statement' payment.client_vehicle.client.pk %}" 
+                       class="block w-full text-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                        <i class="fas fa-file-invoice mr-2"></i>
+                        Client Statement
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

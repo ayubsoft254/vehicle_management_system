@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Installment Plans - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Installment Plans</h1>
+            <p class="mt-1 text-sm text-gray-600">Manage payment plans and schedules</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Active Plans -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-blue-100 rounded-lg p-3">
+                    <i class="fas fa-clock text-2xl text-blue-600"></i>
+                </div>
+                <div class="ml-4 flex-1">
+                    <p class="text-sm font-medium text-gray-600">Active Plans</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ active_count|default:0 }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Completed Plans -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-green-100 rounded-lg p-3">
+                    <i class="fas fa-check-circle text-2xl text-green-600"></i>
+                </div>
+                <div class="ml-4 flex-1">
+                    <p class="text-sm font-medium text-gray-600">Completed</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ completed_count|default:0 }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overdue Plans -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-red-100 rounded-lg p-3">
+                    <i class="fas fa-exclamation-triangle text-2xl text-red-600"></i>
+                </div>
+                <div class="ml-4 flex-1">
+                    <p class="text-sm font-medium text-gray-600">Overdue</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ overdue_count|default:0 }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Financed -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-purple-100 rounded-lg p-3">
+                    <i class="fas fa-money-bill-wave text-2xl text-purple-600"></i>
+                </div>
+                <div class="ml-4 flex-1">
+                    <p class="text-sm font-medium text-gray-600">Total Financed</p>
+                    <p class="text-xl font-bold text-gray-900">KES {{ total_financed|floatformat:2|default:"0.00" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <form method="get" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Search -->
+                <div>
+                    <label for="search" class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fas fa-search mr-1"></i> Search
+                    </label>
+                    <input type="text" 
+                           id="search" 
+                           name="search" 
+                           value="{{ request.GET.search|default:'' }}"
+                           placeholder="Client name, vehicle..." 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200">
+                </div>
+
+                <!-- Status Filter -->
+                <div>
+                    <label for="status" class="block text-sm font-medium text-gray-700 mb-1">
+                        <i class="fas fa-filter mr-1"></i> Status
+                    </label>
+                    <select id="status" 
+                            name="status" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200">
+                        <option value="">All Status</option>
+                        <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="overdue" {% if request.GET.status == 'overdue' %}selected{% endif %}>Overdue</option>
+                        <option value="defaulted" {% if request.GET.status == 'defaulted' %}selected{% endif %}>Defaulted</option>
+                    </select>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-end gap-2">
+                    <button type="submit" 
+                            class="flex-1 px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                        <i class="fas fa-search mr-2"></i> Apply
+                    </button>
+                    <a href="{% url 'payments:installment_plan_list' %}" 
+                       class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
+                        <i class="fas fa-times"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Installment Plans Table -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Client & Vehicle
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Plan Details
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Amounts
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Progress
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for plan in installment_plans %}
+                    <tr class="hover:bg-gray-50 transition-colors duration-150">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center">
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">
+                                        <a href="{% url 'clients:client_detail' plan.client_vehicle.client.pk %}" class="hover:text-primary-600">
+                                            {{ plan.client_vehicle.client.get_full_name }}
+                                        </a>
+                                    </div>
+                                    <div class="text-xs text-gray-500">{{ plan.client_vehicle.vehicle.registration_number }}</div>
+                                    <div class="text-xs text-gray-400">{{ plan.client_vehicle.vehicle.make }} {{ plan.client_vehicle.vehicle.model }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-900">
+                                <div class="font-semibold">{{ plan.duration_months }} months @ {{ plan.interest_rate }}%</div>
+                                <div class="text-xs text-gray-500">Monthly: KES {{ plan.monthly_payment|floatformat:2 }}</div>
+                                <div class="text-xs text-gray-500">{{ plan.start_date|date:"M d, Y" }} - {{ plan.end_date|date:"M d, Y" }}</div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm">
+                                <div class="text-gray-900">Financed: <span class="font-semibold">KES {{ plan.principal_amount|floatformat:2 }}</span></div>
+                                <div class="text-green-600 mt-1">Paid: <span class="font-semibold">KES {{ plan.total_paid|floatformat:2 }}</span></div>
+                                <div class="text-red-600 mt-1">Balance: <span class="font-semibold">KES {{ plan.remaining_balance|floatformat:2 }}</span></div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="w-full">
+                                <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                    <span>Progress</span>
+                                    <span class="font-semibold">{{ plan.payment_percentage|floatformat:1 }}%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="h-2 rounded-full transition-all duration-500
+                                        {% if plan.payment_percentage >= 80 %}bg-green-600
+                                        {% elif plan.payment_percentage >= 50 %}bg-blue-600
+                                        {% elif plan.payment_percentage >= 25 %}bg-yellow-600
+                                        {% else %}bg-red-600{% endif %}" 
+                                        style="width: {{ plan.payment_percentage }}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {% if plan.status == 'active' %}bg-blue-100 text-blue-800
+                                {% elif plan.status == 'completed' %}bg-green-100 text-green-800
+                                {% elif plan.status == 'overdue' %}bg-red-100 text-red-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ plan.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div class="flex items-center justify-end space-x-2">
+                                <a href="{% url 'payments:installment_plan_detail' plan.pk %}" 
+                                   class="text-primary-600 hover:text-primary-900 transition-colors duration-150" 
+                                   title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'payments:payment_schedule_list' plan.pk %}" 
+                                   class="text-green-600 hover:text-green-900 transition-colors duration-150" 
+                                   title="View Schedule">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-file-invoice-dollar text-6xl text-gray-300 mb-4"></i>
+                                <p class="text-gray-500 text-lg font-medium">No installment plans found</p>
+                                <p class="text-gray-400 text-sm mt-1">Try adjusting your search criteria.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if installment_plans.has_other_pages %}
+        <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+            <div class="flex items-center justify-between">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    {% if installment_plans.has_previous %}
+                    <a href="?page={{ installment_plans.previous_page_number }}&{{ request.GET.urlencode }}" 
+                       class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Previous
+                    </a>
+                    {% endif %}
+                    {% if installment_plans.has_next %}
+                    <a href="?page={{ installment_plans.next_page_number }}&{{ request.GET.urlencode }}" 
+                       class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Next
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700">
+                            Showing
+                            <span class="font-medium">{{ installment_plans.start_index }}</span>
+                            to
+                            <span class="font-medium">{{ installment_plans.end_index }}</span>
+                            of
+                            <span class="font-medium">{{ installment_plans.paginator.count }}</span>
+                            results
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            {% if installment_plans.has_previous %}
+                            <a href="?page={{ installment_plans.previous_page_number }}&{{ request.GET.urlencode }}" 
+                               class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                            {% endif %}
+                            
+                            {% for num in installment_plans.paginator.page_range %}
+                                {% if installment_plans.number == num %}
+                                <span class="relative inline-flex items-center px-4 py-2 border border-primary-500 bg-primary-50 text-sm font-medium text-primary-600">
+                                    {{ num }}
+                                </span>
+                                {% elif num > installment_plans.number|add:'-3' and num < installment_plans.number|add:'3' %}
+                                <a href="?page={{ num }}&{{ request.GET.urlencode }}" 
+                                   class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                    {{ num }}
+                                </a>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if installment_plans.has_next %}
+                            <a href="?page={{ installment_plans.next_page_number }}&{{ request.GET.urlencode }}" 
+                               class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

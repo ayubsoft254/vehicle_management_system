@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Installment Plan Details - {{ plan.client_vehicle.client.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Breadcrumb -->
+    <nav class="flex mb-4" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li>
+                <a href="{% url 'dashboard:dashboard' %}" class="text-gray-700 hover:text-primary-600">
+                    <i class="fas fa-home"></i>
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <a href="{% url 'payments:installment_plan_list' %}" class="text-gray-700 hover:text-primary-600">Installment Plans</a>
+                </div>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">Plan Details</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Installment Plan Details</h1>
+            <p class="mt-1 text-sm text-gray-600">{{ plan.client_vehicle.client.get_full_name }} - {{ plan.client_vehicle.vehicle.registration_number }}</p>
+        </div>
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            <a href="{% url 'payments:payment_schedule_list' plan.pk %}" 
+               class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-calendar-alt mr-2"></i>
+                View Schedule
+            </a>
+            <a href="{% url 'payments:record_payment' plan.client_vehicle.pk %}" 
+               class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-plus mr-2"></i>
+                Record Payment
+            </a>
+            <a href="{% url 'payments:installment_plan_list' %}" 
+               class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to List
+            </a>
+        </div>
+    </div>
+
+    <!-- Status Alert -->
+    {% if plan.status == 'overdue' %}
+    <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-red-400 text-xl"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-red-700">
+                    <strong>This plan is overdue!</strong> Please contact the client to arrange payment.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% elif plan.status == 'completed' %}
+    <div class="mb-6 bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-check-circle text-green-400 text-xl"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-green-700">
+                    <strong>Plan completed!</strong> All payments have been received.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Plan Overview -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                    <i class="fas fa-file-invoice-dollar text-primary-600 mr-2"></i>
+                    Plan Overview
+                </h2>
+                
+                <!-- Financial Summary -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Principal Amount</label>
+                        <p class="text-2xl font-bold text-blue-600">KES {{ plan.principal_amount|floatformat:2 }}</p>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-4">
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Total Paid</label>
+                        <p class="text-2xl font-bold text-green-600">KES {{ plan.total_paid|floatformat:2 }}</p>
+                    </div>
+                    <div class="bg-red-50 rounded-lg p-4">
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Remaining Balance</label>
+                        <p class="text-2xl font-bold text-red-600">KES {{ plan.remaining_balance|floatformat:2 }}</p>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="mb-6 bg-gray-50 rounded-lg p-4">
+                    <div class="flex justify-between text-sm text-gray-600 mb-2">
+                        <span class="font-semibold">Payment Progress</span>
+                        <span class="font-bold text-gray-900">{{ plan.payment_percentage|floatformat:1 }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-4">
+                        <div class="h-4 rounded-full transition-all duration-500
+                            {% if plan.payment_percentage >= 80 %}bg-green-600
+                            {% elif plan.payment_percentage >= 50 %}bg-blue-600
+                            {% elif plan.payment_percentage >= 25 %}bg-yellow-600
+                            {% else %}bg-red-600{% endif %}" 
+                            style="width: {{ plan.payment_percentage }}%"></div>
+                    </div>
+                </div>
+
+                <!-- Plan Details -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Duration</label>
+                        <p class="text-base font-semibold text-gray-900">{{ plan.duration_months }} months</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Interest Rate</label>
+                        <p class="text-base font-semibold text-gray-900">{{ plan.interest_rate }}% per annum</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Monthly Payment</label>
+                        <p class="text-base font-semibold text-green-600">KES {{ plan.monthly_payment|floatformat:2 }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Total Interest</label>
+                        <p class="text-base font-semibold text-gray-900">KES {{ plan.total_interest|floatformat:2 }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Start Date</label>
+                        <p class="text-base text-gray-900">
+                            <i class="fas fa-calendar text-gray-400 mr-1"></i>
+                            {{ plan.start_date|date:"F d, Y" }}
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">End Date</label>
+                        <p class="text-base text-gray-900">
+                            <i class="fas fa-calendar text-gray-400 mr-1"></i>
+                            {{ plan.end_date|date:"F d, Y" }}
+                        </p>
+                    </div>
+                    {% if plan.grace_period_days %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Grace Period</label>
+                        <p class="text-base text-gray-900">{{ plan.grace_period_days }} days</p>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500 mb-1">Status</label>
+                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full 
+                            {% if plan.status == 'active' %}bg-blue-100 text-blue-800
+                            {% elif plan.status == 'completed' %}bg-green-100 text-green-800
+                            {% elif plan.status == 'overdue' %}bg-red-100 text-red-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ plan.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Payments -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                        <i class="fas fa-history text-primary-600 mr-2"></i>
+                        Recent Payments
+                    </h2>
+                    <a href="{% url 'clients:client_vehicle_detail' plan.client_vehicle.pk %}" class="text-primary-600 hover:text-primary-800 text-sm font-medium">
+                        View All <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+                <div class="space-y-3">
+                    {% for payment in recent_payments %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-150">
+                        <div class="flex-1">
+                            <div class="flex items-center">
+                                <span class="text-sm font-semibold text-gray-900">{{ payment.receipt_number }}</span>
+                                <span class="ml-2 px-2 py-1 text-xs font-semibold rounded-full
+                                    {% if payment.payment_method == 'mpesa' %}bg-green-100 text-green-800
+                                    {% elif payment.payment_method == 'cash' %}bg-blue-100 text-blue-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ payment.get_payment_method_display }}
+                                </span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">{{ payment.payment_date|date:"M d, Y" }}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-base font-bold text-green-600">KES {{ payment.amount|floatformat:2 }}</p>
+                            <a href="{% url 'payments:payment_detail' payment.pk %}" class="text-xs text-primary-600 hover:text-primary-800">
+                                View <i class="fas fa-external-link-alt ml-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-8">
+                        <i class="fas fa-inbox text-4xl text-gray-300 mb-2"></i>
+                        <p class="text-gray-500 text-sm">No payments recorded yet</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            
+            <!-- Client Information -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-user text-primary-600 mr-2"></i>
+                    Client Details
+                </h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 uppercase mb-1">Full Name</label>
+                        <p class="text-sm font-semibold text-gray-900">
+                            <a href="{% url 'clients:client_detail' plan.client_vehicle.client.pk %}" class="hover:text-primary-600">
+                                {{ plan.client_vehicle.client.get_full_name }}
+                            </a>
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 uppercase mb-1">ID Number</label>
+                        <p class="text-sm text-gray-900">{{ plan.client_vehicle.client.id_number }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 uppercase mb-1">Phone</label>
+                        <p class="text-sm text-gray-900">{{ plan.client_vehicle.client.phone_number }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 uppercase mb-1">Email</label>
+                        <p class="text-sm text-gray-900">{{ plan.client_vehicle.client.email|default:"Not provided" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vehicle Information -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-car text-primary-600 mr-2"></i>
+                    Vehicle Details
+                </h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 uppercase mb-1">Registration</label>
+                        <p class="text-sm font-semibold text-gray-900">
+                            <a href="{% url 'vehicles:vehicle_detail' plan.client_vehicle.vehicle.pk %}" class="hover:text-primary-600">
+                                {{ plan.client_vehicle.vehicle.registration_number }}
+                            </a>
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 uppercase mb-1">Make & Model</label>
+                        <p class="text-sm text-gray-900">{{ plan.client_vehicle.vehicle.make }} {{ plan.client_vehicle.vehicle.model }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 uppercase mb-1">Year</label>
+                        <p class="text-sm text-gray-900">{{ plan.client_vehicle.vehicle.year|default:"N/A" }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 uppercase mb-1">Purchase Date</label>
+                        <p class="text-sm text-gray-900">{{ plan.client_vehicle.purchase_date|date:"M d, Y" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="bg-gradient-to-br from-primary-50 to-blue-50 rounded-lg shadow-sm border border-primary-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-chart-bar text-primary-600 mr-2"></i>
+                    Quick Stats
+                </h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Payments Made</span>
+                        <span class="text-base font-bold text-gray-900">{{ plan.payments_made }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Remaining Payments</span>
+                        <span class="text-base font-bold text-gray-900">{{ plan.remaining_installments }}</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-primary-200">
+                        <span class="text-sm text-gray-600">Days Remaining</span>
+                        <span class="text-base font-bold text-gray-900">{{ plan.days_remaining }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

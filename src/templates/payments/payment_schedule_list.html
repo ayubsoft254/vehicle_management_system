@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Payment Schedule - {{ plan.client_vehicle.client.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Breadcrumb -->
+    <nav class="flex mb-4" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li>
+                <a href="{% url 'dashboard:dashboard' %}" class="text-gray-700 hover:text-primary-600">
+                    <i class="fas fa-home"></i>
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <a href="{% url 'payments:installment_plan_list' %}" class="text-gray-700 hover:text-primary-600">Installment Plans</a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <a href="{% url 'payments:installment_plan_detail' plan.pk %}" class="text-gray-700 hover:text-primary-600">Plan Details</a>
+                </div>
+            </li>
+            <li aria-current="page">
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">Payment Schedule</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Payment Schedule</h1>
+            <p class="mt-1 text-sm text-gray-600">{{ plan.client_vehicle.client.get_full_name }} - {{ plan.client_vehicle.vehicle.registration_number }}</p>
+        </div>
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            <a href="{% url 'payments:record_payment' plan.client_vehicle.pk %}" 
+               class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-plus mr-2"></i>
+                Record Payment
+            </a>
+            <a href="{% url 'payments:installment_plan_detail' plan.pk %}" 
+               class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Plan
+            </a>
+        </div>
+    </div>
+
+    <!-- Plan Summary -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Total Installments</label>
+            <p class="text-2xl font-bold text-gray-900">{{ plan.duration_months }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Paid Installments</label>
+            <p class="text-2xl font-bold text-green-600">{{ schedules_paid_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Pending Installments</label>
+            <p class="text-2xl font-bold text-yellow-600">{{ schedules_pending_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Overdue Installments</label>
+            <p class="text-2xl font-bold text-red-600">{{ schedules_overdue_count }}</p>
+        </div>
+    </div>
+
+    <!-- Schedule Table -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Installment
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Due Date
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Expected Amount
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Amount Paid
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Balance
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Payment Date
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for schedule in schedules %}
+                    <tr class="hover:bg-gray-50 transition-colors duration-150
+                        {% if schedule.status == 'overdue' %}bg-red-50
+                        {% elif schedule.status == 'paid' %}bg-green-50{% endif %}">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full
+                                    {% if schedule.status == 'paid' %}bg-green-100
+                                    {% elif schedule.status == 'overdue' %}bg-red-100
+                                    {% else %}bg-gray-100{% endif %}">
+                                    <span class="text-sm font-bold
+                                        {% if schedule.status == 'paid' %}text-green-600
+                                        {% elif schedule.status == 'overdue' %}text-red-600
+                                        {% else %}text-gray-600{% endif %}">
+                                        #{{ schedule.installment_number }}
+                                    </span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">
+                                <i class="fas fa-calendar text-gray-400 mr-1"></i>
+                                {{ schedule.due_date|date:"M d, Y" }}
+                            </div>
+                            {% if schedule.is_overdue %}
+                            <div class="text-xs text-red-600 font-semibold mt-1">
+                                {{ schedule.days_overdue }} days overdue
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-semibold text-gray-900">KES {{ schedule.expected_amount|floatformat:2 }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-semibold text-green-600">
+                                KES {{ schedule.amount_paid|floatformat:2|default:"0.00" }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-semibold
+                                {% if schedule.balance > 0 %}text-red-600
+                                {% else %}text-gray-400{% endif %}">
+                                KES {{ schedule.balance|floatformat:2 }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if schedule.payment_date %}
+                            <div class="text-sm text-gray-900">
+                                <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                                {{ schedule.payment_date|date:"M d, Y" }}
+                            </div>
+                            {% else %}
+                            <span class="text-xs text-gray-400">Not paid</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {% if schedule.status == 'paid' %}bg-green-100 text-green-800
+                                {% elif schedule.status == 'overdue' %}bg-red-100 text-red-800
+                                {% elif schedule.status == 'pending' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ schedule.get_status_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-calendar-times text-6xl text-gray-300 mb-4"></i>
+                                <p class="text-gray-500 text-lg font-medium">No payment schedules found</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if schedules %}
+                <tfoot class="bg-gray-100">
+                    <tr>
+                        <td colspan="2" class="px-6 py-4 text-sm font-bold text-gray-900">TOTALS</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-bold text-gray-900">KES {{ total_expected|floatformat:2 }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-bold text-green-600">KES {{ total_paid|floatformat:2 }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-bold text-red-600">KES {{ total_balance|floatformat:2 }}</div>
+                        </td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <h3 class="text-sm font-bold text-gray-900 mb-3">Status Legend</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="flex items-center">
+                <span class="px-2 py-1 inline-flex text-xs font-semibold rounded-full bg-green-100 text-green-800 mr-2">Paid</span>
+                <span class="text-xs text-gray-600">Payment received</span>
+            </div>
+            <div class="flex items-center">
+                <span class="px-2 py-1 inline-flex text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 mr-2">Pending</span>
+                <span class="text-xs text-gray-600">Payment due soon</span>
+            </div>
+            <div class="flex items-center">
+                <span class="px-2 py-1 inline-flex text-xs font-semibold rounded-full bg-red-100 text-red-800 mr-2">Overdue</span>
+                <span class="text-xs text-gray-600">Payment late</span>
+            </div>
+            <div class="flex items-center">
+                <span class="px-2 py-1 inline-flex text-xs font-semibold rounded-full bg-gray-100 text-gray-800 mr-2">Upcoming</span>
+                <span class="text-xs text-gray-600">Future payment</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

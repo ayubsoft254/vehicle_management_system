@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Payment Tracker - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Payment Tracker</h1>
+            <p class="mt-1 text-sm text-gray-600">Real-time payment collection monitoring</p>
+        </div>
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            <a href="{% url 'payments:payment_analytics' %}" 
+               class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-chart-bar mr-2"></i>
+                View Analytics
+            </a>
+            <button onclick="window.location.reload()" 
+                    class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-sync mr-2"></i>
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Today's Summary -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Today's Collections -->
+        <div class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-green-100 mb-1">Today's Collections</p>
+                    <p class="text-2xl font-bold">KES {{ today_collections|floatformat:2|default:"0.00" }}</p>
+                    <p class="text-xs text-green-100 mt-2">
+                        {{ today_payment_count }} payments received
+                    </p>
+                </div>
+                <div class="bg-green-400 bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-hand-holding-usd text-3xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- This Week -->
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-blue-100 mb-1">This Week</p>
+                    <p class="text-2xl font-bold">KES {{ week_collections|floatformat:2|default:"0.00" }}</p>
+                    <p class="text-xs text-blue-100 mt-2">
+                        {{ week_payment_count }} payments
+                    </p>
+                </div>
+                <div class="bg-blue-400 bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-calendar-week text-3xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- This Month -->
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-purple-100 mb-1">This Month</p>
+                    <p class="text-2xl font-bold">KES {{ month_collections|floatformat:2|default:"0.00" }}</p>
+                    <p class="text-xs text-purple-100 mt-2">
+                        {{ month_payment_count }} payments
+                    </p>
+                </div>
+                <div class="bg-purple-400 bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-calendar-alt text-3xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expected Today -->
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-orange-100 mb-1">Expected Today</p>
+                    <p class="text-2xl font-bold">KES {{ expected_today|floatformat:2|default:"0.00" }}</p>
+                    <p class="text-xs text-orange-100 mt-2">
+                        {{ due_today_count }} due payments
+                    </p>
+                </div>
+                <div class="bg-orange-400 bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-clock text-3xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collection Progress -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        
+        <!-- Monthly Target Progress -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-bullseye text-primary-600 mr-2"></i>
+                Monthly Target Progress
+            </h2>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Monthly Target</span>
+                    <span class="text-base font-bold text-gray-900">KES {{ monthly_target|floatformat:2|default:"0.00" }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Collected So Far</span>
+                    <span class="text-base font-bold text-green-600">KES {{ month_collections|floatformat:2|default:"0.00" }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Remaining</span>
+                    <span class="text-base font-bold text-red-600">KES {{ remaining_target|floatformat:2|default:"0.00" }}</span>
+                </div>
+                <div class="pt-3 border-t border-gray-200">
+                    <div class="flex justify-between text-sm text-gray-600 mb-2">
+                        <span class="font-semibold">Target Achievement</span>
+                        <span class="font-bold text-gray-900">{{ target_percentage|floatformat:1 }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-4">
+                        <div class="h-4 rounded-full transition-all duration-500
+                            {% if target_percentage >= 100 %}bg-green-600
+                            {% elif target_percentage >= 75 %}bg-blue-600
+                            {% elif target_percentage >= 50 %}bg-yellow-600
+                            {% else %}bg-red-600{% endif %}" 
+                            style="width: {{ target_percentage }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Today's Activity -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-chart-line text-primary-600 mr-2"></i>
+                Today's Activity
+            </h2>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="bg-green-500 rounded-full p-2 mr-3">
+                            <i class="fas fa-check text-white"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Payments Received</p>
+                            <p class="text-xs text-gray-500">Collected today</p>
+                        </div>
+                    </div>
+                    <span class="text-lg font-bold text-green-600">{{ today_payment_count }}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="bg-yellow-500 rounded-full p-2 mr-3">
+                            <i class="fas fa-clock text-white"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Due Today</p>
+                            <p class="text-xs text-gray-500">Expecting payment</p>
+                        </div>
+                    </div>
+                    <span class="text-lg font-bold text-yellow-600">{{ due_today_count }}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="bg-blue-500 rounded-full p-2 mr-3">
+                            <i class="fas fa-calendar-day text-white"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Due This Week</p>
+                            <p class="text-xs text-gray-500">Upcoming payments</p>
+                        </div>
+                    </div>
+                    <span class="text-lg font-bold text-blue-600">{{ due_week_count }}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="bg-red-500 rounded-full p-2 mr-3">
+                            <i class="fas fa-exclamation-triangle text-white"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Overdue</p>
+                            <p class="text-xs text-gray-500">Requires attention</p>
+                        </div>
+                    </div>
+                    <span class="text-lg font-bold text-red-600">{{ overdue_count }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Payments -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                <i class="fas fa-history text-primary-600 mr-2"></i>
+                Recent Payments (Today)
+            </h2>
+            <a href="{% url 'payments:payment_list' %}" class="text-primary-600 hover:text-primary-800 text-sm font-medium">
+                View All <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+        <div class="space-y-2">
+            {% for payment in recent_payments %}
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-150">
+                <div class="flex items-center flex-1">
+                    <div class="flex-shrink-0 bg-green-100 rounded-lg p-2 mr-3">
+                        <i class="fas fa-check-circle text-green-600"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center">
+                            <p class="text-sm font-semibold text-gray-900 truncate">
+                                {{ payment.client_vehicle.client.get_full_name }}
+                            </p>
+                            <span class="ml-2 px-2 py-1 text-xs font-semibold rounded-full
+                                {% if payment.payment_method == 'mpesa' %}bg-green-100 text-green-800
+                                {% elif payment.payment_method == 'cash' %}bg-blue-100 text-blue-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ payment.get_payment_method_display }}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            {{ payment.client_vehicle.vehicle.registration_number }} • {{ payment.payment_date|date:"g:i A" }}
+                        </p>
+                    </div>
+                </div>
+                <div class="text-right ml-3">
+                    <p class="text-sm font-bold text-green-600">KES {{ payment.amount|floatformat:2 }}</p>
+                    <a href="{% url 'payments:payment_detail' payment.pk %}" class="text-xs text-primary-600 hover:text-primary-800">
+                        View <i class="fas fa-external-link-alt ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-8">
+                <i class="fas fa-inbox text-4xl text-gray-300 mb-2"></i>
+                <p class="text-gray-500 text-sm">No payments received today</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Upcoming Due Payments -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                <i class="fas fa-calendar-check text-primary-600 mr-2"></i>
+                Due This Week
+            </h2>
+            <a href="{% url 'payments:overdue_payments' %}" class="text-red-600 hover:text-red-800 text-sm font-medium">
+                View Overdue <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vehicle</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for schedule in due_this_week %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-900">{{ schedule.installment_plan.client_vehicle.client.get_full_name }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">{{ schedule.installment_plan.client_vehicle.vehicle.registration_number }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-900">
+                            <i class="fas fa-calendar text-gray-400 mr-1"></i>
+                            {{ schedule.due_date|date:"M d, Y" }}
+                        </td>
+                        <td class="px-4 py-3 text-sm font-semibold text-gray-900">KES {{ schedule.expected_amount|floatformat:2 }}</td>
+                        <td class="px-4 py-3 text-right text-sm">
+                            <a href="{% url 'payments:record_payment' schedule.installment_plan.client_vehicle.pk %}" 
+                               class="text-green-600 hover:text-green-900">
+                                <i class="fas fa-plus-circle"></i> Record
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center">
+                            <i class="fas fa-check-circle text-4xl text-green-300 mb-2"></i>
+                            <p class="text-gray-500 text-sm">No payments due this week</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
