@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Auction Dashboard - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Auction Dashboard</h1>
+        <p class="mt-1 text-sm text-gray-600">Manage vehicle auctions and track bidding activity</p>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-blue-900">Active Auctions</p>
+                    <p class="text-3xl font-bold text-blue-900 mt-2">{{ active_auctions }}</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-200 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-gavel text-2xl text-blue-700"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-green-900">Scheduled Auctions</p>
+                    <p class="text-3xl font-bold text-green-900 mt-2">{{ scheduled_auctions }}</p>
+                </div>
+                <div class="w-12 h-12 bg-green-200 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-calendar-check text-2xl text-green-700"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-sm border border-purple-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-purple-900">My Active Bids</p>
+                    <p class="text-3xl font-bold text-purple-900 mt-2">{{ my_active_bids }}</p>
+                </div>
+                <div class="w-12 h-12 bg-purple-200 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-hand-holding-usd text-2xl text-purple-700"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg shadow-sm border border-yellow-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-yellow-900">Watchlist</p>
+                    <p class="text-3xl font-bold text-yellow-900 mt-2">{{ my_watchlist_count }}</p>
+                </div>
+                <div class="w-12 h-12 bg-yellow-200 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-star text-2xl text-yellow-700"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Ending Soon -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                        <i class="fas fa-clock text-red-600 mr-2"></i>
+                        Ending Soon
+                    </h2>
+                    <a href="{% url 'auctions:auction_list' %}?status=active" 
+                       class="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                        View All <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+                <div class="space-y-3">
+                    {% for auction in ending_soon %}
+                    <a href="{% url 'auctions:auction_detail' auction.pk %}" 
+                       class="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-150">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-900">{{ auction.title }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ auction.vehicle }} | {{ auction.auction_number }}</p>
+                                <div class="flex items-center mt-2 space-x-4">
+                                    <span class="text-xs text-gray-500">
+                                        <i class="fas fa-gavel mr-1"></i> {{ auction.total_bids }} bids
+                                    </span>
+                                    <span class="text-xs text-red-600 font-medium">
+                                        <i class="fas fa-clock mr-1"></i> 
+                                        {% if auction.time_remaining %}
+                                            {{ auction.time_remaining.total_seconds|floatformat:0|divisibleby:3600 }}h remaining
+                                        {% else %}
+                                            Ended
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="text-right ml-4">
+                                <p class="text-xs text-gray-500">Current Bid</p>
+                                <p class="text-lg font-bold text-primary-600">KES {{ auction.current_bid|floatformat:0 }}</p>
+                            </div>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <p class="text-center text-gray-500 py-8">No auctions ending soon</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Recent Auctions -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-gray-900">Recent Auctions</h2>
+                    {% if perms.auctions.add_auction %}
+                    <a href="{% url 'auctions:auction_create' %}" 
+                       class="inline-flex items-center px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition">
+                        <i class="fas fa-plus mr-1"></i> New Auction
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="space-y-3">
+                    {% for auction in recent_auctions %}
+                    <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">{{ auction.title }}</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ auction.vehicle }}</p>
+                            <span class="mt-2 inline-block px-2 py-1 text-xs font-medium rounded-full 
+                                {% if auction.status == 'active' %}bg-green-100 text-green-800
+                                {% elif auction.status == 'scheduled' %}bg-blue-100 text-blue-800
+                                {% elif auction.status == 'completed' %}bg-gray-100 text-gray-800
+                                {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                {{ auction.get_status_display }}
+                            </span>
+                        </div>
+                        <a href="{% url 'auctions:auction_detail' auction.pk %}" 
+                           class="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition">
+                            View
+                        </a>
+                    </div>
+                    {% empty %}
+                    <p class="text-center text-gray-500 py-8">No recent auctions</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Today's Activity -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-chart-line text-primary-600 mr-2"></i>
+                    Today's Activity
+                </h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="p-4 bg-green-50 rounded-lg">
+                        <p class="text-sm text-gray-600">Completed Auctions</p>
+                        <p class="text-2xl font-bold text-green-700 mt-1">{{ completed_today }}</p>
+                    </div>
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <p class="text-sm text-gray-600">Total Bids</p>
+                        <p class="text-2xl font-bold text-blue-700 mt-1">{{ total_bids_today }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="lg:col-span-1 space-y-6">
+            
+            <!-- Quick Actions -->
+            <div class="bg-gradient-to-br from-primary-50 to-blue-50 rounded-lg shadow-sm border border-primary-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-bolt text-primary-600 mr-2"></i>
+                    Quick Actions
+                </h3>
+                <div class="space-y-2">
+                    <a href="{% url 'auctions:auction_list' %}?status=active" 
+                       class="block w-full text-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                        <i class="fas fa-gavel mr-2"></i> Browse Auctions
+                    </a>
+                    <a href="{% url 'auctions:my_bids' %}" 
+                       class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-900 font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                        <i class="fas fa-list mr-2"></i> My Bids
+                    </a>
+                    <a href="{% url 'auctions:my_watchlist' %}" 
+                       class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-900 font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                        <i class="fas fa-star mr-2"></i> My Watchlist
+                    </a>
+                    <a href="{% url 'auctions:my_auctions' %}" 
+                       class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-900 font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                        <i class="fas fa-clipboard-list mr-2"></i> My Registrations
+                    </a>
+                </div>
+            </div>
+
+            <!-- Auction Types -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Auction Types</h3>
+                <div class="space-y-2">
+                    <a href="{% url 'auctions:auction_list' %}?auction_type=standard" 
+                       class="block text-sm text-gray-700 hover:text-primary-600 transition-colors duration-150">
+                        <i class="fas fa-gavel w-5 mr-2"></i> Standard Auction
+                    </a>
+                    <a href="{% url 'auctions:auction_list' %}?auction_type=reserve" 
+                       class="block text-sm text-gray-700 hover:text-primary-600 transition-colors duration-150">
+                        <i class="fas fa-shield-alt w-5 mr-2"></i> Reserve Auction
+                    </a>
+                    <a href="{% url 'auctions:auction_list' %}?auction_type=no_reserve" 
+                       class="block text-sm text-gray-700 hover:text-primary-600 transition-colors duration-150">
+                        <i class="fas fa-unlock w-5 mr-2"></i> No Reserve
+                    </a>
+                    <a href="{% url 'auctions:auction_list' %}?auction_type=silent" 
+                       class="block text-sm text-gray-700 hover:text-primary-600 transition-colors duration-150">
+                        <i class="fas fa-user-secret w-5 mr-2"></i> Silent Auction
+                    </a>
+                    <a href="{% url 'auctions:auction_list' %}?auction_type=live" 
+                       class="block text-sm text-gray-700 hover:text-primary-600 transition-colors duration-150">
+                        <i class="fas fa-video w-5 mr-2"></i> Live Auction
+                    </a>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Quick Links</h3>
+                <div class="space-y-2">
+                    <a href="{% url 'auctions:auction_list' %}?featured_only=true" 
+                       class="block text-sm text-gray-700 hover:text-primary-600 transition-colors duration-150">
+                        <i class="fas fa-fire w-5 mr-2 text-orange-500"></i> Featured Auctions
+                    </a>
+                    <a href="{% url 'auctions:auction_list' %}?status=scheduled" 
+                       class="block text-sm text-gray-700 hover:text-primary-600 transition-colors duration-150">
+                        <i class="fas fa-calendar w-5 mr-2 text-blue-500"></i> Upcoming Auctions
+                    </a>
+                    <a href="{% url 'auctions:auction_list' %}?status=completed" 
+                       class="block text-sm text-gray-700 hover:text-primary-600 transition-colors duration-150">
+                        <i class="fas fa-history w-5 mr-2 text-gray-500"></i> Past Auctions
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

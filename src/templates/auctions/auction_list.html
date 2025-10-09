@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Browse Auctions - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Page Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Browse Auctions</h1>
+            <p class="mt-1 text-sm text-gray-600">Find and bid on vehicles</p>
+        </div>
+        {% if perms.auctions.add_auction %}
+        <a href="{% url 'auctions:auction_create' %}" 
+           class="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+            <i class="fas fa-plus mr-2"></i> Create Auction
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+        <div class="bg-green-50 rounded-lg shadow-sm border border-green-200 p-4">
+            <p class="text-xs font-medium text-green-700 uppercase">Active</p>
+            <p class="text-2xl font-bold text-green-700 mt-1">{{ active_count }}</p>
+        </div>
+        <div class="bg-blue-50 rounded-lg shadow-sm border border-blue-200 p-4">
+            <p class="text-xs font-medium text-blue-700 uppercase">Upcoming</p>
+            <p class="text-2xl font-bold text-blue-700 mt-1">{{ upcoming_count }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-700 uppercase">Total Results</p>
+            <p class="text-2xl font-bold text-gray-700 mt-1">{{ paginator.count }}</p>
+        </div>
+        <div class="bg-yellow-50 rounded-lg shadow-sm border border-yellow-200 p-4">
+            <p class="text-xs font-medium text-yellow-700 uppercase">Featured</p>
+            <p class="text-2xl font-bold text-yellow-700 mt-1">{{ page_obj.object_list|selectattr:"featured"|list|length }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Filters Sidebar -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sticky top-4">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Filters</h3>
+                <form method="get" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                        <input type="text" name="search" value="{{ request.GET.search }}" 
+                               placeholder="Title, Make, Model..."
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="">All Statuses</option>
+                            <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
+                            <option value="scheduled" {% if request.GET.status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                            <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Completed</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Auction Type</label>
+                        <select name="auction_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="">All Types</option>
+                            <option value="standard" {% if request.GET.auction_type == 'standard' %}selected{% endif %}>Standard</option>
+                            <option value="reserve" {% if request.GET.auction_type == 'reserve' %}selected{% endif %}>Reserve</option>
+                            <option value="no_reserve" {% if request.GET.auction_type == 'no_reserve' %}selected{% endif %}>No Reserve</option>
+                            <option value="silent" {% if request.GET.auction_type == 'silent' %}selected{% endif %}>Silent</option>
+                            <option value="live" {% if request.GET.auction_type == 'live' %}selected{% endif %}>Live</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Price Range</label>
+                        <div class="space-y-2">
+                            <input type="number" name="min_price" value="{{ request.GET.min_price }}" 
+                                   placeholder="Min Price"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            <input type="number" name="max_price" value="{{ request.GET.max_price }}" 
+                                   placeholder="Max Price"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center">
+                        <input type="checkbox" name="featured_only" id="featured_only" 
+                               {% if request.GET.featured_only %}checked{% endif %}
+                               class="h-4 w-4 text-primary-600 rounded">
+                        <label for="featured_only" class="ml-2 text-sm text-gray-700">Featured Only</label>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+                        <select name="order" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            <option value="-start_date" {% if request.GET.order == '-start_date' %}selected{% endif %}>Newest First</option>
+                            <option value="start_date" {% if request.GET.order == 'start_date' %}selected{% endif %}>Oldest First</option>
+                            <option value="end_date" {% if request.GET.order == 'end_date' %}selected{% endif %}>Ending Soon</option>
+                            <option value="-current_bid" {% if request.GET.order == '-current_bid' %}selected{% endif %}>Highest Bid</option>
+                            <option value="current_bid" {% if request.GET.order == 'current_bid' %}selected{% endif %}>Lowest Bid</option>
+                        </select>
+                    </div>
+
+                    <div class="flex space-x-2">
+                        <button type="submit" 
+                                class="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                            <i class="fas fa-search mr-1"></i> Search
+                        </button>
+                        <a href="{% url 'auctions:auction_list' %}" 
+                           class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
+                            <i class="fas fa-redo"></i>
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Auction Grid -->
+        <div class="lg:col-span-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {% for auction in auctions %}
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-150">
+                    {% if auction.featured %}
+                    <div class="bg-gradient-to-r from-yellow-400 to-orange-500 px-3 py-1">
+                        <p class="text-xs font-bold text-white flex items-center">
+                            <i class="fas fa-star mr-1"></i> FEATURED
+                        </p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Auction Image Placeholder -->
+                    <div class="relative h-48 bg-gray-200 flex items-center justify-center">
+                        <i class="fas fa-car text-6xl text-gray-400"></i>
+                        {% if auction.is_active %}
+                        <div class="absolute top-2 right-2 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded">
+                            <i class="fas fa-circle animate-pulse mr-1"></i> LIVE
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="p-4">
+                        <!-- Title -->
+                        <h3 class="text-lg font-bold text-gray-900 mb-1">{{ auction.title }}</h3>
+                        <p class="text-sm text-gray-600 mb-2">{{ auction.vehicle }}</p>
+                        <p class="text-xs text-gray-500 mb-3">{{ auction.auction_number }}</p>
+
+                        <!-- Status & Type -->
+                        <div class="flex items-center space-x-2 mb-3">
+                            <span class="px-2 py-1 text-xs font-medium rounded-full 
+                                {% if auction.status == 'active' %}bg-green-100 text-green-800
+                                {% elif auction.status == 'scheduled' %}bg-blue-100 text-blue-800
+                                {% elif auction.status == 'completed' %}bg-gray-100 text-gray-800
+                                {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                {{ auction.get_status_display }}
+                            </span>
+                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
+                                {{ auction.get_auction_type_display }}
+                            </span>
+                        </div>
+
+                        <!-- Bidding Info -->
+                        <div class="bg-gray-50 rounded-lg p-3 mb-3">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs text-gray-500">Current Bid</span>
+                                <span class="text-lg font-bold text-primary-600">KES {{ auction.current_bid|floatformat:0 }}</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs text-gray-500">
+                                <span><i class="fas fa-gavel mr-1"></i> {{ auction.total_bids }} bids</span>
+                                <span><i class="fas fa-users mr-1"></i> {{ auction.unique_bidders }} bidders</span>
+                            </div>
+                        </div>
+
+                        <!-- Time Info -->
+                        {% if auction.status == 'active' %}
+                        <div class="flex items-center justify-between text-xs text-gray-600 mb-3">
+                            <span><i class="fas fa-clock mr-1 text-red-500"></i> 
+                                {% if auction.time_remaining %}
+                                    {% with tr=auction.time_remaining %}
+                                    {% if tr.days > 0 %}{{ tr.days }}d {% endif %}
+                                    {{ tr.seconds|divisibleby:3600 }}h remaining
+                                    {% endwith %}
+                                {% else %}
+                                    Ended
+                                {% endif %}
+                            </span>
+                            <span><i class="fas fa-eye mr-1"></i> {{ auction.views_count }} views</span>
+                        </div>
+                        {% elif auction.status == 'scheduled' %}
+                        <p class="text-xs text-blue-600 mb-3">
+                            <i class="fas fa-calendar mr-1"></i> Starts {{ auction.start_date|date:"M d, Y H:i" }}
+                        </p>
+                        {% endif %}
+
+                        <!-- Actions -->
+                        <div class="flex space-x-2">
+                            <a href="{% url 'auctions:auction_detail' auction.pk %}" 
+                               class="flex-1 text-center px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition">
+                                {% if auction.is_active %}
+                                    <i class="fas fa-gavel mr-1"></i> Bid Now
+                                {% else %}
+                                    <i class="fas fa-eye mr-1"></i> View
+                                {% endif %}
+                            </a>
+                            {% if user.is_authenticated %}
+                            <form method="post" action="{% url 'auctions:add_to_watchlist' auction.pk %}" class="inline-block">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        class="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition"
+                                        title="Add to Watchlist">
+                                    <i class="fas fa-star"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-span-2 text-center py-12">
+                    <i class="fas fa-gavel text-6xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500 text-lg">No auctions found</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <div class="mt-6 flex justify-center">
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                    {% if page_obj.has_previous %}
+                    <a href="?page=1{{ request.GET.urlencode }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                    <a href="?page={{ page_obj.previous_page_number }}{{ request.GET.urlencode }}" class="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                    {% endif %}
+                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+                    {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{{ request.GET.urlencode }}" class="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}{{ request.GET.urlencode }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

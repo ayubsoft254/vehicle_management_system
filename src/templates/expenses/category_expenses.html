@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ category.name }} - Expenses{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-3 mb-2">
+            <a href="{% url 'expenses:category_list' %}" 
+               class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div class="flex items-center">
+                <div class="w-12 h-12 rounded-lg flex items-center justify-center mr-3" 
+                     style="background-color: {{ category.color }}20;">
+                    <i class="fas {{ category.icon|default:'fa-tag' }} text-2xl" 
+                       style="color: {{ category.color }};"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">{{ category.name }}</h1>
+                    <p class="text-sm text-gray-600">{{ category.code }}</p>
+                </div>
+            </div>
+        </div>
+        {% if category.description %}
+        <p class="text-gray-600 ml-16">{{ category.description }}</p>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Main Content -->
+        <div class="lg:col-span-3">
+            
+            <!-- Statistics Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 bg-blue-100 rounded-lg p-3">
+                            <i class="fas fa-receipt text-2xl text-blue-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Total Expenses</p>
+                            <p class="text-2xl font-bold text-gray-900">{{ expenses.count|default:0 }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 bg-green-100 rounded-lg p-3">
+                            <i class="fas fa-money-bill-wave text-2xl text-green-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Total Amount</p>
+                            <p class="text-xl font-bold text-gray-900">KES {{ total_amount|floatformat:2|default:"0.00" }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 bg-purple-100 rounded-lg p-3">
+                            <i class="fas fa-calendar text-2xl text-purple-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">This Month</p>
+                            <p class="text-xl font-bold text-gray-900">KES {{ month_total|floatformat:0|default:"0" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expenses Table -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-lg font-bold text-gray-900">All Expenses</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Expense
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Date
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Amount
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Submitted By
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Status
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for expense in expenses %}
+                            <tr class="hover:bg-gray-50 transition-colors duration-150">
+                                <td class="px-6 py-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ expense.title }}</div>
+                                    {% if expense.vendor_name %}
+                                    <div class="text-xs text-gray-500">{{ expense.vendor_name }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ expense.expense_date|date:"M d, Y" }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-semibold text-gray-900">KES {{ expense.total_amount|floatformat:2 }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ expense.submitted_by.get_full_name|default:expense.submitted_by.username }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                        {% if expense.status == 'APPROVED' %}bg-green-100 text-green-800
+                                        {% elif expense.status == 'SUBMITTED' %}bg-yellow-100 text-yellow-800
+                                        {% elif expense.status == 'REJECTED' %}bg-red-100 text-red-800
+                                        {% elif expense.status == 'PAID' %}bg-blue-100 text-blue-800
+                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                        {{ expense.get_status_display }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <a href="{% url 'expenses:expense_detail' expense.pk %}" 
+                                       class="text-primary-600 hover:text-primary-900">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="px-6 py-12 text-center">
+                                    <i class="fas fa-receipt text-6xl text-gray-300 mb-4"></i>
+                                    <p class="text-gray-500 text-lg font-medium">No expenses in this category</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="lg:col-span-1 space-y-6">
+            
+            <!-- Budget Status -->
+            {% if category.budget_limit %}
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-wallet text-primary-600 mr-2"></i>
+                    Budget Status
+                </h3>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm text-gray-600">Usage</span>
+                            <span class="text-sm font-bold {% if category.is_over_budget %}text-red-600{% else %}text-gray-900{% endif %}">
+                                {{ category.budget_percentage|floatformat:0 }}%
+                            </span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="h-3 rounded-full transition-all duration-300 
+                                {% if category.is_over_budget %}bg-red-500
+                                {% elif category.budget_percentage > 80 %}bg-yellow-500
+                                {% else %}bg-green-500{% endif %}" 
+                                 style="width: {{ category.budget_percentage|floatformat:0 }}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-3 border-t border-gray-200 space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">Budget</span>
+                            <span class="font-semibold">KES {{ category.budget_limit|floatformat:2 }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">Spent</span>
+                            <span class="font-semibold">KES {{ category.get_total_expenses|floatformat:2 }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm pt-2 border-t border-gray-200">
+                            <span class="text-gray-600 font-semibold">Remaining</span>
+                            <span class="font-bold {% if category.is_over_budget %}text-red-600{% else %}text-green-600{% endif %}">
+                                KES {{ category.budget_limit|add:category.get_total_expenses|floatformat:2 }}
+                            </span>
+                        </div>
+                    </div>
+
+                    {% if category.is_over_budget %}
+                    <div class="mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                        <p class="text-xs text-red-700 flex items-center">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            Budget exceeded
+                        </p>
+                    </div>
+                    {% elif category.budget_percentage > 80 %}
+                    <div class="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <p class="text-xs text-yellow-700 flex items-center">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            Approaching budget limit
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Category Settings -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-cog text-primary-600 mr-2"></i>
+                    Category Settings
+                </h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-700">Receipt Required</span>
+                        <span class="text-sm font-semibold">
+                            {% if category.requires_receipt %}
+                            <i class="fas fa-check-circle text-green-600"></i> Yes
+                            {% else %}
+                            <i class="fas fa-times-circle text-gray-400"></i> No
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-700">Approval Required</span>
+                        <span class="text-sm font-semibold">
+                            {% if category.requires_approval %}
+                            <i class="fas fa-check-circle text-green-600"></i> Yes
+                            {% else %}
+                            <i class="fas fa-times-circle text-gray-400"></i> No
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-700">Status</span>
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full 
+                            {% if category.is_active %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {% if category.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% if perms.expenses.change_expensecategory %}
+                <a href="{% url 'expenses:category_update' category.pk %}" 
+                   class="mt-4 block w-full text-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                    <i class="fas fa-edit mr-2"></i> Edit Category
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Quick Links -->
+            <div class="bg-gradient-to-br from-primary-50 to-blue-50 rounded-lg shadow-sm border border-primary-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-link text-primary-600 mr-2"></i>
+                    Quick Links
+                </h3>
+                <div class="space-y-2">
+                    <a href="{% url 'expenses:expense_create' %}" 
+                       class="block w-full text-left px-4 py-2 bg-white hover:bg-gray-50 text-gray-900 rounded-lg transition duration-150 ease-in-out shadow-sm">
+                        <i class="fas fa-plus text-green-600 mr-2"></i> New Expense
+                    </a>
+                    <a href="{% url 'expenses:category_list' %}" 
+                       class="block w-full text-left px-4 py-2 bg-white hover:bg-gray-50 text-gray-900 rounded-lg transition duration-150 ease-in-out shadow-sm">
+                        <i class="fas fa-folder text-blue-600 mr-2"></i> All Categories
+                    </a>
+                    <a href="{% url 'expenses:expense_list' %}" 
+                       class="block w-full text-left px-4 py-2 bg-white hover:bg-gray-50 text-gray-900 rounded-lg transition duration-150 ease-in-out shadow-sm">
+                        <i class="fas fa-list text-purple-600 mr-2"></i> All Expenses
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

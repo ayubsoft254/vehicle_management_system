@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Delete Expense - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-2xl">
+    
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-red-600 flex items-center">
+            <i class="fas fa-exclamation-triangle mr-3"></i>
+            Confirm Deletion
+        </h1>
+        <p class="mt-1 text-sm text-gray-600">This action cannot be undone</p>
+    </div>
+
+    <!-- Warning Card -->
+    <div class="bg-red-50 border-l-4 border-red-400 p-6 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-circle text-red-400 text-2xl"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-lg font-medium text-red-800">Warning</h3>
+                <div class="mt-2 text-sm text-red-700">
+                    <p>You are about to permanently delete this expense. This action will:</p>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li>Remove the expense from all reports</li>
+                        <li>Delete all associated receipts</li>
+                        <li>Remove approval workflow history</li>
+                        <li>Cannot be recovered after deletion</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expense Details -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">Expense to Delete</h2>
+        <div class="space-y-3">
+            <div class="flex justify-between items-start">
+                <span class="text-sm font-medium text-gray-600">Title:</span>
+                <span class="text-sm text-gray-900 font-semibold">{{ object.title }}</span>
+            </div>
+            <div class="flex justify-between items-start">
+                <span class="text-sm font-medium text-gray-600">Category:</span>
+                <span class="px-2 py-1 text-xs font-semibold rounded-full" 
+                      style="background-color: {{ object.category.color }}20; color: {{ object.category.color }};">
+                    {{ object.category.name }}
+                </span>
+            </div>
+            <div class="flex justify-between items-start">
+                <span class="text-sm font-medium text-gray-600">Amount:</span>
+                <span class="text-sm text-gray-900 font-bold">KES {{ object.total_amount|floatformat:2 }}</span>
+            </div>
+            <div class="flex justify-between items-start">
+                <span class="text-sm font-medium text-gray-600">Date:</span>
+                <span class="text-sm text-gray-900">{{ object.expense_date|date:"F d, Y" }}</span>
+            </div>
+            <div class="flex justify-between items-start">
+                <span class="text-sm font-medium text-gray-600">Status:</span>
+                <span class="px-2 py-1 text-xs font-semibold rounded-full 
+                    {% if object.status == 'APPROVED' %}bg-green-100 text-green-800
+                    {% elif object.status == 'SUBMITTED' %}bg-yellow-100 text-yellow-800
+                    {% elif object.status == 'REJECTED' %}bg-red-100 text-red-800
+                    {% elif object.status == 'PAID' %}bg-blue-100 text-blue-800
+                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {{ object.get_status_display }}
+                </span>
+            </div>
+            {% if object.vendor_name %}
+            <div class="flex justify-between items-start">
+                <span class="text-sm font-medium text-gray-600">Vendor:</span>
+                <span class="text-sm text-gray-900">{{ object.vendor_name }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Confirmation Form -->
+    <form method="post">
+        {% csrf_token %}
+        <div class="bg-gray-50 rounded-lg border border-gray-200 p-6 mb-6">
+            <label class="flex items-center">
+                <input type="checkbox" 
+                       required 
+                       class="h-5 w-5 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                <span class="ml-3 text-sm text-gray-700">
+                    I understand that this action is permanent and cannot be undone
+                </span>
+            </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-end space-x-3">
+            <a href="{% url 'expenses:expense_detail' object.pk %}" 
+               class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium rounded-lg transition duration-150 ease-in-out">
+                <i class="fas fa-times mr-2"></i>
+                Cancel
+            </a>
+            <button type="submit" 
+                    class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-trash mr-2"></i>
+                Delete Expense
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

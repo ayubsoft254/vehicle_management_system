@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Approve Expense - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-3 mb-2">
+            <a href="{% url 'expenses:expense_detail' expense.pk %}" 
+               class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">Review Expense</h1>
+        </div>
+        <p class="text-sm text-gray-600 ml-10">Approve or reject this expense request</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Expense Summary -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-receipt text-primary-600 mr-2"></i>
+                    Expense Summary
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">{{ expense.title }}</h3>
+                        <p class="text-sm text-gray-600 mt-1">{{ expense.description }}</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase">Category</label>
+                            <span class="mt-1 px-3 py-1 inline-flex text-sm font-semibold rounded-full" 
+                                  style="background-color: {{ expense.category.color }}20; color: {{ expense.category.color }};">
+                                {{ expense.category.name }}
+                            </span>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase">Date</label>
+                            <p class="mt-1 text-sm text-gray-900">{{ expense.expense_date|date:"M d, Y" }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase">Vendor</label>
+                            <p class="mt-1 text-sm text-gray-900">{{ expense.vendor_name|default:"N/A" }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase">Payment Method</label>
+                            <p class="mt-1 text-sm text-gray-900">{{ expense.get_payment_method_display }}</p>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <span class="text-lg font-semibold text-gray-700">Total Amount</span>
+                            <span class="text-2xl font-bold text-primary-600">KES {{ expense.total_amount|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receipts -->
+            {% if receipts %}
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-paperclip text-primary-600 mr-2"></i>
+                    Attached Receipts ({{ receipts.count }})
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {% for receipt in receipts %}
+                    <a href="{{ receipt.file.url }}" 
+                       target="_blank" 
+                       class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200 flex items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-file-pdf text-3xl text-red-500"></i>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <p class="text-sm font-medium text-gray-900 truncate">{{ receipt.file_name }}</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ receipt.uploaded_at|date:"M d, Y" }}</p>
+                        </div>
+                        <i class="fas fa-external-link-alt text-gray-400"></i>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-yellow-700">
+                            No receipts have been uploaded for this expense.
+                            {% if expense.category.requires_receipt %}
+                            <strong>Note: This category requires a receipt.</strong>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Approval Form -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-tasks text-primary-600 mr-2"></i>
+                    Your Decision
+                </h2>
+                <form method="post" class="space-y-4">
+                    {% csrf_token %}
+                    
+                    <!-- Comments -->
+                    <div>
+                        <label for="comments" class="block text-sm font-medium text-gray-700 mb-1">
+                            Comments (Optional)
+                        </label>
+                        <textarea id="comments" 
+                                  name="comments" 
+                                  rows="4" 
+                                  placeholder="Add any notes or feedback about this expense..."
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-vertical"></textarea>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex items-center justify-end space-x-3">
+                        <a href="{% url 'expenses:expense_detail' expense.pk %}" 
+                           class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium rounded-lg transition duration-150 ease-in-out">
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                                name="action" 
+                                value="reject" 
+                                class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                            <i class="fas fa-times-circle mr-2"></i>
+                            Reject
+                        </button>
+                        <button type="submit" 
+                                name="action" 
+                                value="approve" 
+                                class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            Approve
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="lg:col-span-1 space-y-6">
+            
+            <!-- Submitted By -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-user text-primary-600 mr-2"></i>
+                    Submitted By
+                </h3>
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-primary-100 rounded-full mx-auto flex items-center justify-center mb-3">
+                        <i class="fas fa-user text-2xl text-primary-600"></i>
+                    </div>
+                    <p class="font-medium text-gray-900">{{ expense.submitted_by.get_full_name|default:expense.submitted_by.username }}</p>
+                    <p class="text-sm text-gray-500 mt-1">{{ expense.submitted_by.email }}</p>
+                    <p class="text-xs text-gray-400 mt-2">
+                        <i class="fas fa-calendar mr-1"></i>
+                        {{ expense.created_at|date:"M d, Y" }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Approval Checklist -->
+            <div class="bg-gradient-to-br from-blue-50 to-primary-50 rounded-lg shadow-sm border border-blue-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-clipboard-check text-primary-600 mr-2"></i>
+                    Review Checklist
+                </h3>
+                <div class="space-y-3">
+                    <div class="flex items-start">
+                        <i class="fas fa-{% if expense.vendor_name %}check-circle text-green-600{% else %}times-circle text-gray-400{% endif %} mt-1 mr-2"></i>
+                        <span class="text-sm text-gray-700">Vendor information provided</span>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-{% if receipts %}check-circle text-green-600{% else %}times-circle text-gray-400{% endif %} mt-1 mr-2"></i>
+                        <span class="text-sm text-gray-700">Receipt attached</span>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-{% if expense.invoice_number %}check-circle text-green-600{% else %}times-circle text-gray-400{% endif %} mt-1 mr-2"></i>
+                        <span class="text-sm text-gray-700">Invoice number provided</span>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-{% if expense.description %}check-circle text-green-600{% else %}times-circle text-gray-400{% endif %} mt-1 mr-2"></i>
+                        <span class="text-sm text-gray-700">Description included</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget Impact -->
+            {% if expense.category.budget_limit %}
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-chart-line text-primary-600 mr-2"></i>
+                    Budget Impact
+                </h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Category Budget</span>
+                        <span class="font-semibold">KES {{ expense.category.budget_limit|floatformat:2 }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Current Spend</span>
+                        <span class="font-semibold">KES {{ expense.category.get_total_expenses|floatformat:2 }}</span>
+                    </div>
+                    <div class="pt-2 border-t border-gray-200">
+                        <div class="flex justify-between text-sm font-bold">
+                            <span>After Approval</span>
+                            <span class="{% if expense.category.is_over_budget %}text-red-600{% else %}text-green-600{% endif %}">
+                                KES {{ expense.category.get_total_expenses|add:expense.total_amount|floatformat:2 }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% if expense.category.is_over_budget %}
+                <div class="mt-3 p-2 bg-red-50 rounded">
+                    <p class="text-xs text-red-700">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        This will exceed the category budget
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

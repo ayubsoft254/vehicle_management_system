@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ employee.get_full_name }} - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Back Button -->
+    <div class="mb-4">
+        <a href="{% url 'payroll:employee_list' %}" 
+           class="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Employees
+        </a>
+    </div>
+
+    <!-- Employee Header -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
+            <div class="flex items-center mb-4 md:mb-0">
+                <div class="flex-shrink-0 h-20 w-20 bg-primary-100 rounded-full flex items-center justify-center">
+                    <span class="text-primary-700 font-bold text-2xl">{{ employee.first_name.0 }}{{ employee.last_name.0 }}</span>
+                </div>
+                <div class="ml-6">
+                    <h1 class="text-3xl font-bold text-gray-900">{{ employee.get_full_name }}</h1>
+                    <p class="text-sm text-gray-500 mt-1">{{ employee.employee_id }}</p>
+                    <div class="flex items-center space-x-3 mt-2">
+                        <span class="px-3 py-1 text-xs font-medium rounded-full 
+                            {% if employee.status == 'ACTIVE' %}bg-green-100 text-green-800
+                            {% elif employee.status == 'ON_LEAVE' %}bg-yellow-100 text-yellow-800
+                            {% elif employee.status == 'SUSPENDED' %}bg-red-100 text-red-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ employee.get_status_display }}
+                        </span>
+                        <span class="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                            {{ employee.get_employment_type_display }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                <a href="{% url 'payroll:employee_update' employee.pk %}" 
+                   class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                    <i class="fas fa-edit mr-2"></i> Edit Employee
+                </a>
+                <a href="{% url 'payroll:salary_structure_create' employee.pk %}" 
+                   class="inline-flex items-center justify-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                    <i class="fas fa-money-bill-wave mr-2"></i> Manage Salary
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-4">
+            <p class="text-xs font-medium text-blue-900 uppercase">Tenure</p>
+            <p class="text-2xl font-bold text-blue-900 mt-1">{{ tenure_years }} years</p>
+        </div>
+        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-4">
+            <p class="text-xs font-medium text-green-900 uppercase">Department</p>
+            <p class="text-xl font-bold text-green-900 mt-1">{{ employee.department|default:"N/A" }}</p>
+        </div>
+        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-sm border border-purple-200 p-4">
+            <p class="text-xs font-medium text-purple-900 uppercase">Job Title</p>
+            <p class="text-xl font-bold text-purple-900 mt-1">{{ employee.job_title }}</p>
+        </div>
+        <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg shadow-sm border border-yellow-200 p-4">
+            <p class="text-xs font-medium text-yellow-900 uppercase">Leave Balance</p>
+            <p class="text-2xl font-bold text-yellow-900 mt-1">{{ leave_balance }} days</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Tabs -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200" x-data="{ tab: 'details' }">
+                <div class="border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-8 px-6" aria-label="Tabs">
+                        <button @click="tab = 'details'" 
+                                :class="tab === 'details' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                            Details
+                        </button>
+                        <button @click="tab = 'salary'" 
+                                :class="tab === 'salary' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                            Salary
+                        </button>
+                        <button @click="tab = 'payslips'" 
+                                :class="tab === 'payslips' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                            Payslips
+                        </button>
+                        <button @click="tab = 'deductions'" 
+                                :class="tab === 'deductions' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                            Deductions
+                        </button>
+                        <button @click="tab = 'loans'" 
+                                :class="tab === 'loans' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                            Loans
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="p-6">
+                    <!-- Details Tab -->
+                    <div x-show="tab === 'details'">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+                                <dl class="space-y-3">
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Full Name</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ employee.get_full_name }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Email</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ employee.email }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Phone</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ employee.phone_number|default:"N/A" }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Date of Birth</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ employee.date_of_birth|date:"M d, Y"|default:"N/A" }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">National ID</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ employee.national_id|default:"N/A" }}</dd>
+                                    </div>
+                                </dl>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Employment Information</h3>
+                                <dl class="space-y-3">
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Hire Date</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ employee.hire_date|date:"M d, Y" }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Job Title</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ employee.job_title }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Department</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ employee.department|default:"N/A" }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Employment Type</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">{{ employee.get_employment_type_display }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Status</dt>
+                                        <dd class="mt-1">
+                                            <span class="px-2 py-1 text-xs font-medium rounded-full 
+                                                {% if employee.status == 'ACTIVE' %}bg-green-100 text-green-800
+                                                {% elif employee.status == 'ON_LEAVE' %}bg-yellow-100 text-yellow-800
+                                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                {{ employee.get_status_display }}
+                                            </span>
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Salary Tab -->
+                    <div x-show="tab === 'salary'" style="display: none;">
+                        {% if salary_structure %}
+                        <div class="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-6 mb-4">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-900">Current Salary Structure</h3>
+                                <a href="{% url 'payroll:salary_structure_create' employee.pk %}" 
+                                   class="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                                    <i class="fas fa-edit mr-1"></i> Edit
+                                </a>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p class="text-sm text-gray-600">Basic Salary</p>
+                                    <p class="text-xl font-bold text-gray-900">KES {{ salary_structure.basic_salary|floatformat:0 }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">Gross Salary</p>
+                                    <p class="text-xl font-bold text-green-700">KES {{ salary_structure.calculate_gross_salary|floatformat:0 }}</p>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-4 border-t border-green-200">
+                                <p class="text-sm font-medium text-gray-700 mb-2">Allowances</p>
+                                <div class="grid grid-cols-2 gap-2 text-sm">
+                                    {% if salary_structure.housing_allowance %}
+                                    <div class="flex justify-between"><span class="text-gray-600">Housing:</span><span class="font-medium">KES {{ salary_structure.housing_allowance|floatformat:0 }}</span></div>
+                                    {% endif %}
+                                    {% if salary_structure.transport_allowance %}
+                                    <div class="flex justify-between"><span class="text-gray-600">Transport:</span><span class="font-medium">KES {{ salary_structure.transport_allowance|floatformat:0 }}</span></div>
+                                    {% endif %}
+                                    {% if salary_structure.medical_allowance %}
+                                    <div class="flex justify-between"><span class="text-gray-600">Medical:</span><span class="font-medium">KES {{ salary_structure.medical_allowance|floatformat:0 }}</span></div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-8">
+                            <i class="fas fa-money-bill-wave text-6xl text-gray-300 mb-4"></i>
+                            <p class="text-gray-500 mb-4">No salary structure defined</p>
+                            <a href="{% url 'payroll:salary_structure_create' employee.pk %}" 
+                               class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg">
+                                <i class="fas fa-plus mr-2"></i> Add Salary Structure
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Payslips Tab -->
+                    <div x-show="tab === 'payslips'" style="display: none;">
+                        <div class="space-y-3">
+                            {% for payslip in recent_payslips %}
+                            <a href="{% url 'payroll:payslip_detail' payslip.pk %}" 
+                               class="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-150">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900">{{ payslip.payroll_run.payroll_month|date:"F Y" }}</p>
+                                        <p class="text-xs text-gray-500 mt-1">{{ payslip.payroll_run.payroll_number }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-sm font-bold text-primary-600">KES {{ payslip.net_salary|floatformat:0 }}</p>
+                                        <span class="text-xs px-2 py-1 rounded-full {% if payslip.is_paid %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                            {% if payslip.is_paid %}Paid{% else %}Pending{% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                            </a>
+                            {% empty %}
+                            <p class="text-center text-gray-500 py-8">No payslips yet</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Deductions Tab -->
+                    <div x-show="tab === 'deductions'" style="display: none;">
+                        <div class="space-y-3">
+                            {% for deduction in active_deductions %}
+                            <div class="p-4 border border-gray-200 rounded-lg">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900">{{ deduction.get_deduction_type_display }}</p>
+                                        <p class="text-xs text-gray-500 mt-1">{{ deduction.description }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-sm font-bold text-gray-900">
+                                            {% if deduction.is_percentage %}{{ deduction.amount }}%{% else %}KES {{ deduction.amount|floatformat:0 }}{% endif %}
+                                        </p>
+                                        <p class="text-xs text-gray-500">{{ deduction.get_frequency_display }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p class="text-center text-gray-500 py-8">No active deductions</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Loans Tab -->
+                    <div x-show="tab === 'loans'" style="display: none;">
+                        <div class="space-y-3">
+                            {% for loan in active_loans %}
+                            <div class="p-4 border border-gray-200 rounded-lg">
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-sm font-medium text-gray-900">Loan #{{ loan.id }}</p>
+                                    <span class="px-2 py-1 text-xs font-medium rounded-full 
+                                        {% if loan.status == 'ACTIVE' %}bg-blue-100 text-blue-800
+                                        {% elif loan.status == 'COMPLETED' %}bg-green-100 text-green-800
+                                        {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                        {{ loan.get_status_display }}
+                                    </span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 text-sm mb-2">
+                                    <div><span class="text-gray-500">Amount:</span> <span class="font-medium">KES {{ loan.loan_amount|floatformat:0 }}</span></div>
+                                    <div><span class="text-gray-500">Balance:</span> <span class="font-medium">KES {{ loan.balance|floatformat:0 }}</span></div>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-primary-600 h-2 rounded-full" style="width: {{ loan.get_repayment_percentage }}%"></div>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">{{ loan.get_repayment_percentage }}% repaid</p>
+                            </div>
+                            {% empty %}
+                            <p class="text-center text-gray-500 py-8">No active loans</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="lg:col-span-1 space-y-6">
+            
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
+                <div class="space-y-2">
+                    <a href="{% url 'payroll:commission_create' %}?employee={{ employee.pk }}" 
+                       class="block w-full text-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                        <i class="fas fa-percentage mr-2"></i> Add Commission
+                    </a>
+                    <a href="{% url 'payroll:deduction_create' %}?employee={{ employee.pk }}" 
+                       class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 font-medium rounded-lg transition duration-150 ease-in-out">
+                        <i class="fas fa-minus-circle mr-2"></i> Add Deduction
+                    </a>
+                    <a href="{% url 'payroll:leave_create' %}?employee={{ employee.pk }}" 
+                       class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 font-medium rounded-lg transition duration-150 ease-in-out">
+                        <i class="fas fa-calendar-times mr-2"></i> Request Leave
+                    </a>
+                    <a href="{% url 'payroll:loan_create' %}?employee={{ employee.pk }}" 
+                       class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 font-medium rounded-lg transition duration-150 ease-in-out">
+                        <i class="fas fa-hand-holding-usd mr-2"></i> Apply for Loan
+                    </a>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Recent Commissions</h3>
+                <div class="space-y-3">
+                    {% for commission in recent_commissions %}
+                    <div class="pb-3 border-b border-gray-200 last:border-0">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm font-medium text-gray-900">{{ commission.description|truncatewords:5 }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ commission.commission_date|date:"M d, Y" }}</p>
+                            </div>
+                            <p class="text-sm font-bold text-green-600">KES {{ commission.amount|floatformat:0 }}</p>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-sm text-gray-500 text-center py-4">No commissions</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Upload Receipt - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-3xl">
+    
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-3 mb-2">
+            <a href="{% url 'expenses:expense_detail' expense.pk %}" 
+               class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">Upload Receipt</h1>
+        </div>
+        <p class="text-sm text-gray-600 ml-10">Add receipt for {{ expense.title }}</p>
+    </div>
+
+    <!-- Expense Info -->
+    <div class="bg-gradient-to-r from-primary-50 to-blue-50 border border-primary-200 rounded-lg p-4 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-700">Expense</p>
+                <p class="text-lg font-bold text-gray-900">{{ expense.title }}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-sm font-medium text-gray-700">Amount</p>
+                <p class="text-lg font-bold text-primary-600">KES {{ expense.total_amount|floatformat:2 }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Form -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+            <i class="fas fa-cloud-upload-alt text-primary-600 mr-2"></i>
+            Upload New Receipt
+        </h2>
+        <form method="post" enctype="multipart/form-data" class="space-y-4">
+            {% csrf_token %}
+            
+            <!-- File Upload -->
+            <div>
+                <label for="{{ form.file.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    Select File <span class="text-red-600">*</span>
+                </label>
+                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-primary-500 transition-colors duration-200">
+                    <div class="space-y-1 text-center">
+                        <i class="fas fa-file-upload text-4xl text-gray-400 mb-3"></i>
+                        <div class="flex text-sm text-gray-600">
+                            <label for="{{ form.file.id_for_label }}" 
+                                   class="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
+                                <span>Upload a file</span>
+                                {{ form.file }}
+                            </label>
+                            <p class="pl-1">or drag and drop</p>
+                        </div>
+                        <p class="text-xs text-gray-500">
+                            PDF, PNG, JPG up to 10MB
+                        </p>
+                    </div>
+                </div>
+                {% if form.file.errors %}
+                <p class="mt-2 text-sm text-red-600">{{ form.file.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                    Description (Optional)
+                </label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ form.description.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Info Box -->
+            <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle text-blue-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            Please ensure the receipt clearly shows the vendor name, date, amount, and description of items or services.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex items-center justify-end space-x-3 pt-4">
+                <a href="{% url 'expenses:expense_detail' expense.pk %}" 
+                   class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium rounded-lg transition duration-150 ease-in-out">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                    <i class="fas fa-upload mr-2"></i>
+                    Upload Receipt
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Existing Receipts -->
+    {% if existing_receipts %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+            <i class="fas fa-paperclip text-primary-600 mr-2"></i>
+            Existing Receipts ({{ existing_receipts.count }})
+        </h2>
+        <div class="space-y-3">
+            {% for receipt in existing_receipts %}
+            <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-150">
+                <div class="flex items-center flex-1">
+                    <i class="fas fa-file-pdf text-2xl text-red-500 mr-3"></i>
+                    <div>
+                        <p class="text-sm font-medium text-gray-900">{{ receipt.file_name }}</p>
+                        <p class="text-xs text-gray-500">
+                            Uploaded {{ receipt.uploaded_at|date:"M d, Y" }}
+                            {% if receipt.description %} - {{ receipt.description }}{% endif %}
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <a href="{{ receipt.file.url }}" 
+                       target="_blank" 
+                       class="text-primary-600 hover:text-primary-700 p-2" 
+                       title="View">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                    {% if expense.can_edit %}
+                    <form method="post" action="{% url 'expenses:receipt_delete' receipt.pk %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" 
+                                class="text-red-600 hover:text-red-700 p-2" 
+                                title="Delete"
+                                onclick="return confirm('Delete this receipt?')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    input[type="file"] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+    }
+    
+    textarea {
+        width: 100%;
+        padding: 0.5rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        min-height: 80px;
+        resize: vertical;
+    }
+    
+    textarea:focus {
+        outline: none;
+        ring: 2px;
+        ring-color: #2563eb;
+        border-color: transparent;
+    }
+</style>
+{% endblock %}

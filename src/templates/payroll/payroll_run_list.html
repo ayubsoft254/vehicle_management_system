@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Payroll Runs - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Payroll Runs</h1>
+            <p class="mt-1 text-sm text-gray-600">Monthly payroll processing and management</p>
+        </div>
+        <a href="{% url 'payroll:payroll_run_create' %}" 
+           class="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg">
+            <i class="fas fa-plus mr-2"></i> New Payroll Run
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Month From</label>
+                <input type="month" name="month_from" value="{{ request.GET.month_from }}" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Month To</label>
+                <input type="month" name="month_to" value="{{ request.GET.month_to }}" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    <option value="">All Statuses</option>
+                    <option value="DRAFT">Draft</option>
+                    <option value="PROCESSING">Processing</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="PAID">Paid</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg">
+                    <i class="fas fa-search mr-2"></i> Search
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Payroll Runs Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for payroll in payroll_runs %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-150">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-gray-900">{{ payroll.payroll_month|date:"F Y" }}</h3>
+                <span class="px-3 py-1 text-xs font-semibold rounded-full 
+                    {% if payroll.status == 'COMPLETED' %}bg-green-100 text-green-800
+                    {% elif payroll.status == 'APPROVED' %}bg-blue-100 text-blue-800
+                    {% elif payroll.status == 'PAID' %}bg-purple-100 text-purple-800
+                    {% elif payroll.status == 'PROCESSING' %}bg-yellow-100 text-yellow-800
+                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {{ payroll.get_status_display }}
+                </span>
+            </div>
+            <p class="text-sm text-gray-500 mb-4">{{ payroll.payroll_number }}</p>
+            <div class="space-y-3 mb-4">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Employees:</span>
+                    <span class="font-medium text-gray-900">{{ payroll.total_employees }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Gross Total:</span>
+                    <span class="font-medium text-gray-900">KES {{ payroll.total_gross|floatformat:0 }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Deductions:</span>
+                    <span class="font-medium text-red-600">KES {{ payroll.total_deductions|floatformat:0 }}</span>
+                </div>
+                <div class="flex justify-between text-sm pt-2 border-t border-gray-200">
+                    <span class="text-gray-700 font-medium">Net Total:</span>
+                    <span class="font-bold text-primary-600">KES {{ payroll.total_net|floatformat:0 }}</span>
+                </div>
+            </div>
+            <div class="flex space-x-2">
+                <a href="{% url 'payroll:payroll_run_detail' payroll.pk %}" 
+                   class="flex-1 text-center px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg">
+                    <i class="fas fa-eye mr-1"></i> View
+                </a>
+                {% if payroll.status == 'DRAFT' %}
+                <a href="{% url 'payroll:payroll_run_process' payroll.pk %}" 
+                   class="flex-1 text-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg">
+                    <i class="fas fa-cogs mr-1"></i> Process
+                </a>
+                {% elif payroll.status == 'COMPLETED' %}
+                <form method="post" action="{% url 'payroll:payroll_run_approve' payroll.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
+                        <i class="fas fa-check mr-1"></i> Approve
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-3 text-center py-12">
+            <i class="fas fa-file-invoice-dollar text-6xl text-gray-300 mb-4"></i>
+            <p class="text-gray-500 text-lg">No payroll runs found</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="mt-6 flex justify-center">
+        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+            {% endif %}
+            <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+            {% endif %}
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

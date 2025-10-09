@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ report.title }} - Expense Report{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <div class="flex items-center space-x-3 mb-2">
+                <a href="{% url 'expenses:report_list' %}" 
+                   class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <h1 class="text-3xl font-bold text-gray-900">{{ report.title }}</h1>
+            </div>
+            <p class="text-sm text-gray-600 ml-10">{{ report.report_number }}</p>
+        </div>
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            {% if report.status == 'DRAFT' %}
+            <a href="{% url 'expenses:report_add_expenses' report.pk %}" 
+               class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-plus mr-2"></i>
+                Add Expenses
+            </a>
+            <form method="post" action="{% url 'expenses:report_finalize' report.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" 
+                        class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                    <i class="fas fa-check mr-2"></i>
+                    Finalize Report
+                </button>
+            </form>
+            {% endif %}
+            <button onclick="window.print()" 
+                    class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-print mr-2"></i>
+                Print
+            </button>
+        </div>
+    </div>
+
+    <!-- Report Summary -->
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <p class="text-sm font-medium text-gray-600">Total Expenses</p>
+            <p class="text-2xl font-bold text-gray-900 mt-2">{{ report.expense_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <p class="text-sm font-medium text-gray-600">Total Amount</p>
+            <p class="text-xl font-bold text-primary-600 mt-2">KES {{ report.total_amount|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <p class="text-sm font-medium text-gray-600">Period</p>
+            <p class="text-sm font-semibold text-gray-900 mt-2">{{ report.start_date|date:"M d" }} - {{ report.end_date|date:"M d, Y" }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <p class="text-sm font-medium text-gray-600">Status</p>
+            <span class="mt-2 inline-block px-3 py-1 text-xs font-semibold rounded-full 
+                {% if report.status == 'FINALIZED' %}bg-green-100 text-green-800
+                {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                {{ report.get_status_display }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Expenses Table -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-lg font-bold text-gray-900">Report Expenses</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expense</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for item in report.items.all %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ item.expense.expense_date|date:"M d, Y" }}
+                        </td>
+                        <td class="px-6 py-4">
+                            <a href="{% url 'expenses:expense_detail' item.expense.pk %}" 
+                               class="text-sm font-medium text-primary-600 hover:text-primary-900">
+                                {{ item.expense.title }}
+                            </a>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full" 
+                                  style="background-color: {{ item.expense.category.color }}20; color: {{ item.expense.category.color }};">
+                                {{ item.expense.category.name }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-900">
+                            {{ item.expense.vendor_name|default:"N/A" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                            KES {{ item.expense.total_amount|floatformat:2 }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                            No expenses in this report yet
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="bg-gray-50 font-bold">
+                        <td colspan="4" class="px-6 py-4 text-right text-sm text-gray-900">Total:</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-lg text-primary-600">
+                            KES {{ report.total_amount|floatformat:2 }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

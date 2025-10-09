@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if expense %}Edit Expense{% else %}New Expense{% endif %} - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-3 mb-2">
+            <a href="{% if expense %}{% url 'expenses:expense_detail' expense.pk %}{% else %}{% url 'expenses:expense_list' %}{% endif %}" 
+               class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">
+                {% if expense %}Edit Expense{% else %}Create New Expense{% endif %}
+            </h1>
+        </div>
+        <p class="text-sm text-gray-600 ml-10">
+            {% if expense %}Update expense details{% else %}Add a new expense to the system{% endif %}
+        </p>
+    </div>
+
+    <!-- Form -->
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- Basic Information -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-info-circle text-primary-600 mr-2"></i>
+                Basic Information
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Title -->
+                <div class="md:col-span-2">
+                    <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Title <span class="text-red-600">*</span>
+                    </label>
+                    {{ form.title }}
+                    {% if form.title.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.title.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Category -->
+                <div>
+                    <label for="{{ form.category.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Category <span class="text-red-600">*</span>
+                    </label>
+                    {{ form.category }}
+                    {% if form.category.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.category.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Expense Date -->
+                <div>
+                    <label for="{{ form.expense_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Expense Date <span class="text-red-600">*</span>
+                    </label>
+                    {{ form.expense_date }}
+                    {% if form.expense_date.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.expense_date.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Description -->
+                <div class="md:col-span-2">
+                    <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Description
+                    </label>
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.description.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Details -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-money-bill-wave text-green-600 mr-2"></i>
+                Financial Details
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Amount -->
+                <div>
+                    <label for="{{ form.amount.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Amount (KES) <span class="text-red-600">*</span>
+                    </label>
+                    {{ form.amount }}
+                    {% if form.amount.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.amount.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Tax Amount -->
+                <div>
+                    <label for="{{ form.tax_amount.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Tax Amount (KES)
+                    </label>
+                    {{ form.tax_amount }}
+                    {% if form.tax_amount.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.tax_amount.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Payment Method -->
+                <div>
+                    <label for="{{ form.payment_method.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Payment Method <span class="text-red-600">*</span>
+                    </label>
+                    {{ form.payment_method }}
+                    {% if form.payment_method.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.payment_method.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Reimbursable -->
+                <div class="flex items-center pt-6">
+                    {{ form.is_reimbursable }}
+                    <label for="{{ form.is_reimbursable.id_for_label }}" class="ml-2 text-sm text-gray-700">
+                        This is a reimbursable expense
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vendor Information -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-store text-primary-600 mr-2"></i>
+                Vendor Information
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Vendor Name -->
+                <div>
+                    <label for="{{ form.vendor_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Vendor Name
+                    </label>
+                    {{ form.vendor_name }}
+                    {% if form.vendor_name.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.vendor_name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Invoice Number -->
+                <div>
+                    <label for="{{ form.invoice_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Invoice Number
+                    </label>
+                    {{ form.invoice_number }}
+                    {% if form.invoice_number.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.invoice_number.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Related Records -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-link text-primary-600 mr-2"></i>
+                Related Records (Optional)
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Vehicle -->
+                <div>
+                    <label for="{{ form.vehicle.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Vehicle
+                    </label>
+                    {{ form.vehicle }}
+                    {% if form.vehicle.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.vehicle.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Client -->
+                <div>
+                    <label for="{{ form.client.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Client
+                    </label>
+                    {{ form.client }}
+                    {% if form.client.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.client.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Errors -->
+        {% if form.non_field_errors %}
+        <div class="bg-red-50 border-l-4 border-red-400 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-circle text-red-400"></i>
+                </div>
+                <div class="ml-3">
+                    {% for error in form.non_field_errors %}
+                    <p class="text-sm text-red-700">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Form Actions -->
+        <div class="flex items-center justify-end space-x-3 pt-4">
+            <a href="{% if expense %}{% url 'expenses:expense_detail' expense.pk %}{% else %}{% url 'expenses:expense_list' %}{% endif %}" 
+               class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium rounded-lg transition duration-150 ease-in-out">
+                Cancel
+            </a>
+            <button type="submit" 
+                    name="save_draft" 
+                    class="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-save mr-2"></i>
+                Save as Draft
+            </button>
+            <button type="submit" 
+                    name="save_and_submit" 
+                    class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-check mr-2"></i>
+                Save & Submit
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    input[type="email"],
+    select,
+    textarea {
+        width: 100%;
+        padding: 0.5rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        transition: all 0.15s ease-in-out;
+    }
+    
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="date"]:focus,
+    input[type="email"]:focus,
+    select:focus,
+    textarea:focus {
+        outline: none;
+        ring: 2px;
+        ring-color: #2563eb;
+        border-color: transparent;
+    }
+    
+    textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+    
+    input[type="checkbox"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        border-radius: 0.25rem;
+        border: 1px solid #d1d5db;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

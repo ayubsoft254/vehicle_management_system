@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Payslip - {{ payslip.employee.get_full_name }} - {{ payslip.payroll_run.payroll_month|date:"F Y" }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    
+    <!-- Action Buttons -->
+    <div class="mb-4 flex justify-between items-center print:hidden">
+        <a href="{% url 'payroll:payroll_run_detail' payslip.payroll_run.pk %}" 
+           class="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Payroll
+        </a>
+        <div class="space-x-2">
+            <button onclick="window.print()" 
+                    class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg">
+                <i class="fas fa-print mr-2"></i> Print
+            </button>
+            <a href="{% url 'payroll:payslip_download' payslip.pk %}" 
+               class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg">
+                <i class="fas fa-download mr-2"></i> Download PDF
+            </a>
+        </div>
+    </div>
+
+    <!-- Payslip -->
+    <div class="bg-white rounded-lg shadow-lg border-2 border-gray-300 p-8">
+        
+        <!-- Header -->
+        <div class="text-center mb-8 pb-6 border-b-2 border-gray-300">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">PAYSLIP</h1>
+            <p class="text-lg text-gray-600">For the month of {{ payslip.payroll_run.payroll_month|date:"F Y" }}</p>
+        </div>
+
+        <!-- Employee & Company Info -->
+        <div class="grid grid-cols-2 gap-8 mb-8">
+            <div>
+                <h2 class="text-sm font-bold text-gray-700 uppercase mb-3">Employee Information</h2>
+                <dl class="space-y-2">
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-600">Name:</dt>
+                        <dd class="text-sm font-medium text-gray-900">{{ payslip.employee.get_full_name }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-600">Employee ID:</dt>
+                        <dd class="text-sm font-medium text-gray-900">{{ payslip.employee.employee_id }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-600">Job Title:</dt>
+                        <dd class="text-sm font-medium text-gray-900">{{ payslip.employee.job_title }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-600">Department:</dt>
+                        <dd class="text-sm font-medium text-gray-900">{{ payslip.employee.department|default:"N/A" }}</dd>
+                    </div>
+                </dl>
+            </div>
+            <div>
+                <h2 class="text-sm font-bold text-gray-700 uppercase mb-3">Payroll Information</h2>
+                <dl class="space-y-2">
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-600">Payroll Number:</dt>
+                        <dd class="text-sm font-medium text-gray-900">{{ payslip.payroll_run.payroll_number }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-600">Payment Period:</dt>
+                        <dd class="text-sm font-medium text-gray-900">{{ payslip.payroll_run.payroll_month|date:"F Y" }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-600">Working Days:</dt>
+                        <dd class="text-sm font-medium text-gray-900">{{ payslip.working_days }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-sm text-gray-600">Days Worked:</dt>
+                        <dd class="text-sm font-medium text-gray-900">{{ payslip.days_worked }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Earnings -->
+        <div class="mb-8">
+            <h2 class="text-lg font-bold text-gray-900 mb-4 bg-gray-100 px-4 py-2 rounded">EARNINGS</h2>
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-300">
+                        <th class="text-left py-2 text-sm font-medium text-gray-700">Description</th>
+                        <th class="text-right py-2 text-sm font-medium text-gray-700">Amount (KES)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Basic Salary</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.basic_salary|floatformat:2 }}</td>
+                    </tr>
+                    {% if payslip.housing_allowance %}
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Housing Allowance</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.housing_allowance|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if payslip.transport_allowance %}
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Transport Allowance</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.transport_allowance|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if payslip.medical_allowance %}
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Medical Allowance</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.medical_allowance|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if payslip.meal_allowance %}
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Meal Allowance</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.meal_allowance|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if payslip.other_allowances %}
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Other Allowances</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.other_allowances|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if payslip.commission_amount %}
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Commission</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.commission_amount|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if payslip.overtime_amount %}
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Overtime</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.overtime_amount|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if payslip.bonus_amount %}
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Bonus</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.bonus_amount|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr class="border-t-2 border-gray-300 font-bold">
+                        <td class="py-2 text-sm text-gray-900">GROSS SALARY</td>
+                        <td class="py-2 text-sm text-gray-900 text-right">{{ payslip.gross_salary|floatformat:2 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Deductions -->
+        <div class="mb-8">
+            <h2 class="text-lg font-bold text-gray-900 mb-4 bg-gray-100 px-4 py-2 rounded">DEDUCTIONS</h2>
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-300">
+                        <th class="text-left py-2 text-sm font-medium text-gray-700">Description</th>
+                        <th class="text-right py-2 text-sm font-medium text-gray-700">Amount (KES)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% if payslip.income_tax %}
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Income Tax (PAYE)</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.income_tax|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if payslip.pension_contribution %}
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Pension (NSSF)</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.pension_contribution|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if payslip.insurance_deduction %}
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Insurance (NHIF)</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.insurance_deduction|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if payslip.loan_repayment %}
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Loan Repayment</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.loan_repayment|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if payslip.other_deductions %}
+                    <tr>
+                        <td class="py-2 text-sm text-gray-700">Other Deductions</td>
+                        <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.other_deductions|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr class="border-t-2 border-gray-300 font-bold">
+                        <td class="py-2 text-sm text-gray-900">TOTAL DEDUCTIONS</td>
+                        <td class="py-2 text-sm text-red-600 text-right">{{ payslip.total_deductions|floatformat:2 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Net Salary -->
+        <div class="bg-primary-50 border-2 border-primary-500 rounded-lg p-6 mb-8">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-900">NET SALARY</h2>
+                <p class="text-3xl font-bold text-primary-600">KES {{ payslip.net_salary|floatformat:2 }}</p>
+            </div>
+        </div>
+
+        <!-- Banking Details -->
+        {% if payslip.employee.bank_name %}
+        <div class="mb-8">
+            <h2 class="text-sm font-bold text-gray-700 uppercase mb-3">Payment Details</h2>
+            <dl class="space-y-2">
+                <div class="flex justify-between">
+                    <dt class="text-sm text-gray-600">Bank Name:</dt>
+                    <dd class="text-sm font-medium text-gray-900">{{ payslip.employee.bank_name }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-sm text-gray-600">Account Number:</dt>
+                    <dd class="text-sm font-medium text-gray-900">{{ payslip.employee.bank_account_number }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-sm text-gray-600">Payment Status:</dt>
+                    <dd>
+                        <span class="px-2 py-1 text-xs font-medium rounded-full {% if payslip.is_paid %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                            {% if payslip.is_paid %}PAID{% else %}PENDING{% endif %}
+                        </span>
+                    </dd>
+                </div>
+            </dl>
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <div class="pt-6 border-t border-gray-300 text-center text-xs text-gray-500">
+            <p>This is a computer-generated document. No signature is required.</p>
+            <p class="mt-1">Generated on {{ payslip.created_at|date:"M d, Y" }}</p>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    body { margin: 0; }
+    .print\\:hidden { display: none !important; }
+    .container { max-width: 100%; }
+}
+</style>
+{% endblock %}
