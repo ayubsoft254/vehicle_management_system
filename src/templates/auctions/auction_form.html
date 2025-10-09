@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Auction Form - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    
+    <!-- Back Button -->
+    <div class="mb-4">
+        <a href="{% url 'auctions:auction_list' %}" 
+           class="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Auctions
+        </a>
+    </div>
+
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">
+            {% if form.instance.pk %}Edit{% else %}Create{% endif %} Auction
+        </h1>
+        <p class="mt-1 text-sm text-gray-600">Configure auction settings and parameters</p>
+    </div>
+
+    <!-- Form -->
+    <form method="post" class="bg-white rounded-lg shadow-sm border border-gray-200">
+        {% csrf_token %}
+        
+        <!-- Basic Information -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-info-circle text-primary-600 mr-2"></i>
+                Basic Information
+            </h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                    {{ form.title }}
+                    {% if form.title.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.title.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                    {{ form.description }}
+                    <p class="mt-1 text-xs text-gray-500">Provide detailed information about this auction</p>
+                    {% if form.description.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.description.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle *</label>
+                    {{ form.vehicle }}
+                    {% if form.vehicle.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.vehicle.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Auction Configuration -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-cog text-primary-600 mr-2"></i>
+                Auction Configuration
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Auction Type *</label>
+                    {{ form.auction_type }}
+                    {% if form.auction_type.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.auction_type.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.status.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Start Date & Time *</label>
+                    {{ form.start_date }}
+                    {% if form.start_date.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.start_date.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">End Date & Time *</label>
+                    {{ form.end_date }}
+                    {% if form.end_date.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.end_date.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-dollar-sign text-primary-600 mr-2"></i>
+                Pricing Configuration
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Starting Price (KES) *</label>
+                    {{ form.starting_price }}
+                    {% if form.starting_price.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.starting_price.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Reserve Price (KES)</label>
+                    {{ form.reserve_price }}
+                    <p class="mt-1 text-xs text-gray-500">Minimum acceptable price (hidden from bidders)</p>
+                    {% if form.reserve_price.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.reserve_price.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Bid Increment (KES) *</label>
+                    {{ form.bid_increment }}
+                    <p class="mt-1 text-xs text-gray-500">Minimum increase required for each bid</p>
+                    {% if form.bid_increment.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.bid_increment.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Buy Now Price (KES)</label>
+                    {{ form.buy_now_price }}
+                    <p class="mt-1 text-xs text-gray-500">Optional instant purchase price</p>
+                    {% if form.buy_now_price.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.buy_now_price.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Bidding Settings -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-gavel text-primary-600 mr-2"></i>
+                Bidding Settings
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex items-center">
+                    {{ form.allow_proxy_bidding }}
+                    <label for="{{ form.allow_proxy_bidding.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">
+                        Allow Proxy Bidding
+                    </label>
+                </div>
+                <div class="flex items-center">
+                    {{ form.auto_extend }}
+                    <label for="{{ form.auto_extend.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">
+                        Auto-Extend Auction
+                    </label>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Extension Minutes</label>
+                    {{ form.extension_minutes }}
+                    <p class="mt-1 text-xs text-gray-500">Minutes to extend if bid placed near end</p>
+                    {% if form.extension_minutes.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.extension_minutes.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Bidders</label>
+                    {{ form.minimum_bidders }}
+                    <p class="mt-1 text-xs text-gray-500">Required bidders for valid auction</p>
+                    {% if form.minimum_bidders.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.minimum_bidders.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Participation Requirements -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-user-check text-primary-600 mr-2"></i>
+                Participation Requirements
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex items-center">
+                    {{ form.require_registration }}
+                    <label for="{{ form.require_registration.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">
+                        Require Registration
+                    </label>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Registration Fee (KES)</label>
+                    {{ form.registration_fee }}
+                    {% if form.registration_fee.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.registration_fee.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div class="flex items-center">
+                    {{ form.require_deposit }}
+                    <label for="{{ form.require_deposit.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">
+                        Require Deposit
+                    </label>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Amount (KES)</label>
+                    {{ form.deposit_amount }}
+                    {% if form.deposit_amount.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.deposit_amount.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Details -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-clipboard-list text-primary-600 mr-2"></i>
+                Additional Details
+            </h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Terms & Conditions</label>
+                    {{ form.terms_and_conditions }}
+                    <p class="mt-1 text-xs text-gray-500">Auction-specific terms, conditions, and requirements</p>
+                    {% if form.terms_and_conditions.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.terms_and_conditions.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="flex items-center">
+                        {{ form.inspection_available }}
+                        <label for="{{ form.inspection_available.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">
+                            Inspection Available
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Inspection Location</label>
+                        {{ form.inspection_location }}
+                        {% if form.inspection_location.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.inspection_location.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    {{ form.featured }}
+                    <label for="{{ form.featured.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">
+                        Mark as Featured Auction
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="p-6 bg-gray-50 flex justify-end space-x-3">
+            <a href="{% url 'auctions:auction_list' %}" 
+               class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition duration-150 ease-in-out">
+                Cancel
+            </a>
+            <button type="submit" 
+                    class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                <i class="fas fa-save mr-2"></i> {% if form.instance.pk %}Update{% else %}Create{% endif %} Auction
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+input[type="text"],
+input[type="number"],
+input[type="datetime-local"],
+input[type="checkbox"],
+select,
+textarea {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+}
+input[type="checkbox"] {
+    @apply w-5 h-5;
+}
+textarea {
+    @apply min-h-[100px];
+}
+</style>
+{% endblock %}

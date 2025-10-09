@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Payroll Reports - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Payroll Reports & Analytics</h1>
+        <p class="mt-1 text-sm text-gray-600">Comprehensive payroll analysis and insights</p>
+    </div>
+
+    <!-- Date Range Filter -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <form method="get" class="flex flex-col sm:flex-row gap-4">
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                <input type="date" name="date_from" value="{{ request.GET.date_from }}" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                <input type="date" name="date_to" value="{{ request.GET.date_to }}" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <select name="department" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    <option value="">All Departments</option>
+                    <!-- Department options would be populated from backend -->
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg">
+                    <i class="fas fa-filter mr-2"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Export Options -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-3">Export Reports</h3>
+        <div class="flex flex-wrap gap-3">
+            <a href="#" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg">
+                <i class="fas fa-file-excel mr-2"></i> Export to Excel
+            </a>
+            <a href="#" class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg">
+                <i class="fas fa-file-pdf mr-2"></i> Export to PDF
+            </a>
+            <a href="#" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">
+                <i class="fas fa-file-csv mr-2"></i> Export to CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Overall Summary -->
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-6">
+            <p class="text-sm font-medium text-blue-700 uppercase">Total Payroll</p>
+            <p class="text-3xl font-bold text-blue-900 mt-2">KES {{ total_payroll|floatformat:0 }}</p>
+        </div>
+        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-6">
+            <p class="text-sm font-medium text-green-700 uppercase">Total Commissions</p>
+            <p class="text-3xl font-bold text-green-900 mt-2">KES {{ total_commissions|floatformat:0 }}</p>
+        </div>
+        <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow-sm border border-red-200 p-6">
+            <p class="text-sm font-medium text-red-700 uppercase">Total Deductions</p>
+            <p class="text-3xl font-bold text-red-900 mt-2">KES {{ total_deductions|floatformat:0 }}</p>
+        </div>
+        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-sm border border-purple-200 p-6">
+            <p class="text-sm font-medium text-purple-700 uppercase">Net Pay</p>
+            <p class="text-3xl font-bold text-purple-900 mt-2">KES {{ net_pay|floatformat:0 }}</p>
+        </div>
+    </div>
+
+    <!-- Department-wise Cost Analysis -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+            <i class="fas fa-chart-bar text-primary-600 mr-2"></i>
+            Department-wise Cost Analysis
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employees</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gross Pay</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Deductions</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Net Pay</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">% of Total</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for dept in department_stats %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ dept.name }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-900">{{ dept.employee_count }}</td>
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">KES {{ dept.gross_pay|floatformat:0 }}</td>
+                        <td class="px-6 py-4 text-sm text-red-600">KES {{ dept.deductions|floatformat:0 }}</td>
+                        <td class="px-6 py-4 text-sm font-bold text-green-600">KES {{ dept.net_pay|floatformat:0 }}</td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center">
+                                <div class="w-full bg-gray-200 rounded-full h-2 mr-2">
+                                    <div class="bg-primary-600 h-2 rounded-full" style="width: {{ dept.percentage }}%"></div>
+                                </div>
+                                <span class="text-sm text-gray-600">{{ dept.percentage|floatformat:1 }}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Salary Trends & Commission Tracking -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Salary Trends -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-chart-line text-primary-600 mr-2"></i>
+                12-Month Salary Trend
+            </h3>
+            <div class="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+                <p class="text-gray-400">Chart visualization would go here</p>
+            </div>
+            <div class="mt-4 space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Average Monthly:</span>
+                    <span class="font-bold text-gray-900">KES {{ avg_monthly_salary|floatformat:0 }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Highest Month:</span>
+                    <span class="font-bold text-green-600">KES {{ highest_month|floatformat:0 }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Lowest Month:</span>
+                    <span class="font-bold text-red-600">KES {{ lowest_month|floatformat:0 }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Commission Tracking -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-percentage text-primary-600 mr-2"></i>
+                Commission Summary
+            </h3>
+            <div class="space-y-4">
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <p class="text-sm text-blue-700">Total Commissions Paid</p>
+                    <p class="text-2xl font-bold text-blue-900 mt-1">KES {{ total_commissions_paid|floatformat:0 }}</p>
+                </div>
+                <div class="bg-yellow-50 rounded-lg p-4">
+                    <p class="text-sm text-yellow-700">Pending Approval</p>
+                    <p class="text-2xl font-bold text-yellow-900 mt-1">{{ pending_commissions_count }}</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4">
+                    <p class="text-sm text-green-700">Top Earner</p>
+                    <p class="text-xl font-bold text-green-900 mt-1">{{ top_earner.name }}</p>
+                    <p class="text-sm text-green-600">KES {{ top_earner.amount|floatformat:0 }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deduction Summary & Attendance Statistics -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Deduction Summary -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-minus-circle text-primary-600 mr-2"></i>
+                Deduction Breakdown
+            </h3>
+            <div class="space-y-3">
+                {% for deduction in deduction_summary %}
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">{{ deduction.type_display }}</span>
+                    <div class="flex items-center">
+                        <div class="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                            <div class="bg-red-600 h-2 rounded-full" style="width: {{ deduction.percentage }}%"></div>
+                        </div>
+                        <span class="text-sm font-bold text-gray-900 w-24 text-right">
+                            KES {{ deduction.amount|floatformat:0 }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Attendance Statistics -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-clipboard-check text-primary-600 mr-2"></i>
+                Attendance Statistics
+            </h3>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Average Attendance Rate</span>
+                    <span class="text-2xl font-bold text-green-600">{{ avg_attendance_rate|floatformat:1 }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-4">
+                    <div class="bg-green-600 h-4 rounded-full" style="width: {{ avg_attendance_rate }}%"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-3 mt-4">
+                    <div class="text-center p-3 bg-green-50 rounded-lg">
+                        <p class="text-2xl font-bold text-green-700">{{ present_days }}</p>
+                        <p class="text-xs text-green-600">Present</p>
+                    </div>
+                    <div class="text-center p-3 bg-red-50 rounded-lg">
+                        <p class="text-2xl font-bold text-red-700">{{ absent_days }}</p>
+                        <p class="text-xs text-red-600">Absent</p>
+                    </div>
+                    <div class="text-center p-3 bg-yellow-50 rounded-lg">
+                        <p class="text-2xl font-bold text-yellow-700">{{ late_days }}</p>
+                        <p class="text-xs text-yellow-600">Late</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Utilization & Loan Portfolio -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Leave Utilization -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-calendar-times text-primary-600 mr-2"></i>
+                Leave Utilization
+            </h3>
+            <div class="space-y-3">
+                {% for leave_type in leave_stats %}
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">{{ leave_type.type_display }}</span>
+                        <span class="font-medium text-gray-900">{{ leave_type.days }} days</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full" style="width: {{ leave_type.percentage }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Loan Portfolio -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-hand-holding-usd text-primary-600 mr-2"></i>
+                Loan Portfolio Status
+            </h3>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center p-4 bg-blue-50 rounded-lg">
+                    <div>
+                        <p class="text-sm text-blue-700">Total Loans Disbursed</p>
+                        <p class="text-2xl font-bold text-blue-900 mt-1">KES {{ total_loans_amount|floatformat:0 }}</p>
+                    </div>
+                    <i class="fas fa-money-bill-wave text-4xl text-blue-300"></i>
+                </div>
+                <div class="flex justify-between items-center p-4 bg-yellow-50 rounded-lg">
+                    <div>
+                        <p class="text-sm text-yellow-700">Outstanding Balance</p>
+                        <p class="text-2xl font-bold text-yellow-900 mt-1">KES {{ outstanding_balance|floatformat:0 }}</p>
+                    </div>
+                    <i class="fas fa-clock text-4xl text-yellow-300"></i>
+                </div>
+                <div class="flex justify-between items-center p-4 bg-green-50 rounded-lg">
+                    <div>
+                        <p class="text-sm text-green-700">Repayment Rate</p>
+                        <p class="text-2xl font-bold text-green-900 mt-1">{{ repayment_rate|floatformat:1 }}%</p>
+                    </div>
+                    <i class="fas fa-chart-line text-4xl text-green-300"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
