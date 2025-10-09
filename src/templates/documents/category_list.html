@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Document Categories - Documents{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Page Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">Document Categories</h1>
+            <p class="text-gray-600 mt-1">Organize your documents with categories</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'documents:document_list' %}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold transition duration-200">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Documents
+            </a>
+            <a href="{% url 'documents:category_create' %}" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200 shadow-md">
+                <i class="fas fa-plus mr-2"></i>New Category
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Card -->
+    <div class="bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl shadow-lg p-6 text-white mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-primary-100 text-sm font-medium">Total Categories</p>
+                <p class="text-4xl font-bold mt-2">{{ categories.count }}</p>
+            </div>
+            <div class="bg-white bg-opacity-30 rounded-lg p-4">
+                <i class="fas fa-folder-open text-4xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Categories Grid -->
+    {% if categories %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for category in categories %}
+                <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-200">
+                    <!-- Category Header -->
+                    <div class="p-6 border-b border-gray-200" style="border-left: 4px solid {{ category.color }};">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-start flex-1">
+                                <div class="w-14 h-14 rounded-lg flex items-center justify-center mr-4 flex-shrink-0" style="background-color: {{ category.color }}20;">
+                                    <i class="fas {{ category.icon|default:'fa-folder' }} text-2xl" style="color: {{ category.color }};"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-bold text-gray-800 mb-1">{{ category.name }}</h3>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                        {{ category.document_count }} document{{ category.document_count|pluralize }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <!-- Status Badge -->
+                            {% if category.is_active %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <i class="fas fa-check-circle mr-1"></i>Active
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    <i class="fas fa-ban mr-1"></i>Inactive
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Category Details -->
+                    <div class="p-6">
+                        {% if category.description %}
+                            <p class="text-gray-600 text-sm mb-4 line-clamp-3">{{ category.description }}</p>
+                        {% else %}
+                            <p class="text-gray-400 text-sm mb-4 italic">No description provided</p>
+                        {% endif %}
+
+                        <!-- Category Settings -->
+                        <div class="space-y-2 mb-4">
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-gray-600">
+                                    <i class="fas fa-exclamation-circle mr-2 text-gray-400"></i>Requires Expiry
+                                </span>
+                                <span class="font-medium {% if category.require_expiry_date %}text-green-600{% else %}text-gray-500{% endif %}">
+                                    {% if category.require_expiry_date %}
+                                        <i class="fas fa-check-circle"></i> Yes
+                                    {% else %}
+                                        <i class="fas fa-times-circle"></i> No
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="text-gray-600">
+                                    <i class="fas fa-file-upload mr-2 text-gray-400"></i>Max File Size
+                                </span>
+                                <span class="font-medium text-gray-800">{{ category.max_file_size_mb }} MB</span>
+                            </div>
+
+                            {% if category.allowed_file_types %}
+                                <div class="flex items-start justify-between text-sm">
+                                    <span class="text-gray-600">
+                                        <i class="fas fa-file-code mr-2 text-gray-400"></i>Allowed Types
+                                    </span>
+                                    <div class="flex flex-wrap gap-1 max-w-xs justify-end">
+                                        {% for ext in category.get_allowed_extensions|slice:":3" %}
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                                .{{ ext }}
+                                            </span>
+                                        {% endfor %}
+                                        {% if category.get_allowed_extensions|length > 3 %}
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                                                +{{ category.get_allowed_extensions|length|add:"-3" }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-gray-600">
+                                        <i class="fas fa-file-code mr-2 text-gray-400"></i>Allowed Types
+                                    </span>
+                                    <span class="font-medium text-gray-500">All types</span>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Category Metadata -->
+                        <div class="pt-4 border-t border-gray-200 space-y-1 mb-4">
+                            <div class="flex items-center text-xs text-gray-500">
+                                <i class="fas fa-calendar-plus w-4 mr-2"></i>
+                                <span>Created: {{ category.created_at|date:"M d, Y" }}</span>
+                            </div>
+                            <div class="flex items-center text-xs text-gray-500">
+                                <i class="fas fa-calendar-check w-4 mr-2"></i>
+                                <span>Updated: {{ category.updated_at|date:"M d, Y" }}</span>
+                            </div>
+                            <div class="flex items-center text-xs text-gray-500">
+                                <i class="fas fa-tag w-4 mr-2"></i>
+                                <span>Slug: {{ category.slug }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex items-center gap-2">
+                            <a href="{% url 'documents:document_list' %}?category={{ category.id }}" class="flex-1 text-center bg-primary-50 hover:bg-primary-100 text-primary-700 px-4 py-2 rounded-lg text-sm font-medium transition duration-200">
+                                <i class="fas fa-eye mr-1"></i>View Documents
+                            </a>
+                            <a href="#" class="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-4 py-2 rounded-lg text-sm font-medium transition duration-200">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- Empty State -->
+        <div class="bg-white rounded-xl shadow-md p-16 text-center">
+            <i class="fas fa-folder-open text-6xl text-gray-300 mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-700 mb-2">No Categories Found</h3>
+            <p class="text-gray-500 mb-6">Create your first category to organize documents</p>
+            <a href="{% url 'documents:category_create' %}" class="inline-block bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200">
+                <i class="fas fa-plus mr-2"></i>Create Category
+            </a>
+        </div>
+    {% endif %}
+
+    <!-- Info Card -->
+    <div class="mt-8 bg-white rounded-xl shadow-md p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+            <i class="fas fa-info-circle text-primary-600 mr-2"></i>About Categories
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+            <div>
+                <p class="mb-2"><i class="fas fa-check-circle text-green-600 mr-2"></i>Organize documents by type or purpose</p>
+                <p class="mb-2"><i class="fas fa-check-circle text-green-600 mr-2"></i>Set file type restrictions per category</p>
+                <p><i class="fas fa-check-circle text-green-600 mr-2"></i>Configure maximum file size limits</p>
+            </div>
+            <div>
+                <p class="mb-2"><i class="fas fa-check-circle text-green-600 mr-2"></i>Require expiry dates for compliance</p>
+                <p class="mb-2"><i class="fas fa-check-circle text-green-600 mr-2"></i>Customize with icons and colors</p>
+                <p><i class="fas fa-check-circle text-green-600 mr-2"></i>Track document counts per category</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

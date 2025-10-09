@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Template - {{ object.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <!-- Back Button -->
+        <div class="mb-6">
+            <a href="{% url 'reports:template_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Templates
+            </a>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200 bg-red-50">
+                <h1 class="text-2xl font-bold text-red-800 flex items-center">
+                    <i class="fas fa-exclamation-triangle mr-3"></i>
+                    Delete Template
+                </h1>
+            </div>
+
+            <div class="p-6">
+                <!-- Template Details -->
+                <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Template Details</h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p class="text-gray-500">Template Name</p>
+                            <p class="text-gray-800 font-medium">{{ object.name }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Report Type</p>
+                            <p class="text-gray-800">{{ object.get_report_type_display }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Layout</p>
+                            <p class="text-gray-800">{{ object.layout|title }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Created Date</p>
+                            <p class="text-gray-800">{{ object.created_at|date:"M d, Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Warning -->
+                <div class="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6">
+                    <div class="flex">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-xl mr-3 mt-1"></i>
+                        <div>
+                            <h4 class="text-red-800 font-semibold mb-2">Warning: This action cannot be undone!</h4>
+                            <p class="text-red-700 text-sm">
+                                Deleting this template will remove it permanently. Reports using this template will need to be updated.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-gray-700 mb-6">
+                    Are you sure you want to delete the template "<strong>{{ object.name }}</strong>"?
+                </p>
+
+                <!-- Form Actions -->
+                <form method="post" class="flex items-center justify-end space-x-4">
+                    {% csrf_token %}
+                    <a href="{% url 'reports:template_list' %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+                        <i class="fas fa-trash mr-2"></i>Yes, Delete Template
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

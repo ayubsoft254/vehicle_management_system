@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if category %}Edit Category{% else %}New Category{% endif %} - Documents{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <div class="mb-6">
+        <nav class="flex items-center text-sm text-gray-600">
+            <a href="{% url 'documents:document_list' %}" class="hover:text-primary-600">Documents</a>
+            <i class="fas fa-chevron-right mx-2 text-xs"></i>
+            <a href="{% url 'documents:category_list' %}" class="hover:text-primary-600">Categories</a>
+            <i class="fas fa-chevron-right mx-2 text-xs"></i>
+            <span class="text-gray-800 font-medium">{% if category %}Edit Category{% else %}New Category{% endif %}</span>
+        </nav>
+    </div>
+
+    <div class="max-w-3xl mx-auto">
+        <!-- Page Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">
+                {% if category %}
+                    <i class="fas fa-edit text-primary-600 mr-2"></i>Edit Category
+                {% else %}
+                    <i class="fas fa-plus text-primary-600 mr-2"></i>New Category
+                {% endif %}
+            </h1>
+            <p class="text-gray-600 mt-2">
+                {% if category %}
+                    Update category settings and appearance
+                {% else %}
+                    Create a new category to organize documents
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Form -->
+        <form method="post" class="bg-white rounded-xl shadow-md overflow-hidden">
+            {% csrf_token %}
+            
+            <!-- Form Errors -->
+            {% if form.errors %}
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 m-6 mb-0">
+                    <div class="flex">
+                        <i class="fas fa-exclamation-circle text-red-500 mt-1 mr-3"></i>
+                        <div>
+                            <h3 class="text-sm font-medium text-red-800">Please correct the following errors:</h3>
+                            <ul class="mt-2 text-sm text-red-700 list-disc list-inside">
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <li>{{ field|title }}: {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="p-6 space-y-8">
+                <!-- Section 1: Basic Information -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <span class="bg-primary-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">1</span>
+                        Basic Information
+                    </h2>
+                    <div class="pl-11 space-y-4">
+                        <div>
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Category Name <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <p class="mt-1 text-sm text-red-600">{{ form.name.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="{{ form.slug.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Slug <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.slug }}
+                            {% if form.slug.errors %}
+                                <p class="mt-1 text-sm text-red-600">{{ form.slug.errors.0 }}</p>
+                            {% endif %}
+                            <p class="mt-1 text-xs text-gray-500">URL-friendly identifier (lowercase, no spaces)</p>
+                        </div>
+
+                        <div>
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Description
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <p class="mt-1 text-sm text-red-600">{{ form.description.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Appearance -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <span class="bg-primary-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">2</span>
+                        Appearance
+                    </h2>
+                    <div class="pl-11 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="{{ form.icon.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Icon
+                                </label>
+                                {{ form.icon }}
+                                {% if form.icon.errors %}
+                                    <p class="mt-1 text-sm text-red-600">{{ form.icon.errors.0 }}</p>
+                                {% endif %}
+                                <p class="mt-1 text-xs text-gray-500">FontAwesome icon class (e.g., 'fa-folder', 'fa-file')</p>
+                            </div>
+
+                            <div>
+                                <label for="{{ form.color.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Color
+                                </label>
+                                <div class="flex items-center gap-2">
+                                    {{ form.color }}
+                                    <div id="color-preview" class="w-10 h-10 rounded-lg border-2 border-gray-300"></div>
+                                </div>
+                                {% if form.color.errors %}
+                                    <p class="mt-1 text-sm text-red-600">{{ form.color.errors.0 }}</p>
+                                {% endif %}
+                                <p class="mt-1 text-xs text-gray-500">Hex color code (e.g., #007bff)</p>
+                            </div>
+                        </div>
+
+                        <!-- Color Palette Suggestions -->
+                        <div>
+                            <p class="text-sm font-medium text-gray-700 mb-2">Quick Colors:</p>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" class="color-btn w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 transition duration-200" style="background-color: #3B82F6;" data-color="#3B82F6" title="Blue"></button>
+                                <button type="button" class="color-btn w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 transition duration-200" style="background-color: #10B981;" data-color="#10B981" title="Green"></button>
+                                <button type="button" class="color-btn w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 transition duration-200" style="background-color: #EF4444;" data-color="#EF4444" title="Red"></button>
+                                <button type="button" class="color-btn w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 transition duration-200" style="background-color: #F59E0B;" data-color="#F59E0B" title="Orange"></button>
+                                <button type="button" class="color-btn w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 transition duration-200" style="background-color: #8B5CF6;" data-color="#8B5CF6" title="Purple"></button>
+                                <button type="button" class="color-btn w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 transition duration-200" style="background-color: #EC4899;" data-color="#EC4899" title="Pink"></button>
+                                <button type="button" class="color-btn w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 transition duration-200" style="background-color: #6366F1;" data-color="#6366F1" title="Indigo"></button>
+                                <button type="button" class="color-btn w-10 h-10 rounded-lg border-2 border-gray-300 hover:border-gray-400 transition duration-200" style="background-color: #14B8A6;" data-color="#14B8A6" title="Teal"></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: File Settings -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <span class="bg-primary-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">3</span>
+                        File Settings
+                    </h2>
+                    <div class="pl-11 space-y-4">
+                        <div>
+                            <label for="{{ form.allowed_file_types.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Allowed File Types
+                            </label>
+                            {{ form.allowed_file_types }}
+                            {% if form.allowed_file_types.errors %}
+                                <p class="mt-1 text-sm text-red-600">{{ form.allowed_file_types.errors.0 }}</p>
+                            {% endif %}
+                            <p class="mt-1 text-xs text-gray-500">Comma-separated file extensions (e.g., 'pdf,doc,docx'). Leave blank for all types.</p>
+                        </div>
+
+                        <div>
+                            <label for="{{ form.max_file_size_mb.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Maximum File Size (MB)
+                            </label>
+                            {{ form.max_file_size_mb }}
+                            {% if form.max_file_size_mb.errors %}
+                                <p class="mt-1 text-sm text-red-600">{{ form.max_file_size_mb.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                {{ form.require_expiry_date }}
+                            </div>
+                            <div class="ml-3">
+                                <label for="{{ form.require_expiry_date.id_for_label }}" class="font-medium text-gray-700">
+                                    Require Expiry Date
+                                </label>
+                                <p class="text-sm text-gray-500">Documents in this category must have an expiry date</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                {{ form.is_active }}
+                            </div>
+                            <div class="ml-3">
+                                <label for="{{ form.is_active.id_for_label }}" class="font-medium text-gray-700">
+                                    Active Category
+                                </label>
+                                <p class="text-sm text-gray-500">Inactive categories are hidden from selection</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Box -->
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+                    <div class="flex">
+                        <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+                        <div>
+                            <h3 class="text-sm font-medium text-blue-800 mb-2">Category Tips:</h3>
+                            <ul class="text-sm text-blue-700 space-y-1">
+                                <li><i class="fas fa-check mr-2"></i>Use descriptive names for easy identification</li>
+                                <li><i class="fas fa-check mr-2"></i>Choose appropriate icons and colors for visual distinction</li>
+                                <li><i class="fas fa-check mr-2"></i>Set file type restrictions to ensure proper document formats</li>
+                                <li><i class="fas fa-check mr-2"></i>Require expiry dates for compliance-critical documents</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
+                <a href="{% url 'documents:category_list' %}" class="text-gray-600 hover:text-gray-800 font-medium">
+                    <i class="fas fa-arrow-left mr-2"></i>Cancel
+                </a>
+                <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 rounded-lg font-semibold transition duration-200 shadow-md">
+                    {% if category %}
+                        <i class="fas fa-save mr-2"></i>Update Category
+                    {% else %}
+                        <i class="fas fa-plus mr-2"></i>Create Category
+                    {% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Color picker functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const colorInput = document.querySelector('input[name="color"]');
+    const colorPreview = document.getElementById('color-preview');
+    const colorButtons = document.querySelectorAll('.color-btn');
+
+    // Update preview when color input changes
+    if (colorInput && colorPreview) {
+        function updatePreview() {
+            const color = colorInput.value || '#007bff';
+            colorPreview.style.backgroundColor = color;
+        }
+
+        colorInput.addEventListener('input', updatePreview);
+        updatePreview(); // Initial update
+
+        // Handle quick color buttons
+        colorButtons.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const color = this.getAttribute('data-color');
+                colorInput.value = color;
+                updatePreview();
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

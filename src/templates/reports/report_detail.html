@@ -1,0 +1,330 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ report.name }} - Reports{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Back Button -->
+    <div class="mb-6">
+        <a href="{% url 'reports:report_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Reports
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Report Header -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex-1">
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ report.name }}</h1>
+                        <div class="flex items-center space-x-4 text-sm text-gray-600">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                                {{ report.get_report_type_display }}
+                            </span>
+                            {% if report.is_scheduled %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <i class="fas fa-clock mr-1"></i>{{ report.get_frequency_display }}
+                                </span>
+                            {% endif %}
+                            <span class="inline-flex items-center">
+                                <i class="fas fa-file-{{ report.output_format }} mr-1"></i>{{ report.get_output_format_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <form method="post" action="{% url 'reports:save_report' report.pk %}">
+                            {% csrf_token %}
+                            {% if is_saved %}
+                                <button type="submit" formaction="{% url 'reports:unsave_report' report.pk %}" class="p-2 text-yellow-500 hover:text-yellow-600" title="Remove from Favorites">
+                                    <i class="fas fa-star text-2xl"></i>
+                                </button>
+                            {% else %}
+                                <button type="submit" class="p-2 text-gray-400 hover:text-yellow-500" title="Add to Favorites">
+                                    <i class="far fa-star text-2xl"></i>
+                                </button>
+                            {% endif %}
+                        </form>
+                    </div>
+                </div>
+
+                {% if report.description %}
+                    <p class="text-gray-600">{{ report.description }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Statistics -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow p-6 text-white">
+                    <p class="text-sm opacity-90 mb-1">Total Executions</p>
+                    <p class="text-4xl font-bold">{{ report.execution_count }}</p>
+                </div>
+
+                <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow p-6 text-white">
+                    <p class="text-sm opacity-90 mb-1">Avg Execution Time</p>
+                    <p class="text-4xl font-bold">
+                        {% if report.average_execution_time %}
+                            {{ report.average_execution_time|floatformat:1 }}s
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </p>
+                </div>
+
+                <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow p-6 text-white">
+                    <p class="text-sm opacity-90 mb-1">Last Run Status</p>
+                    <p class="text-2xl font-bold">
+                        {% if report.last_execution_status == 'completed' %}
+                            <i class="fas fa-check-circle mr-2"></i>Success
+                        {% elif report.last_execution_status == 'failed' %}
+                            <i class="fas fa-times-circle mr-2"></i>Failed
+                        {% else %}
+                            <i class="fas fa-clock mr-2"></i>Pending
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Report Configuration -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                        <i class="fas fa-cog text-primary-600 mr-2"></i>
+                        Configuration
+                    </h2>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">Report Type</p>
+                            <p class="text-gray-800">{{ report.get_report_type_display }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">Output Format</p>
+                            <p class="text-gray-800">{{ report.get_output_format_display }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">Date Range</p>
+                            <p class="text-gray-800">{{ report.date_range_type|title }}</p>
+                        </div>
+                        {% if report.template %}
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Template</p>
+                                <p class="text-gray-800">{{ report.template.name }}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="pt-4 border-t">
+                        <p class="text-sm font-medium text-gray-500 mb-2">Display Options</p>
+                        <div class="flex flex-wrap gap-3">
+                            {% if report.include_charts %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <i class="fas fa-check mr-1"></i>Charts
+                                </span>
+                            {% endif %}
+                            {% if report.include_summary %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <i class="fas fa-check mr-1"></i>Summary
+                                </span>
+                            {% endif %}
+                            {% if report.include_details %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <i class="fas fa-check mr-1"></i>Details
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if report.is_scheduled %}
+                        <div class="pt-4 border-t">
+                            <p class="text-sm font-medium text-gray-500 mb-2">Schedule Information</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <p class="text-sm text-gray-600">Frequency</p>
+                                    <p class="text-gray-800">{{ report.get_frequency_display }}</p>
+                                </div>
+                                {% if report.next_run %}
+                                    <div>
+                                        <p class="text-sm text-gray-600">Next Run</p>
+                                        <p class="text-gray-800">{{ report.next_run|date:"M d, Y - g:i A" }}</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Executions -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                        <i class="fas fa-history text-primary-600 mr-2"></i>
+                        Recent Executions
+                    </h2>
+                    <a href="{% url 'reports:execution_list' %}?report={{ report.pk }}" class="text-sm text-primary-600 hover:text-primary-700">
+                        View All →
+                    </a>
+                </div>
+                <div class="divide-y divide-gray-200">
+                    {% for execution in recent_executions %}
+                        <div class="p-4 hover:bg-gray-50">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-3">
+                                        <a href="{% url 'reports:execution_detail' execution.pk %}" class="font-semibold text-gray-800 hover:text-primary-600">
+                                            Execution #{{ forloop.counter }}
+                                        </a>
+                                        {% if execution.status == 'completed' %}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                <i class="fas fa-check-circle mr-1"></i>Completed
+                                            </span>
+                                        {% elif execution.status == 'failed' %}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                <i class="fas fa-times-circle mr-1"></i>Failed
+                                            </span>
+                                        {% elif execution.status == 'in_progress' %}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                <i class="fas fa-spinner fa-spin mr-1"></i>Running
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="flex items-center space-x-4 mt-2 text-sm text-gray-600">
+                                        <span><i class="far fa-clock mr-1"></i>{{ execution.created_at|date:"M d, Y - g:i A" }}</span>
+                                        {% if execution.triggered_by %}
+                                            <span><i class="far fa-user mr-1"></i>{{ execution.triggered_by.get_full_name|default:execution.triggered_by.username }}</span>
+                                        {% endif %}
+                                        {% if execution.execution_time %}
+                                            <span><i class="fas fa-stopwatch mr-1"></i>{{ execution.execution_time }}s</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if execution.status == 'completed' and execution.file_path %}
+                                    <a href="{% url 'reports:download_report' execution.pk %}" class="ml-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition">
+                                        <i class="fas fa-download mr-1"></i>Download
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="p-8 text-center text-gray-500">
+                            <i class="fas fa-inbox text-4xl mb-3 opacity-50"></i>
+                            <p>No executions yet</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-bolt text-yellow-500 mr-2"></i>
+                    Quick Actions
+                </h3>
+                <div class="space-y-3">
+                    <form method="post" action="{% url 'reports:run_report' report.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="w-full flex items-center justify-center p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                            <i class="fas fa-play mr-2"></i>
+                            <span class="font-medium">Run Report</span>
+                        </button>
+                    </form>
+
+                    <a href="{% url 'reports:report_edit' report.pk %}" class="w-full flex items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                        <i class="fas fa-edit mr-2"></i>
+                        <span class="font-medium">Edit Report</span>
+                    </a>
+
+                    {% if report.is_scheduled %}
+                        <form method="post" action="{% url 'reports:unschedule_report' report.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="w-full flex items-center justify-center p-3 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition">
+                                <i class="fas fa-calendar-times mr-2"></i>
+                                <span class="font-medium">Unschedule</span>
+                            </button>
+                        </form>
+                    {% else %}
+                        <form method="post" action="{% url 'reports:schedule_report' report.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="w-full flex items-center justify-center p-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition">
+                                <i class="fas fa-calendar-check mr-2"></i>
+                                <span class="font-medium">Schedule</span>
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    <a href="{% url 'reports:export_config' report.pk %}" class="w-full flex items-center justify-center p-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition">
+                        <i class="fas fa-file-export mr-2"></i>
+                        <span class="font-medium">Export Config</span>
+                    </a>
+
+                    <a href="{% url 'reports:report_delete' report.pk %}" class="w-full flex items-center justify-center p-3 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition">
+                        <i class="fas fa-trash mr-2"></i>
+                        <span class="font-medium">Delete Report</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Report Info -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Report Information</h3>
+                <div class="space-y-3 text-sm">
+                    <div>
+                        <p class="text-gray-500">Created By</p>
+                        <p class="text-gray-800 font-medium">
+                            {% if report.created_by %}
+                                {{ report.created_by.get_full_name|default:report.created_by.username }}
+                            {% else %}
+                                System
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Created Date</p>
+                        <p class="text-gray-800">{{ report.created_at|date:"M d, Y - g:i A" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Last Updated</p>
+                        <p class="text-gray-800">{{ report.updated_at|date:"M d, Y - g:i A" }}</p>
+                    </div>
+                    {% if report.last_run %}
+                        <div>
+                            <p class="text-gray-500">Last Run</p>
+                            <p class="text-gray-800">{{ report.last_run|date:"M d, Y - g:i A" }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recipients -->
+            {% if report.send_email and report.recipients.exists or report.email_recipients %}
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Email Recipients</h3>
+                    <div class="space-y-2">
+                        {% for recipient in report.recipients.all %}
+                            <div class="flex items-center text-sm text-gray-700">
+                                <i class="far fa-user mr-2 text-gray-400"></i>
+                                {{ recipient.get_full_name|default:recipient.username }}
+                            </div>
+                        {% endfor %}
+                        {% if report.email_recipients %}
+                            {% for email in report.email_recipients.split:',' %}
+                                <div class="flex items-center text-sm text-gray-700">
+                                    <i class="far fa-envelope mr-2 text-gray-400"></i>
+                                    {{ email|trim }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

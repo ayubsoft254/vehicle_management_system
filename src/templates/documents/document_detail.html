@@ -1,0 +1,392 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ document.title }} - Documents{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <div class="mb-6">
+        <nav class="flex items-center text-sm text-gray-600">
+            <a href="{% url 'documents:document_list' %}" class="hover:text-primary-600">Documents</a>
+            <i class="fas fa-chevron-right mx-2 text-xs"></i>
+            <span class="text-gray-800 font-medium">{{ document.title }}</span>
+        </nav>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Left Column - Document Details -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Document Header -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="bg-gradient-to-r from-primary-600 to-primary-700 p-6 text-white">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h1 class="text-2xl font-bold mb-2">{{ document.title }}</h1>
+                            <div class="flex items-center gap-3">
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white bg-opacity-20">
+                                    <i class="fas {{ document.category.icon|default:'fa-folder' }} mr-2"></i>{{ document.category.name }}
+                                </span>
+                                {% if document.version > 1 %}
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white bg-opacity-20">
+                                        <i class="fas fa-code-branch mr-2"></i>Version {{ document.version }}
+                                    </span>
+                                {% endif %}
+                                {% if document.is_latest_version %}
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-500 bg-opacity-80">
+                                        <i class="fas fa-check-circle mr-2"></i>Latest
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <a href="{% url 'documents:download_document' document.pk %}" class="bg-white bg-opacity-20 hover:bg-opacity-30 p-3 rounded-lg transition duration-200" title="Download">
+                                <i class="fas fa-download"></i>
+                            </a>
+                            {% if document.uploaded_by == request.user %}
+                                <a href="{% url 'documents:document_edit' document.pk %}" class="bg-white bg-opacity-20 hover:bg-opacity-30 p-3 rounded-lg transition duration-200" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics Row -->
+                <div class="grid grid-cols-3 divide-x divide-gray-200 bg-gray-50">
+                    <div class="p-4 text-center">
+                        <p class="text-sm text-gray-600">File Size</p>
+                        <p class="text-lg font-semibold text-gray-800 mt-1">{{ document.file_size_formatted }}</p>
+                    </div>
+                    <div class="p-4 text-center">
+                        <p class="text-sm text-gray-600">Downloads</p>
+                        <p class="text-lg font-semibold text-gray-800 mt-1">{{ document.download_count }}</p>
+                    </div>
+                    <div class="p-4 text-center">
+                        <p class="text-sm text-gray-600">Version</p>
+                        <p class="text-lg font-semibold text-gray-800 mt-1">{{ document.version }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Preview -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-eye text-primary-600 mr-2"></i>File Preview
+                </h2>
+                <div class="bg-gray-100 rounded-lg p-8 text-center">
+                    {% if document.is_image %}
+                        <img src="{{ document.file.url }}" alt="{{ document.title }}" class="max-w-full h-auto mx-auto rounded-lg shadow-md">
+                    {% elif document.is_pdf %}
+                        <div class="space-y-4">
+                            <div class="w-20 h-20 bg-red-100 rounded-lg flex items-center justify-center mx-auto">
+                                <i class="fas fa-file-pdf text-4xl text-red-600"></i>
+                            </div>
+                            <p class="text-gray-600">PDF Document</p>
+                            <a href="{{ document.file.url }}" target="_blank" class="inline-block bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-semibold transition duration-200">
+                                <i class="fas fa-external-link-alt mr-2"></i>Open in New Tab
+                            </a>
+                        </div>
+                    {% elif document.is_document %}
+                        <div class="space-y-4">
+                            <div class="w-20 h-20 bg-blue-100 rounded-lg flex items-center justify-center mx-auto">
+                                <i class="fas fa-file-word text-4xl text-blue-600"></i>
+                            </div>
+                            <p class="text-gray-600">Word Document</p>
+                            <a href="{% url 'documents:download_document' document.pk %}" class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition duration-200">
+                                <i class="fas fa-download mr-2"></i>Download to View
+                            </a>
+                        </div>
+                    {% elif document.is_spreadsheet %}
+                        <div class="space-y-4">
+                            <div class="w-20 h-20 bg-green-100 rounded-lg flex items-center justify-center mx-auto">
+                                <i class="fas fa-file-excel text-4xl text-green-600"></i>
+                            </div>
+                            <p class="text-gray-600">Spreadsheet</p>
+                            <a href="{% url 'documents:download_document' document.pk %}" class="inline-block bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition duration-200">
+                                <i class="fas fa-download mr-2"></i>Download to View
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="space-y-4">
+                            <div class="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center mx-auto">
+                                <i class="fas fa-file text-4xl text-gray-600"></i>
+                            </div>
+                            <p class="text-gray-600">File: {{ document.get_file_extension }}</p>
+                            <a href="{% url 'documents:download_document' document.pk %}" class="inline-block bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-semibold transition duration-200">
+                                <i class="fas fa-download mr-2"></i>Download File
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Description and Details -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-info-circle text-primary-600 mr-2"></i>Document Information
+                </h2>
+                
+                {% if document.description %}
+                    <div class="mb-6">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Description</h3>
+                        <p class="text-gray-600">{{ document.description }}</p>
+                    </div>
+                {% endif %}
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Category</h3>
+                        <p class="text-gray-900">
+                            <i class="fas {{ document.category.icon|default:'fa-folder' }} mr-2" style="color: {{ document.category.color }};"></i>{{ document.category.name }}
+                        </p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">File Type</h3>
+                        <p class="text-gray-900">{{ document.get_file_extension|upper }}</p>
+                    </div>
+
+                    {% if document.document_number %}
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-700 mb-2">Document Number</h3>
+                            <p class="text-gray-900">{{ document.document_number }}</p>
+                        </div>
+                    {% endif %}
+
+                    {% if document.issue_date %}
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-700 mb-2">Issue Date</h3>
+                            <p class="text-gray-900">{{ document.issue_date|date:"F d, Y" }}</p>
+                        </div>
+                    {% endif %}
+
+                    {% if document.expiry_date %}
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-700 mb-2">Expiry Date</h3>
+                            <p class="{% if document.is_expired %}text-red-600{% elif document.is_expiring_soon %}text-yellow-600{% else %}text-gray-900{% endif %}">
+                                {{ document.expiry_date|date:"F d, Y" }}
+                                {% if document.is_expired %}
+                                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-exclamation-circle mr-1"></i>Expired
+                                    </span>
+                                {% elif document.is_expiring_soon %}
+                                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                        <i class="fas fa-clock mr-1"></i>{{ document.days_until_expiry }} days left
+                                    </span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    {% endif %}
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Uploaded By</h3>
+                        <p class="text-gray-900">{{ document.uploaded_by.get_full_name }}</p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Uploaded At</h3>
+                        <p class="text-gray-900">{{ document.uploaded_at|date:"F d, Y g:i A" }}</p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Last Updated</h3>
+                        <p class="text-gray-900">{{ document.updated_at|date:"F d, Y g:i A" }}</p>
+                    </div>
+
+                    {% if document.last_downloaded_at %}
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-700 mb-2">Last Downloaded</h3>
+                            <p class="text-gray-900">{{ document.last_downloaded_at|date:"F d, Y g:i A" }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                {% if document.tags %}
+                    <div class="mt-6">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Tags</h3>
+                        <div class="flex flex-wrap gap-2">
+                            {% for tag in document.get_tags_list %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                                    <i class="fas fa-tag mr-1 text-xs"></i>{{ tag }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if document.notes %}
+                    <div class="mt-6">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Notes</h3>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <p class="text-gray-600">{{ document.notes }}</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Version History -->
+            {% if document.previous_version or document.next_versions.all %}
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-history text-primary-600 mr-2"></i>Version History
+                    </h2>
+                    <div class="space-y-3">
+                        {% for version in document.get_version_history %}
+                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg {% if version.pk == document.pk %}border-2 border-primary-500{% endif %}">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center mr-4">
+                                        <span class="font-bold text-primary-700">v{{ version.version }}</span>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-800">
+                                            {{ version.title }}
+                                            {% if version.is_latest_version %}
+                                                <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                    Latest
+                                                </span>
+                                            {% endif %}
+                                            {% if version.pk == document.pk %}
+                                                <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-800">
+                                                    Current
+                                                </span>
+                                            {% endif %}
+                                        </p>
+                                        <p class="text-sm text-gray-500">
+                                            {{ version.uploaded_at|date:"M d, Y g:i A" }} by {{ version.uploaded_by.get_full_name }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    {% if version.pk != document.pk %}
+                                        <a href="{% url 'documents:document_detail' version.pk %}" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition duration-200">
+                                            View
+                                        </a>
+                                    {% endif %}
+                                    <a href="{% url 'documents:download_document' version.pk %}" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition duration-200">
+                                        Download
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column - Actions & Info -->
+        <div class="space-y-6">
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h3>
+                <div class="space-y-3">
+                    <a href="{% url 'documents:download_document' document.pk %}" class="flex items-center justify-between w-full bg-green-50 hover:bg-green-100 text-green-700 px-4 py-3 rounded-lg font-medium transition duration-200">
+                        <span><i class="fas fa-download mr-2"></i>Download File</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                    
+                    {% if document.uploaded_by == request.user %}
+                        <a href="{% url 'documents:document_share' document.pk %}" class="flex items-center justify-between w-full bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-3 rounded-lg font-medium transition duration-200">
+                            <span><i class="fas fa-share-alt mr-2"></i>Share Document</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                        
+                        <a href="{% url 'documents:document_edit' document.pk %}" class="flex items-center justify-between w-full bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-4 py-3 rounded-lg font-medium transition duration-200">
+                            <span><i class="fas fa-edit mr-2"></i>Edit Details</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                        
+                        <a href="{% url 'documents:document_delete' document.pk %}" class="flex items-center justify-between w-full bg-red-50 hover:bg-red-100 text-red-700 px-4 py-3 rounded-lg font-medium transition duration-200">
+                            <span><i class="fas fa-trash mr-2"></i>Delete Document</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    {% endif %}
+                    
+                    <a href="{% url 'documents:document_list' %}" class="flex items-center justify-between w-full bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-3 rounded-lg font-medium transition duration-200">
+                        <span><i class="fas fa-list mr-2"></i>All Documents</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Document Status -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Status</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Active</span>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {% if document.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                            {% if document.is_active %}
+                                <i class="fas fa-check-circle mr-1"></i>Yes
+                            {% else %}
+                                <i class="fas fa-times-circle mr-1"></i>No
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Privacy</span>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {% if document.is_private %}bg-red-100 text-red-800{% else %}bg-green-100 text-green-800{% endif %}">
+                            {% if document.is_private %}
+                                <i class="fas fa-lock mr-1"></i>Private
+                            {% else %}
+                                <i class="fas fa-lock-open mr-1"></i>Public
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Latest Version</span>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {% if document.is_latest_version %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                            {% if document.is_latest_version %}
+                                <i class="fas fa-check-circle mr-1"></i>Yes
+                            {% else %}
+                                <i class="fas fa-info-circle mr-1"></i>Outdated
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    {% if document.expiry_date %}
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-600">Expiry Status</span>
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {% if document.is_expired %}bg-red-100 text-red-800{% elif document.is_expiring_soon %}bg-yellow-100 text-yellow-800{% else %}bg-green-100 text-green-800{% endif %}">
+                                {% if document.is_expired %}
+                                    <i class="fas fa-exclamation-circle mr-1"></i>Expired
+                                {% elif document.is_expiring_soon %}
+                                    <i class="fas fa-clock mr-1"></i>Expiring Soon
+                                {% else %}
+                                    <i class="fas fa-check-circle mr-1"></i>Valid
+                                {% endif %}
+                            </span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- File Information -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">File Information</h3>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">File Name</span>
+                        <span class="text-gray-900 font-medium text-right truncate ml-2">{{ document.file.name|slice:"-30:" }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">File Size</span>
+                        <span class="text-gray-900 font-medium">{{ document.file_size_formatted }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">File Type</span>
+                        <span class="text-gray-900 font-medium">{{ document.get_file_extension|upper }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">MIME Type</span>
+                        <span class="text-gray-900 font-medium">{{ document.file_type|default:"Unknown" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

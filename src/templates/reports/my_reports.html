@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Reports - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">My Saved Reports</h1>
+            <p class="text-gray-600">{{ saved_reports.count }} report{{ saved_reports.count|pluralize }} saved to favorites</p>
+        </div>
+        <a href="{% url 'reports:report_list' %}" class="mt-4 md:mt-0 inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+            <i class="fas fa-search mr-2"></i>Browse Reports
+        </a>
+    </div>
+
+    <!-- Saved Reports Grid -->
+    {% if saved_reports %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for saved in saved_reports %}
+                <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
+                    <div class="p-6">
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="flex-1">
+                                <a href="{% url 'reports:report_detail' saved.report.pk %}" class="text-xl font-bold text-gray-800 hover:text-primary-600 mb-2 block">
+                                    {{ saved.custom_name|default:saved.report.name }}
+                                </a>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                                    {{ saved.report.get_report_type_display }}
+                                </span>
+                            </div>
+                            <i class="fas fa-star text-yellow-500 text-xl"></i>
+                        </div>
+
+                        {% if saved.report.description %}
+                            <p class="text-sm text-gray-600 mb-4">{{ saved.report.description|truncatewords:15 }}</p>
+                        {% endif %}
+
+                        <div class="text-sm text-gray-500 mb-4 space-y-1">
+                            <p><i class="fas fa-play mr-2"></i>{{ saved.report.execution_count }} executions</p>
+                            <p><i class="far fa-clock mr-2"></i>Last accessed: {{ saved.last_accessed|date:"M d, Y" }}</p>
+                            <p><i class="fas fa-eye mr-2"></i>Accessed {{ saved.access_count }} time{{ saved.access_count|pluralize }}</p>
+                        </div>
+
+                        <div class="flex items-center space-x-2 pt-4 border-t">
+                            <form method="post" action="{% url 'reports:run_report' saved.report.pk %}" class="flex-1">
+                                {% csrf_token %}
+                                <button type="submit" class="w-full text-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition text-sm">
+                                    <i class="fas fa-play mr-1"></i>Run
+                                </button>
+                            </form>
+                            <a href="{% url 'reports:report_detail' saved.report.pk %}" class="flex-1 text-center px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition text-sm">
+                                <i class="fas fa-eye mr-1"></i>View
+                            </a>
+                            <form method="post" action="{% url 'reports:unsave_report' saved.report.pk %}" class="flex-1">
+                                {% csrf_token %}
+                                <button type="submit" class="w-full text-center px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition text-sm">
+                                    <i class="fas fa-star mr-1"></i>Remove
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- Empty State -->
+        <div class="bg-white rounded-xl shadow-md p-12 text-center">
+            <i class="fas fa-star text-6xl text-gray-300 mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-800 mb-2">No Saved Reports</h3>
+            <p class="text-gray-600 mb-6">Save your favorite reports for quick access</p>
+            <a href="{% url 'reports:report_list' %}" class="inline-flex items-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                <i class="fas fa-search mr-2"></i>Browse Reports
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

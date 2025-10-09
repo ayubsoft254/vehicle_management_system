@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if form.instance.pk %}Edit{% else %}Create{% endif %} Template - Reports{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-3xl mx-auto">
+        <!-- Back Button -->
+        <div class="mb-6">
+            <a href="{% url 'reports:template_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Templates
+            </a>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-file-alt text-primary-600 mr-3"></i>
+                    {% if form.instance.pk %}Edit Template{% else %}Create New Template{% endif %}
+                </h1>
+            </div>
+
+            <form method="post" class="p-6 space-y-6">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                        <p class="text-red-700">{{ form.non_field_errors }}</p>
+                    </div>
+                {% endif %}
+
+                <div>
+                    <label for="id_name" class="block text-sm font-medium text-gray-700 mb-2">
+                        Template Name <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="id_description" class="block text-sm font-medium text-gray-700 mb-2">
+                        Description
+                    </label>
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.description.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="id_report_type" class="block text-sm font-medium text-gray-700 mb-2">
+                            Report Type <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.report_type }}
+                        {% if form.report_type.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.report_type.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="id_layout" class="block text-sm font-medium text-gray-700 mb-2">
+                            Layout
+                        </label>
+                        {{ form.layout }}
+                        {% if form.layout.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.layout.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="flex items-center">
+                        {{ form.is_active }}
+                        <span class="ml-2 text-sm font-medium text-gray-700">Active</span>
+                    </label>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-end space-x-4 pt-6 border-t">
+                    <a href="{% url 'reports:template_list' %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i>{% if form.instance.pk %}Update{% else %}Create{% endif %} Template
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

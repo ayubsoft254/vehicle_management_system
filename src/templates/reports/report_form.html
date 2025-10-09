@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if form.instance.pk %}Edit{% else %}Create{% endif %} Report - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Back Button -->
+        <div class="mb-6">
+            <a href="{% if form.instance.pk %}{% url 'reports:report_detail' form.instance.pk %}{% else %}{% url 'reports:report_list' %}{% endif %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left mr-2"></i>Back
+            </a>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-file-alt text-primary-600 mr-3"></i>
+                    {% if form.instance.pk %}Edit Report{% else %}Create New Report{% endif %}
+                </h1>
+                <p class="text-gray-600 mt-2">Configure report settings and parameters</p>
+            </div>
+
+            <form method="post" class="p-6 space-y-8">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                        <p class="text-red-700">{{ form.non_field_errors }}</p>
+                    </div>
+                {% endif %}
+
+                <!-- Basic Information -->
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Basic Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="md:col-span-2">
+                            <label for="id_name" class="block text-sm font-medium text-gray-700 mb-2">
+                                Report Name <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.name.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label for="id_description" class="block text-sm font-medium text-gray-700 mb-2">
+                                Description
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.description.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_report_type" class="block text-sm font-medium text-gray-700 mb-2">
+                                Report Type <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.report_type }}
+                            {% if form.report_type.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.report_type.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_template" class="block text-sm font-medium text-gray-700 mb-2">
+                                Template
+                            </label>
+                            {{ form.template }}
+                            {% if form.template.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.template.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Date Range -->
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Date Range</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label for="id_date_range_type" class="block text-sm font-medium text-gray-700 mb-2">
+                                Date Range Type <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.date_range_type }}
+                            {% if form.date_range_type.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.date_range_type.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_custom_date_from" class="block text-sm font-medium text-gray-700 mb-2">
+                                Custom Date From
+                            </label>
+                            {{ form.custom_date_from }}
+                            {% if form.custom_date_from.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.custom_date_from.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_custom_date_to" class="block text-sm font-medium text-gray-700 mb-2">
+                                Custom Date To
+                            </label>
+                            {{ form.custom_date_to }}
+                            {% if form.custom_date_to.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.custom_date_to.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Output Settings -->
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Output Settings</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="id_output_format" class="block text-sm font-medium text-gray-700 mb-2">
+                                Output Format <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.output_format }}
+                            {% if form.output_format.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.output_format.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="space-y-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Display Options</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    {{ form.include_charts }}
+                                    <span class="ml-2 text-sm text-gray-700">Include Charts</span>
+                                </label>
+                                <label class="flex items-center">
+                                    {{ form.include_summary }}
+                                    <span class="ml-2 text-sm text-gray-700">Include Summary</span>
+                                </label>
+                                <label class="flex items-center">
+                                    {{ form.include_details }}
+                                    <span class="ml-2 text-sm text-gray-700">Include Details</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scheduling -->
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Scheduling</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="md:col-span-3">
+                            <label class="flex items-center">
+                                {{ form.is_scheduled }}
+                                <span class="ml-2 text-sm font-medium text-gray-700">Enable Scheduling</span>
+                            </label>
+                        </div>
+
+                        <div>
+                            <label for="id_frequency" class="block text-sm font-medium text-gray-700 mb-2">
+                                Frequency
+                            </label>
+                            {{ form.frequency }}
+                            {% if form.frequency.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.frequency.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_schedule_time" class="block text-sm font-medium text-gray-700 mb-2">
+                                Schedule Time
+                            </label>
+                            {{ form.schedule_time }}
+                            {% if form.schedule_time.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.schedule_time.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_schedule_day" class="block text-sm font-medium text-gray-700 mb-2">
+                                Day of Month (for monthly)
+                            </label>
+                            {{ form.schedule_day }}
+                            {% if form.schedule_day.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.schedule_day.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Email Settings -->
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Email Notifications</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="flex items-center">
+                                {{ form.send_email }}
+                                <span class="ml-2 text-sm font-medium text-gray-700">Send Email Notifications</span>
+                            </label>
+                        </div>
+
+                        <div>
+                            <label for="id_recipients" class="block text-sm font-medium text-gray-700 mb-2">
+                                Recipients (Users)
+                            </label>
+                            {{ form.recipients }}
+                            {% if form.recipients.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.recipients.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_email_recipients" class="block text-sm font-medium text-gray-700 mb-2">
+                                Additional Email Addresses
+                            </label>
+                            {{ form.email_recipients }}
+                            <p class="text-xs text-gray-500 mt-1">Comma-separated email addresses</p>
+                            {% if form.email_recipients.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.email_recipients.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Access Control -->
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Access Control</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="flex items-center">
+                                {{ form.is_public }}
+                                <span class="ml-2 text-sm font-medium text-gray-700">Public (All users can view)</span>
+                            </label>
+                        </div>
+
+                        <div>
+                            <label for="id_allowed_users" class="block text-sm font-medium text-gray-700 mb-2">
+                                Allowed Users
+                            </label>
+                            {{ form.allowed_users }}
+                            {% if form.allowed_users.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.allowed_users.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label class="flex items-center">
+                                {{ form.is_active }}
+                                <span class="ml-2 text-sm font-medium text-gray-700">Active</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Box -->
+                <div class="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
+                    <div class="flex">
+                        <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+                        <div class="text-sm text-blue-700">
+                            <p class="font-semibold mb-1">Report Configuration Tips:</p>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>Choose appropriate date ranges based on report requirements</li>
+                                <li>Schedule reports during off-peak hours for better performance</li>
+                                <li>Use templates for consistent report formatting</li>
+                                <li>Test reports before scheduling automatic execution</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-end space-x-4 pt-6 border-t">
+                    <a href="{% if form.instance.pk %}{% url 'reports:report_detail' form.instance.pk %}{% else %}{% url 'reports:report_list' %}{% endif %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i>{% if form.instance.pk %}Update{% else %}Create{% endif %} Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

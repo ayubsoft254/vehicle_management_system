@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Report Templates - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Report Templates</h1>
+            <p class="text-gray-600">Reusable templates for consistent report formatting</p>
+        </div>
+        <a href="{% url 'reports:template_create' %}" class="mt-4 md:mt-0 inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+            <i class="fas fa-plus-circle mr-2"></i>New Template
+        </a>
+    </div>
+
+    <!-- Templates Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for template in templates %}
+            <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
+                <div class="p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">{{ template.name }}</h3>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                                {{ template.get_report_type_display }}
+                            </span>
+                        </div>
+                        {% if template.is_active %}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-check-circle mr-1"></i>Active
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Inactive
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    {% if template.description %}
+                        <p class="text-sm text-gray-600 mb-4">{{ template.description|truncatewords:15 }}</p>
+                    {% endif %}
+
+                    <div class="text-sm text-gray-500 mb-4">
+                        <p><i class="fas fa-layer-group mr-2"></i>Layout: {{ template.layout|title }}</p>
+                        <p class="mt-1"><i class="far fa-calendar mr-2"></i>Created: {{ template.created_at|date:"M d, Y" }}</p>
+                    </div>
+
+                    <div class="flex items-center space-x-2 pt-4 border-t">
+                        <a href="{% url 'reports:template_edit' template.pk %}" class="flex-1 text-center px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition text-sm">
+                            <i class="fas fa-edit mr-1"></i>Edit
+                        </a>
+                        <a href="{% url 'reports:template_delete' template.pk %}" class="flex-1 text-center px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition text-sm">
+                            <i class="fas fa-trash mr-1"></i>Delete
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-span-full">
+                <div class="bg-white rounded-xl shadow-md p-12 text-center">
+                    <i class="fas fa-file-alt text-6xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500 mb-4">No templates found</p>
+                    <a href="{% url 'reports:template_create' %}" class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                        <i class="fas fa-plus-circle mr-2"></i>Create Your First Template
+                    </a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if templates.has_other_pages %}
+        <div class="mt-8 flex items-center justify-center">
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                {% if templates.has_previous %}
+                    <a href="?page=1" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">First</a>
+                    <a href="?page={{ templates.previous_page_number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">Previous</a>
+                {% endif %}
+                
+                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-gray-50 text-sm font-medium text-gray-700">
+                    {{ templates.number }}
+                </span>
+                
+                {% if templates.has_next %}
+                    <a href="?page={{ templates.next_page_number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">Next</a>
+                    <a href="?page={{ templates.paginator.num_pages }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Last</a>
+                {% endif %}
+            </nav>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Document - Documents{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <div class="mb-6">
+        <nav class="flex items-center text-sm text-gray-600">
+            <a href="{% url 'documents:document_list' %}" class="hover:text-primary-600">Documents</a>
+            <i class="fas fa-chevron-right mx-2 text-xs"></i>
+            <a href="{% url 'documents:document_detail' document.pk %}" class="hover:text-primary-600">{{ document.title }}</a>
+            <i class="fas fa-chevron-right mx-2 text-xs"></i>
+            <span class="text-gray-800 font-medium">Delete</span>
+        </nav>
+    </div>
+
+    <div class="max-w-3xl mx-auto">
+        <!-- Warning Header -->
+        <div class="bg-red-50 border-l-4 border-red-500 p-6 mb-8 rounded-lg">
+            <div class="flex items-start">
+                <i class="fas fa-exclamation-triangle text-red-500 text-3xl mr-4"></i>
+                <div>
+                    <h1 class="text-2xl font-bold text-red-800 mb-2">Delete Document</h1>
+                    <p class="text-red-700">This action cannot be undone. The document file will be permanently deleted from the system.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Document Details -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">Document Details</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 mr-4">
+                        {% if document.is_pdf %}
+                            <div class="w-16 h-16 bg-red-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-file-pdf text-3xl text-red-600"></i>
+                            </div>
+                        {% elif document.is_image %}
+                            <div class="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-file-image text-3xl text-blue-600"></i>
+                            </div>
+                        {% elif document.is_document %}
+                            <div class="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-file-word text-3xl text-blue-600"></i>
+                            </div>
+                        {% elif document.is_spreadsheet %}
+                            <div class="w-16 h-16 bg-green-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-file-excel text-3xl text-green-600"></i>
+                            </div>
+                        {% else %}
+                            <div class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-file text-3xl text-gray-600"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">{{ document.title }}</h3>
+                        {% if document.description %}
+                            <p class="text-gray-600 mb-3">{{ document.description }}</p>
+                        {% endif %}
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span class="text-gray-600">Category:</span>
+                                <span class="font-medium text-gray-800 ml-2">{{ document.category.name }}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">File Size:</span>
+                                <span class="font-medium text-gray-800 ml-2">{{ document.file_size_formatted }}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">File Type:</span>
+                                <span class="font-medium text-gray-800 ml-2">{{ document.get_file_extension|upper }}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Version:</span>
+                                <span class="font-medium text-gray-800 ml-2">{{ document.version }}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Uploaded:</span>
+                                <span class="font-medium text-gray-800 ml-2">{{ document.uploaded_at|date:"M d, Y" }}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Downloads:</span>
+                                <span class="font-medium text-gray-800 ml-2">{{ document.download_count }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Warning Box -->
+        <div class="bg-red-50 border border-red-200 rounded-lg p-6 mb-8">
+            <h3 class="text-lg font-semibold text-red-800 mb-3">
+                <i class="fas fa-exclamation-circle mr-2"></i>What will be deleted:
+            </h3>
+            <ul class="space-y-2 text-red-700">
+                <li class="flex items-start">
+                    <i class="fas fa-times-circle mt-1 mr-3"></i>
+                    <span>The document file will be permanently removed from storage</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-times-circle mt-1 mr-3"></i>
+                    <span>All document metadata and information will be deleted</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-times-circle mt-1 mr-3"></i>
+                    <span>Download and access history will be removed</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-times-circle mt-1 mr-3"></i>
+                    <span>All sharing links and permissions will be revoked</span>
+                </li>
+                {% if document.version > 1 or document.next_versions.all %}
+                    <li class="flex items-start">
+                        <i class="fas fa-times-circle mt-1 mr-3"></i>
+                        <span>Version history links will be broken (other versions remain intact)</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <!-- Version Warning -->
+        {% if document.is_latest_version and document.previous_version %}
+            <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-8">
+                <div class="flex">
+                    <i class="fas fa-info-circle text-yellow-500 mt-1 mr-3"></i>
+                    <div>
+                        <p class="text-sm text-yellow-700">
+                            <strong>Note:</strong> This is the latest version (v{{ document.version }}) of the document. 
+                            Previous versions will remain accessible, but this version will be permanently deleted.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Confirmation Form -->
+        <form method="post" class="bg-white rounded-xl shadow-md overflow-hidden">
+            {% csrf_token %}
+            <div class="p-6">
+                <p class="text-lg text-gray-800 mb-4">
+                    Are you sure you want to delete <strong class="text-red-600">"{{ document.title }}"</strong>?
+                </p>
+                <p class="text-gray-600">
+                    This action is permanent and cannot be undone. Please confirm that you want to proceed with the deletion.
+                </p>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
+                <a href="{% url 'documents:document_detail' document.pk %}" class="text-gray-600 hover:text-gray-800 font-medium">
+                    <i class="fas fa-arrow-left mr-2"></i>Cancel
+                </a>
+                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold transition duration-200 shadow-md">
+                    <i class="fas fa-trash mr-2"></i>Delete Document
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

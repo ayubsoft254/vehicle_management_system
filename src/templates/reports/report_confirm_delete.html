@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Report - {{ report.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <!-- Back Button -->
+        <div class="mb-6">
+            <a href="{% url 'reports:report_detail' report.pk %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Report
+            </a>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200 bg-red-50">
+                <h1 class="text-2xl font-bold text-red-800 flex items-center">
+                    <i class="fas fa-exclamation-triangle mr-3"></i>
+                    Delete Report
+                </h1>
+            </div>
+
+            <div class="p-6">
+                <!-- Report Details -->
+                <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Report Details</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p class="text-gray-500">Report Name</p>
+                            <p class="text-gray-800 font-medium">{{ report.name }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Report Type</p>
+                            <p class="text-gray-800">{{ report.get_report_type_display }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Total Executions</p>
+                            <p class="text-gray-800">{{ report.execution_count }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500">Output Format</p>
+                            <p class="text-gray-800">{{ report.get_output_format_display }}</p>
+                        </div>
+                        {% if report.is_scheduled %}
+                            <div>
+                                <p class="text-gray-500">Scheduling</p>
+                                <p class="text-gray-800">{{ report.get_frequency_display }}</p>
+                            </div>
+                        {% endif %}
+                        <div>
+                            <p class="text-gray-500">Created Date</p>
+                            <p class="text-gray-800">{{ report.created_at|date:"M d, Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Warning -->
+                <div class="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6">
+                    <div class="flex">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-xl mr-3 mt-1"></i>
+                        <div>
+                            <h4 class="text-red-800 font-semibold mb-2">Warning: This action cannot be undone!</h4>
+                            <p class="text-red-700 text-sm mb-3">
+                                Deleting this report will permanently remove:
+                            </p>
+                            <ul class="text-red-700 text-sm space-y-1 list-disc list-inside">
+                                <li>The report configuration</li>
+                                <li>All execution history ({{ report.execution_count }} execution{{ report.execution_count|pluralize }})</li>
+                                <li>Generated report files</li>
+                                <li>Schedule settings and recipients</li>
+                                <li>User favorites and saved configurations</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Confirmation -->
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4 mb-6">
+                    <div class="flex items-start">
+                        <i class="fas fa-info-circle text-yellow-600 mt-1 mr-3"></i>
+                        <p class="text-sm text-yellow-800">
+                            <strong>Note:</strong> If this report is scheduled, all future automatic executions will be cancelled.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Confirm Message -->
+                <p class="text-gray-700 mb-6">
+                    Are you sure you want to delete the report "<strong>{{ report.name }}</strong>"?
+                </p>
+
+                <!-- Form Actions -->
+                <form method="post" class="flex items-center justify-end space-x-4">
+                    {% csrf_token %}
+                    <a href="{% url 'reports:report_detail' report.pk %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+                        <i class="fas fa-trash mr-2"></i>Yes, Delete Report
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

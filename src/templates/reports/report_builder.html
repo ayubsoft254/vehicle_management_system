@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Report Builder - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-5xl mx-auto">
+        <!-- Page Header -->
+        <div class="mb-8 text-center">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">
+                <i class="fas fa-magic text-primary-600 mr-3"></i>
+                Report Builder
+            </h1>
+            <p class="text-gray-600">Create custom reports with our interactive builder</p>
+        </div>
+
+        <!-- Builder Interface -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-blue-50">
+                <h2 class="text-2xl font-bold text-gray-800">Quick Report Creator</h2>
+                <p class="text-gray-600 mt-1">Build your report in minutes with our intuitive interface</p>
+            </div>
+
+            <form method="post" class="p-6 space-y-8">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                        <p class="text-red-700">{{ form.non_field_errors }}</p>
+                    </div>
+                {% endif %}
+
+                <!-- Step 1: Basic Info -->
+                <div class="space-y-6">
+                    <div class="flex items-center mb-4">
+                        <div class="flex items-center justify-center w-10 h-10 bg-primary-600 text-white rounded-full font-bold mr-3">
+                            1
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800">Basic Information</h3>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pl-13">
+                        <div class="md:col-span-2">
+                            <label for="id_name" class="block text-sm font-medium text-gray-700 mb-2">
+                                Report Name <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.name.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_report_type" class="block text-sm font-medium text-gray-700 mb-2">
+                                Report Type <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.report_type }}
+                            {% if form.report_type.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.report_type.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_output_format" class="block text-sm font-medium text-gray-700 mb-2">
+                                Output Format <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.output_format }}
+                            {% if form.output_format.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.output_format.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Date Range -->
+                <div class="space-y-6 pt-6 border-t">
+                    <div class="flex items-center mb-4">
+                        <div class="flex items-center justify-center w-10 h-10 bg-primary-600 text-white rounded-full font-bold mr-3">
+                            2
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800">Date Range</h3>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pl-13">
+                        <div>
+                            <label for="id_date_range_type" class="block text-sm font-medium text-gray-700 mb-2">
+                                Period <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.date_range_type }}
+                        </div>
+                        <div>
+                            <label for="id_custom_date_from" class="block text-sm font-medium text-gray-700 mb-2">
+                                From (if custom)
+                            </label>
+                            {{ form.custom_date_from }}
+                        </div>
+                        <div>
+                            <label for="id_custom_date_to" class="block text-sm font-medium text-gray-700 mb-2">
+                                To (if custom)
+                            </label>
+                            {{ form.custom_date_to }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Template (Optional) -->
+                <div class="space-y-6 pt-6 border-t">
+                    <div class="flex items-center mb-4">
+                        <div class="flex items-center justify-center w-10 h-10 bg-primary-600 text-white rounded-full font-bold mr-3">
+                            3
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800">Template (Optional)</h3>
+                    </div>
+                    
+                    <div class="pl-13">
+                        <!-- Available Templates -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            {% for template in templates %}
+                                <div class="border-2 border-gray-200 rounded-lg p-4 hover:border-primary-500 cursor-pointer transition">
+                                    <h4 class="font-semibold text-gray-800 mb-1">{{ template.name }}</h4>
+                                    <p class="text-xs text-gray-500">{{ template.get_report_type_display }}</p>
+                                    <p class="text-xs text-gray-400 mt-2">Layout: {{ template.layout|title }}</p>
+                                </div>
+                            {% empty %}
+                                <p class="text-gray-500 col-span-3">No templates available</p>
+                            {% endfor %}
+                        </div>
+
+                        <div>
+                            <label for="id_template" class="block text-sm font-medium text-gray-700 mb-2">
+                                Select Template
+                            </label>
+                            {{ form.template }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Display Options -->
+                <div class="space-y-6 pt-6 border-t">
+                    <div class="flex items-center mb-4">
+                        <div class="flex items-center justify-center w-10 h-10 bg-primary-600 text-white rounded-full font-bold mr-3">
+                            4
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800">Display Options</h3>
+                    </div>
+                    
+                    <div class="pl-13 space-y-3">
+                        <label class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                            {{ form.include_charts }}
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">Include Charts</span>
+                                <span class="block text-xs text-gray-500">Visual representations of data</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                            {{ form.include_summary }}
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">Include Summary</span>
+                                <span class="block text-xs text-gray-500">Executive summary section</span>
+                            </span>
+                        </label>
+                        <label class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                            {{ form.include_details }}
+                            <span class="ml-3">
+                                <span class="font-medium text-gray-700">Include Details</span>
+                                <span class="block text-xs text-gray-500">Detailed data tables</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Info Box -->
+                <div class="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 mt-8">
+                    <div class="flex">
+                        <i class="fas fa-lightbulb text-blue-500 text-xl mr-3 mt-1"></i>
+                        <div class="text-sm text-blue-700">
+                            <p class="font-semibold mb-1">Pro Tips:</p>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>Use templates for consistent formatting across reports</li>
+                                <li>Include charts for better data visualization</li>
+                                <li>Custom date ranges allow for specific period analysis</li>
+                                <li>You can edit all settings after creation</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-end space-x-4 pt-6 border-t">
+                    <a href="{% url 'reports:dashboard' %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition text-lg font-semibold">
+                        <i class="fas fa-magic mr-2"></i>Create Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

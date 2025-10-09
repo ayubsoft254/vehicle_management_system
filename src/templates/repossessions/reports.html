@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Repossession Reports - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Repossession Reports & Analytics</h1>
+            <p class="text-gray-600">Comprehensive statistics and analysis</p>
+        </div>
+        <a href="{% url 'repossessions:repossession_dashboard' %}" class="mt-4 md:mt-0 inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+            <i class="fas fa-tachometer-alt mr-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md p-6 text-white">
+            <p class="text-sm opacity-90 mb-1">Total Repossessions</p>
+            <p class="text-3xl font-bold">{{ total_repos }}</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-md p-6 text-white">
+            <p class="text-sm opacity-90 mb-1">Active Cases</p>
+            <p class="text-3xl font-bold">{{ active_repos }}</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-md p-6 text-white">
+            <p class="text-sm opacity-90 mb-1">Total Outstanding</p>
+            <p class="text-2xl font-bold">KES {{ financial_summary.total_outstanding|floatformat:0|default:"0" }}</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-md p-6 text-white">
+            <p class="text-sm opacity-90 mb-1">Avg Days to Complete</p>
+            <p class="text-3xl font-bold">{{ avg_days }}</p>
+        </div>
+    </div>
+
+    <!-- By Status -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-chart-pie text-primary-600 mr-2"></i>
+                Repossessions by Status
+            </h2>
+        </div>
+        <div class="p-6">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Count</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Percentage</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Visual</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for item in by_status %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="text-sm font-medium text-gray-900">{{ item.status }}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ item.count }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {% if total_repos > 0 %}
+                                        {% widthratio item.count 1 total_repos %}%
+                                    {% else %}
+                                        0%
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="flex-1 bg-gray-200 rounded-full h-3 mr-2 max-w-xs">
+                                            <div class="bg-primary-600 h-3 rounded-full" style="width: {% if total_repos > 0 %}{% widthratio item.count 100 total_repos %}{% else %}0{% endif %}%"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="4" class="px-6 py-4 text-center text-gray-500">No data available</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- By Reason -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-chart-bar text-primary-600 mr-2"></i>
+                Repossessions by Reason
+            </h2>
+        </div>
+        <div class="p-6">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Count</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Percentage</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Visual</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for item in by_reason %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="text-sm font-medium text-gray-900">{{ item.reason }}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ item.count }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {% if total_repos > 0 %}
+                                        {% widthratio item.count 1 total_repos %}%
+                                    {% else %}
+                                        0%
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="flex-1 bg-gray-200 rounded-full h-3 mr-2 max-w-xs">
+                                            <div class="bg-red-600 h-3 rounded-full" style="width: {% if total_repos > 0 %}{% widthratio item.count 100 total_repos %}{% else %}0{% endif %}%"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="4" class="px-6 py-4 text-center text-gray-500">No data available</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-money-bill-wave text-green-600 mr-2"></i>
+                Financial Summary
+            </h2>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-red-50 rounded-lg p-6">
+                    <p class="text-sm text-gray-600 mb-2">Total Outstanding</p>
+                    <p class="text-3xl font-bold text-red-600">
+                        KES {{ financial_summary.total_outstanding|floatformat:0|default:"0" }}
+                    </p>
+                </div>
+
+                <div class="bg-orange-50 rounded-lg p-6">
+                    <p class="text-sm text-gray-600 mb-2">Total Costs</p>
+                    <p class="text-3xl font-bold text-orange-600">
+                        KES {{ financial_summary.total_costs|floatformat:0|default:"0" }}
+                    </p>
+                </div>
+
+                <div class="bg-blue-50 rounded-lg p-6">
+                    <p class="text-sm text-gray-600 mb-2">Average Outstanding</p>
+                    <p class="text-3xl font-bold text-blue-600">
+                        KES {{ financial_summary.avg_outstanding|floatformat:0|default:"0" }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Completion Rate</h3>
+                <i class="fas fa-check-circle text-green-600 text-2xl"></i>
+            </div>
+            <p class="text-4xl font-bold text-green-600">
+                {% if total_repos > 0 %}
+                    {% widthratio by_status|dictsort:"status"|last.count 100 total_repos %}%
+                {% else %}
+                    0%
+                {% endif %}
+            </p>
+            <p class="text-sm text-gray-600 mt-2">Cases successfully completed</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Average Time</h3>
+                <i class="fas fa-clock text-blue-600 text-2xl"></i>
+            </div>
+            <p class="text-4xl font-bold text-blue-600">{{ avg_days }}</p>
+            <p class="text-sm text-gray-600 mt-2">Days to complete</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Active Cases</h3>
+                <i class="fas fa-spinner text-orange-600 text-2xl"></i>
+            </div>
+            <p class="text-4xl font-bold text-orange-600">{{ active_repos }}</p>
+            <p class="text-sm text-gray-600 mt-2">Currently in progress</p>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <a href="{% url 'repossessions:repossession_list' %}" class="flex items-center p-6 bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl hover:from-primary-600 hover:to-primary-700 text-white transition shadow-md">
+            <i class="fas fa-list text-3xl mr-4"></i>
+            <div>
+                <p class="text-sm opacity-90">View All</p>
+                <p class="text-lg font-semibold">Repossessions</p>
+            </div>
+        </a>
+        
+        <a href="{% url 'repossessions:repossession_dashboard' %}" class="flex items-center p-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl hover:from-blue-600 hover:to-blue-700 text-white transition shadow-md">
+            <i class="fas fa-tachometer-alt text-3xl mr-4"></i>
+            <div>
+                <p class="text-sm opacity-90">Go to</p>
+                <p class="text-lg font-semibold">Dashboard</p>
+            </div>
+        </a>
+        
+        <a href="{% url 'repossessions:repossession_create' %}" class="flex items-center p-6 bg-gradient-to-r from-red-500 to-red-600 rounded-xl hover:from-red-600 hover:to-red-700 text-white transition shadow-md">
+            <i class="fas fa-plus-circle text-3xl mr-4"></i>
+            <div>
+                <p class="text-sm opacity-90">Initiate</p>
+                <p class="text-lg font-semibold">New Case</p>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

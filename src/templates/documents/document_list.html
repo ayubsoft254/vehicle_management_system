@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Documents - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Page Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">Documents</h1>
+            <p class="text-gray-600 mt-1">Manage and access your documents</p>
+        </div>
+        <a href="{% url 'documents:document_create' %}" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200 shadow-md">
+            <i class="fas fa-upload mr-2"></i>Upload Document
+        </a>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-blue-100 text-sm font-medium">Total Documents</p>
+                    <p class="text-3xl font-bold mt-2">{{ total_count }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-file-alt text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-green-100 text-sm font-medium">Categories</p>
+                    <p class="text-3xl font-bold mt-2">{{ categories.count }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-folder text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-purple-100 text-sm font-medium">My Uploads</p>
+                    <p class="text-3xl font-bold mt-2">{{ documents|length }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-cloud-upload-alt text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-orange-100 text-sm font-medium">Current Page</p>
+                    <p class="text-3xl font-bold mt-2">{{ documents.number }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-list text-2xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Form -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+        <form method="get" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label for="query" class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                    <input type="text" id="query" name="query" value="{{ form.query.value|default:'' }}" placeholder="Search documents..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+
+                <div>
+                    <label for="category" class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                    <select id="category" name="category" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if form.category.value == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex items-end">
+                    <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-semibold transition duration-200">
+                        <i class="fas fa-search mr-2"></i>Search
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Documents Grid -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        {% if documents %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+                {% for document in documents %}
+                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition duration-200">
+                        <!-- File Type Icon -->
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex-shrink-0">
+                                {% if document.is_pdf %}
+                                    <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-file-pdf text-2xl text-red-600"></i>
+                                    </div>
+                                {% elif document.is_image %}
+                                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-file-image text-2xl text-blue-600"></i>
+                                    </div>
+                                {% elif document.is_document %}
+                                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-file-word text-2xl text-blue-600"></i>
+                                    </div>
+                                {% elif document.is_spreadsheet %}
+                                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-file-excel text-2xl text-green-600"></i>
+                                    </div>
+                                {% else %}
+                                    <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-file text-2xl text-gray-600"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Category Badge -->
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style="background-color: {{ document.category.color }}20; color: {{ document.category.color }};">
+                                {{ document.category.name }}
+                            </span>
+                        </div>
+
+                        <!-- Document Title -->
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2 truncate">
+                            <a href="{% url 'documents:document_detail' document.pk %}" class="hover:text-primary-600">
+                                {{ document.title }}
+                            </a>
+                        </h3>
+
+                        <!-- Description -->
+                        {% if document.description %}
+                            <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ document.description|truncatewords:15 }}</p>
+                        {% endif %}
+
+                        <!-- File Info -->
+                        <div class="space-y-1 mb-3">
+                            <div class="flex items-center text-xs text-gray-500">
+                                <i class="fas fa-hdd w-4"></i>
+                                <span class="ml-2">{{ document.file_size_formatted }}</span>
+                            </div>
+                            <div class="flex items-center text-xs text-gray-500">
+                                <i class="fas fa-calendar w-4"></i>
+                                <span class="ml-2">{{ document.uploaded_at|date:"M d, Y" }}</span>
+                            </div>
+                            <div class="flex items-center text-xs text-gray-500">
+                                <i class="fas fa-user w-4"></i>
+                                <span class="ml-2">{{ document.uploaded_by.get_full_name }}</span>
+                            </div>
+                            {% if document.expiry_date %}
+                                <div class="flex items-center text-xs {% if document.is_expired %}text-red-600{% elif document.is_expiring_soon %}text-yellow-600{% else %}text-gray-500{% endif %}">
+                                    <i class="fas fa-clock w-4"></i>
+                                    <span class="ml-2">
+                                        {% if document.is_expired %}
+                                            Expired {{ document.expiry_date|date:"M d, Y" }}
+                                        {% elif document.is_expiring_soon %}
+                                            Expires in {{ document.days_until_expiry }} days
+                                        {% else %}
+                                            Expires {{ document.expiry_date|date:"M d, Y" }}
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Version Badge -->
+                        {% if document.version > 1 %}
+                            <div class="mb-3">
+                                <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
+                                    <i class="fas fa-code-branch mr-1"></i>Version {{ document.version }}
+                                </span>
+                            </div>
+                        {% endif %}
+
+                        <!-- Actions -->
+                        <div class="flex items-center gap-2 pt-3 border-t border-gray-200">
+                            <a href="{% url 'documents:document_detail' document.pk %}" class="flex-1 text-center bg-primary-50 hover:bg-primary-100 text-primary-700 px-3 py-2 rounded-lg text-sm font-medium transition duration-200">
+                                <i class="fas fa-eye mr-1"></i>View
+                            </a>
+                            <a href="{% url 'documents:download_document' document.pk %}" class="flex-1 text-center bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition duration-200">
+                                <i class="fas fa-download mr-1"></i>Download
+                            </a>
+                            {% if document.uploaded_by == request.user %}
+                                <a href="{% url 'documents:document_edit' document.pk %}" class="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-3 py-2 rounded-lg text-sm transition duration-200">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'documents:document_delete' document.pk %}" class="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-lg text-sm transition duration-200">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if documents.has_other_pages %}
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Showing page <span class="font-medium">{{ documents.number }}</span> of <span class="font-medium">{{ documents.paginator.num_pages }}</span>
+                        </div>
+                        <nav class="flex items-center gap-2">
+                            {% if documents.has_previous %}
+                                <a href="?page=1{% if request.GET.query %}&query={{ request.GET.query }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">First</a>
+                                <a href="?page={{ documents.previous_page_number }}{% if request.GET.query %}&query={{ request.GET.query }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Previous</a>
+                            {% endif %}
+
+                            <span class="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium">{{ documents.number }}</span>
+
+                            {% if documents.has_next %}
+                                <a href="?page={{ documents.next_page_number }}{% if request.GET.query %}&query={{ request.GET.query }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Next</a>
+                                <a href="?page={{ documents.paginator.num_pages }}{% if request.GET.query %}&query={{ request.GET.query }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Last</a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-16">
+                <i class="fas fa-file-alt text-6xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">No Documents Found</h3>
+                <p class="text-gray-500 mb-6">Upload your first document to get started</p>
+                <a href="{% url 'documents:document_create' %}" class="inline-block bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200">
+                    <i class="fas fa-upload mr-2"></i>Upload Document
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Links -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-folder text-primary-600 mr-2"></i>Categories
+            </h3>
+            <div class="space-y-2">
+                {% for cat in categories|slice:":5" %}
+                    <a href="?category={{ cat.id }}" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition duration-200">
+                        <span class="flex items-center">
+                            <i class="fas {{ cat.icon|default:'fa-folder' }} mr-3" style="color: {{ cat.color }};"></i>
+                            <span class="font-medium text-gray-700">{{ cat.name }}</span>
+                        </span>
+                        <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs font-medium">{{ cat.document_count }}</span>
+                    </a>
+                {% endfor %}
+                <a href="{% url 'documents:category_list' %}" class="block text-center text-primary-600 hover:text-primary-700 font-medium mt-4">
+                    View All Categories <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-info-circle text-primary-600 mr-2"></i>About Documents
+            </h3>
+            <div class="space-y-3 text-sm text-gray-600">
+                <p><i class="fas fa-check-circle text-green-600 mr-2"></i>Secure document storage and management</p>
+                <p><i class="fas fa-check-circle text-green-600 mr-2"></i>Version control and history tracking</p>
+                <p><i class="fas fa-check-circle text-green-600 mr-2"></i>Share documents with team members</p>
+                <p><i class="fas fa-check-circle text-green-600 mr-2"></i>Organize with categories and tags</p>
+                <p><i class="fas fa-check-circle text-green-600 mr-2"></i>Expiry date tracking and notifications</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
