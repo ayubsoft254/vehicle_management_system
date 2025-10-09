@@ -365,22 +365,43 @@ class Command(BaseCommand):
             monthly_payment = loan_amount * monthly_rate / (Decimal('1') - (Decimal('1') + monthly_rate) ** -duration_months)
             
             start_date = datetime.now().date() - timedelta(days=random.randint(30, 365))
+            end_date = start_date + timedelta(days=duration_months * 30)
             
-            plan = InstallmentPlan.objects.create(
-                vehicle=vehicle,
-                client=client,
-                total_amount=vehicle.selling_price,
-                down_payment=down_payment,
-                loan_amount=loan_amount,
-                interest_rate=interest_rate,
-                duration_months=duration_months,
-                monthly_payment=monthly_payment,
-                start_date=start_date,
-                end_date=start_date + timedelta(days=duration_months * 30),
-                status=random.choice(['ACTIVE', 'ACTIVE', 'COMPLETED', 'DEFAULTED']),
-                notes=f'Installment plan for {vehicle.make} {vehicle.model}'
-            )
-            plans.append(plan)
+            # First create ClientVehicle
+            try:
+                from apps.clients.models import ClientVehicle
+                
+                client_vehicle = ClientVehicle.objects.create(
+                    client=client,
+                    vehicle=vehicle,
+                    purchase_date=start_date,
+                    purchase_price=vehicle.selling_price,
+                    deposit_paid=down_payment,
+                    total_paid=down_payment,
+                    balance=loan_amount,
+                    monthly_installment=monthly_payment,
+                    installment_months=duration_months,
+                    interest_rate=interest_rate,
+                    is_active=True,
+                    is_paid_off=False
+                )
+                
+                plan = InstallmentPlan.objects.create(
+                    client_vehicle=client_vehicle,
+                    total_amount=vehicle.selling_price,
+                    deposit=down_payment,
+                    monthly_installment=monthly_payment,
+                    number_of_installments=duration_months,
+                    interest_rate=interest_rate,
+                    start_date=start_date,
+                    end_date=end_date,
+                    is_active=True,
+                    is_completed=False,
+                    notes=f'Installment plan for {vehicle.make} {vehicle.model}'
+                )
+                plans.append(plan)
+            except Exception as e:
+                self.stdout.write(f'    Warning: Could not create plan: {e}')
         
         self.stdout.write(f'  Created {len(plans)} installment plans')
         return plans
@@ -394,35 +415,42 @@ class Command(BaseCommand):
         payments = []
         
         for plan in installment_plans:
-            # Create down payment
-            down_payment = Payment.objects.create(
-                installment_plan=plan,
-                amount=plan.down_payment,
-                payment_date=plan.start_date,
-                payment_method=random.choice(['CASH', 'BANK_TRANSFER', 'MPESA']),
-                reference_number=f'DP{random.randint(100000, 999999)}',
-                status='COMPLETED',
-                notes='Down payment'
-            )
-            payments.append(down_payment)
+            # Get the client_vehicle from the plan
+            client_vehicle = plan.client_vehicle
+            
+            # Create deposit payment
+            try:
+                down_payment = Payment.objects.create(
+                    client_vehicle=client_vehicle,
+                    amount=plan.deposit,
+                    payment_date=plan.start_date,
+                    payment_method=random.choice(['cash', 'bank_transfer', 'mpesa']),
+                    transaction_reference=f'DP{random.randint(100000, 999999)}',
+                    notes='Deposit payment'
+                )
+                payments.append(down_payment)
+            except Exception as e:
+                self.stdout.write(f'    Warning: Could not create payment: {e}')
             
             # Create monthly payments
             months_elapsed = (datetime.now().date() - plan.start_date).days // 30
-            payments_to_create = min(months_elapsed, plan.duration_months)
+            payments_to_create = min(months_elapsed, plan.number_of_installments)
             
             for i in range(payments_to_create):
                 payment_date = plan.start_date + timedelta(days=(i + 1) * 30)
                 
-                payment = Payment.objects.create(
-                    installment_plan=plan,
-                    amount=plan.monthly_payment,
-                    payment_date=payment_date,
-                    payment_method=random.choice(['BANK_TRANSFER', 'MPESA', 'MPESA', 'CASH']),
-                    reference_number=f'PAY{random.randint(100000, 999999)}',
-                    status=random.choice(['COMPLETED', 'COMPLETED', 'COMPLETED', 'PENDING']),
-                    notes=f'Monthly payment {i + 1} of {plan.duration_months}'
-                )
-                payments.append(payment)
+                try:
+                    payment = Payment.objects.create(
+                        client_vehicle=client_vehicle,
+                        amount=plan.monthly_installment,
+                        payment_date=payment_date,
+                        payment_method=random.choice(['bank_transfer', 'mpesa', 'mpesa', 'cash']),
+                        transaction_reference=f'PAY{random.randint(100000, 999999)}',
+                        notes=f'Monthly installment {i + 1} of {plan.number_of_installments}'
+                    )
+                    payments.append(payment)
+                except Exception as e:
+                    self.stdout.write(f'    Warning: Could not create payment: {e}')
         
         self.stdout.write(f'  Created {len(payments)} payments')
         return payments
@@ -469,35 +497,46 @@ class Command(BaseCommand):
             category = random.choice(categories)
             
             # Some expenses are vehicle-specific
-            vehicle = random.choice(vehicles) if category.name in ['Fuel', 'Maintenance', 'Insurance'] else None
+            related_vehicle = random.choice(vehicles) if category.code in ['fuel', 'maintenance', 'insurance'] and vehicles else None
             
             # Generate amount based on category
             amount_ranges = {
-                'Fuel': (2000, 10000),
-                'Maintenance': (5000, 50000),
-                'Insurance': (10000, 100000),
-                'Salaries': (30000, 100000),
-                'Rent': (50000, 200000),
-                'Utilities': (5000, 30000),
-                'Marketing': (10000, 100000),
-                'Office Supplies': (2000, 20000),
-                'Transport': (3000, 15000),
-                'Legal': (10000, 50000),
+                'fuel': (2000, 10000),
+                'maintenance': (5000, 50000),
+                'insurance': (10000, 100000),
+                'salary': (30000, 100000),
+                'rent': (50000, 200000),
+                'utilities': (5000, 30000),
+                'marketing': (10000, 100000),
+                'supplies': (2000, 20000),
+                'transport': (3000, 15000),
+                'legal': (10000, 50000),
             }
             
-            amount_range = amount_ranges.get(category.name, (5000, 50000))
+            amount_range = amount_ranges.get(category.code, (5000, 50000))
             amount = Decimal(random.randint(amount_range[0], amount_range[1]))
             
             expense_date = datetime.now().date() - timedelta(days=random.randint(1, 365))
             
+            # Get a user to be the submitter
+            users = User.objects.all()
+            submitter = users.first() if users.exists() else None
+            
+            if not submitter:
+                continue
+            
             expense = Expense.objects.create(
+                title=f'{category.name} expense',
                 category=category,
-                vehicle=vehicle,
+                related_vehicle=related_vehicle,
                 amount=amount,
                 expense_date=expense_date,
-                payment_method=random.choice(['CASH', 'BANK_TRANSFER', 'MPESA', 'CHEQUE']),
-                reference_number=f'EXP{random.randint(100000, 999999)}',
-                description=f'{category.name} expense',
+                payment_method=random.choice(['CASH', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CHECK']),
+                submitted_by=submitter,
+                status=random.choice(['APPROVED', 'PAID', 'PAID']),
+                vendor_name=f'{random.choice(["ABC", "XYZ", "Best", "Top"])} {random.choice(["Services", "Suppliers", "Company"])}',
+                invoice_number=f'INV{random.randint(1000, 9999)}',
+                description=f'{category.name} expense for {expense_date.strftime("%B %Y")}',
                 notes=f'Recorded on {datetime.now().strftime("%Y-%m-%d")}'
             )
             expenses.append(expense)
@@ -582,7 +621,11 @@ class Command(BaseCommand):
             return []
         
         auctions = []
-        available_vehicles = [v for v in vehicles if v.status == 'AVAILABLE']
+        available_vehicles = [v for v in vehicles if v.status == 'available']
+        
+        if not available_vehicles:
+            self.stdout.write('  No available vehicles for auction')
+            return []
         
         for vehicle in random.sample(available_vehicles, min(len(available_vehicles), 15)):
             start_date = timezone.now() - timedelta(days=random.randint(1, 30))
@@ -597,8 +640,7 @@ class Command(BaseCommand):
                 current_bid=vehicle.selling_price * Decimal('0.85'),
                 start_date=start_date,
                 end_date=end_date,
-                status=random.choice(['ACTIVE', 'ACTIVE', 'CLOSED', 'CANCELLED']),
-                terms_conditions='Standard auction terms apply'
+                status=random.choice(['active', 'active', 'completed', 'cancelled'])
             )
             auctions.append(auction)
         
@@ -607,27 +649,35 @@ class Command(BaseCommand):
 
     def create_bids(self, auctions, clients):
         """Create bid records"""
-        if not Bid or not auctions or not clients:
-            self.stdout.write('  Skipping (Bid model not available or no data)')
+        if not Bid or not auctions:
+            self.stdout.write('  Skipping (Bid model not available or no auctions)')
             return []
         
         bids = []
         
+        # Get users to act as bidders
+        users = User.objects.all()
+        if not users.exists():
+            self.stdout.write('  No users available for bidding')
+            return []
+        
         for auction in auctions:
             num_bids = random.randint(2, 8)
-            bid_clients = random.sample(clients, min(num_bids, len(clients)))
+            bid_users = random.sample(list(users), min(num_bids, users.count()))
             
-            for i, client in enumerate(bid_clients):
-                bid_amount = auction.starting_price + (auction.reserve_price - auction.starting_price) * Decimal(i / num_bids)
+            for i, user in enumerate(bid_users):
+                bid_amount = auction.starting_price + (auction.reserve_price - auction.starting_price) * Decimal(i / num_bids) if auction.reserve_price else auction.starting_price * Decimal(1 + i * 0.05)
                 
-                bid = Bid.objects.create(
-                    auction=auction,
-                    bidder=client,
-                    amount=bid_amount,
-                    status=random.choice(['ACTIVE', 'ACTIVE', 'WITHDRAWN']),
-                    notes=f'Bid {i + 1} for auction'
-                )
-                bids.append(bid)
+                try:
+                    bid = Bid.objects.create(
+                        auction=auction,
+                        bidder=user,
+                        bid_amount=bid_amount,
+                        is_active=random.choice([True, True, False])
+                    )
+                    bids.append(bid)
+                except Exception as e:
+                    self.stdout.write(f'    Warning: Could not create bid: {e}')
         
         self.stdout.write(f'  Created {len(bids)} bids')
         return bids
@@ -639,21 +689,30 @@ class Command(BaseCommand):
             return []
         
         repossessions = []
-        sold_vehicles = [v for v in vehicles if v.status == 'SOLD']
+        sold_vehicles = [v for v in vehicles if v.status == 'sold']
         
-        for vehicle in random.sample(sold_vehicles, min(len(sold_vehicles), 8)):
+        if not sold_vehicles:
+            self.stdout.write('  No sold vehicles for repossession')
+            return []
+        
+        for vehicle in random.sample(sold_vehicles, min(len(sold_vehicles), 5)):
             client = random.choice(clients)
             
-            repossession = Repossession.objects.create(
-                vehicle=vehicle,
-                client=client,
-                reason=random.choice(['DEFAULT', 'BREACH_OF_CONTRACT', 'REQUEST']),
-                scheduled_date=datetime.now().date() + timedelta(days=random.randint(1, 30)),
-                status=random.choice(['PENDING', 'IN_PROGRESS', 'COMPLETED']),
-                recovery_cost=Decimal(random.randint(10000, 50000)),
-                notes='Repossession initiated due to payment default'
-            )
-            repossessions.append(repossession)
+            try:
+                repossession = Repossession.objects.create(
+                    vehicle=vehicle,
+                    client=client,
+                    reason=random.choice(['PAYMENT_DEFAULT', 'BREACH_OF_CONTRACT', 'INSURANCE_LAPSE']),
+                    status=random.choice(['PENDING', 'NOTICE_SENT', 'IN_PROGRESS']),
+                    outstanding_amount=Decimal(random.randint(100000, 500000)),
+                    payments_missed=random.randint(2, 6),
+                    initiated_date=datetime.now().date() - timedelta(days=random.randint(1, 90)),
+                    recovery_cost=Decimal(random.randint(10000, 50000)),
+                    last_known_location=f'{random.randint(1, 999)} {random.choice(["Mombasa", "Thika", "Ngong"])} Road, {random.choice(["Nairobi", "Mombasa", "Kisumu"])}'
+                )
+                repossessions.append(repossession)
+            except Exception as e:
+                self.stdout.write(f'    Warning: Could not create repossession: {e}')
         
         self.stdout.write(f'  Created {len(repossessions)} repossessions')
         return repossessions
@@ -752,25 +811,27 @@ class Command(BaseCommand):
         
         documents = []
         
-        # Create document categories
+        # Create document categories with slugs
+        from django.utils.text import slugify
+        
         categories_data = [
-            ('Vehicle Documents', 'Documents related to vehicles'),
-            ('Client Documents', 'Documents related to clients'),
-            ('Contracts', 'Contracts and agreements'),
-            ('Insurance', 'Insurance related documents'),
-            ('Legal', 'Legal documents'),
+            ('Vehicle Documents', 'vehicle-documents', 'Documents related to vehicles'),
+            ('Client Documents', 'client-documents', 'Documents related to clients'),
+            ('Contracts', 'contracts', 'Contracts and agreements'),
+            ('Insurance', 'insurance', 'Insurance related documents'),
+            ('Legal', 'legal', 'Legal documents'),
         ]
         
         categories = []
-        for name, desc in categories_data:
+        for name, slug, desc in categories_data:
             category, created = DocumentCategory.objects.get_or_create(
-                name=name,
-                defaults={'description': desc, 'is_active': True}
+                slug=slug,
+                defaults={'name': name, 'description': desc, 'is_active': True}
             )
             categories.append(category)
         
-        vehicle_category = next((c for c in categories if c.name == 'Vehicle Documents'), categories[0])
-        client_category = next((c for c in categories if c.name == 'Client Documents'), categories[0])
+        vehicle_category = next((c for c in categories if c.slug == 'vehicle-documents'), categories[0])
+        client_category = next((c for c in categories if c.slug == 'client-documents'), categories[0])
         
         # Create documents for vehicles
         if vehicles and Vehicle:
