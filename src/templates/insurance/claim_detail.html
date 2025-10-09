@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ claim.claim_number }} - Claim Details{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex items-center justify-between mb-6">
+        <a href="{% url 'insurance:claim_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Claims
+        </a>
+        <div class="space-x-3">
+            {% if claim.status in 'pending,under_review' %}
+                <a href="{% url 'insurance:claim_update' claim.pk %}" class="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition">
+                    <i class="fas fa-edit mr-2"></i>Update Status
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Claim Header -->
+    <div class="bg-white rounded-xl shadow-md p-8 mb-8">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">{{ claim.claim_number }}</h1>
+                <p class="text-gray-600 mt-1">{{ claim.get_claim_type_display }} Claim</p>
+            </div>
+            <span class="px-4 py-2 rounded-full text-sm font-semibold {% if claim.status == 'pending' %}bg-yellow-100 text-yellow-800{% elif claim.status == 'approved' %}bg-green-100 text-green-800{% elif claim.status == 'settled' %}bg-teal-100 text-teal-800{% elif claim.status == 'rejected' %}bg-red-100 text-red-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                <i class="fas fa-circle mr-1" style="font-size: 0.5rem;"></i>{{ claim.get_status_display }}
+            </span>
+        </div>
+
+        <!-- Financial Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="bg-gray-50 rounded-lg p-6">
+                <p class="text-gray-600 text-sm mb-1">Claimed Amount</p>
+                <p class="text-2xl font-bold text-red-600">KES {{ claim.claimed_amount|floatformat:0 }}</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-6">
+                <p class="text-gray-600 text-sm mb-1">Approved Amount</p>
+                <p class="text-2xl font-bold text-green-600">KES {{ claim.approved_amount|floatformat:0 }}</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-6">
+                <p class="text-gray-600 text-sm mb-1">Settled Amount</p>
+                <p class="text-2xl font-bold text-teal-600">KES {{ claim.settled_amount|floatformat:0 }}</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-6">
+                <p class="text-gray-600 text-sm mb-1">Excess Paid</p>
+                <p class="text-2xl font-bold text-gray-800">KES {{ claim.excess_paid|floatformat:0 }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Policy & Vehicle Info -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Policy & Vehicle Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Policy Number</p>
+                        <a href="{% url 'insurance:policy_detail' claim.policy.pk %}" class="text-primary-600 hover:text-primary-700 font-medium">{{ claim.policy.policy_number }}</a>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Vehicle</p>
+                        <p class="text-gray-800 font-medium">{{ claim.policy.vehicle }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Provider</p>
+                        <p class="text-gray-800 font-medium">{{ claim.policy.provider.name }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Client</p>
+                        <p class="text-gray-800 font-medium">{{ claim.policy.client.get_full_name|default:"Not assigned" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Incident Details -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Incident Details</h2>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Incident Date</p>
+                            <p class="text-gray-800 font-medium">{{ claim.incident_date|date:"d M Y" }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Claim Filed</p>
+                            <p class="text-gray-800 font-medium">{{ claim.claim_date|date:"d M Y" }}</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Incident Location</p>
+                        <p class="text-gray-800">{{ claim.incident_location }}</p>
+                    </div>
+                    
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Description</p>
+                        <p class="text-gray-800 whitespace-pre-line">{{ claim.incident_description }}</p>
+                    </div>
+                    
+                    {% if claim.police_report_number %}
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Police Report Number</p>
+                            <p class="text-gray-800 font-medium">{{ claim.police_report_number }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Assessment Information -->
+            {% if claim.assessor_name %}
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Assessment Information</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Assessor Name</p>
+                            <p class="text-gray-800 font-medium">{{ claim.assessor_name }}</p>
+                        </div>
+                        {% if claim.assessor_phone %}
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Assessor Phone</p>
+                                <p class="text-gray-800 font-medium">{{ claim.assessor_phone }}</p>
+                            </div>
+                        {% endif %}
+                        {% if claim.assessment_date %}
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Assessment Date</p>
+                                <p class="text-gray-800 font-medium">{{ claim.assessment_date|date:"d M Y" }}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    {% if claim.assessment_report %}
+                        <div class="mt-4">
+                            <a href="{{ claim.assessment_report.url }}" target="_blank" class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                                <i class="fas fa-download mr-2"></i>Download Assessment Report
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- Notes & Updates -->
+            {% if claim.notes %}
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Notes & Updates</h2>
+                    <p class="text-gray-700 whitespace-pre-line">{{ claim.notes }}</p>
+                </div>
+            {% endif %}
+
+            <!-- Rejection Reason -->
+            {% if claim.status == 'rejected' and claim.rejection_reason %}
+                <div class="bg-red-50 border-l-4 border-red-500 rounded-lg p-6">
+                    <h3 class="text-lg font-bold text-red-800 mb-2">Rejection Reason</h3>
+                    <p class="text-red-700 whitespace-pre-line">{{ claim.rejection_reason }}</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Timeline -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">Timeline</h2>
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-file-medical text-blue-600 text-sm"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-800">Claim Filed</p>
+                            <p class="text-xs text-gray-600">{{ claim.claim_date|date:"d M Y" }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if claim.assessment_date %}
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-search text-purple-600 text-sm"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-800">Assessment</p>
+                                <p class="text-xs text-gray-600">{{ claim.assessment_date|date:"d M Y" }}</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {% if claim.settlement_date %}
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-check text-green-600 text-sm"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-800">Settled</p>
+                                <p class="text-xs text-gray-600">{{ claim.settlement_date|date:"d M Y" }}</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Documents -->
+            {% if claim.supporting_documents %}
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Documents</h2>
+                    <a href="{{ claim.supporting_documents.url }}" target="_blank" class="flex items-center justify-center w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                        <i class="fas fa-download mr-2"></i>Download Documents
+                    </a>
+                </div>
+            {% endif %}
+
+            <!-- System Info -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">System Information</h2>
+                <div class="space-y-3 text-sm">
+                    <div>
+                        <p class="text-gray-600">Filed By</p>
+                        <p class="text-gray-800">{{ claim.filed_by.get_full_name|default:claim.filed_by.username }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Created At</p>
+                        <p class="text-gray-800">{{ claim.created_at|date:"d M Y, H:i" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Last Updated</p>
+                        <p class="text-gray-800">{{ claim.updated_at|date:"d M Y, H:i" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Days Since Filed</p>
+                        <p class="text-gray-800">{{ claim.days_since_filed }} days</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

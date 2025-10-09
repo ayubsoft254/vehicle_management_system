@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Insurance Policies - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Insurance Policies</h1>
+            <p class="text-gray-600">Manage vehicle insurance policies and coverage</p>
+        </div>
+        <a href="{% url 'insurance:policy_create' %}" class="mt-4 md:mt-0 inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+            <i class="fas fa-plus mr-2"></i>Create Policy
+        </a>
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-600 text-sm mb-1">Total Policies</p>
+                    <p class="text-2xl font-bold text-gray-800">{{ total_policies }}</p>
+                </div>
+                <i class="fas fa-file-alt text-primary-500 text-2xl"></i>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-600 text-sm mb-1">Active Policies</p>
+                    <p class="text-2xl font-bold text-green-600">{{ active_policies }}</p>
+                </div>
+                <i class="fas fa-check-circle text-green-500 text-2xl"></i>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-600 text-sm mb-1">Expiring Soon</p>
+                    <p class="text-2xl font-bold text-yellow-600">{{ expiring_policies }}</p>
+                </div>
+                <i class="fas fa-clock text-yellow-500 text-2xl"></i>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-600 text-sm mb-1">Expired Policies</p>
+                    <p class="text-2xl font-bold text-red-600">{{ expired_policies }}</p>
+                </div>
+                <i class="fas fa-times-circle text-red-500 text-2xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search & Filter -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+        <form method="get">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                    {{ search_form.search }}
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Policy Type</label>
+                    {{ search_form.policy_type }}
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    {{ search_form.status }}
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Provider</label>
+                    {{ search_form.provider }}
+                </div>
+            </div>
+            
+            <div class="flex items-center mt-4 space-x-4">
+                <label class="flex items-center cursor-pointer">
+                    {{ search_form.expiring_soon }}
+                    <span class="ml-2 text-sm text-gray-700">Show only expiring soon (30 days)</span>
+                </label>
+                
+                <button type="submit" class="ml-auto px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                    <i class="fas fa-search mr-2"></i>Filter
+                </button>
+                <a href="{% url 'insurance:policy_list' %}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Policies Table -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        {% if policies %}
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Policy Number</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vehicle</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Provider</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">End Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Premium</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for policy in policies %}
+                            <tr class="hover:bg-gray-50 transition">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">{{ policy.policy_number }}</div>
+                                    {% if policy.days_until_expiry <= 30 and policy.status == 'active' %}
+                                        <div class="text-xs text-yellow-600">Expires in {{ policy.days_until_expiry }} days</div>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm text-gray-900">{{ policy.vehicle }}</div>
+                                    {% if policy.client %}
+                                        <div class="text-xs text-gray-500">{{ policy.client.get_full_name }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-900">{{ policy.provider.name }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-900">{{ policy.get_policy_type_display }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ policy.start_date|date:"d M Y" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ policy.end_date|date:"d M Y" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">KES {{ policy.premium_amount|floatformat:0 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 text-xs rounded-full {% if policy.status == 'active' %}bg-green-100 text-green-800{% elif policy.status == 'expired' %}bg-red-100 text-red-800{% elif policy.status == 'cancelled' %}bg-gray-100 text-gray-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                                        {{ policy.get_status_display }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                                    <a href="{% url 'insurance:policy_detail' policy.pk %}" class="text-primary-600 hover:text-primary-900" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if policy.status == 'active' %}
+                                        <a href="{% url 'insurance:policy_renew' policy.pk %}" class="text-green-600 hover:text-green-900" title="Renew">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </a>
+                                    {% endif %}
+                                    <a href="{% url 'insurance:policy_update' policy.pk %}" class="text-yellow-600 hover:text-yellow-900" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if policies.has_other_pages %}
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Showing page {{ policies.number }} of {{ policies.paginator.num_pages }}
+                        </div>
+                        <div class="flex space-x-2">
+                            {% if policies.has_previous %}
+                                <a href="?page={{ policies.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="px-3 py-1 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Previous</a>
+                            {% endif %}
+                            
+                            <span class="px-3 py-1 bg-primary-600 text-white rounded-lg">{{ policies.number }}</span>
+                            
+                            {% if policies.has_next %}
+                                <a href="?page={{ policies.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="px-3 py-1 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Next</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-12">
+                <i class="fas fa-file-alt text-gray-300 text-6xl mb-4"></i>
+                <p class="text-gray-500 text-lg mb-4">No insurance policies found</p>
+                <a href="{% url 'insurance:policy_create' %}" class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                    <i class="fas fa-plus mr-2"></i>Create First Policy
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mt-6 flex justify-end space-x-3">
+        <a href="{% url 'insurance:expiring_policies' %}" class="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition">
+            <i class="fas fa-clock mr-2"></i>View Expiring
+        </a>
+        <a href="{% url 'insurance:export_policies_csv' %}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+            <i class="fas fa-download mr-2"></i>Export CSV
+        </a>
+    </div>
+</div>
+{% endblock %}

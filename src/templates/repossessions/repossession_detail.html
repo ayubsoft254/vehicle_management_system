@@ -1,0 +1,496 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ repossession.repossession_number }} - Repossession Details{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Back Button -->
+    <div class="mb-6">
+        <a href="{% url 'repossessions:repossession_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to List
+        </a>
+    </div>
+
+    <!-- Header -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ repossession.repossession_number }}</h1>
+                <p class="text-gray-600">Initiated on {{ repossession.initiated_date|date:"F d, Y" }} ({{ days_in_process }} days)</p>
+            </div>
+            <div class="mt-4 md:mt-0 flex items-center space-x-3">
+                <span class="px-4 py-2 text-sm font-semibold rounded-lg
+                    {% if repossession.status == 'PENDING' %}bg-yellow-100 text-yellow-800
+                    {% elif repossession.status == 'NOTICE_SENT' %}bg-orange-100 text-orange-800
+                    {% elif repossession.status == 'IN_PROGRESS' %}bg-blue-100 text-blue-800
+                    {% elif repossession.status == 'VEHICLE_RECOVERED' %}bg-purple-100 text-purple-800
+                    {% elif repossession.status == 'COMPLETED' %}bg-green-100 text-green-800
+                    {% elif repossession.status == 'CANCELLED' %}bg-gray-100 text-gray-800
+                    {% else %}bg-gray-100 text-gray-800
+                    {% endif %}">
+                    {{ repossession.get_status_display }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-md p-6 text-white">
+            <p class="text-sm opacity-90 mb-1">Outstanding Amount</p>
+            <p class="text-2xl font-bold">KES {{ repossession.outstanding_amount|floatformat:0 }}</p>
+            <p class="text-xs opacity-75 mt-2">{{ repossession.payments_missed }} payment{{ repossession.payments_missed|pluralize }} missed</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-md p-6 text-white">
+            <p class="text-sm opacity-90 mb-1">Total Costs</p>
+            <p class="text-2xl font-bold">KES {{ repossession.total_cost|floatformat:0 }}</p>
+            <p class="text-xs opacity-75 mt-2">Recovery & legal fees</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-md p-6 text-white">
+            <p class="text-sm opacity-90 mb-1">Total Amount Due</p>
+            <p class="text-2xl font-bold">KES {{ repossession.get_total_amount_due|floatformat:0 }}</p>
+            <p class="text-xs opacity-75 mt-2">Outstanding + costs</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md p-6 text-white">
+            <p class="text-sm opacity-90 mb-1">Total Expenses</p>
+            <p class="text-2xl font-bold">KES {{ total_expenses|floatformat:0 }}</p>
+            <p class="text-xs opacity-75 mt-2">Paid: KES {{ paid_expenses|floatformat:0 }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Vehicle & Client Information -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                        <i class="fas fa-info-circle text-primary-600 mr-2"></i>
+                        Details
+                    </h2>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Vehicle</p>
+                            <p class="text-gray-800 font-medium">{{ repossession.vehicle }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Client</p>
+                            <p class="text-gray-800 font-medium">{{ repossession.client.name }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Reason</p>
+                            <p class="text-gray-800 font-medium">{{ repossession.get_reason_display }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Assigned To</p>
+                            <p class="text-gray-800 font-medium">
+                                {% if repossession.assigned_to %}
+                                    {{ repossession.assigned_to.get_full_name|default:repossession.assigned_to.username }}
+                                {% else %}
+                                    <span class="text-gray-400">Unassigned</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% if repossession.last_payment_date %}
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Last Payment Date</p>
+                                <p class="text-gray-800 font-medium">{{ repossession.last_payment_date|date:"M d, Y" }}</p>
+                            </div>
+                        {% endif %}
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Last Known Location</p>
+                            <p class="text-gray-800">{{ repossession.last_known_location|default:"Not specified" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legal Information -->
+            {% if repossession.legal_notice_sent or repossession.court_order_obtained %}
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="p-6 border-b border-gray-200">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-gavel text-red-600 mr-2"></i>
+                            Legal Information
+                        </h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="space-y-4">
+                            {% if repossession.legal_notice_sent %}
+                                <div class="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800">Legal Notice Sent</p>
+                                        <p class="text-xs text-gray-600">{{ repossession.legal_notice_date|date:"M d, Y" }}</p>
+                                    </div>
+                                    <i class="fas fa-check-circle text-yellow-600 text-xl"></i>
+                                </div>
+                            {% endif %}
+                            {% if repossession.court_order_obtained %}
+                                <div class="flex items-center justify-between p-4 bg-red-50 rounded-lg">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800">Court Order Obtained</p>
+                                        <p class="text-xs text-gray-600">{{ repossession.court_order_date|date:"M d, Y" }}</p>
+                                        {% if repossession.court_order_number %}
+                                            <p class="text-xs text-gray-600 mt-1">Order #: {{ repossession.court_order_number }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <i class="fas fa-check-circle text-red-600 text-xl"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Recovery Information -->
+            {% if repossession.recovery_date %}
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="p-6 border-b border-gray-200">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-car text-purple-600 mr-2"></i>
+                            Recovery Information
+                        </h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Recovery Date</p>
+                                <p class="text-gray-800 font-medium">{{ repossession.recovery_date|date:"M d, Y" }}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Current Location</p>
+                                <p class="text-gray-800">{{ repossession.current_location|default:"Not specified" }}</p>
+                            </div>
+                            {% if repossession.recovery_method %}
+                                <div>
+                                    <p class="text-sm text-gray-600 mb-1">Recovery Method</p>
+                                    <p class="text-gray-800">{{ repossession.recovery_method }}</p>
+                                </div>
+                            {% endif %}
+                            {% if repossession.recovery_agent %}
+                                <div>
+                                    <p class="text-sm text-gray-600 mb-1">Recovery Agent</p>
+                                    <p class="text-gray-800">{{ repossession.recovery_agent }}</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Resolution (if completed) -->
+            {% if repossession.status == 'COMPLETED' %}
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="p-6 border-b border-gray-200">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-check-circle text-green-600 mr-2"></i>
+                            Resolution
+                        </h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="space-y-4">
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Resolution Type</p>
+                                <p class="text-gray-800 font-medium">{{ repossession.get_resolution_type_display }}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600 mb-1">Completion Date</p>
+                                <p class="text-gray-800 font-medium">{{ repossession.completion_date|date:"M d, Y" }}</p>
+                            </div>
+                            {% if repossession.resolution_notes %}
+                                <div>
+                                    <p class="text-sm text-gray-600 mb-1">Notes</p>
+                                    <p class="text-gray-800 whitespace-pre-line">{{ repossession.resolution_notes }}</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Notices -->
+            {% if notices %}
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-envelope text-orange-600 mr-2"></i>
+                            Notices ({{ notices.count }})
+                        </h2>
+                        <a href="{% url 'repossessions:notice_create' repossession.pk %}" class="text-sm text-primary-600 hover:text-primary-900 font-medium">
+                            <i class="fas fa-plus mr-1"></i>Send Notice
+                        </a>
+                    </div>
+                    <div class="divide-y divide-gray-200">
+                        {% for notice in notices|slice:":5" %}
+                            <div class="p-4">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1">
+                                        <p class="text-sm font-medium text-gray-800">{{ notice.get_notice_type_display }}</p>
+                                        <p class="text-xs text-gray-600 mt-1">Sent {{ notice.notice_date|date:"M d, Y" }} via {{ notice.get_delivery_method_display }}</p>
+                                        {% if notice.delivered %}
+                                            <span class="inline-flex items-center text-xs text-green-600 mt-1">
+                                                <i class="fas fa-check-circle mr-1"></i>Delivered
+                                            </span>
+                                        {% else %}
+                                            <span class="inline-flex items-center text-xs text-gray-500 mt-1">
+                                                <i class="fas fa-clock mr-1"></i>Pending delivery
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Contacts -->
+            {% if contacts %}
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-phone text-blue-600 mr-2"></i>
+                            Client Contacts ({{ contacts.count }})
+                        </h2>
+                        <a href="{% url 'repossessions:contact_create' repossession.pk %}" class="text-sm text-primary-600 hover:text-primary-900 font-medium">
+                            <i class="fas fa-plus mr-1"></i>Add Contact
+                        </a>
+                    </div>
+                    <div class="divide-y divide-gray-200">
+                        {% for contact in contacts|slice:":5" %}
+                            <div class="p-4">
+                                <div class="flex items-start justify-between">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-800">{{ contact.get_contact_method_display }} - {{ contact.get_outcome_display }}</p>
+                                        <p class="text-xs text-gray-600 mt-1">{{ contact.contact_date|date:"M d, Y H:i" }}</p>
+                                        <p class="text-xs text-gray-700 mt-2">{{ contact.discussion_summary|truncatewords:20 }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Recovery Attempts -->
+            {% if recovery_attempts %}
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-search text-red-600 mr-2"></i>
+                            Recovery Attempts ({{ recovery_attempts.count }})
+                        </h2>
+                        <a href="{% url 'repossessions:recovery_attempt_create' repossession.pk %}" class="text-sm text-primary-600 hover:text-primary-900 font-medium">
+                            <i class="fas fa-plus mr-1"></i>Add Attempt
+                        </a>
+                    </div>
+                    <div class="divide-y divide-gray-200">
+                        {% for attempt in recovery_attempts|slice:":5" %}
+                            <div class="p-4">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1">
+                                        <p class="text-sm font-medium text-gray-800">{{ attempt.get_result_display }}</p>
+                                        <p class="text-xs text-gray-600 mt-1">{{ attempt.attempt_date|date:"M d, Y H:i" }} - {{ attempt.location }}</p>
+                                        <p class="text-xs text-gray-700 mt-2">{{ attempt.details|truncatewords:20 }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Expenses -->
+            {% if expenses %}
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-receipt text-green-600 mr-2"></i>
+                            Expenses ({{ expenses.count }})
+                        </h2>
+                        <a href="{% url 'repossessions:expense_create' repossession.pk %}" class="text-sm text-primary-600 hover:text-primary-900 font-medium">
+                            <i class="fas fa-plus mr-1"></i>Add Expense
+                        </a>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for expense in expenses %}
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ expense.get_expense_type_display }}
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">
+                                            {{ expense.description }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            KES {{ expense.amount|floatformat:0 }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ expense.expense_date|date:"M d, Y" }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            {% if expense.paid %}
+                                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                                    Paid
+                                                </span>
+                                            {% else %}
+                                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                    Unpaid
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Notes -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                        <i class="fas fa-sticky-note text-yellow-600 mr-2"></i>
+                        Notes
+                    </h2>
+                </div>
+                <div class="p-6">
+                    {% if notes %}
+                        <div class="space-y-4">
+                            {% for note in notes %}
+                                <div class="p-4 {% if note.is_important %}bg-yellow-50 border-l-4 border-yellow-500{% else %}bg-gray-50{% endif %} rounded-lg">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1">
+                                            <p class="text-sm text-gray-800 whitespace-pre-line">{{ note.note }}</p>
+                                            <p class="text-xs text-gray-500 mt-2">
+                                                {% if note.note_type %}{{ note.get_note_type_display }} - {% endif %}
+                                                {{ note.created_by.get_full_name|default:note.created_by.username }} on {{ note.created_at|date:"M d, Y H:i" }}
+                                            </p>
+                                        </div>
+                                        {% if note.is_important %}
+                                            <i class="fas fa-star text-yellow-500 ml-2"></i>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-gray-500 text-center py-4">No notes yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                        <i class="fas fa-bolt text-primary-600 mr-2"></i>
+                        Actions
+                    </h2>
+                </div>
+                <div class="p-6 space-y-2">
+                    {% if repossession.status != 'COMPLETED' and repossession.status != 'CANCELLED' %}
+                        <a href="{% url 'repossessions:repossession_update_status' repossession.pk %}" class="block w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-center rounded-lg transition">
+                            <i class="fas fa-sync-alt mr-2"></i>Update Status
+                        </a>
+                        <a href="{% url 'repossessions:notice_create' repossession.pk %}" class="block w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-center rounded-lg transition">
+                            <i class="fas fa-envelope mr-2"></i>Send Notice
+                        </a>
+                        <a href="{% url 'repossessions:recovery_attempt_create' repossession.pk %}" class="block w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-center rounded-lg transition">
+                            <i class="fas fa-search mr-2"></i>Log Recovery Attempt
+                        </a>
+                        <a href="{% url 'repossessions:contact_create' repossession.pk %}" class="block w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-center rounded-lg transition">
+                            <i class="fas fa-phone mr-2"></i>Record Contact
+                        </a>
+                        <a href="{% url 'repossessions:expense_create' repossession.pk %}" class="block w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-center rounded-lg transition">
+                            <i class="fas fa-receipt mr-2"></i>Add Expense
+                        </a>
+                        <a href="{% url 'repossessions:document_upload' repossession.pk %}" class="block w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-center rounded-lg transition">
+                            <i class="fas fa-file-upload mr-2"></i>Upload Document
+                        </a>
+                        {% if repossession.status == 'VEHICLE_RECOVERED' %}
+                            <a href="{% url 'repossessions:repossession_complete' repossession.pk %}" class="block w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-center rounded-lg transition">
+                                <i class="fas fa-check-circle mr-2"></i>Complete Case
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                    <a href="{% url 'repossessions:repossession_update' repossession.pk %}" class="block w-full px-4 py-2 border border-gray-300 text-gray-700 text-center rounded-lg hover:bg-gray-50 transition">
+                        <i class="fas fa-edit mr-2"></i>Edit Details
+                    </a>
+                </div>
+            </div>
+
+            <!-- Documents -->
+            {% if documents %}
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="p-6 border-b border-gray-200">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-folder text-blue-600 mr-2"></i>
+                            Documents
+                        </h2>
+                    </div>
+                    <div class="p-6 space-y-2">
+                        {% for doc in documents %}
+                            <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-800">{{ doc.title }}</p>
+                                    <p class="text-xs text-gray-600">{{ doc.get_document_type_display }}</p>
+                                </div>
+                                <a href="{{ doc.file.url }}" target="_blank" class="text-primary-600 hover:text-primary-900">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- System Information -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                        <i class="fas fa-info-circle text-gray-600 mr-2"></i>
+                        System Info
+                    </h2>
+                </div>
+                <div class="p-6 space-y-3 text-sm">
+                    <div>
+                        <p class="text-gray-600">Created By</p>
+                        <p class="text-gray-800 font-medium">
+                            {{ repossession.created_by.get_full_name|default:repossession.created_by.username|default:"System" }}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Created</p>
+                        <p class="text-gray-800">{{ repossession.created_at|date:"M d, Y H:i" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Last Updated</p>
+                        <p class="text-gray-800">{{ repossession.updated_at|date:"M d, Y H:i" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+        <a href="{% url 'insurance:provider_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Providers
+        </a>
+    </div>
+
+    <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8">
+        <div class="text-center mb-6">
+            <i class="fas fa-exclamation-triangle text-yellow-500 text-5xl mb-4"></i>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">Deactivate Provider</h1>
+            <p class="text-gray-600">Are you sure you want to deactivate this insurance provider?</p>
+        </div>
+
+        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-6">
+            <div class="flex">
+                <i class="fas fa-info-circle text-yellow-500 mt-1 mr-3"></i>
+                <div>
+                    <p class="text-sm text-gray-700">
+                        <strong>{{ provider.name }}</strong> will be marked as inactive. 
+                        Existing policies will not be affected, but no new policies can be created with this provider.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <div class="flex items-center justify-center space-x-4">
+                <a href="{% url 'insurance:provider_detail' provider.pk %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    Cancel
+                </a>
+                <button type="submit" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+                    <i class="fas fa-ban mr-2"></i>Deactivate Provider
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

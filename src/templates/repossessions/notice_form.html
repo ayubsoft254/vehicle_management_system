@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Send Notice - {{ repossession.repossession_number }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-3xl mx-auto">
+        <!-- Back Button -->
+        <div class="mb-6">
+            <a href="{% url 'repossessions:repossession_detail' repossession.pk %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Repossession
+            </a>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-envelope text-orange-600 mr-3"></i>
+                    Send Repossession Notice
+                </h1>
+                <p class="text-gray-600 mt-2">Send a notice for {{ repossession.repossession_number }}</p>
+            </div>
+
+            <form method="post" class="p-6 space-y-6">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                        <p class="text-red-700">{{ form.non_field_errors }}</p>
+                    </div>
+                {% endif %}
+
+                <!-- Notice Details -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="id_notice_type" class="block text-sm font-medium text-gray-700 mb-2">
+                            Notice Type <span class="text-red-500">*</span>
+                        </label>
+                        <select name="notice_type" id="id_notice_type" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="">Select notice type...</option>
+                            <option value="FIRST_NOTICE" {% if form.notice_type.value == 'FIRST_NOTICE' %}selected{% endif %}>First Notice</option>
+                            <option value="SECOND_NOTICE" {% if form.notice_type.value == 'SECOND_NOTICE' %}selected{% endif %}>Second Notice</option>
+                            <option value="FINAL_NOTICE" {% if form.notice_type.value == 'FINAL_NOTICE' %}selected{% endif %}>Final Notice</option>
+                            <option value="LEGAL_NOTICE" {% if form.notice_type.value == 'LEGAL_NOTICE' %}selected{% endif %}>Legal Notice</option>
+                            <option value="COURT_SUMMONS" {% if form.notice_type.value == 'COURT_SUMMONS' %}selected{% endif %}>Court Summons</option>
+                        </select>
+                        {% if form.notice_type.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.notice_type.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="id_notice_date" class="block text-sm font-medium text-gray-700 mb-2">
+                            Notice Date <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" name="notice_date" id="id_notice_date" value="{{ form.notice_date.value|date:'Y-m-d'|default:'' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        {% if form.notice_date.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.notice_date.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="id_delivery_method" class="block text-sm font-medium text-gray-700 mb-2">
+                            Delivery Method <span class="text-red-500">*</span>
+                        </label>
+                        <select name="delivery_method" id="id_delivery_method" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="">Select method...</option>
+                            <option value="EMAIL" {% if form.delivery_method.value == 'EMAIL' %}selected{% endif %}>Email</option>
+                            <option value="POST" {% if form.delivery_method.value == 'POST' %}selected{% endif %}>Postal Mail</option>
+                            <option value="HAND_DELIVERY" {% if form.delivery_method.value == 'HAND_DELIVERY' %}selected{% endif %}>Hand Delivery</option>
+                            <option value="SMS" {% if form.delivery_method.value == 'SMS' %}selected{% endif %}>SMS</option>
+                            <option value="COURIER" {% if form.delivery_method.value == 'COURIER' %}selected{% endif %}>Courier</option>
+                        </select>
+                        {% if form.delivery_method.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.delivery_method.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="id_tracking_number" class="block text-sm font-medium text-gray-700 mb-2">
+                            Tracking Number
+                        </label>
+                        <input type="text" name="tracking_number" id="id_tracking_number" value="{{ form.tracking_number.value|default:'' }}" maxlength="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Enter tracking number...">
+                        {% if form.tracking_number.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.tracking_number.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div>
+                    <label for="id_delivery_address" class="block text-sm font-medium text-gray-700 mb-2">
+                        Delivery Address <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="delivery_address" id="id_delivery_address" rows="3" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Enter delivery address...">{{ form.delivery_address.value|default:'' }}</textarea>
+                    {% if form.delivery_address.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.delivery_address.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="id_response_deadline" class="block text-sm font-medium text-gray-700 mb-2">
+                        Response Deadline
+                    </label>
+                    <input type="date" name="response_deadline" id="id_response_deadline" value="{{ form.response_deadline.value|date:'Y-m-d'|default:'' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form.response_deadline.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.response_deadline.errors.0 }}</p>
+                    {% endif %}
+                    <p class="text-xs text-gray-500 mt-2">Date by which client must respond</p>
+                </div>
+
+                <div>
+                    <label for="id_content" class="block text-sm font-medium text-gray-700 mb-2">
+                        Notice Content <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="content" id="id_content" rows="8" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Enter the full content of the notice...">{{ form.content.value|default:'' }}</textarea>
+                    {% if form.content.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.content.errors.0 }}</p>
+                    {% endif %}
+                    <p class="text-xs text-gray-500 mt-2">Full text of the notice being sent</p>
+                </div>
+
+                <!-- Warning -->
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4">
+                    <div class="flex">
+                        <i class="fas fa-exclamation-triangle text-yellow-500 mt-1 mr-3"></i>
+                        <div class="text-sm text-yellow-700">
+                            <p><strong>Legal Notice Requirements:</strong></p>
+                            <ul class="list-disc list-inside mt-2 space-y-1">
+                                <li>Ensure notice complies with local laws and regulations</li>
+                                <li>Include all required information (outstanding amount, deadline, etc.)</li>
+                                <li>Keep proof of delivery for legal purposes</li>
+                                <li>Allow adequate time for client response</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-end space-x-4 pt-6 border-t">
+                    <a href="{% url 'repossessions:repossession_detail' repossession.pk %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition">
+                        <i class="fas fa-paper-plane mr-2"></i>Send Notice
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set today's date as default
+    const noticeDate = document.getElementById('id_notice_date');
+    if (noticeDate && !noticeDate.value) {
+        noticeDate.valueAsDate = new Date();
+    }
+    
+    // Set response deadline to 14 days from now as default
+    const responseDeadline = document.getElementById('id_response_deadline');
+    if (responseDeadline && !responseDeadline.value) {
+        const fourteenDays = new Date();
+        fourteenDays.setDate(fourteenDays.getDate() + 14);
+        responseDeadline.valueAsDate = fourteenDays;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+        <a href="{% url 'insurance:policy_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Policies
+        </a>
+    </div>
+
+    <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="p-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">{{ title }}</h1>
+
+            <form method="post" enctype="multipart/form-data" class="space-y-8">
+                {% csrf_token %}
+
+                <!-- Policy Details -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Policy Details</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="id_policy_number" class="block text-sm font-medium text-gray-700 mb-2">
+                                Policy Number <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="policy_number" id="id_policy_number" value="{{ form.policy_number.value|default:'' }}" required maxlength="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="POL-2025-0001">
+                            {% if form.policy_number.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.policy_number.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_policy_type" class="block text-sm font-medium text-gray-700 mb-2">
+                                Policy Type <span class="text-red-500">*</span>
+                            </label>
+                            <select name="policy_type" id="id_policy_type" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                <option value="">Select type...</option>
+                                <option value="comprehensive" {% if form.policy_type.value == 'comprehensive' %}selected{% endif %}>Comprehensive</option>
+                                <option value="third_party" {% if form.policy_type.value == 'third_party' %}selected{% endif %}>Third Party</option>
+                                <option value="third_party_fire_theft" {% if form.policy_type.value == 'third_party_fire_theft' %}selected{% endif %}>Third Party Fire & Theft</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="id_vehicle" class="block text-sm font-medium text-gray-700 mb-2">
+                                Vehicle <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.vehicle }}
+                            {% if form.vehicle.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.vehicle.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_provider" class="block text-sm font-medium text-gray-700 mb-2">
+                                Insurance Provider <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.provider }}
+                            {% if form.provider.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.provider.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_client" class="block text-sm font-medium text-gray-700 mb-2">
+                                Client (Optional)
+                            </label>
+                            {{ form.client }}
+                        </div>
+
+                        <div>
+                            <label for="id_status" class="block text-sm font-medium text-gray-700 mb-2">
+                                Status <span class="text-red-500">*</span>
+                            </label>
+                            <select name="status" id="id_status" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                <option value="active" {% if form.status.value == 'active' %}selected{% endif %}>Active</option>
+                                <option value="expired" {% if form.status.value == 'expired' %}selected{% endif %}>Expired</option>
+                                <option value="cancelled" {% if form.status.value == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                <option value="renewed" {% if form.status.value == 'renewed' %}selected{% endif %}>Renewed</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coverage Period -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Coverage Period</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="id_start_date" class="block text-sm font-medium text-gray-700 mb-2">
+                                Start Date <span class="text-red-500">*</span>
+                            </label>
+                            <input type="date" name="start_date" id="id_start_date" value="{{ form.start_date.value|date:'Y-m-d'|default:'' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            {% if form.start_date.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.start_date.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_end_date" class="block text-sm font-medium text-gray-700 mb-2">
+                                End Date <span class="text-red-500">*</span>
+                            </label>
+                            <input type="date" name="end_date" id="id_end_date" value="{{ form.end_date.value|date:'Y-m-d'|default:'' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            {% if form.end_date.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.end_date.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Details -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Financial Details</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label for="id_premium_amount" class="block text-sm font-medium text-gray-700 mb-2">
+                                Premium Amount (KES) <span class="text-red-500">*</span>
+                            </label>
+                            <input type="number" name="premium_amount" id="id_premium_amount" value="{{ form.premium_amount.value|default:'' }}" required min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="50000.00">
+                            {% if form.premium_amount.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.premium_amount.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_sum_insured" class="block text-sm font-medium text-gray-700 mb-2">
+                                Sum Insured (KES) <span class="text-red-500">*</span>
+                            </label>
+                            <input type="number" name="sum_insured" id="id_sum_insured" value="{{ form.sum_insured.value|default:'' }}" required min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="2000000.00">
+                            {% if form.sum_insured.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.sum_insured.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_excess_amount" class="block text-sm font-medium text-gray-700 mb-2">
+                                Excess Amount (KES)
+                            </label>
+                            <input type="number" name="excess_amount" id="id_excess_amount" value="{{ form.excess_amount.value|default:'0' }}" min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="5000.00">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Certificate Upload -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Certificate</h2>
+                    <div>
+                        <label for="id_certificate" class="block text-sm font-medium text-gray-700 mb-2">
+                            Insurance Certificate
+                        </label>
+                        <input type="file" name="certificate" id="id_certificate" accept=".pdf,.jpg,.jpeg,.png" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <p class="text-xs text-gray-500 mt-1">Upload PDF, JPG, or PNG (Max 5MB)</p>
+                        {% if policy.certificate %}
+                            <p class="text-sm text-gray-600 mt-2">Current: <a href="{{ policy.certificate.url }}" target="_blank" class="text-primary-600 hover:text-primary-700">View Certificate</a></p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Coverage Details & Notes -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Additional Information</h2>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="id_coverage_details" class="block text-sm font-medium text-gray-700 mb-2">
+                                Coverage Details
+                            </label>
+                            <textarea name="coverage_details" id="id_coverage_details" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Describe coverage terms and conditions...">{{ form.coverage_details.value|default:'' }}</textarea>
+                        </div>
+
+                        <div>
+                            <label for="id_notes" class="block text-sm font-medium text-gray-700 mb-2">
+                                Notes
+                            </label>
+                            <textarea name="notes" id="id_notes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Any additional notes...">{{ form.notes.value|default:'' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-end space-x-4 pt-6 border-t">
+                    <a href="{% url 'insurance:policy_list' %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i>{{ button_text }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startDate = document.getElementById('id_start_date');
+    const endDate = document.getElementById('id_end_date');
+    
+    // Auto-calculate end date (1 year from start)
+    if (startDate && endDate && !endDate.value) {
+        startDate.addEventListener('change', function() {
+            if (this.value) {
+                const start = new Date(this.value);
+                start.setFullYear(start.getFullYear() + 1);
+                endDate.value = start.toISOString().split('T')[0];
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

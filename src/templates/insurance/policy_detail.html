@@ -1,0 +1,296 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ policy.policy_number }} - Policy Details{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Back Button & Actions -->
+    <div class="flex items-center justify-between mb-6">
+        <a href="{% url 'insurance:policy_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Policies
+        </a>
+        <div class="space-x-3">
+            {% if policy.status == 'active' %}
+                <a href="{% url 'insurance:policy_renew' policy.pk %}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                    <i class="fas fa-sync-alt mr-2"></i>Renew
+                </a>
+                <a href="{% url 'insurance:payment_create' policy.pk %}" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                    <i class="fas fa-money-bill mr-2"></i>Record Payment
+                </a>
+            {% endif %}
+            <a href="{% url 'insurance:policy_update' policy.pk %}" class="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition">
+                <i class="fas fa-edit mr-2"></i>Edit
+            </a>
+        </div>
+    </div>
+
+    <!-- Policy Header -->
+    <div class="bg-white rounded-xl shadow-md p-8 mb-8">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">{{ policy.policy_number }}</h1>
+                <p class="text-gray-600 mt-1">{{ policy.get_policy_type_display }} Insurance Policy</p>
+            </div>
+            <div>
+                <span class="px-4 py-2 rounded-full text-sm font-semibold {% if policy.status == 'active' %}bg-green-100 text-green-800{% elif policy.status == 'expired' %}bg-red-100 text-red-800{% elif policy.status == 'cancelled' %}bg-gray-100 text-gray-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                    <i class="fas fa-circle mr-1" style="font-size: 0.5rem;"></i>{{ policy.get_status_display }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="bg-gray-50 rounded-lg p-6">
+                <p class="text-gray-600 text-sm mb-1">Premium Amount</p>
+                <p class="text-2xl font-bold text-primary-600">KES {{ policy.premium_amount|floatformat:0 }}</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-6">
+                <p class="text-gray-600 text-sm mb-1">Sum Insured</p>
+                <p class="text-2xl font-bold text-green-600">KES {{ policy.sum_insured|floatformat:0 }}</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-6">
+                <p class="text-gray-600 text-sm mb-1">Excess Amount</p>
+                <p class="text-2xl font-bold text-gray-800">KES {{ policy.excess_amount|floatformat:0 }}</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-6">
+                <p class="text-gray-600 text-sm mb-1">Days Until Expiry</p>
+                <p class="text-2xl font-bold {% if policy.days_until_expiry <= 30 %}text-red-600{% elif policy.days_until_expiry <= 60 %}text-yellow-600{% else %}text-gray-800{% endif %}">{{ policy.days_until_expiry|default:"-" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Policy Details -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Vehicle & Client Information -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-car text-primary-600 mr-2"></i>
+                    Vehicle & Client Information
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Vehicle</p>
+                        <p class="text-gray-800 font-medium">{{ policy.vehicle }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Client</p>
+                        <p class="text-gray-800 font-medium">{{ policy.client.get_full_name|default:"Not assigned" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coverage Period -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-calendar text-primary-600 mr-2"></i>
+                    Coverage Period
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Start Date</p>
+                        <p class="text-gray-800 font-medium">{{ policy.start_date|date:"d M Y" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">End Date</p>
+                        <p class="text-gray-800 font-medium">{{ policy.end_date|date:"d M Y" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Duration</p>
+                        <p class="text-gray-800 font-medium">{{ policy.duration_days }} days ({{ policy.duration_months }} months)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coverage Details -->
+            {% if policy.coverage_details %}
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-shield-alt text-primary-600 mr-2"></i>
+                        Coverage Details
+                    </h2>
+                    <p class="text-gray-700 whitespace-pre-line">{{ policy.coverage_details }}</p>
+                </div>
+            {% endif %}
+
+            <!-- Claims History -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-file-invoice-dollar text-primary-600 mr-2"></i>
+                            Claims History ({{ total_claims }})
+                        </h2>
+                        <a href="{% url 'insurance:claim_create' %}?policy={{ policy.pk }}" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
+                            <i class="fas fa-plus mr-1"></i>File Claim
+                        </a>
+                    </div>
+                </div>
+                
+                {% if claims %}
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Claim Number</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for claim in claims %}
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ claim.claim_number }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">{{ claim.get_claim_type_display }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">{{ claim.claim_date|date:"d M Y" }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">KES {{ claim.claimed_amount|floatformat:0 }}</td>
+                                        <td class="px-6 py-4">
+                                            <span class="px-2 py-1 text-xs rounded-full {% if claim.status == 'pending' %}bg-yellow-100 text-yellow-800{% elif claim.status == 'approved' %}bg-green-100 text-green-800{% elif claim.status == 'settled' %}bg-teal-100 text-teal-800{% elif claim.status == 'rejected' %}bg-red-100 text-red-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                                                {{ claim.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 text-sm">
+                                            <a href="{% url 'insurance:claim_detail' claim.pk %}" class="text-primary-600 hover:text-primary-900">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-8">
+                        <i class="fas fa-file-medical text-gray-300 text-4xl mb-3"></i>
+                        <p class="text-gray-500">No claims filed yet</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Payment History -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-receipt text-primary-600 mr-2"></i>
+                            Payment History
+                        </h2>
+                        <p class="text-sm text-gray-600">Total: KES {{ total_payments|floatformat:0|default:"0" }}</p>
+                    </div>
+                </div>
+                
+                {% if payments %}
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Receipt Number</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for payment in payments %}
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ payment.receipt_number }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">{{ payment.payment_date|date:"d M Y" }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">{{ payment.get_payment_method_display }}</td>
+                                        <td class="px-6 py-4 text-sm font-medium text-green-600">KES {{ payment.amount|floatformat:0 }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">{{ payment.transaction_reference|default:"-" }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-8">
+                        <i class="fas fa-receipt text-gray-300 text-4xl mb-3"></i>
+                        <p class="text-gray-500">No payments recorded yet</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Provider Information -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-building text-primary-600 mr-2"></i>
+                    Provider
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Company Name</p>
+                        <a href="{% url 'insurance:provider_detail' policy.provider.pk %}" class="text-primary-600 hover:text-primary-700 font-medium">
+                            {{ policy.provider.name }}
+                        </a>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Contact Phone</p>
+                        <p class="text-gray-800">{{ policy.provider.phone_primary }}</p>
+                    </div>
+                    {% if policy.provider.email %}
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Email</p>
+                            <p class="text-gray-800">{{ policy.provider.email }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Certificate -->
+            {% if policy.certificate %}
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-file-pdf text-primary-600 mr-2"></i>
+                        Certificate
+                    </h2>
+                    <a href="{{ policy.certificate.url }}" target="_blank" class="flex items-center justify-center w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                        <i class="fas fa-download mr-2"></i>Download Certificate
+                    </a>
+                </div>
+            {% endif %}
+
+            <!-- Notes -->
+            {% if policy.notes %}
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-sticky-note text-primary-600 mr-2"></i>
+                        Notes
+                    </h2>
+                    <p class="text-gray-700 whitespace-pre-line text-sm">{{ policy.notes }}</p>
+                </div>
+            {% endif %}
+
+            <!-- System Information -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-info-circle text-primary-600 mr-2"></i>
+                    System Information
+                </h2>
+                <div class="space-y-3 text-sm">
+                    <div>
+                        <p class="text-gray-600">Created By</p>
+                        <p class="text-gray-800">{{ policy.created_by.get_full_name|default:policy.created_by.username }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Created At</p>
+                        <p class="text-gray-800">{{ policy.created_at|date:"d M Y, H:i" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Last Updated</p>
+                        <p class="text-gray-800">{{ policy.updated_at|date:"d M Y, H:i" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

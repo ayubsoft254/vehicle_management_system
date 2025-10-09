@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Repossession Dashboard - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Repossession Management</h1>
+            <p class="text-gray-600">Track and manage vehicle repossessions</p>
+        </div>
+        <div class="mt-4 md:mt-0 space-x-3">
+            <a href="{% url 'repossessions:repossession_create' %}" class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+                <i class="fas fa-plus-circle mr-2"></i>Initiate Repossession
+            </a>
+            <a href="{% url 'repossessions:repossession_list' %}" class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                <i class="fas fa-list mr-2"></i>View All
+            </a>
+        </div>
+    </div>
+
+    <!-- Status Overview Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {% for status, data in status_counts.items %}
+            <div class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">{{ data.label }}</p>
+                        <p class="text-3xl font-bold 
+                            {% if status == 'PENDING' %}text-yellow-600
+                            {% elif status == 'NOTICE_SENT' %}text-orange-600
+                            {% elif status == 'IN_PROGRESS' %}text-blue-600
+                            {% elif status == 'VEHICLE_RECOVERED' %}text-purple-600
+                            {% elif status == 'COMPLETED' %}text-green-600
+                            {% elif status == 'CANCELLED' %}text-gray-600
+                            {% elif status == 'ON_HOLD' %}text-gray-500
+                            {% endif %}">
+                            {{ data.count }}
+                        </p>
+                    </div>
+                    <div class="text-4xl
+                        {% if status == 'PENDING' %}text-yellow-500
+                        {% elif status == 'NOTICE_SENT' %}text-orange-500
+                        {% elif status == 'IN_PROGRESS' %}text-blue-500
+                        {% elif status == 'VEHICLE_RECOVERED' %}text-purple-500
+                        {% elif status == 'COMPLETED' %}text-green-500
+                        {% elif status == 'CANCELLED' %}text-gray-500
+                        {% elif status == 'ON_HOLD' %}text-gray-400
+                        {% endif %}">
+                        <i class="fas 
+                            {% if status == 'PENDING' %}fa-clock
+                            {% elif status == 'NOTICE_SENT' %}fa-envelope
+                            {% elif status == 'IN_PROGRESS' %}fa-spinner
+                            {% elif status == 'VEHICLE_RECOVERED' %}fa-car
+                            {% elif status == 'COMPLETED' %}fa-check-circle
+                            {% elif status == 'CANCELLED' %}fa-times-circle
+                            {% elif status == 'ON_HOLD' %}fa-pause-circle
+                            {% endif %}"></i>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Financial Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-md p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm opacity-90 mb-1">Total Outstanding</p>
+                    <p class="text-2xl font-bold">KES {{ total_outstanding|floatformat:0 }}</p>
+                </div>
+                <i class="fas fa-exclamation-triangle text-4xl opacity-80"></i>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-md p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm opacity-90 mb-1">Total Costs</p>
+                    <p class="text-2xl font-bold">KES {{ total_costs|floatformat:0 }}</p>
+                </div>
+                <i class="fas fa-money-bill-wave text-4xl opacity-80"></i>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-md p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm opacity-90 mb-1">Pending Notices</p>
+                    <p class="text-2xl font-bold">{{ pending_notices }}</p>
+                </div>
+                <i class="fas fa-file-contract text-4xl opacity-80"></i>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-red-600 to-red-700 rounded-xl shadow-md p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm opacity-90 mb-1">Overdue Responses</p>
+                    <p class="text-2xl font-bold">{{ overdue_responses }}</p>
+                </div>
+                <i class="fas fa-clock text-4xl opacity-80"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Recent Repossessions -->
+        <div class="lg:col-span-2 bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-car-crash text-red-600 mr-2"></i>
+                    Recent Repossessions
+                </h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Number</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vehicle</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Outstanding</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for repo in recent_repos %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <a href="{% url 'repossessions:repossession_detail' repo.pk %}" class="text-sm font-medium text-primary-600 hover:text-primary-900">
+                                        {{ repo.repossession_number }}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ repo.vehicle }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ repo.client.name }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                        {% if repo.status == 'PENDING' %}bg-yellow-100 text-yellow-800
+                                        {% elif repo.status == 'NOTICE_SENT' %}bg-orange-100 text-orange-800
+                                        {% elif repo.status == 'IN_PROGRESS' %}bg-blue-100 text-blue-800
+                                        {% elif repo.status == 'VEHICLE_RECOVERED' %}bg-purple-100 text-purple-800
+                                        {% elif repo.status == 'COMPLETED' %}bg-green-100 text-green-800
+                                        {% elif repo.status == 'CANCELLED' %}bg-gray-100 text-gray-800
+                                        {% else %}bg-gray-100 text-gray-800
+                                        {% endif %}">
+                                        {{ repo.get_status_display }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
+                                    KES {{ repo.outstanding_amount|floatformat:0 }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <a href="{% url 'repossessions:repossession_detail' repo.pk %}" class="text-primary-600 hover:text-primary-900" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                                    <i class="fas fa-inbox text-4xl mb-3 block text-gray-400"></i>
+                                    No repossessions yet
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if recent_repos %}
+                <div class="p-4 bg-gray-50 border-t border-gray-200">
+                    <a href="{% url 'repossessions:repossession_list' %}" class="text-sm text-primary-600 hover:text-primary-900 font-medium">
+                        View All Repossessions <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Quick Actions & Alerts -->
+        <div class="space-y-6">
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                        <i class="fas fa-bolt text-primary-600 mr-2"></i>
+                        Quick Actions
+                    </h2>
+                </div>
+                <div class="p-6 space-y-3">
+                    <a href="{% url 'repossessions:repossession_create' %}" class="flex items-center p-4 bg-red-50 hover:bg-red-100 rounded-lg transition group">
+                        <div class="flex-shrink-0 w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center group-hover:bg-red-700 transition">
+                            <i class="fas fa-plus text-white text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-semibold text-gray-800">Initiate Repossession</p>
+                            <p class="text-xs text-gray-600">Start new case</p>
+                        </div>
+                    </a>
+
+                    <a href="{% url 'repossessions:repossession_list' %}?status=PENDING" class="flex items-center p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition group">
+                        <div class="flex-shrink-0 w-12 h-12 bg-yellow-600 rounded-lg flex items-center justify-center group-hover:bg-yellow-700 transition">
+                            <i class="fas fa-clock text-white text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-semibold text-gray-800">Pending Cases</p>
+                            <p class="text-xs text-gray-600">Review pending</p>
+                        </div>
+                    </a>
+
+                    <a href="{% url 'repossessions:repossession_list' %}?status=IN_PROGRESS" class="flex items-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition group">
+                        <div class="flex-shrink-0 w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center group-hover:bg-blue-700 transition">
+                            <i class="fas fa-spinner text-white text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-semibold text-gray-800">In Progress</p>
+                            <p class="text-xs text-gray-600">Active cases</p>
+                        </div>
+                    </a>
+
+                    <a href="{% url 'repossessions:repossession_reports' %}" class="flex items-center p-4 bg-green-50 hover:bg-green-100 rounded-lg transition group">
+                        <div class="flex-shrink-0 w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center group-hover:bg-green-700 transition">
+                            <i class="fas fa-chart-bar text-white text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-semibold text-gray-800">View Reports</p>
+                            <p class="text-xs text-gray-600">Analytics & stats</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Alerts -->
+            {% if overdue_responses > 0 %}
+                <div class="bg-red-50 border-l-4 border-red-500 rounded-lg p-4">
+                    <div class="flex">
+                        <i class="fas fa-exclamation-circle text-red-500 mt-1 mr-3"></i>
+                        <div>
+                            <p class="text-sm font-semibold text-red-800">Overdue Responses</p>
+                            <p class="text-xs text-red-700 mt-1">
+                                {{ overdue_responses }} notice{{ overdue_responses|pluralize }} have passed their response deadline.
+                            </p>
+                            <a href="{% url 'repossessions:repossession_list' %}" class="text-xs text-red-900 font-medium hover:underline mt-2 inline-block">
+                                Review Now →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if pending_notices > 0 %}
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4">
+                    <div class="flex">
+                        <i class="fas fa-bell text-yellow-500 mt-1 mr-3"></i>
+                        <div>
+                            <p class="text-sm font-semibold text-yellow-800">Pending Notices</p>
+                            <p class="text-xs text-yellow-700 mt-1">
+                                {{ pending_notices }} notice{{ pending_notices|pluralize }} waiting to be sent.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

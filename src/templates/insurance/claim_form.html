@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+        <a href="{% url 'insurance:claim_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Claims
+        </a>
+    </div>
+
+    <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="p-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">{{ title }}</h1>
+
+            <form method="post" enctype="multipart/form-data" class="space-y-8">
+                {% csrf_token %}
+
+                <!-- Policy Selection -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Policy Selection</h2>
+                    <div>
+                        <label for="id_policy" class="block text-sm font-medium text-gray-700 mb-2">
+                            Insurance Policy <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.policy }}
+                        <p class="text-xs text-gray-500 mt-1">Select the policy under which to file this claim</p>
+                        {% if form.policy.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.policy.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Claim Details -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Claim Details</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="id_claim_type" class="block text-sm font-medium text-gray-700 mb-2">
+                                Claim Type <span class="text-red-500">*</span>
+                            </label>
+                            <select name="claim_type" id="id_claim_type" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                <option value="">Select type...</option>
+                                <option value="accident" {% if form.claim_type.value == 'accident' %}selected{% endif %}>Accident</option>
+                                <option value="theft" {% if form.claim_type.value == 'theft' %}selected{% endif %}>Theft</option>
+                                <option value="fire" {% if form.claim_type.value == 'fire' %}selected{% endif %}>Fire</option>
+                                <option value="vandalism" {% if form.claim_type.value == 'vandalism' %}selected{% endif %}>Vandalism</option>
+                                <option value="natural_disaster" {% if form.claim_type.value == 'natural_disaster' %}selected{% endif %}>Natural Disaster</option>
+                                <option value="other" {% if form.claim_type.value == 'other' %}selected{% endif %}>Other</option>
+                            </select>
+                            {% if form.claim_type.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.claim_type.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_incident_date" class="block text-sm font-medium text-gray-700 mb-2">
+                                Incident Date <span class="text-red-500">*</span>
+                            </label>
+                            <input type="date" name="incident_date" id="id_incident_date" value="{{ form.incident_date.value|date:'Y-m-d'|default:'' }}" required max="{{ today|date:'Y-m-d' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            {% if form.incident_date.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.incident_date.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_claimed_amount" class="block text-sm font-medium text-gray-700 mb-2">
+                                Claimed Amount (KES) <span class="text-red-500">*</span>
+                            </label>
+                            <input type="number" name="claimed_amount" id="id_claimed_amount" value="{{ form.claimed_amount.value|default:'' }}" required min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="100000.00">
+                            {% if form.claimed_amount.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.claimed_amount.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_police_report_number" class="block text-sm font-medium text-gray-700 mb-2">
+                                Police Report Number (if applicable)
+                            </label>
+                            <input type="text" name="police_report_number" id="id_police_report_number" value="{{ form.police_report_number.value|default:'' }}" maxlength="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="OB/123/2025">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Incident Information -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Incident Information</h2>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="id_incident_location" class="block text-sm font-medium text-gray-700 mb-2">
+                                Incident Location <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="incident_location" id="id_incident_location" value="{{ form.incident_location.value|default:'' }}" required maxlength="500" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Enter location where incident occurred">
+                            {% if form.incident_location.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.incident_location.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_incident_description" class="block text-sm font-medium text-gray-700 mb-2">
+                                Incident Description <span class="text-red-500">*</span>
+                            </label>
+                            <textarea name="incident_description" id="id_incident_description" rows="6" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Provide detailed description of what happened...">{{ form.incident_description.value|default:'' }}</textarea>
+                            <p class="text-xs text-gray-500 mt-1">Be as detailed as possible to help process your claim faster</p>
+                            {% if form.incident_description.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.incident_description.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Supporting Documents -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Supporting Documents</h2>
+                    <div>
+                        <label for="id_supporting_documents" class="block text-sm font-medium text-gray-700 mb-2">
+                            Upload Documents
+                        </label>
+                        <input type="file" name="supporting_documents" id="id_supporting_documents" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <p class="text-xs text-gray-500 mt-1">Upload photos, receipts, police reports, etc. (Max 10MB)</p>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-end space-x-4 pt-6 border-t">
+                    <a href="{% url 'insurance:claim_list' %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                        <i class="fas fa-file-medical mr-2"></i>{{ button_text }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set max date for incident date to today
+    const incidentDate = document.getElementById('id_incident_date');
+    const today = new Date().toISOString().split('T')[0];
+    if (incidentDate) {
+        incidentDate.max = today;
+    }
+});
+</script>
+{% endblock %}

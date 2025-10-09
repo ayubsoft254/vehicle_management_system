@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Insurance Dashboard - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Insurance Dashboard</h1>
+            <p class="text-gray-600">Overview of insurance policies, claims, and coverage</p>
+        </div>
+        <div class="mt-4 md:mt-0 space-x-3">
+            <a href="{% url 'insurance:policy_create' %}" class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                <i class="fas fa-plus mr-2"></i>
+                New Policy
+            </a>
+            <a href="{% url 'insurance:claim_create' %}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                <i class="fas fa-file-medical mr-2"></i>
+                File Claim
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- Active Policies -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-600 text-sm font-medium mb-1">Active Policies</p>
+                    <p class="text-3xl font-bold text-gray-800">{{ active_policies }}</p>
+                    <p class="text-sm text-gray-500 mt-1">of {{ total_policies }} total</p>
+                </div>
+                <div class="bg-green-100 rounded-full p-4">
+                    <i class="fas fa-shield-alt text-green-600 text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expiring Soon -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-yellow-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-600 text-sm font-medium mb-1">Expiring Soon</p>
+                    <p class="text-3xl font-bold text-gray-800">{{ expiring_30_days }}</p>
+                    <p class="text-sm text-gray-500 mt-1">Within 30 days</p>
+                </div>
+                <div class="bg-yellow-100 rounded-full p-4">
+                    <i class="fas fa-exclamation-triangle text-yellow-600 text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Claims -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-600 text-sm font-medium mb-1">Pending Claims</p>
+                    <p class="text-3xl font-bold text-gray-800">{{ pending_claims }}</p>
+                    <p class="text-sm text-gray-500 mt-1">of {{ total_claims }} total</p>
+                </div>
+                <div class="bg-blue-100 rounded-full p-4">
+                    <i class="fas fa-file-invoice-dollar text-blue-600 text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Premium -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-600 text-sm font-medium mb-1">Active Premium</p>
+                    <p class="text-3xl font-bold text-gray-800">KES {{ total_premium|floatformat:0|default:"0" }}</p>
+                    <p class="text-sm text-gray-500 mt-1">Annual value</p>
+                </div>
+                <div class="bg-purple-100 rounded-full p-4">
+                    <i class="fas fa-money-bill-wave text-purple-600 text-2xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Claim Financial Overview -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Total Claimed</h3>
+                <i class="fas fa-hand-holding-usd text-red-500"></i>
+            </div>
+            <p class="text-2xl font-bold text-gray-800">KES {{ total_claimed|floatformat:0|default:"0" }}</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Total Settled</h3>
+                <i class="fas fa-check-circle text-green-500"></i>
+            </div>
+            <p class="text-2xl font-bold text-gray-800">KES {{ total_settled|floatformat:0|default:"0" }}</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Expired Policies</h3>
+                <i class="fas fa-times-circle text-red-500"></i>
+            </div>
+            <p class="text-2xl font-bold text-gray-800">{{ expired_policies }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Recent Policies -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-bold text-gray-800">Recent Policies</h2>
+                    <a href="{% url 'insurance:policy_list' %}" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
+                        View All <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="p-6">
+                {% if recent_policies %}
+                    <div class="space-y-4">
+                        {% for policy in recent_policies %}
+                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                                <div class="flex-1">
+                                    <div class="flex items-center mb-2">
+                                        <span class="text-sm font-semibold text-gray-800">{{ policy.policy_number }}</span>
+                                        <span class="ml-2 px-2 py-1 text-xs rounded-full {% if policy.status == 'active' %}bg-green-100 text-green-800{% elif policy.status == 'expired' %}bg-red-100 text-red-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                                            {{ policy.get_status_display }}
+                                        </span>
+                                    </div>
+                                    <p class="text-sm text-gray-600">
+                                        <i class="fas fa-car mr-1"></i>{{ policy.vehicle }}
+                                    </p>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        {{ policy.provider.name }} • {{ policy.get_policy_type_display }}
+                                    </p>
+                                </div>
+                                <a href="{% url 'insurance:policy_detail' policy.pk %}" class="ml-4 text-primary-600 hover:text-primary-700">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-8">
+                        <i class="fas fa-file-alt text-gray-300 text-4xl mb-3"></i>
+                        <p class="text-gray-500">No recent policies</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Claims -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-bold text-gray-800">Recent Claims</h2>
+                    <a href="{% url 'insurance:claim_list' %}" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
+                        View All <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="p-6">
+                {% if recent_claims %}
+                    <div class="space-y-4">
+                        {% for claim in recent_claims %}
+                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                                <div class="flex-1">
+                                    <div class="flex items-center mb-2">
+                                        <span class="text-sm font-semibold text-gray-800">{{ claim.claim_number }}</span>
+                                        <span class="ml-2 px-2 py-1 text-xs rounded-full {% if claim.status == 'pending' %}bg-yellow-100 text-yellow-800{% elif claim.status == 'approved' %}bg-green-100 text-green-800{% elif claim.status == 'settled' %}bg-teal-100 text-teal-800{% elif claim.status == 'rejected' %}bg-red-100 text-red-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                                            {{ claim.get_status_display }}
+                                        </span>
+                                    </div>
+                                    <p class="text-sm text-gray-600">
+                                        <i class="fas fa-car mr-1"></i>{{ claim.policy.vehicle }}
+                                    </p>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        {{ claim.get_claim_type_display }} • KES {{ claim.claimed_amount|floatformat:0 }}
+                                    </p>
+                                </div>
+                                <a href="{% url 'insurance:claim_detail' claim.pk %}" class="ml-4 text-primary-600 hover:text-primary-700">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-8">
+                        <i class="fas fa-file-medical text-gray-300 text-4xl mb-3"></i>
+                        <p class="text-gray-500">No recent claims</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mt-8 bg-white rounded-xl shadow-md p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Quick Actions</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <a href="{% url 'insurance:expiring_policies' %}" class="flex items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition">
+                <i class="fas fa-clock text-yellow-600 text-2xl mr-3"></i>
+                <span class="text-sm font-medium text-gray-800">Expiring Policies</span>
+            </a>
+            <a href="{% url 'insurance:provider_list' %}" class="flex items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition">
+                <i class="fas fa-building text-blue-600 text-2xl mr-3"></i>
+                <span class="text-sm font-medium text-gray-800">View Providers</span>
+            </a>
+            <a href="{% url 'insurance:insurance_reports' %}" class="flex items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition">
+                <i class="fas fa-chart-bar text-purple-600 text-2xl mr-3"></i>
+                <span class="text-sm font-medium text-gray-800">View Reports</span>
+            </a>
+            <a href="{% url 'insurance:generate_quote' %}" class="flex items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition">
+                <i class="fas fa-calculator text-green-600 text-2xl mr-3"></i>
+                <span class="text-sm font-medium text-gray-800">Generate Quote</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

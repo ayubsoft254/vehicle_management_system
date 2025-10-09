@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Complete Repossession - {{ repossession.repossession_number }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <!-- Back Button -->
+        <div class="mb-6">
+            <a href="{% url 'repossessions:repossession_detail' repossession.pk %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Repossession
+            </a>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-check-circle text-green-600 mr-3"></i>
+                    Complete Repossession
+                </h1>
+                <p class="text-gray-600 mt-2">Mark {{ repossession.repossession_number }} as completed</p>
+            </div>
+
+            <div class="p-6">
+                <!-- Repossession Summary -->
+                <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Repossession Summary</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p class="text-gray-600">Number</p>
+                            <p class="text-gray-800 font-medium">{{ repossession.repossession_number }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Vehicle</p>
+                            <p class="text-gray-800 font-medium">{{ repossession.vehicle }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Client</p>
+                            <p class="text-gray-800 font-medium">{{ repossession.client.name }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Outstanding Amount</p>
+                            <p class="text-gray-800 font-medium">KES {{ repossession.outstanding_amount|floatformat:0 }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Total Costs</p>
+                            <p class="text-gray-800 font-medium">KES {{ repossession.total_cost|floatformat:0 }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Days in Process</p>
+                            <p class="text-gray-800 font-medium">{{ repossession.get_days_in_process }} days</p>
+                        </div>
+                    </div>
+                </div>
+
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                            <p class="text-red-700">{{ form.non_field_errors }}</p>
+                        </div>
+                    {% endif %}
+
+                    <div>
+                        <label for="id_resolution_type" class="block text-sm font-medium text-gray-700 mb-2">
+                            Resolution Type <span class="text-red-500">*</span>
+                        </label>
+                        <select name="resolution_type" id="id_resolution_type" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="">Select resolution type...</option>
+                            <option value="PAID_IN_FULL" {% if form.resolution_type.value == 'PAID_IN_FULL' %}selected{% endif %}>Paid in Full</option>
+                            <option value="AUCTIONED" {% if form.resolution_type.value == 'AUCTIONED' %}selected{% endif %}>Vehicle Auctioned</option>
+                            <option value="RETURNED" {% if form.resolution_type.value == 'RETURNED' %}selected{% endif %}>Returned to Client</option>
+                            <option value="WRITTEN_OFF" {% if form.resolution_type.value == 'WRITTEN_OFF' %}selected{% endif %}>Written Off</option>
+                            <option value="OTHER" {% if form.resolution_type.value == 'OTHER' %}selected{% endif %}>Other</option>
+                        </select>
+                        {% if form.resolution_type.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.resolution_type.errors.0 }}</p>
+                        {% endif %}
+                        <p class="text-xs text-gray-500 mt-2">How was this repossession case resolved?</p>
+                    </div>
+
+                    <div>
+                        <label for="id_resolution_notes" class="block text-sm font-medium text-gray-700 mb-2">
+                            Resolution Notes
+                        </label>
+                        <textarea name="resolution_notes" id="id_resolution_notes" rows="6" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Provide details about how the repossession was resolved...">{{ form.resolution_notes.value|default:'' }}</textarea>
+                        {% if form.resolution_notes.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.resolution_notes.errors.0 }}</p>
+                        {% endif %}
+                        <p class="text-xs text-gray-500 mt-2">Include final payment amounts, auction details, or any other relevant information</p>
+                    </div>
+
+                    <!-- Info Box -->
+                    <div class="bg-green-50 border-l-4 border-green-500 rounded-lg p-4">
+                        <div class="flex">
+                            <i class="fas fa-check-circle text-green-500 mt-1 mr-3"></i>
+                            <div>
+                                <p class="text-sm text-green-700">
+                                    <strong>Completing this repossession will:</strong>
+                                </p>
+                                <ul class="list-disc list-inside text-sm text-green-700 mt-2 space-y-1">
+                                    <li>Set the status to "Completed"</li>
+                                    <li>Record today's date as completion date</li>
+                                    <li>Lock the case from further modification</li>
+                                    <li>Save the resolution type and notes</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="flex items-center justify-end space-x-4 pt-6 border-t">
+                        <a href="{% url 'repossessions:repossession_detail' repossession.pk %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                            Cancel
+                        </a>
+                        <button type="submit" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                            <i class="fas fa-check-circle mr-2"></i>Complete Repossession
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

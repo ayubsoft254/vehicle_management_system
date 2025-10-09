@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Back Button -->
+    <div class="mb-6">
+        <a href="{% url 'insurance:provider_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Providers
+        </a>
+    </div>
+
+    <!-- Form Container -->
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="p-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">{{ title }}</h1>
+
+            <form method="post" class="space-y-8">
+                {% csrf_token %}
+
+                <!-- Basic Information -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Basic Information</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="md:col-span-2">
+                            <label for="id_name" class="block text-sm font-medium text-gray-700 mb-2">
+                                Provider Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="name" id="id_name" value="{{ form.name.value|default:'' }}" required maxlength="200" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Enter provider name">
+                            {% if form.name.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.name.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_registration_number" class="block text-sm font-medium text-gray-700 mb-2">
+                                Registration Number
+                            </label>
+                            <input type="text" name="registration_number" id="id_registration_number" value="{{ form.registration_number.value|default:'' }}" maxlength="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Company reg. number">
+                        </div>
+
+                        <div>
+                            <label for="id_is_active" class="flex items-center cursor-pointer">
+                                <input type="checkbox" name="is_active" id="id_is_active" {% if form.is_active.value %}checked{% endif %} class="mr-3 h-5 w-5 text-primary-600 focus:ring-primary-500 border-gray-300 rounded">
+                                <span class="text-sm font-medium text-gray-700">Active Provider</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Information -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Contact Information</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="id_phone_primary" class="block text-sm font-medium text-gray-700 mb-2">
+                                Primary Phone <span class="text-red-500">*</span>
+                            </label>
+                            <input type="tel" name="phone_primary" id="id_phone_primary" value="{{ form.phone_primary.value|default:'' }}" required maxlength="15" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="+254712345678">
+                            {% if form.phone_primary.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.phone_primary.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_phone_secondary" class="block text-sm font-medium text-gray-700 mb-2">
+                                Secondary Phone
+                            </label>
+                            <input type="tel" name="phone_secondary" id="id_phone_secondary" value="{{ form.phone_secondary.value|default:'' }}" maxlength="15" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="+254712345678">
+                        </div>
+
+                        <div>
+                            <label for="id_email" class="block text-sm font-medium text-gray-700 mb-2">
+                                Email Address
+                            </label>
+                            <input type="email" name="email" id="id_email" value="{{ form.email.value|default:'' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="info@provider.com">
+                        </div>
+
+                        <div>
+                            <label for="id_website" class="block text-sm font-medium text-gray-700 mb-2">
+                                Website
+                            </label>
+                            <input type="url" name="website" id="id_website" value="{{ form.website.value|default:'' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="https://www.provider.com">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Address Information -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Address Information</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="md:col-span-2">
+                            <label for="id_physical_address" class="block text-sm font-medium text-gray-700 mb-2">
+                                Physical Address <span class="text-red-500">*</span>
+                            </label>
+                            <textarea name="physical_address" id="id_physical_address" rows="3" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Enter physical office address">{{ form.physical_address.value|default:'' }}</textarea>
+                            {% if form.physical_address.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.physical_address.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_city" class="block text-sm font-medium text-gray-700 mb-2">
+                                City
+                            </label>
+                            <input type="text" name="city" id="id_city" value="{{ form.city.value|default:'' }}" maxlength="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Nairobi">
+                        </div>
+
+                        <div>
+                            <label for="id_postal_address" class="block text-sm font-medium text-gray-700 mb-2">
+                                Postal Address
+                            </label>
+                            <input type="text" name="postal_address" id="id_postal_address" value="{{ form.postal_address.value|default:'' }}" maxlength="200" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="P.O. Box 12345-00100">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Person -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Contact Person (Optional)</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="id_contact_person_name" class="block text-sm font-medium text-gray-700 mb-2">
+                                Name
+                            </label>
+                            <input type="text" name="contact_person_name" id="id_contact_person_name" value="{{ form.contact_person_name.value|default:'' }}" maxlength="200" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="John Doe">
+                        </div>
+
+                        <div>
+                            <label for="id_contact_person_phone" class="block text-sm font-medium text-gray-700 mb-2">
+                                Phone
+                            </label>
+                            <input type="tel" name="contact_person_phone" id="id_contact_person_phone" value="{{ form.contact_person_phone.value|default:'' }}" maxlength="15" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="+254712345678">
+                        </div>
+
+                        <div>
+                            <label for="id_contact_person_email" class="block text-sm font-medium text-gray-700 mb-2">
+                                Email
+                            </label>
+                            <input type="email" name="contact_person_email" id="id_contact_person_email" value="{{ form.contact_person_email.value|default:'' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="john@provider.com">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Notes -->
+                <div>
+                    <label for="id_notes" class="block text-sm font-medium text-gray-700 mb-2">
+                        Additional Notes
+                    </label>
+                    <textarea name="notes" id="id_notes" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Any additional information...">{{ form.notes.value|default:'' }}</textarea>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-end space-x-4 pt-6 border-t">
+                    <a href="{% url 'insurance:provider_list' %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i>{{ button_text }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

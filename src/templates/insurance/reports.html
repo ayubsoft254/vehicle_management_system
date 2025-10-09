@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Insurance Reports - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Insurance Reports & Analytics</h1>
+            <p class="text-gray-600">Comprehensive insurance statistics and analysis</p>
+        </div>
+        <div class="mt-4 md:mt-0 space-x-3">
+            <a href="{% url 'insurance:export_policies_csv' %}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                <i class="fas fa-file-csv mr-2"></i>Export Policies
+            </a>
+            <a href="{% url 'insurance:export_claims_csv' %}" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                <i class="fas fa-file-csv mr-2"></i>Export Claims
+            </a>
+        </div>
+    </div>
+
+    <!-- Date Range Filter -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+        <form method="get" class="flex flex-wrap items-end gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Date From</label>
+                <input type="date" name="date_from" value="{{ date_from }}" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Date To</label>
+                <input type="date" name="date_to" value="{{ date_to }}" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            </div>
+            <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                <i class="fas fa-filter mr-2"></i>Apply Filter
+            </button>
+            <a href="{% url 'insurance:insurance_reports' %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                Clear
+            </a>
+        </form>
+    </div>
+
+    <!-- Policy Statistics by Type -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-chart-pie text-primary-600 mr-2"></i>
+                Policy Statistics by Type
+            </h2>
+        </div>
+        <div class="p-6">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Policy Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Count</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Premium</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Average Premium</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Share</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for stat in policy_type_stats %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ stat.type }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ stat.count }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">KES {{ stat.total_premium|floatformat:0 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {% if stat.count > 0 %}
+                                        KES {% widthratio stat.total_premium stat.count 1 %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="flex-1 bg-gray-200 rounded-full h-2 mr-2">
+                                            <div class="bg-primary-600 h-2 rounded-full" style="width: {% widthratio stat.count 100 policy_type_stats.0.count %}%"></div>
+                                        </div>
+                                        <span class="text-xs text-gray-600">{% widthratio stat.count 1 1 %}%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">No data available</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Claim Statistics by Type -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-chart-bar text-primary-600 mr-2"></i>
+                Claim Statistics by Type
+            </h2>
+        </div>
+        <div class="p-6">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Claim Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Count</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Claimed</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Average Claim</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Frequency</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for stat in claim_type_stats %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ stat.type }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ stat.count }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">KES {{ stat.total_claimed|floatformat:0 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {% if stat.count > 0 %}
+                                        KES {% widthratio stat.total_claimed stat.count 1 %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="flex-1 bg-gray-200 rounded-full h-2 mr-2">
+                                            <div class="bg-red-600 h-2 rounded-full" style="width: {% if claim_type_stats.0.count > 0 %}{% widthratio stat.count 100 claim_type_stats.0.count %}{% else %}0{% endif %}%"></div>
+                                        </div>
+                                        <span class="text-xs text-gray-600">{{ stat.count }}x</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">No claims data available</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Insurance Providers -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-trophy text-primary-600 mr-2"></i>
+                Top Insurance Providers
+            </h2>
+        </div>
+        <div class="p-6">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Provider</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Active Policies</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Premium Value</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Market Share</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for provider in provider_stats %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                                    {% if forloop.counter == 1 %}
+                                        <span class="text-yellow-500"><i class="fas fa-crown"></i> #1</span>
+                                    {% else %}
+                                        #{{ forloop.counter }}
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <a href="{% url 'insurance:provider_detail' provider.pk %}" class="text-sm font-medium text-primary-600 hover:text-primary-900">
+                                        {{ provider.name }}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ provider.policy_count }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">KES {{ provider.total_premium|floatformat:0|default:"0" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="flex-1 bg-gray-200 rounded-full h-2 mr-2">
+                                            <div class="bg-green-600 h-2 rounded-full" style="width: {% if provider_stats.0.policy_count > 0 %}{% widthratio provider.policy_count 100 provider_stats.0.policy_count %}{% else %}0{% endif %}%"></div>
+                                        </div>
+                                        <span class="text-xs text-gray-600">{% if provider_stats.0.policy_count > 0 %}{% widthratio provider.policy_count 100 provider_stats.0.policy_count %}{% else %}0{% endif %}%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">No provider data available</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <a href="{% url 'insurance:insurance_dashboard' %}" class="flex items-center p-6 bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl hover:from-primary-600 hover:to-primary-700 text-white transition shadow-md">
+            <i class="fas fa-tachometer-alt text-3xl mr-4"></i>
+            <div>
+                <p class="text-sm opacity-90">Go to</p>
+                <p class="text-lg font-semibold">Dashboard</p>
+            </div>
+        </a>
+        
+        <a href="{% url 'insurance:policy_list' %}" class="flex items-center p-6 bg-gradient-to-r from-green-500 to-green-600 rounded-xl hover:from-green-600 hover:to-green-700 text-white transition shadow-md">
+            <i class="fas fa-shield-alt text-3xl mr-4"></i>
+            <div>
+                <p class="text-sm opacity-90">View All</p>
+                <p class="text-lg font-semibold">Policies</p>
+            </div>
+        </a>
+        
+        <a href="{% url 'insurance:claim_list' %}" class="flex items-center p-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl hover:from-blue-600 hover:to-blue-700 text-white transition shadow-md">
+            <i class="fas fa-file-invoice-dollar text-3xl mr-4"></i>
+            <div>
+                <p class="text-sm opacity-90">View All</p>
+                <p class="text-lg font-semibold">Claims</p>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

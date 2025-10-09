@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Record Contact - {{ repossession.repossession_number }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-3xl mx-auto">
+        <!-- Back Button -->
+        <div class="mb-6">
+            <a href="{% url 'repossessions:repossession_detail' repossession.pk %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Repossession
+            </a>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-phone text-indigo-600 mr-3"></i>
+                    Record Client Contact
+                </h1>
+                <p class="text-gray-600 mt-2">Log a contact attempt for {{ repossession.repossession_number }}</p>
+            </div>
+
+            <form method="post" class="p-6 space-y-6">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                        <p class="text-red-700">{{ form.non_field_errors }}</p>
+                    </div>
+                {% endif %}
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="id_contact_date" class="block text-sm font-medium text-gray-700 mb-2">
+                            Contact Date & Time <span class="text-red-500">*</span>
+                        </label>
+                        <input type="datetime-local" name="contact_date" id="id_contact_date" value="{{ form.contact_date.value|date:'Y-m-d\TH:i'|default:'' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        {% if form.contact_date.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.contact_date.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="id_contact_method" class="block text-sm font-medium text-gray-700 mb-2">
+                            Contact Method <span class="text-red-500">*</span>
+                        </label>
+                        <select name="contact_method" id="id_contact_method" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="">Select method...</option>
+                            <option value="PHONE" {% if form.contact_method.value == 'PHONE' %}selected{% endif %}>Phone Call</option>
+                            <option value="EMAIL" {% if form.contact_method.value == 'EMAIL' %}selected{% endif %}>Email</option>
+                            <option value="SMS" {% if form.contact_method.value == 'SMS' %}selected{% endif %}>SMS</option>
+                            <option value="VISIT" {% if form.contact_method.value == 'VISIT' %}selected{% endif %}>In-Person Visit</option>
+                            <option value="LETTER" {% if form.contact_method.value == 'LETTER' %}selected{% endif %}>Letter</option>
+                        </select>
+                        {% if form.contact_method.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.contact_method.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="id_contacted_person" class="block text-sm font-medium text-gray-700 mb-2">
+                            Person Contacted <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="contacted_person" id="id_contacted_person" value="{{ form.contacted_person.value|default:'' }}" required maxlength="200" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Name of person contacted...">
+                        {% if form.contacted_person.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.contacted_person.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label for="id_outcome" class="block text-sm font-medium text-gray-700 mb-2">
+                            Outcome <span class="text-red-500">*</span>
+                        </label>
+                        <select name="outcome" id="id_outcome" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="">Select outcome...</option>
+                            <option value="SUCCESSFUL" {% if form.outcome.value == 'SUCCESSFUL' %}selected{% endif %}>Successful Contact</option>
+                            <option value="NO_ANSWER" {% if form.outcome.value == 'NO_ANSWER' %}selected{% endif %}>No Answer</option>
+                            <option value="REFUSED" {% if form.outcome.value == 'REFUSED' %}selected{% endif %}>Refused to Engage</option>
+                            <option value="PARTIAL" {% if form.outcome.value == 'PARTIAL' %}selected{% endif %}>Partial Information</option>
+                            <option value="VOICEMAIL" {% if form.outcome.value == 'VOICEMAIL' %}selected{% endif %}>Left Voicemail</option>
+                            <option value="PROMISE_TO_PAY" {% if form.outcome.value == 'PROMISE_TO_PAY' %}selected{% endif %}>Promise to Pay</option>
+                            <option value="OTHER" {% if form.outcome.value == 'OTHER' %}selected{% endif %}>Other</option>
+                        </select>
+                        {% if form.outcome.errors %}
+                            <p class="text-red-500 text-sm mt-1">{{ form.outcome.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div>
+                    <label for="id_discussion_summary" class="block text-sm font-medium text-gray-700 mb-2">
+                        Discussion Summary <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="discussion_summary" id="id_discussion_summary" rows="6" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Summarize the conversation or contact attempt...">{{ form.discussion_summary.value|default:'' }}</textarea>
+                    {% if form.discussion_summary.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.discussion_summary.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="id_next_action" class="block text-sm font-medium text-gray-700 mb-2">
+                        Next Action
+                    </label>
+                    <textarea name="next_action" id="id_next_action" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="What is the next step or action to take?">{{ form.next_action.value|default:'' }}</textarea>
+                    {% if form.next_action.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.next_action.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="id_follow_up_date" class="block text-sm font-medium text-gray-700 mb-2">
+                        Follow-up Date
+                    </label>
+                    <input type="date" name="follow_up_date" id="id_follow_up_date" value="{{ form.follow_up_date.value|date:'Y-m-d'|default:'' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form.follow_up_date.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.follow_up_date.errors.0 }}</p>
+                    {% endif %}
+                    <p class="text-xs text-gray-500 mt-2">Date to follow up on this contact</p>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-end space-x-4 pt-6 border-t">
+                    <a href="{% url 'repossessions:repossession_detail' repossession.pk %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i>Save Contact
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set current date/time as default
+    const contactDate = document.getElementById('id_contact_date');
+    if (contactDate && !contactDate.value) {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        contactDate.value = now.toISOString().slice(0, 16);
+    }
+});
+</script>
+{% endblock %}
