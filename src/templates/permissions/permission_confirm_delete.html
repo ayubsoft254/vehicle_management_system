@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Permission - {{ permission }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-3xl">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-6">
+        <ol class="list-none p-0 inline-flex">
+            <li class="flex items-center">
+                <a href="{% url 'permissions:list' %}" class="text-primary-600 hover:text-primary-700">Permissions</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="flex items-center">
+                <a href="{% url 'permissions:detail' permission.pk %}" class="text-primary-600 hover:text-primary-700">{{ permission }}</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="text-gray-500">Delete</li>
+        </ol>
+    </nav>
+
+    <!-- Warning Header -->
+    <div class="mb-8 bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg p-8 text-white">
+        <div class="flex items-center">
+            <div class="w-16 h-16 bg-white bg-opacity-30 rounded-full flex items-center justify-center mr-4">
+                <i class="fas fa-exclamation-triangle text-3xl"></i>
+            </div>
+            <div>
+                <h1 class="text-3xl font-bold mb-1">Delete Permission</h1>
+                <p class="text-red-100">This action cannot be undone</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Permission Details Card -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">
+            <i class="fas fa-info-circle text-primary-600 mr-2"></i>Permission to Delete
+        </h2>
+        
+        <div class="bg-gray-50 rounded-lg p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b">
+                <span class="text-sm font-medium text-gray-500">Role</span>
+                <span class="text-base font-semibold text-gray-900 flex items-center">
+                    <i class="fas fa-user-tag text-primary-600 mr-2"></i>
+                    {{ permission.get_role_display }}
+                </span>
+            </div>
+
+            <div class="flex items-center justify-between pb-3 border-b">
+                <span class="text-sm font-medium text-gray-500">Module</span>
+                <span class="text-base font-semibold text-gray-900 flex items-center">
+                    <i class="fas fa-cube text-blue-600 mr-2"></i>
+                    {{ permission.get_module_name_display }}
+                </span>
+            </div>
+
+            <div class="flex items-center justify-between pb-3 border-b">
+                <span class="text-sm font-medium text-gray-500">Access Level</span>
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                    {% if permission.access_level == 'no_access' %}bg-red-100 text-red-800
+                    {% elif permission.access_level == 'read_only' %}bg-yellow-100 text-yellow-800
+                    {% elif permission.access_level == 'read_write' %}bg-blue-100 text-blue-800
+                    {% elif permission.access_level == 'full_access' %}bg-green-100 text-green-800
+                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {{ permission.get_access_level_display }}
+                </span>
+            </div>
+
+            <div class="flex items-center justify-between pb-3 border-b">
+                <span class="text-sm font-medium text-gray-500">Granular Permissions</span>
+                <div class="flex items-center gap-2">
+                    {% if permission.can_create %}
+                        <span class="inline-flex items-center px-2 py-1 rounded bg-green-100 text-green-700 text-xs" title="Can Create">
+                            <i class="fas fa-plus"></i>
+                        </span>
+                    {% endif %}
+                    {% if permission.can_edit %}
+                        <span class="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs" title="Can Edit">
+                            <i class="fas fa-edit"></i>
+                        </span>
+                    {% endif %}
+                    {% if permission.can_delete %}
+                        <span class="inline-flex items-center px-2 py-1 rounded bg-red-100 text-red-700 text-xs" title="Can Delete">
+                            <i class="fas fa-trash"></i>
+                        </span>
+                    {% endif %}
+                    {% if permission.can_export %}
+                        <span class="inline-flex items-center px-2 py-1 rounded bg-purple-100 text-purple-700 text-xs" title="Can Export">
+                            <i class="fas fa-download"></i>
+                        </span>
+                    {% endif %}
+                    {% if not permission.can_create and not permission.can_edit and not permission.can_delete and not permission.can_export %}
+                        <span class="text-sm text-gray-500">None</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-500">Status</span>
+                {% if permission.is_active %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        <i class="fas fa-check-circle mr-1"></i>Active
+                    </span>
+                {% else %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                        <i class="fas fa-times-circle mr-1"></i>Inactive
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning Box -->
+    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-lg mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-yellow-400 text-2xl"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-lg font-medium text-yellow-800 mb-2">Warning</h3>
+                <div class="text-sm text-yellow-700 space-y-2">
+                    <p class="flex items-start">
+                        <i class="fas fa-circle text-xs mr-2 mt-1"></i>
+                        <span>This permission will be permanently deleted from the system</span>
+                    </p>
+                    <p class="flex items-start">
+                        <i class="fas fa-circle text-xs mr-2 mt-1"></i>
+                        <span>Users with this role will lose access to the module</span>
+                    </p>
+                    <p class="flex items-start">
+                        <i class="fas fa-circle text-xs mr-2 mt-1"></i>
+                        <span>All history records associated with this permission will remain for audit purposes</span>
+                    </p>
+                    <p class="flex items-start">
+                        <i class="fas fa-circle text-xs mr-2 mt-1"></i>
+                        <span>This action cannot be undone</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+        <p class="text-gray-700 text-center mb-4">
+            Are you sure you want to delete the permission for 
+            <span class="font-bold text-gray-900">{{ permission.get_role_display }}</span> 
+            on 
+            <span class="font-bold text-gray-900">{{ permission.get_module_name_display }}</span>?
+        </p>
+    </div>
+
+    <!-- Action Buttons -->
+    <form method="post" class="flex items-center gap-4">
+        {% csrf_token %}
+        <button type="submit" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200 flex items-center justify-center">
+            <i class="fas fa-trash-alt mr-2"></i>
+            Yes, Delete Permission
+        </button>
+        <a href="{% url 'permissions:detail' permission.pk %}" class="flex-1 text-center bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold transition duration-200">
+            <i class="fas fa-times mr-2"></i>
+            Cancel
+        </a>
+    </form>
+</div>
+{% endblock %}

@@ -263,7 +263,20 @@
                                 <span class="text-gray-600">{{ stat.count }}</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div class="bg-primary-600 h-2 rounded-full" style="width: {% widthratio stat.count 100 total_logs %}%"></div>
+                                {% if total_logs and total_logs > 0 %}
+                                    <div class="h-2 rounded-full transition-all duration-300
+                                        {% if stat.action == 'create' %}bg-green-600
+                                        {% elif stat.action == 'update' %}bg-yellow-600
+                                        {% elif stat.action == 'delete' %}bg-red-600
+                                        {% elif stat.action == 'read' %}bg-blue-600
+                                        {% elif stat.action == 'login' %}bg-green-600
+                                        {% elif stat.action == 'logout' %}bg-gray-600
+                                        {% elif stat.action == 'export' %}bg-purple-600
+                                        {% else %}bg-primary-600{% endif %}" 
+                                        style="width: {% widthratio stat.count total_logs 100 %}%"></div>
+                                {% else %}
+                                    <div class="bg-gray-400 h-2 rounded-full" style="width: 0%"></div>
+                                {% endif %}
                             </div>
                         </div>
                     {% endfor %}
@@ -275,27 +288,27 @@
 
         <div class="bg-white rounded-xl shadow-md p-6">
             <h3 class="text-lg font-semibold text-gray-800 mb-4">
-                <i class="fas fa-info-circle text-primary-600 mr-2"></i>Quick Actions
+                <i class="fas fa-bolt text-primary-600 mr-2"></i>Quick Actions
             </h3>
             <div class="space-y-3">
-                <a href="{% url 'audit:login_history' %}" class="flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition duration-200">
+                <a href="{% url 'audit:login_history' %}" class="flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition duration-200 group">
                     <span class="flex items-center text-blue-700 font-medium">
-                        <i class="fas fa-sign-in-alt mr-3"></i>Login History
+                        <i class="fas fa-sign-in-alt mr-3 text-lg"></i>Login History
                     </span>
-                    <i class="fas fa-arrow-right text-blue-600"></i>
+                    <i class="fas fa-arrow-right text-blue-600 group-hover:translate-x-1 transition-transform"></i>
                 </a>
-                <a href="{% url 'audit:export_csv' %}" class="flex items-center justify-between p-3 bg-green-50 hover:bg-green-100 rounded-lg transition duration-200">
+                <a href="{% url 'audit:export_csv' %}" class="flex items-center justify-between p-3 bg-green-50 hover:bg-green-100 rounded-lg transition duration-200 group">
                     <span class="flex items-center text-green-700 font-medium">
-                        <i class="fas fa-download mr-3"></i>Export All Logs
+                        <i class="fas fa-download mr-3 text-lg"></i>Export All Logs
                     </span>
-                    <i class="fas fa-arrow-right text-green-600"></i>
+                    <i class="fas fa-arrow-right text-green-600 group-hover:translate-x-1 transition-transform"></i>
                 </a>
                 {% if request.user.is_superuser %}
-                    <a href="{% url 'audit:cleanup' %}" class="flex items-center justify-between p-3 bg-red-50 hover:bg-red-100 rounded-lg transition duration-200">
+                    <a href="{% url 'audit:cleanup' %}" class="flex items-center justify-between p-3 bg-red-50 hover:bg-red-100 rounded-lg transition duration-200 group">
                         <span class="flex items-center text-red-700 font-medium">
-                            <i class="fas fa-trash-alt mr-3"></i>Cleanup Old Logs
+                            <i class="fas fa-trash-alt mr-3 text-lg"></i>Cleanup Old Logs
                         </span>
-                        <i class="fas fa-arrow-right text-red-600"></i>
+                        <i class="fas fa-arrow-right text-red-600 group-hover:translate-x-1 transition-transform"></i>
                     </a>
                 {% endif %}
             </div>

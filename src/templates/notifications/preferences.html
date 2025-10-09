@@ -1,0 +1,377 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Notification Preferences{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">
+            <i class="fas fa-cog text-primary-600 mr-2"></i>Notification Preferences
+        </h1>
+        <p class="text-gray-600 mt-1">Customize how and when you receive notifications</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Form -->
+        <div class="lg:col-span-2">
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+                
+                <!-- Global Settings -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                        <span class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-primary-600 font-bold">1</span>
+                        </span>
+                        Global Settings
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div>
+                                <label for="id_enabled" class="font-medium text-gray-900">Enable Notifications</label>
+                                <p class="text-sm text-gray-600">Receive all notifications</p>
+                            </div>
+                            <div class="relative inline-block w-12 align-middle select-none">
+                                {{ form.enabled }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delivery Methods -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                        <span class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-primary-600 font-bold">2</span>
+                        </span>
+                        Delivery Methods
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <!-- In-App -->
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div>
+                                <label for="id_in_app_enabled" class="font-medium text-gray-900 flex items-center">
+                                    <i class="fas fa-bell text-primary-600 mr-2"></i>In-App Notifications
+                                </label>
+                                <p class="text-sm text-gray-600">Show notifications within the application</p>
+                            </div>
+                            {{ form.in_app_enabled }}
+                        </div>
+
+                        <!-- Email -->
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <label for="id_email_enabled" class="font-medium text-gray-900 flex items-center">
+                                        <i class="fas fa-envelope text-blue-600 mr-2"></i>Email Notifications
+                                    </label>
+                                    <p class="text-sm text-gray-600">Receive notifications via email</p>
+                                </div>
+                                {{ form.email_enabled }}
+                            </div>
+                            
+                            <div class="ml-6 space-y-3">
+                                <div>
+                                    <label for="id_email_address" class="block text-sm font-medium text-gray-700 mb-2">Email Address (Optional Override)</label>
+                                    {{ form.email_address }}
+                                </div>
+                                
+                                <div class="flex items-center">
+                                    {{ form.email_digest }}
+                                    <label for="id_email_digest" class="ml-2 text-sm text-gray-700">Send daily digest instead of individual emails</label>
+                                </div>
+                                
+                                <div>
+                                    <label for="id_email_digest_time" class="block text-sm font-medium text-gray-700 mb-2">Digest Time</label>
+                                    {{ form.email_digest_time }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SMS -->
+                        <div class="p-4 bg-gray-50 rounded-lg">
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <label for="id_sms_enabled" class="font-medium text-gray-900 flex items-center">
+                                        <i class="fas fa-sms text-green-600 mr-2"></i>SMS Notifications
+                                    </label>
+                                    <p class="text-sm text-gray-600">Receive important notifications via SMS</p>
+                                </div>
+                                {{ form.sms_enabled }}
+                            </div>
+                            
+                            <div class="ml-6">
+                                <label for="id_phone_number" class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                                {{ form.phone_number }}
+                            </div>
+                        </div>
+
+                        <!-- Push -->
+                        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div>
+                                <label for="id_push_enabled" class="font-medium text-gray-900 flex items-center">
+                                    <i class="fas fa-mobile-alt text-purple-600 mr-2"></i>Push Notifications
+                                </label>
+                                <p class="text-sm text-gray-600">Receive push notifications on your devices</p>
+                            </div>
+                            {{ form.push_enabled }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notification Types -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                        <span class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-primary-600 font-bold">3</span>
+                        </span>
+                        Notification Types
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            {{ form.notify_payment }}
+                            <label for="id_notify_payment" class="ml-2 text-sm font-medium text-gray-700">Payment Notifications</label>
+                        </div>
+                        
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            {{ form.notify_vehicle }}
+                            <label for="id_notify_vehicle" class="ml-2 text-sm font-medium text-gray-700">Vehicle Notifications</label>
+                        </div>
+                        
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            {{ form.notify_auction }}
+                            <label for="id_notify_auction" class="ml-2 text-sm font-medium text-gray-700">Auction Notifications</label>
+                        </div>
+                        
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            {{ form.notify_document }}
+                            <label for="id_notify_document" class="ml-2 text-sm font-medium text-gray-700">Document Notifications</label>
+                        </div>
+                        
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            {{ form.notify_insurance }}
+                            <label for="id_notify_insurance" class="ml-2 text-sm font-medium text-gray-700">Insurance Notifications</label>
+                        </div>
+                        
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            {{ form.notify_repossession }}
+                            <label for="id_notify_repossession" class="ml-2 text-sm font-medium text-gray-700">Repossession Notifications</label>
+                        </div>
+                        
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            {{ form.notify_expense }}
+                            <label for="id_notify_expense" class="ml-2 text-sm font-medium text-gray-700">Expense Notifications</label>
+                        </div>
+                        
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            {{ form.notify_payroll }}
+                            <label for="id_notify_payroll" class="ml-2 text-sm font-medium text-gray-700">Payroll Notifications</label>
+                        </div>
+                        
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            {{ form.notify_system }}
+                            <label for="id_notify_system" class="ml-2 text-sm font-medium text-gray-700">System Notifications</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Priority Filters -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                        <span class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-primary-600 font-bold">4</span>
+                        </span>
+                        Priority Filters
+                    </h2>
+                    
+                    <div class="space-y-3">
+                        <div class="flex items-start p-3 bg-gray-50 rounded-lg">
+                            {{ form.notify_urgent_only }}
+                            <div class="ml-2">
+                                <label for="id_notify_urgent_only" class="text-sm font-medium text-gray-700">Urgent Only</label>
+                                <p class="text-xs text-gray-600">Only receive urgent priority notifications</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start p-3 bg-gray-50 rounded-lg">
+                            {{ form.notify_high_and_urgent }}
+                            <div class="ml-2">
+                                <label for="id_notify_high_and_urgent" class="text-sm font-medium text-gray-700">High & Urgent</label>
+                                <p class="text-xs text-gray-600">Only receive high and urgent priority notifications</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quiet Hours -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                        <span class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-primary-600 font-bold">5</span>
+                        </span>
+                        Quiet Hours
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                            {{ form.quiet_hours_enabled }}
+                            <label for="id_quiet_hours_enabled" class="ml-2 text-sm font-medium text-gray-700">Enable Quiet Hours</label>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="id_quiet_hours_start" class="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                                {{ form.quiet_hours_start }}
+                            </div>
+                            
+                            <div>
+                                <label for="id_quiet_hours_end" class="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                                {{ form.quiet_hours_end }}
+                            </div>
+                        </div>
+                        
+                        <p class="text-xs text-gray-600 italic">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            You won't receive non-urgent notifications during these hours
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex items-center gap-4">
+                    <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 rounded-lg font-semibold transition duration-200">
+                        <i class="fas fa-save mr-2"></i>Save Preferences
+                    </button>
+                    <a href="{% url 'notifications:notification_list' %}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-8 py-3 rounded-lg font-semibold transition duration-200">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Info Sidebar -->
+        <div class="space-y-6">
+            <!-- Current Status -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Current Status</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Notifications:</span>
+                        {% if preference.enabled %}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-check-circle mr-1"></i>Enabled
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                <i class="fas fa-times-circle mr-1"></i>Disabled
+                            </span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">In-App:</span>
+                        {% if preference.in_app_enabled %}
+                            <i class="fas fa-check text-green-600"></i>
+                        {% else %}
+                            <i class="fas fa-times text-red-600"></i>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Email:</span>
+                        {% if preference.email_enabled %}
+                            <i class="fas fa-check text-green-600"></i>
+                        {% else %}
+                            <i class="fas fa-times text-red-600"></i>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">SMS:</span>
+                        {% if preference.sms_enabled %}
+                            <i class="fas fa-check text-green-600"></i>
+                        {% else %}
+                            <i class="fas fa-times text-red-600"></i>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Push:</span>
+                        {% if preference.push_enabled %}
+                            <i class="fas fa-check text-green-600"></i>
+                        {% else %}
+                            <i class="fas fa-times text-red-600"></i>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <h4 class="text-sm font-semibold text-blue-800 mb-3">
+                    <i class="fas fa-lightbulb mr-2"></i>Tips
+                </h4>
+                <ul class="text-xs text-blue-700 space-y-2">
+                    <li><i class="fas fa-check text-blue-600 mr-1"></i>Enable email digest for fewer emails</li>
+                    <li><i class="fas fa-check text-blue-600 mr-1"></i>Set quiet hours to avoid interruptions</li>
+                    <li><i class="fas fa-check text-blue-600 mr-1"></i>SMS is only for high/urgent notifications</li>
+                    <li><i class="fas fa-check text-blue-600 mr-1"></i>Customize by notification type</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    input[type="checkbox"], input[type="checkbox"]:checked {
+        width: 2.5rem;
+        height: 1.25rem;
+        border-radius: 0.75rem;
+        appearance: none;
+        background-color: #cbd5e0;
+        position: relative;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    input[type="checkbox"]:checked {
+        background-color: #4f46e5;
+    }
+    
+    input[type="checkbox"]::before {
+        content: '';
+        position: absolute;
+        width: 1rem;
+        height: 1rem;
+        border-radius: 50%;
+        background-color: white;
+        top: 0.125rem;
+        left: 0.125rem;
+        transition: transform 0.2s;
+    }
+    
+    input[type="checkbox"]:checked::before {
+        transform: translateX(1.25rem);
+    }
+    
+    input[type="email"], input[type="text"], input[type="time"] {
+        width: 100%;
+        padding: 0.5rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    input[type="email"]:focus, input[type="text"]:focus, input[type="time"]:focus {
+        outline: none;
+        ring: 2px;
+        ring-color: #4f46e5;
+        border-color: transparent;
+    }
+</style>
+{% endblock %}
