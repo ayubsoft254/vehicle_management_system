@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Installment Plan Form{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    
+    <!-- Page Header -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">
+            <i class="fas fa-calendar-alt mr-2"></i>{{ title|default:"Create Installment Plan" }}
+        </h1>
+        <p class="mt-2 text-gray-600">Set up a payment plan for {{ client_vehicle.client.get_full_name }}</p>
+    </div>
+
+    <!-- Vehicle Info -->
+    <div class="bg-blue-50 border-l-4 border-blue-400 p-6 mb-6 rounded-r-lg">
+        <div class="flex items-start">
+            <i class="fas fa-car text-blue-400 text-2xl mr-4"></i>
+            <div class="flex-1">
+                <h3 class="text-lg font-semibold text-blue-900">{{ client_vehicle.vehicle.full_name }}</h3>
+                <p class="text-sm text-blue-700 mt-1">{{ client_vehicle.vehicle.registration_number }}</p>
+                <div class="mt-3 grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-xs text-blue-600">Purchase Price</p>
+                        <p class="text-lg font-bold text-blue-900">KES {{ client_vehicle.purchase_price|floatformat:2 }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-blue-600">Balance</p>
+                        <p class="text-lg font-bold text-blue-900">KES {{ client_vehicle.balance|floatformat:2 }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-money-bill-wave mr-2"></i> Plan Details
+                </h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Start Date -->
+                    <div>
+                        <label for="{{ form.start_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Start Date <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.start_date }}
+                        {% if form.start_date.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.start_date.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Monthly Installment -->
+                    <div>
+                        <label for="{{ form.monthly_installment.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Monthly Installment (KES) <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.monthly_installment }}
+                        {% if form.monthly_installment.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.monthly_installment.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Number of Installments -->
+                    <div>
+                        <label for="{{ form.number_of_installments.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Number of Installments <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.number_of_installments }}
+                        {% if form.number_of_installments.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.number_of_installments.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Interest Rate -->
+                    <div>
+                        <label for="{{ form.interest_rate.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Interest Rate (%)
+                        </label>
+                        {{ form.interest_rate }}
+                        {% if form.interest_rate.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.interest_rate.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="flex items-center justify-end space-x-4">
+            <a href="{% url 'clients:client_vehicle_detail' client_vehicle.pk %}" 
+               class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
+                <i class="fas fa-times mr-2"></i> Cancel
+            </a>
+            <button type="submit" 
+                    class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-check mr-2"></i> {{ button_text|default:"Create Plan" }}
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    input[type="text"],
+    input[type="date"],
+    input[type="number"],
+    select {
+        width: 100%;
+        padding: 0.625rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        transition: all 0.15s ease-in-out;
+    }
+
+    input:focus,
+    select:focus {
+        outline: none;
+        border-color: #3b82f6;
+    }
+</style>
+{% endblock %}

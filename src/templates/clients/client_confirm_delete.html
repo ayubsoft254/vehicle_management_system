@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Delete Client - {{ client.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-2xl">
+    
+    <!-- Breadcrumb -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'clients:client_list' %}" class="text-gray-700 hover:text-primary-600 inline-flex items-center">
+                    <i class="fas fa-users mr-2"></i>
+                    Clients
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <a href="{% url 'clients:client_detail' client.pk %}" class="text-gray-700 hover:text-primary-600">
+                        {{ client.get_full_name }}
+                    </a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">Delete</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Warning Card -->
+    <div class="bg-white rounded-lg shadow-sm border border-red-200 overflow-hidden">
+        <div class="bg-red-50 px-6 py-4 border-b border-red-200">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-3xl text-red-600"></i>
+                </div>
+                <div class="ml-4">
+                    <h2 class="text-xl font-bold text-red-900">Confirm Client Deletion</h2>
+                    <p class="mt-1 text-sm text-red-700">This action will deactivate the client account</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <!-- Client Information -->
+            <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                <div class="flex items-center space-x-4">
+                    {% if client.profile_photo %}
+                    <img class="h-16 w-16 rounded-full object-cover" src="{{ client.profile_photo.url }}" alt="{{ client.get_full_name }}">
+                    {% else %}
+                    <div class="h-16 w-16 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
+                        <span class="text-white font-bold text-xl">{{ client.initials }}</span>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">{{ client.get_full_name }}</h3>
+                        <p class="text-sm text-gray-600">
+                            <i class="fas fa-id-card mr-1"></i> {{ client.get_id_type_display }}: {{ client.id_number }}
+                        </p>
+                        <p class="text-sm text-gray-600">
+                            <i class="fas fa-phone mr-1"></i> {{ client.phone_primary }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warning Message -->
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle text-yellow-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800">Important Information</h3>
+                        <div class="mt-2 text-sm text-yellow-700">
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>This action will mark the client account as inactive</li>
+                                <li>The client's data will be preserved in the system</li>
+                                <li>You can reactivate the account later if needed</li>
+                                <li>All associated vehicles and payment records will remain intact</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Confirmation Form -->
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="mb-6">
+                    <p class="text-gray-700 font-medium mb-2">Are you sure you want to deactivate this client?</p>
+                    <p class="text-sm text-gray-600">This action can be reversed by updating the client's status later.</p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center justify-end space-x-4">
+                    <a href="{% url 'clients:client_detail' client.pk %}" 
+                       class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
+                        <i class="fas fa-times mr-2"></i> Cancel
+                    </a>
+                    <button type="submit" 
+                            class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                        <i class="fas fa-trash-alt mr-2"></i> Yes, Deactivate Client
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

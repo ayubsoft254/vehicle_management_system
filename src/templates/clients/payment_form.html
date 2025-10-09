@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Record Payment - {{ client_vehicle.client.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-3xl">
+    
+    <!-- Breadcrumb -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'clients:client_list' %}" class="text-gray-700 hover:text-primary-600 inline-flex items-center">
+                    <i class="fas fa-users mr-2"></i>
+                    Clients
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <a href="{% url 'clients:client_detail' client_vehicle.client.pk %}" class="text-gray-700 hover:text-primary-600">
+                        {{ client_vehicle.client.get_full_name }}
+                    </a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">Record Payment</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">
+            <i class="fas fa-money-bill-wave mr-2"></i>Record Payment
+        </h1>
+        <p class="mt-2 text-gray-600">Record a payment for {{ client_vehicle.client.get_full_name }}</p>
+    </div>
+
+    <!-- Vehicle & Balance Info -->
+    <div class="bg-blue-50 border-l-4 border-blue-400 p-6 mb-6 rounded-r-lg">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400 text-2xl"></i>
+            </div>
+            <div class="ml-4 flex-1">
+                <h3 class="text-lg font-semibold text-blue-900">{{ client_vehicle.vehicle.full_name }}</h3>
+                <p class="text-sm text-blue-700 mt-1">{{ client_vehicle.vehicle.registration_number }}</p>
+                <div class="mt-3 grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-xs text-blue-600">Purchase Price</p>
+                        <p class="text-lg font-bold text-blue-900">KES {{ client_vehicle.purchase_price|floatformat:2 }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-blue-600">Current Balance</p>
+                        <p class="text-lg font-bold text-red-900">KES {{ client_vehicle.balance|floatformat:2 }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Form -->
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-file-invoice-dollar mr-2"></i> Payment Information
+                </h2>
+            </div>
+            <div class="p-6 space-y-6">
+                <!-- Payment Date -->
+                <div>
+                    <label for="{{ form.payment_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Payment Date <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.payment_date }}
+                    {% if form.payment_date.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.payment_date.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Amount -->
+                <div>
+                    <label for="{{ form.amount.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Amount (KES) <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.amount }}
+                    {% if form.amount.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.amount.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500">Maximum: KES {{ client_vehicle.balance|floatformat:2 }}</p>
+                </div>
+
+                <!-- Payment Method -->
+                <div>
+                    <label for="{{ form.payment_method.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Payment Method <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.payment_method }}
+                    {% if form.payment_method.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.payment_method.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Reference Number -->
+                <div>
+                    <label for="{{ form.reference_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Reference Number
+                    </label>
+                    {{ form.reference_number }}
+                    {% if form.reference_number.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.reference_number.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500">Transaction ID, Check number, etc.</p>
+                </div>
+
+                <!-- Notes -->
+                <div>
+                    <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Notes
+                    </label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.notes.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="flex items-center justify-end space-x-4">
+            <a href="{% url 'clients:client_vehicle_detail' client_vehicle.pk %}" 
+               class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
+                <i class="fas fa-times mr-2"></i> Cancel
+            </a>
+            <button type="submit" 
+                    class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-check mr-2"></i> {{ button_text|default:"Record Payment" }}
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    input[type="text"],
+    input[type="date"],
+    input[type="number"],
+    select,
+    textarea {
+        width: 100%;
+        padding: 0.625rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        transition: all 0.15s ease-in-out;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        ring: 2px;
+        ring-color: #3b82f6;
+    }
+
+    textarea {
+        min-height: 80px;
+        resize: vertical;
+    }
+</style>
+{% endblock %}
