@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Auction Result - {{ auction.title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    
+    <!-- Back Button -->
+    <div class="mb-4">
+        <a href="{% url 'auctions:auction_detail' auction.pk %}" 
+           class="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Auction
+        </a>
+    </div>
+
+    <!-- Result Header -->
+    <div class="bg-white rounded-lg shadow-lg border-2 border-gray-300 p-8 mb-6">
+        <div class="text-center mb-8">
+            <i class="fas fa-trophy text-6xl text-yellow-500 mb-4"></i>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Auction Completed</h1>
+            <p class="text-lg text-gray-600">{{ auction.title }}</p>
+            <p class="text-sm text-gray-500 mt-2">{{ auction.auction_number }}</p>
+        </div>
+
+        <!-- Winner Info -->
+        {% if auction.winner %}
+        <div class="bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-lg p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-16 h-16 bg-yellow-200 rounded-full flex items-center justify-center mr-4">
+                        <i class="fas fa-crown text-3xl text-yellow-600"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-700">Winner</p>
+                        <p class="text-2xl font-bold text-gray-900">
+                            {% if auction.winner == user %}
+                                You Won!
+                            {% else %}
+                                {{ auction.winner.get_full_name|default:auction.winner.username }}
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-gray-700">Winning Bid</p>
+                    <p class="text-3xl font-bold text-primary-600">KES {{ auction.winning_bid_amount|floatformat:0 }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reserve Status -->
+        {% if auction.reserve_price %}
+        <div class="mb-6">
+            <div class="flex items-center justify-center">
+                {% if auction.reserve_met %}
+                <div class="flex items-center px-4 py-2 bg-green-100 border border-green-300 rounded-lg">
+                    <i class="fas fa-check-circle text-green-600 text-xl mr-2"></i>
+                    <span class="text-sm font-medium text-green-800">Reserve Price Met</span>
+                </div>
+                {% else %}
+                <div class="flex items-center px-4 py-2 bg-red-100 border border-red-300 rounded-lg">
+                    <i class="fas fa-times-circle text-red-600 text-xl mr-2"></i>
+                    <span class="text-sm font-medium text-red-800">Reserve Price Not Met</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-8 bg-gray-50 rounded-lg">
+            <i class="fas fa-gavel text-6xl text-gray-300 mb-4"></i>
+            <p class="text-lg font-medium text-gray-700">No Winner</p>
+            <p class="text-sm text-gray-500 mt-2">This auction did not receive any valid bids</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Auction Statistics -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Auction Statistics</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="text-center p-4 bg-blue-50 rounded-lg">
+                <p class="text-sm text-gray-600">Starting Price</p>
+                <p class="text-lg font-bold text-blue-700">KES {{ auction.starting_price|floatformat:0 }}</p>
+            </div>
+            <div class="text-center p-4 bg-green-50 rounded-lg">
+                <p class="text-sm text-gray-600">Final Price</p>
+                <p class="text-lg font-bold text-green-700">KES {{ auction.winning_bid_amount|default:0|floatformat:0 }}</p>
+            </div>
+            <div class="text-center p-4 bg-purple-50 rounded-lg">
+                <p class="text-sm text-gray-600">Total Bids</p>
+                <p class="text-lg font-bold text-purple-700">{{ auction.total_bids }}</p>
+            </div>
+            <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                <p class="text-sm text-gray-600">Unique Bidders</p>
+                <p class="text-lg font-bold text-yellow-700">{{ auction.unique_bidders }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment & Delivery Info (if result exists) -->
+    {% if result %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Payment & Delivery</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Payment Status -->
+            <div>
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Payment Status</h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-600">Final Price</span>
+                        <span class="text-sm font-medium">KES {{ result.final_price|floatformat:0 }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-600">Buyer's Premium</span>
+                        <span class="text-sm font-medium">KES {{ result.buyers_premium|floatformat:0 }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-600">Taxes</span>
+                        <span class="text-sm font-medium">KES {{ result.taxes|floatformat:0 }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-600">Shipping</span>
+                        <span class="text-sm font-medium">KES {{ result.shipping_cost|floatformat:0 }}</span>
+                    </div>
+                    <div class="flex justify-between pt-2 border-t border-gray-200">
+                        <span class="text-sm font-bold text-gray-900">Total Amount</span>
+                        <span class="text-sm font-bold text-primary-600">KES {{ result.total_amount|floatformat:0 }}</span>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <span class="px-3 py-1 text-xs font-medium rounded-full 
+                        {% if result.payment_status == 'paid' %}bg-green-100 text-green-800
+                        {% elif result.payment_status == 'partial' %}bg-yellow-100 text-yellow-800
+                        {% else %}bg-red-100 text-red-800{% endif %}">
+                        {{ result.get_payment_status_display }}
+                    </span>
+                </div>
+
+                <!-- Payment Progress -->
+                <div class="mt-4">
+                    <div class="flex justify-between text-xs text-gray-600 mb-1">
+                        <span>Payment Progress</span>
+                        <span>{{ result.payment_progress|floatformat:0 }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-primary-600 h-2 rounded-full" style="width: {{ result.payment_progress }}%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivery Status -->
+            <div>
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Delivery Status</h3>
+                <div class="space-y-3">
+                    <div>
+                        <p class="text-xs text-gray-500">Status</p>
+                        <span class="inline-block mt-1 px-3 py-1 text-xs font-medium rounded-full 
+                            {% if result.delivery_status == 'delivered' %}bg-green-100 text-green-800
+                            {% elif result.delivery_status == 'in_transit' %}bg-blue-100 text-blue-800
+                            {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                            {{ result.get_delivery_status_display }}
+                        </span>
+                    </div>
+
+                    {% if result.delivery_scheduled_date %}
+                    <div>
+                        <p class="text-xs text-gray-500">Scheduled Date</p>
+                        <p class="text-sm font-medium text-gray-900">{{ result.delivery_scheduled_date|date:"M d, Y" }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if result.delivery_completed_date %}
+                    <div>
+                        <p class="text-xs text-gray-500">Delivered On</p>
+                        <p class="text-sm font-medium text-gray-900">{{ result.delivery_completed_date|date:"M d, Y" }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if result.delivery_address %}
+                    <div>
+                        <p class="text-xs text-gray-500">Delivery Address</p>
+                        <p class="text-sm text-gray-900">{{ result.delivery_address }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if result.notes %}
+        <div class="mt-6 pt-6 border-t border-gray-200">
+            <h3 class="text-sm font-medium text-gray-700 mb-2">Notes</h3>
+            <p class="text-sm text-gray-600">{{ result.notes }}</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Auction Details -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Auction Details</h2>
+        <dl class="grid grid-cols-2 gap-4">
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Vehicle</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ auction.vehicle }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Auction Type</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ auction.get_auction_type_display }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Start Date</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ auction.start_date|date:"M d, Y H:i" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">End Date</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ auction.end_date|date:"M d, Y H:i" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Completed At</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ auction.completed_at|date:"M d, Y H:i" }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Duration</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {% widthratio auction.end_date|timeuntil:auction.start_date 86400 1 %} days
+                </dd>
+            </div>
+        </dl>
+    </div>
+
+    <!-- Actions -->
+    {% if auction.winner == user or perms.auctions.change_auctionresult %}
+    <div class="mt-6 flex justify-center space-x-3">
+        <a href="{% url 'auctions:auction_detail' auction.pk %}" 
+           class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition">
+            <i class="fas fa-eye mr-2"></i> View Auction
+        </a>
+        {% if perms.auctions.change_auctionresult and result %}
+        <a href="{% url 'auctions:update_result' result.pk %}" 
+           class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition">
+            <i class="fas fa-edit mr-2"></i> Update Result
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

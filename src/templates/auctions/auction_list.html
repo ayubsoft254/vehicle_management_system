@@ -36,7 +36,7 @@
         </div>
         <div class="bg-yellow-50 rounded-lg shadow-sm border border-yellow-200 p-4">
             <p class="text-xs font-medium text-yellow-700 uppercase">Featured</p>
-            <p class="text-2xl font-bold text-yellow-700 mt-1">{{ page_obj.object_list|selectattr:"featured"|list|length }}</p>
+            <p class="text-2xl font-bold text-yellow-700 mt-1">{{ featured_count }}</p>
         </div>
     </div>
 

@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Salary Structure - {{ employee.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-3xl">
+    
+    <!-- Back Button -->
+    <div class="mb-4">
+        <a href="{% url 'payroll:employee_detail' employee.pk %}" 
+           class="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Employee
+        </a>
+    </div>
+
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Salary Structure</h1>
+        <p class="mt-1 text-sm text-gray-600">{{ employee.get_full_name }} | {{ employee.employee_id }}</p>
+    </div>
+
+    <!-- Form -->
+    <form method="post" class="bg-white rounded-lg shadow-sm border border-gray-200">
+        {% csrf_token %}
+        
+        <!-- Basic Salary -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-money-bill-wave text-primary-600 mr-2"></i>
+                Basic Salary
+            </h2>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Basic Monthly Salary (KES) *</label>
+                {{ form.basic_salary }}
+                {% if form.basic_salary.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ form.basic_salary.errors.0 }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Allowances -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-plus-circle text-primary-600 mr-2"></i>
+                Allowances
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Housing Allowance (KES)</label>
+                    {{ form.housing_allowance }}
+                    {% if form.housing_allowance.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.housing_allowance.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Transport Allowance (KES)</label>
+                    {{ form.transport_allowance }}
+                    {% if form.transport_allowance.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.transport_allowance.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Medical Allowance (KES)</label>
+                    {{ form.medical_allowance }}
+                    {% if form.medical_allowance.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.medical_allowance.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Meal Allowance (KES)</label>
+                    {{ form.meal_allowance }}
+                    {% if form.meal_allowance.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.meal_allowance.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Other Allowances (KES)</label>
+                    {{ form.other_allowances }}
+                    {% if form.other_allowances.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.other_allowances.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Commission & Overtime -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-percentage text-primary-600 mr-2"></i>
+                Commission & Overtime
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <div class="flex items-center mb-2">
+                        {{ form.commission_enabled }}
+                        <label for="{{ form.commission_enabled.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">
+                            Enable Commission
+                        </label>
+                    </div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Commission Rate (%)</label>
+                    {{ form.commission_rate }}
+                    {% if form.commission_rate.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.commission_rate.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <div class="flex items-center mb-2">
+                        {{ form.overtime_enabled }}
+                        <label for="{{ form.overtime_enabled.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">
+                            Enable Overtime
+                        </label>
+                    </div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Overtime Rate (KES/hour)</label>
+                    {{ form.overtime_rate }}
+                    {% if form.overtime_rate.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.overtime_rate.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Effective Dates -->
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-calendar text-primary-600 mr-2"></i>
+                Effective Period
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Effective From *</label>
+                    {{ form.effective_from }}
+                    {% if form.effective_from.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.effective_from.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Effective To</label>
+                    {{ form.effective_to }}
+                    <p class="text-xs text-gray-500 mt-1">Leave blank for current/ongoing</p>
+                    {% if form.effective_to.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.effective_to.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Gross Salary Preview -->
+        <div class="p-6 bg-gradient-to-br from-green-50 to-green-100 border-b border-green-200">
+            <h2 class="text-lg font-bold text-gray-900 mb-3">Gross Salary Calculation</h2>
+            <div id="salary-preview" class="space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Basic Salary:</span>
+                    <span class="font-medium" id="preview-basic">KES 0</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Total Allowances:</span>
+                    <span class="font-medium" id="preview-allowances">KES 0</span>
+                </div>
+                <div class="flex justify-between text-lg font-bold pt-2 border-t border-green-300">
+                    <span class="text-gray-900">Gross Salary:</span>
+                    <span class="text-green-700" id="preview-gross">KES 0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="p-6 bg-gray-50 flex justify-end space-x-3">
+            <a href="{% url 'payroll:employee_detail' employee.pk %}" 
+               class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition duration-150 ease-in-out">
+                Cancel
+            </a>
+            <button type="submit" 
+                    class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
+                <i class="fas fa-save mr-2"></i> Save Salary Structure
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+input[type="number"],
+input[type="date"],
+input[type="checkbox"] {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+}
+input[type="checkbox"] {
+    @apply w-5 h-5;
+}
+</style>
+
+<script>
+// Real-time salary calculation
+document.addEventListener('DOMContentLoaded', function() {
+    const basicInput = document.querySelector('input[name="basic_salary"]');
+    const allowanceInputs = [
+        document.querySelector('input[name="housing_allowance"]'),
+        document.querySelector('input[name="transport_allowance"]'),
+        document.querySelector('input[name="medical_allowance"]'),
+        document.querySelector('input[name="meal_allowance"]'),
+        document.querySelector('input[name="other_allowances"]')
+    ];
+
+    function updatePreview() {
+        const basic = parseFloat(basicInput.value) || 0;
+        const allowances = allowanceInputs.reduce((sum, input) => {
+            return sum + (parseFloat(input.value) || 0);
+        }, 0);
+        const gross = basic + allowances;
+
+        document.getElementById('preview-basic').textContent = `KES ${basic.toLocaleString()}`;
+        document.getElementById('preview-allowances').textContent = `KES ${allowances.toLocaleString()}`;
+        document.getElementById('preview-gross').textContent = `KES ${gross.toLocaleString()}`;
+    }
+
+    basicInput.addEventListener('input', updatePreview);
+    allowanceInputs.forEach(input => input.addEventListener('input', updatePreview));
+    
+    // Initial calculation
+    updatePreview();
+});
+</script>
+{% endblock %}
