@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Audit Logs - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">
+            <i class="fas fa-clipboard-list text-primary-600 mr-2"></i>Audit Logs
+        </h1>
+        <p class="text-gray-600 mt-1">Track all system activities and user actions</p>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-blue-100 text-sm font-medium">Total Logs</p>
+                    <p class="text-3xl font-bold mt-2">{{ total_logs|default:0 }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-clipboard-list text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-green-100 text-sm font-medium">Last 24 Hours</p>
+                    <p class="text-3xl font-bold mt-2">{{ recent_count|default:0 }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-clock text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-purple-100 text-sm font-medium">Action Types</p>
+                    <p class="text-3xl font-bold mt-2">{{ action_stats.count|default:0 }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-tasks text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-orange-100 text-sm font-medium">Current Page</p>
+                    <p class="text-3xl font-bold mt-2">{{ page_obj.number }}</p>
+                </div>
+                <div class="bg-white bg-opacity-30 rounded-lg p-3">
+                    <i class="fas fa-file-alt text-2xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+        <form method="get" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div>
+                    <label for="search" class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                    <input type="text" id="search" name="search" value="{{ search }}" placeholder="Search..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+
+                <div>
+                    <label for="action" class="block text-sm font-medium text-gray-700 mb-2">Action</label>
+                    <select id="action" name="action" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">All Actions</option>
+                        {% for value, label in action_choices %}
+                            <option value="{{ value }}" {% if action == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="model" class="block text-sm font-medium text-gray-700 mb-2">Model</label>
+                    <select id="model" name="model" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">All Models</option>
+                        {% for model in models %}
+                            <option value="{{ model }}" {% if model_name == model %}selected{% endif %}>{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="user" class="block text-sm font-medium text-gray-700 mb-2">User</label>
+                    <select id="user" name="user" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">All Users</option>
+                        {% for u in users %}
+                            <option value="{{ u.id }}" {% if user_id == u.id|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="date_from" class="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                    <input type="date" id="date_from" name="date_from" value="{{ date_from }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+
+                <div>
+                    <label for="date_to" class="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                    <input type="date" id="date_to" name="date_to" value="{{ date_to }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-semibold transition duration-200">
+                    <i class="fas fa-search mr-2"></i>Search
+                </button>
+                <a href="{% url 'audit:log_list' %}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-semibold transition duration-200">
+                    <i class="fas fa-times mr-2"></i>Clear
+                </a>
+                <a href="{% url 'audit:export_csv' %}?{{ request.GET.urlencode }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition duration-200">
+                    <i class="fas fa-download mr-2"></i>Export CSV
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Logs Table -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        {% if page_obj %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for log in page_obj %}
+                            <tr class="hover:bg-gray-50 transition duration-200">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <div class="flex flex-col">
+                                        <span class="font-medium">{{ log.timestamp|date:"M d, Y" }}</span>
+                                        <span class="text-xs text-gray-500">{{ log.timestamp|date:"g:i A" }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center mr-3">
+                                            <i class="fas fa-user text-primary-600"></i>
+                                        </div>
+                                        <div>
+                                            {% if log.user %}
+                                                <div class="text-sm font-medium text-gray-900">{{ log.user.get_full_name }}</div>
+                                                <div class="text-xs text-gray-500">{{ log.user.email }}</div>
+                                            {% else %}
+                                                <div class="text-sm font-medium text-gray-500">System</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+                                        {% if log.action == 'create' %}bg-green-100 text-green-800
+                                        {% elif log.action == 'update' %}bg-yellow-100 text-yellow-800
+                                        {% elif log.action == 'delete' %}bg-red-100 text-red-800
+                                        {% elif log.action == 'read' %}bg-blue-100 text-blue-800
+                                        {% elif log.action == 'login' %}bg-green-100 text-green-800
+                                        {% elif log.action == 'logout' %}bg-gray-100 text-gray-800
+                                        {% elif log.action == 'export' %}bg-purple-100 text-purple-800
+                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                        <i class="fas {{ log.get_action_icon }} mr-1"></i>
+                                        {{ log.get_action_display }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-900">
+                                    <div class="max-w-xs truncate" title="{{ log.description }}">
+                                        {{ log.description }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {% if log.model_name %}
+                                        <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
+                                            {{ log.model_name }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-gray-400">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ log.ip_address|default:"-" }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                    <a href="{% url 'audit:log_detail' log.pk %}" class="text-primary-600 hover:text-primary-900">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if log.user %}
+                                        <a href="{% url 'audit:user_activity' log.user.pk %}" class="ml-3 text-blue-600 hover:text-blue-900" title="User Activity">
+                                            <i class="fas fa-history"></i>
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Showing page <span class="font-medium">{{ page_obj.number }}</span> of <span class="font-medium">{{ page_obj.paginator.num_pages }}</span>
+                        </div>
+                        <nav class="flex items-center gap-2">
+                            {% if page_obj.has_previous %}
+                                <a href="?page=1&{{ request.GET.urlencode }}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">First</a>
+                                <a href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Previous</a>
+                            {% endif %}
+
+                            <span class="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium">{{ page_obj.number }}</span>
+
+                            {% if page_obj.has_next %}
+                                <a href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Next</a>
+                                <a href="?page={{ page_obj.paginator.num_pages }}&{{ request.GET.urlencode }}" class="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Last</a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-16">
+                <i class="fas fa-clipboard-list text-6xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">No Audit Logs Found</h3>
+                <p class="text-gray-500">Try adjusting your filters or search criteria</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Links -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-chart-bar text-primary-600 mr-2"></i>Action Breakdown
+            </h3>
+            {% if action_stats %}
+                <div class="space-y-3">
+                    {% for stat in action_stats|slice:":5" %}
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="font-medium text-gray-700">{{ stat.action|title }}</span>
+                                <span class="text-gray-600">{{ stat.count }}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-primary-600 h-2 rounded-full" style="width: {% widthratio stat.count 100 total_logs %}%"></div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-gray-500 text-sm">No data available</p>
+            {% endif %}
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-info-circle text-primary-600 mr-2"></i>Quick Actions
+            </h3>
+            <div class="space-y-3">
+                <a href="{% url 'audit:login_history' %}" class="flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition duration-200">
+                    <span class="flex items-center text-blue-700 font-medium">
+                        <i class="fas fa-sign-in-alt mr-3"></i>Login History
+                    </span>
+                    <i class="fas fa-arrow-right text-blue-600"></i>
+                </a>
+                <a href="{% url 'audit:export_csv' %}" class="flex items-center justify-between p-3 bg-green-50 hover:bg-green-100 rounded-lg transition duration-200">
+                    <span class="flex items-center text-green-700 font-medium">
+                        <i class="fas fa-download mr-3"></i>Export All Logs
+                    </span>
+                    <i class="fas fa-arrow-right text-green-600"></i>
+                </a>
+                {% if request.user.is_superuser %}
+                    <a href="{% url 'audit:cleanup' %}" class="flex items-center justify-between p-3 bg-red-50 hover:bg-red-100 rounded-lg transition duration-200">
+                        <span class="flex items-center text-red-700 font-medium">
+                            <i class="fas fa-trash-alt mr-3"></i>Cleanup Old Logs
+                        </span>
+                        <i class="fas fa-arrow-right text-red-600"></i>
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
