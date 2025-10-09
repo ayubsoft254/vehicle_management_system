@@ -1,0 +1,39 @@
+{% extends "account/base_auth.html" %}
+{% load i18n %}
+
+{% block head_title %}{% trans "Signup Closed" %}{% endblock %}
+
+{% block header_title %}Signup Closed{% endblock %}
+{% block header_subtitle %}New account registration is currently unavailable{% endblock %}
+
+{% block content %}
+<div class="text-center space-y-6">
+    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100">
+        <i class="fas fa-lock text-yellow-600 text-2xl"></i>
+    </div>
+    
+    <div class="space-y-2">
+        <h3 class="text-lg font-medium text-gray-900">Registration Unavailable</h3>
+        <p class="text-sm text-gray-600">
+            We are currently not accepting new account registrations.
+        </p>
+    </div>
+
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="text-sm text-blue-800">
+            <p class="font-medium mb-2">Already have an account?</p>
+            <p>If you already have an account, you can sign in below.</p>
+        </div>
+    </div>
+
+    <div class="pt-4">
+        <a 
+            href="{% url 'account_login' %}"
+            class="inline-flex items-center px-6 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+        >
+            <i class="fas fa-sign-in-alt mr-2"></i>
+            Sign In
+        </a>
+    </div>
+</div>
+{% endblock %}

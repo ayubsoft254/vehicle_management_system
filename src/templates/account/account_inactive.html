@@ -1,0 +1,43 @@
+{% extends "account/base_auth.html" %}
+{% load i18n %}
+
+{% block head_title %}{% trans "Account Inactive" %}{% endblock %}
+
+{% block header_title %}Account Inactive{% endblock %}
+{% block header_subtitle %}This account has been deactivated{% endblock %}
+
+{% block content %}
+<div class="text-center space-y-6">
+    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100">
+        <i class="fas fa-user-slash text-red-600 text-2xl"></i>
+    </div>
+    
+    <div class="space-y-2">
+        <h3 class="text-lg font-medium text-gray-900">Account Not Active</h3>
+        <p class="text-sm text-gray-600">
+            This account is currently inactive. Please contact your administrator for assistance.
+        </p>
+    </div>
+
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div class="text-sm text-gray-700">
+            <p class="font-medium mb-2">Need Help?</p>
+            <p>If you believe this is an error, please contact support:</p>
+            <a href="mailto:support@vehiclesales.com" class="text-primary-600 hover:text-primary-700 font-medium">
+                <i class="fas fa-envelope mr-1"></i>
+                support@vehiclesales.com
+            </a>
+        </div>
+    </div>
+
+    <div class="pt-4">
+        <a 
+            href="{% url 'account_login' %}"
+            class="inline-flex items-center px-6 py-2.5 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+        >
+            <i class="fas fa-arrow-left mr-2"></i>
+            Back to Sign In
+        </a>
+    </div>
+</div>
+{% endblock %}

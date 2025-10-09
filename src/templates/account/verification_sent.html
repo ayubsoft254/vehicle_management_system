@@ -1,0 +1,43 @@
+{% extends "account/base_auth.html" %}
+{% load i18n %}
+
+{% block head_title %}{% trans "Verify Your E-mail Address" %}{% endblock %}
+
+{% block header_title %}Verify Your Email{% endblock %}
+{% block header_subtitle %}We've sent you a verification email{% endblock %}
+
+{% block content %}
+<div class="text-center space-y-6">
+    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100">
+        <i class="fas fa-envelope text-blue-600 text-2xl"></i>
+    </div>
+    
+    <div class="space-y-2">
+        <p class="text-sm text-gray-600">
+            We have sent an email to <strong>{{ email }}</strong> for verification.
+        </p>
+        <p class="text-sm text-gray-600">
+            Please click the link in that email to complete the signup process.
+        </p>
+    </div>
+
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div class="flex items-start">
+            <i class="fas fa-exclamation-triangle text-yellow-600 mt-0.5 mr-3"></i>
+            <p class="text-sm text-yellow-800">
+                If you don't receive an email within a few minutes, please check your spam folder.
+            </p>
+        </div>
+    </div>
+
+    <div class="pt-4">
+        <a 
+            href="{% url 'account_login' %}"
+            class="inline-flex items-center px-6 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+        >
+            <i class="fas fa-sign-in-alt mr-2"></i>
+            Go to Sign In
+        </a>
+    </div>
+</div>
+{% endblock %}

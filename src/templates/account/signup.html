@@ -1,0 +1,207 @@
+{% extends "account/base_auth.html" %}
+{% load i18n %}
+
+{% block head_title %}{% trans "Signup" %}{% endblock %}
+
+{% block header_title %}Create Account{% endblock %}
+{% block header_subtitle %}Join us to start managing your vehicles efficiently{% endblock %}
+
+{% block content %}
+<form method="POST" action="{% url 'account_signup' %}" class="space-y-5">
+    {% csrf_token %}
+    
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label for="id_first_name" class="block text-sm font-medium text-gray-700">
+                <i class="fas fa-user mr-1 text-gray-400"></i>First Name
+            </label>
+            <div class="mt-1">
+                <input 
+                    type="text" 
+                    name="first_name" 
+                    id="id_first_name"
+                    autocomplete="given-name"
+                    required
+                    class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    placeholder="First name"
+                    value="{{ form.first_name.value|default:'' }}"
+                >
+            </div>
+            {% if form.first_name.errors %}
+            <p class="mt-1 text-xs text-red-600">{{ form.first_name.errors.0 }}</p>
+            {% endif %}
+        </div>
+
+        <div>
+            <label for="id_last_name" class="block text-sm font-medium text-gray-700">
+                <i class="fas fa-user mr-1 text-gray-400"></i>Last Name
+            </label>
+            <div class="mt-1">
+                <input 
+                    type="text" 
+                    name="last_name" 
+                    id="id_last_name"
+                    autocomplete="family-name"
+                    required
+                    class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    placeholder="Last name"
+                    value="{{ form.last_name.value|default:'' }}"
+                >
+            </div>
+            {% if form.last_name.errors %}
+            <p class="mt-1 text-xs text-red-600">{{ form.last_name.errors.0 }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div>
+        <label for="id_email" class="block text-sm font-medium text-gray-700">
+            <i class="fas fa-envelope mr-2 text-gray-400"></i>Email Address
+        </label>
+        <div class="mt-1">
+            <input 
+                type="email" 
+                name="email" 
+                id="id_email"
+                autocomplete="email"
+                required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="you@example.com"
+                value="{{ form.email.value|default:'' }}"
+            >
+        </div>
+        {% if form.email.errors %}
+        <p class="mt-2 text-sm text-red-600">{{ form.email.errors.0 }}</p>
+        {% endif %}
+    </div>
+
+    <div>
+        <label for="id_phone_number" class="block text-sm font-medium text-gray-700">
+            <i class="fas fa-phone mr-2 text-gray-400"></i>Phone Number
+        </label>
+        <div class="mt-1">
+            <input 
+                type="tel" 
+                name="phone_number" 
+                id="id_phone_number"
+                autocomplete="tel"
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="+254712345678"
+                value="{{ form.phone_number.value|default:'' }}"
+            >
+        </div>
+        {% if form.phone_number.errors %}
+        <p class="mt-2 text-sm text-red-600">{{ form.phone_number.errors.0 }}</p>
+        {% endif %}
+    </div>
+
+    <div>
+        <label for="id_password1" class="block text-sm font-medium text-gray-700">
+            <i class="fas fa-lock mr-2 text-gray-400"></i>Password
+        </label>
+        <div class="mt-1 relative">
+            <input 
+                type="password" 
+                name="password1" 
+                id="id_password1"
+                autocomplete="new-password"
+                required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="Create a password"
+            >
+            <button type="button" onclick="togglePassword('id_password1', 'toggleIcon1')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                <i class="fas fa-eye" id="toggleIcon1"></i>
+            </button>
+        </div>
+        {% if form.password1.errors %}
+        <p class="mt-2 text-sm text-red-600">{{ form.password1.errors.0 }}</p>
+        {% else %}
+        <p class="mt-2 text-xs text-gray-500">
+            <i class="fas fa-info-circle mr-1"></i>
+            Must be at least 8 characters long
+        </p>
+        {% endif %}
+    </div>
+
+    <div>
+        <label for="id_password2" class="block text-sm font-medium text-gray-700">
+            <i class="fas fa-lock mr-2 text-gray-400"></i>Confirm Password
+        </label>
+        <div class="mt-1 relative">
+            <input 
+                type="password" 
+                name="password2" 
+                id="id_password2"
+                autocomplete="new-password"
+                required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="Confirm your password"
+            >
+            <button type="button" onclick="togglePassword('id_password2', 'toggleIcon2')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                <i class="fas fa-eye" id="toggleIcon2"></i>
+            </button>
+        </div>
+        {% if form.password2.errors %}
+        <p class="mt-2 text-sm text-red-600">{{ form.password2.errors.0 }}</p>
+        {% endif %}
+    </div>
+
+    {% if redirect_field_value %}
+    <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
+    {% endif %}
+
+    <div class="flex items-start">
+        <div class="flex items-center h-5">
+            <input 
+                type="checkbox" 
+                id="id_terms"
+                required
+                class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+            >
+        </div>
+        <div class="ml-3 text-sm">
+            <label for="id_terms" class="font-medium text-gray-700">
+                I agree to the <a href="#" class="text-primary-600 hover:text-primary-500">Terms and Conditions</a>
+            </label>
+        </div>
+    </div>
+
+    <div>
+        <button 
+            type="submit" 
+            class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200"
+        >
+            <i class="fas fa-user-plus mr-2"></i>
+            Create Account
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_links %}
+<p class="text-center text-sm text-gray-600">
+    Already have an account?
+    <a href="{% url 'account_login' %}" class="font-medium text-primary-600 hover:text-primary-500">
+        Sign in
+    </a>
+</p>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+    function togglePassword(inputId, iconId) {
+        const passwordInput = document.getElementById(inputId);
+        const toggleIcon = document.getElementById(iconId);
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleIcon.classList.remove('fa-eye');
+            toggleIcon.classList.add('fa-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            toggleIcon.classList.remove('fa-eye-slash');
+            toggleIcon.classList.add('fa-eye');
+        }
+    }
+</script>
+{% endblock %}
