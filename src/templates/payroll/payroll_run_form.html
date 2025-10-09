@@ -50,24 +50,40 @@
             </h2>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Payroll Month *</label>
-                    {{ form.month }}
+                    <label for="id_month" class="block text-sm font-medium text-gray-700 mb-1">Payroll Month *</label>
+                    <input type="month" 
+                           name="month" 
+                           id="id_month"
+                           value="{{ form.month.value|default:'' }}"
+                           required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                     <p class="mt-1 text-xs text-gray-500">Select the month for this payroll run</p>
                     {% if form.month.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.month.errors.0 }}</p>
                     {% endif %}
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Payroll Run Name *</label>
-                    {{ form.name }}
+                    <label for="id_name" class="block text-sm font-medium text-gray-700 mb-1">Payroll Run Name *</label>
+                    <input type="text" 
+                           name="name" 
+                           id="id_name"
+                           value="{{ form.name.value|default:'' }}"
+                           required
+                           maxlength="200"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                           placeholder="e.g., January 2025 Payroll">
                     <p class="mt-1 text-xs text-gray-500">e.g., "January 2025 Payroll" or "Mid-Month Bonus"</p>
                     {% if form.name.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.name.errors.0 }}</p>
                     {% endif %}
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    {{ form.description }}
+                    <label for="id_description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea name="description" 
+                              id="id_description"
+                              rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                              placeholder="Additional notes or details about this payroll run">{{ form.description.value|default:'' }}</textarea>
                     <p class="mt-1 text-xs text-gray-500">Additional notes or details about this payroll run</p>
                     {% if form.description.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.description.errors.0 }}</p>
@@ -84,23 +100,40 @@
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Period Start Date *</label>
-                    {{ form.period_start }}
+                    <label for="id_period_start" class="block text-sm font-medium text-gray-700 mb-1">Period Start Date *</label>
+                    <input type="date" 
+                           name="period_start" 
+                           id="id_period_start"
+                           value="{{ form.period_start.value|date:'Y-m-d'|default:'' }}"
+                           required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                     {% if form.period_start.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.period_start.errors.0 }}</p>
                     {% endif %}
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Period End Date *</label>
-                    {{ form.period_end }}
+                    <label for="id_period_end" class="block text-sm font-medium text-gray-700 mb-1">Period End Date *</label>
+                    <input type="date" 
+                           name="period_end" 
+                           id="id_period_end"
+                           value="{{ form.period_end.value|date:'Y-m-d'|default:'' }}"
+                           required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                     {% if form.period_end.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.period_end.errors.0 }}</p>
                     {% endif %}
                 </div>
             </div>
             <div class="mt-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Working Days</label>
-                {{ form.working_days }}
+                <label for="id_working_days" class="block text-sm font-medium text-gray-700 mb-1">Working Days</label>
+                <input type="number" 
+                       name="working_days" 
+                       id="id_working_days"
+                       value="{{ form.working_days.value|default:'' }}"
+                       min="1"
+                       max="31"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                       placeholder="22">
                 <p class="mt-1 text-xs text-gray-500">Number of working days in this period (excluding weekends/holidays)</p>
                 {% if form.working_days.errors %}
                 <p class="mt-1 text-sm text-red-600">{{ form.working_days.errors.0 }}</p>
@@ -115,8 +148,13 @@
                 Payment Schedule
             </h2>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Payment Date *</label>
-                {{ form.payment_date }}
+                <label for="id_payment_date" class="block text-sm font-medium text-gray-700 mb-1">Payment Date *</label>
+                <input type="date" 
+                       name="payment_date" 
+                       id="id_payment_date"
+                       value="{{ form.payment_date.value|date:'Y-m-d'|default:'' }}"
+                       required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                 <p class="mt-1 text-xs text-gray-500">Scheduled date for salary disbursement</p>
                 {% if form.payment_date.errors %}
                 <p class="mt-1 text-sm text-red-600">{{ form.payment_date.errors.0 }}</p>
@@ -131,30 +169,46 @@
                 Additional Options
             </h2>
             <div class="space-y-3">
-                <label class="flex items-start">
-                    {{ form.include_commissions }}
-                    <span class="ml-2 text-sm text-gray-700">
+                <label class="flex items-start cursor-pointer">
+                    <input type="checkbox" 
+                           name="include_commissions" 
+                           id="id_include_commissions"
+                           {% if form.include_commissions.value %}checked{% endif %}
+                           class="mt-1 w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500">
+                    <span class="ml-3 text-sm text-gray-700">
                         <span class="font-medium">Include Commissions</span>
                         <span class="block text-xs text-gray-500">Process all approved commissions for this period</span>
                     </span>
                 </label>
-                <label class="flex items-start">
-                    {{ form.include_bonuses }}
-                    <span class="ml-2 text-sm text-gray-700">
+                <label class="flex items-start cursor-pointer">
+                    <input type="checkbox" 
+                           name="include_bonuses" 
+                           id="id_include_bonuses"
+                           {% if form.include_bonuses.value %}checked{% endif %}
+                           class="mt-1 w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500">
+                    <span class="ml-3 text-sm text-gray-700">
                         <span class="font-medium">Include Bonuses</span>
                         <span class="block text-xs text-gray-500">Add performance bonuses to this payroll</span>
                     </span>
                 </label>
-                <label class="flex items-start">
-                    {{ form.include_overtime }}
-                    <span class="ml-2 text-sm text-gray-700">
+                <label class="flex items-start cursor-pointer">
+                    <input type="checkbox" 
+                           name="include_overtime" 
+                           id="id_include_overtime"
+                           {% if form.include_overtime.value %}checked{% endif %}
+                           class="mt-1 w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500">
+                    <span class="ml-3 text-sm text-gray-700">
                         <span class="font-medium">Include Overtime</span>
                         <span class="block text-xs text-gray-500">Calculate and include overtime payments</span>
                     </span>
                 </label>
-                <label class="flex items-start">
-                    {{ form.auto_calculate_deductions }}
-                    <span class="ml-2 text-sm text-gray-700">
+                <label class="flex items-start cursor-pointer">
+                    <input type="checkbox" 
+                           name="auto_calculate_deductions" 
+                           id="id_auto_calculate_deductions"
+                           {% if form.auto_calculate_deductions.value %}checked{% endif %}
+                           class="mt-1 w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500">
+                    <span class="ml-3 text-sm text-gray-700">
                         <span class="font-medium">Auto-Calculate Deductions</span>
                         <span class="block text-xs text-gray-500">Automatically apply statutory and recurring deductions</span>
                     </span>
@@ -205,32 +259,17 @@
     </form>
 </div>
 
-<style>
-input[type="text"],
-input[type="date"],
-input[type="number"],
-input[type="month"],
-input[type="checkbox"],
-textarea {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent;
-}
-input[type="checkbox"] {
-    @apply w-5 h-5;
-}
-textarea {
-    @apply min-h-[80px];
-}
-</style>
+
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Auto-populate name from month selection
-    const monthInput = document.querySelector('input[name="month"]');
-    const nameInput = document.querySelector('input[name="name"]');
+    const monthInput = document.getElementById('id_month');
+    const nameInput = document.getElementById('id_name');
     
-    if (monthInput && nameInput && !nameInput.value) {
+    if (monthInput && nameInput) {
         monthInput.addEventListener('change', function() {
-            if (this.value) {
+            if (this.value && !nameInput.value) {
                 const date = new Date(this.value + '-01');
                 const monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
                 nameInput.value = monthName + ' Payroll';
@@ -239,14 +278,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Calculate working days based on period
-    const startDate = document.querySelector('input[name="period_start"]');
-    const endDate = document.querySelector('input[name="period_end"]');
-    const workingDaysInput = document.querySelector('input[name="working_days"]');
+    const startDate = document.getElementById('id_period_start');
+    const endDate = document.getElementById('id_period_end');
+    const workingDaysInput = document.getElementById('id_working_days');
 
     function calculateWorkingDays() {
         if (startDate.value && endDate.value) {
             const start = new Date(startDate.value);
             const end = new Date(endDate.value);
+            
+            if (start > end) {
+                alert('Start date must be before end date');
+                return;
+            }
             
             let workingDays = 0;
             let currentDate = new Date(start);
@@ -259,7 +303,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentDate.setDate(currentDate.getDate() + 1);
             }
             
-            if (!workingDaysInput.value || confirm('Auto-calculate working days?')) {
+            if (!workingDaysInput.value || workingDaysInput.value === '0') {
+                workingDaysInput.value = workingDays;
+            } else if (confirm('Auto-calculate working days? Current value: ' + workingDaysInput.value)) {
                 workingDaysInput.value = workingDays;
             }
         }
@@ -268,6 +314,17 @@ document.addEventListener('DOMContentLoaded', function() {
     if (startDate && endDate && workingDaysInput) {
         startDate.addEventListener('change', calculateWorkingDays);
         endDate.addEventListener('change', calculateWorkingDays);
+    }
+
+    // Set default month to current month if creating new
+    if (monthInput && !monthInput.value) {
+        const today = new Date();
+        const currentMonth = today.toISOString().slice(0, 7); // Format: YYYY-MM
+        monthInput.value = currentMonth;
+        
+        // Trigger change event to auto-populate name
+        const event = new Event('change');
+        monthInput.dispatchEvent(event);
     }
 });
 </script>
