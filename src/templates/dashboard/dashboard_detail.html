@@ -374,7 +374,7 @@ function loadWidgetData(widgetId) {
     const container = document.getElementById(`widget-data-${widgetId}`);
     if (!container) return;
 
-    fetch(`/dashboard/api/widgets/${widgetId}/data/`)
+    fetch(`/dashboard/widgets/${widgetId}/data/`)
         .then(response => response.json())
         .then(data => {
             renderWidgetData(widgetId, data);

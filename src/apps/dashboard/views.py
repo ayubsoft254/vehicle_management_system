@@ -250,6 +250,7 @@ def widget_update(request, pk):
     """Update existing widget"""
     
     widget = get_object_or_404(Widget, pk=pk)
+    dashboard = widget.dashboard
     
     if request.method == 'POST':
         form = WidgetForm(request.POST, instance=widget)
@@ -265,6 +266,7 @@ def widget_update(request, pk):
     context = {
         'form': form,
         'widget': widget,
+        'dashboard': dashboard,
     }
     
     return render(request, 'dashboard/widget_form.html', context)
