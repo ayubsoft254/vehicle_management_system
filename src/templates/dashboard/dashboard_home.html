@@ -483,12 +483,24 @@
     </div>
 
     <!-- Quick Actions Panel -->
-    <div class="fixed bottom-6 right-6 z-40">
-        <div class="bg-white rounded-xl shadow-2xl overflow-hidden" style="width: 280px;">
-            <div class="bg-gradient-to-r from-green-500 to-green-600 px-4 py-3">
+    <div id="quickActionsContainer" class="fixed bottom-6 right-6 z-40">
+        <!-- Toggle Button (shown when panel is hidden) -->
+        <button id="quickActionsToggleBtn" 
+                class="hidden bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-full w-14 h-14 shadow-2xl flex items-center justify-center transition duration-300 transform hover:scale-110">
+            <i class="fas fa-bolt text-xl"></i>
+        </button>
+
+        <!-- Quick Actions Panel -->
+        <div id="quickActionsPanel" class="bg-white rounded-xl shadow-2xl overflow-hidden transition-all duration-300" style="width: 280px;">
+            <div class="bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 flex items-center justify-between">
                 <h3 class="text-white font-bold text-sm">
                     <i class="fas fa-bolt mr-2"></i>Quick Actions
                 </h3>
+                <button id="quickActionsCloseBtn" 
+                        class="text-white hover:text-gray-200 transition duration-200"
+                        title="Hide Quick Actions">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
             </div>
             <div class="p-3 space-y-2">
                 <a href="{% url 'vehicles:create' %}" class="block bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg transition duration-200 text-sm">
@@ -534,6 +546,70 @@
         if (dashboardSelectorMenu && !dashboardSelectorMenu.contains(e.target) && e.target !== dashboardSelectorBtn) {
             dashboardSelectorMenu.classList.add('hidden');
         }
+    });
+
+    // Quick Actions Panel Toggle
+    const quickActionsPanel = document.getElementById('quickActionsPanel');
+    const quickActionsToggleBtn = document.getElementById('quickActionsToggleBtn');
+    const quickActionsCloseBtn = document.getElementById('quickActionsCloseBtn');
+    const QUICK_ACTIONS_STORAGE_KEY = 'quickActionsPanelVisible';
+
+    // Check localStorage for saved state
+    function initQuickActionsPanel() {
+        const savedState = localStorage.getItem(QUICK_ACTIONS_STORAGE_KEY);
+        // Default to visible on desktop, hidden on mobile
+        const isMobile = window.innerWidth < 768;
+        const shouldShow = savedState !== null ? savedState === 'true' : !isMobile;
+        
+        if (shouldShow) {
+            showQuickActionsPanel();
+        } else {
+            hideQuickActionsPanel();
+        }
+    }
+
+    function showQuickActionsPanel() {
+        quickActionsPanel.classList.remove('hidden');
+        quickActionsToggleBtn.classList.add('hidden');
+        localStorage.setItem(QUICK_ACTIONS_STORAGE_KEY, 'true');
+    }
+
+    function hideQuickActionsPanel() {
+        quickActionsPanel.classList.add('hidden');
+        quickActionsToggleBtn.classList.remove('hidden');
+        localStorage.setItem(QUICK_ACTIONS_STORAGE_KEY, 'false');
+    }
+
+    // Close button click
+    if (quickActionsCloseBtn) {
+        quickActionsCloseBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            hideQuickActionsPanel();
+        });
+    }
+
+    // Toggle button click
+    if (quickActionsToggleBtn) {
+        quickActionsToggleBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            showQuickActionsPanel();
+        });
+    }
+
+    // Initialize panel state on page load
+    initQuickActionsPanel();
+
+    // Re-check on window resize
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            // Only auto-hide on mobile if user hasn't set a preference
+            const savedState = localStorage.getItem(QUICK_ACTIONS_STORAGE_KEY);
+            if (savedState === null && window.innerWidth < 768 && !quickActionsPanel.classList.contains('hidden')) {
+                hideQuickActionsPanel();
+            }
+        }, 250);
     });
 
     // Refresh Dashboard
