@@ -111,7 +111,7 @@ class AuditLogMiddleware(MiddlewareMixin):
                 user_agent=user_agent,
                 request_path=request.path,
                 request_method=request.method,
-                additional_data=additional_data if additional_data else None,
+                additional_data=self.sanitize_for_json(additional_data) if additional_data else None,
             )
             
         except Exception as e:
@@ -181,6 +181,9 @@ class AuditLogMiddleware(MiddlewareMixin):
     
     def get_request_data(self, request):
         """Extract relevant data from POST/PUT/PATCH requests"""
+        from datetime import date, datetime
+        from decimal import Decimal
+        
         data = {}
         
         try:
@@ -192,8 +195,13 @@ class AuditLogMiddleware(MiddlewareMixin):
                                        'csrfmiddlewaretoken', 'api_key', 'token']:
                         continue
                     
-                    # Limit value length
-                    if isinstance(value, str) and len(value) > 200:
+                    # Convert non-JSON-serializable types
+                    if isinstance(value, (date, datetime)):
+                        value = value.isoformat()
+                    elif isinstance(value, Decimal):
+                        value = float(value)
+                    elif isinstance(value, str) and len(value) > 200:
+                        # Limit value length
                         value = value[:200] + '...'
                     
                     data[key] = value
@@ -201,6 +209,30 @@ class AuditLogMiddleware(MiddlewareMixin):
             logger.error(f"Error extracting request data: {str(e)}")
         
         return data
+    
+    def sanitize_for_json(self, data):
+        """Ensure all data is JSON serializable"""
+        from datetime import date, datetime
+        from decimal import Decimal
+        from uuid import UUID
+        
+        if data is None:
+            return None
+        
+        if isinstance(data, dict):
+            return {key: self.sanitize_for_json(value) for key, value in data.items()}
+        elif isinstance(data, (list, tuple)):
+            return [self.sanitize_for_json(item) for item in data]
+        elif isinstance(data, (date, datetime)):
+            return data.isoformat()
+        elif isinstance(data, Decimal):
+            return float(data)
+        elif isinstance(data, UUID):
+            return str(data)
+        elif isinstance(data, bytes):
+            return data.decode('utf-8', errors='ignore')
+        else:
+            return data
 
 
 # Signal receivers for login/logout tracking
