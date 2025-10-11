@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Documents - Client Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">My Documents</h1>
+                <p class="text-gray-600 mt-1">Access and manage your documents</p>
+            </div>
+            <a href="{% url 'clients:portal_dashboard' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Document Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                    <i class="fas fa-file-alt text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-gray-600 text-sm">Total Documents</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ documents.count }}</p>
+                </div>
+            </div>
+        </div>
+
+        {% for doc_type in doc_types %}
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                    <i class="fas fa-folder text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-gray-600 text-sm">{{ doc_type.document_type }}</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ doc_type.count }}</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Documents List -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">All Documents</h2>
+        </div>
+
+        {% if documents %}
+        <div class="p-6">
+            <div class="space-y-4">
+                {% for document in documents %}
+                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start space-x-4">
+                            <div class="p-3 rounded-lg bg-blue-50 text-blue-600">
+                                <i class="fas fa-file-pdf text-2xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-900">{{ document.document_type }}</h3>
+                                <p class="text-sm text-gray-600 mt-1">{{ document.description|default:"No description" }}</p>
+                                <div class="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                                    <span>
+                                        <i class="fas fa-calendar mr-1"></i>
+                                        Uploaded: {{ document.uploaded_at|date:"d M Y" }}
+                                    </span>
+                                    {% if document.file %}
+                                    <span>
+                                        <i class="fas fa-paperclip mr-1"></i>
+                                        {{ document.file.name|slice:"-20:" }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            {% if document.file %}
+                            <a href="{% url 'clients:portal_document_download' document.id %}" 
+                               class="inline-flex items-center px-3 py-2 border border-blue-600 rounded-lg text-sm font-medium text-blue-600 hover:bg-blue-50 transition">
+                                <i class="fas fa-download mr-2"></i>
+                                Download
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <!-- No Documents -->
+        <div class="p-12 text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                <i class="fas fa-file-alt text-3xl text-gray-400"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No Documents</h3>
+            <p class="text-gray-500">You don't have any documents uploaded yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

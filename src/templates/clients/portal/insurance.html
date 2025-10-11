@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Insurance - Client Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Insurance Policies</h1>
+                <p class="text-gray-600 mt-1">View your vehicle insurance coverage</p>
+            </div>
+            <a href="{% url 'clients:portal_dashboard' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                    <i class="fas fa-shield-alt text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-gray-600 text-sm">Active Policies</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ active_policies.count }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-gray-100 text-gray-600">
+                    <i class="fas fa-history text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-gray-600 text-sm">Expired Policies</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ expired_policies.count }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Policies -->
+    {% if active_policies %}
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Active Insurance Policies</h2>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                {% for policy in active_policies %}
+                <div class="border border-green-200 bg-green-50 rounded-lg p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">{{ policy.vehicle.make }} {{ policy.vehicle.model }}</h3>
+                            <p class="text-sm text-gray-600">{{ policy.vehicle.registration_number }}</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                            Active
+                        </span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <p class="text-sm text-gray-600">Policy Number</p>
+                            <p class="font-semibold text-gray-900">{{ policy.policy_number }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Provider</p>
+                            <p class="font-semibold text-gray-900">{{ policy.insurance_provider|default:"N/A" }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Coverage Type</p>
+                            <p class="font-semibold text-gray-900">{{ policy.coverage_type|default:"Comprehensive" }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Premium</p>
+                            <p class="font-semibold text-gray-900">KSH {{ policy.premium_amount|floatformat:2 }}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-green-200">
+                        <div>
+                            <p class="text-sm text-gray-600">Start Date</p>
+                            <p class="font-semibold text-gray-900">{{ policy.start_date|date:"d M Y" }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Expiry Date</p>
+                            <p class="font-semibold text-gray-900">{{ policy.end_date|date:"d M Y" }}</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex justify-end">
+                        <a href="{% url 'clients:portal_insurance_detail' policy.id %}" 
+                           class="inline-flex items-center px-4 py-2 border border-blue-600 rounded-lg text-sm font-medium text-blue-600 hover:bg-blue-50 transition">
+                            View Details
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Expired Policies -->
+    {% if expired_policies %}
+    <div class="bg-white rounded-lg shadow">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Expired Policies</h2>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                {% for policy in expired_policies %}
+                <div class="border border-gray-200 rounded-lg p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">{{ policy.vehicle.make }} {{ policy.vehicle.model }}</h3>
+                            <p class="text-sm text-gray-600">{{ policy.vehicle.registration_number }}</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
+                            Expired
+                        </span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <p class="text-gray-600">Policy Number</p>
+                            <p class="font-semibold text-gray-900">{{ policy.policy_number }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Provider</p>
+                            <p class="font-semibold text-gray-900">{{ policy.insurance_provider|default:"N/A" }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Expired On</p>
+                            <p class="font-semibold text-red-600">{{ policy.end_date|date:"d M Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- No Policies -->
+    {% if not active_policies and not expired_policies %}
+    <div class="bg-white rounded-lg shadow p-12 text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+            <i class="fas fa-shield-alt text-3xl text-gray-400"></i>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No Insurance Policies</h3>
+        <p class="text-gray-500">You don't have any insurance policies on record.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

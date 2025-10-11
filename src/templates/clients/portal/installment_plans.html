@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Installment Plans - Client Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Installment Plans</h1>
+                <p class="text-gray-600 mt-1">View your vehicle financing plans</p>
+            </div>
+            <a href="{% url 'clients:portal_dashboard' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Plans Grid -->
+    {% if plans %}
+        <div class="space-y-6">
+            {% for plan in plans %}
+            <div class="bg-white rounded-lg shadow hover:shadow-lg transition">
+                <div class="p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900">
+                                {{ plan.client_vehicle.vehicle.make }} {{ plan.client_vehicle.vehicle.model }}
+                            </h2>
+                            <p class="text-sm text-gray-600">{{ plan.client_vehicle.vehicle.registration_number }}</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold {% if plan.is_active %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {% if plan.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+
+                    <!-- Plan Details Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-xs text-gray-600 mb-1">Total Amount</p>
+                            <p class="text-lg font-bold text-gray-900">KSH {{ plan.total_amount|floatformat:2 }}</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <p class="text-xs text-gray-600 mb-1">Amount Paid</p>
+                            <p class="text-lg font-bold text-green-600">KSH {{ plan.total_paid|default:"0.00"|floatformat:2 }}</p>
+                        </div>
+                        <div class="bg-red-50 p-4 rounded-lg">
+                            <p class="text-xs text-gray-600 mb-1">Balance</p>
+                            <p class="text-lg font-bold text-red-600">KSH {{ plan.remaining_balance|default:"0.00"|floatformat:2 }}</p>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <p class="text-xs text-gray-600 mb-1">Monthly Payment</p>
+                            <p class="text-lg font-bold text-blue-600">KSH {{ plan.monthly_payment|floatformat:2 }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="mb-4">
+                        <div class="flex justify-between text-sm mb-2">
+                            <span class="text-gray-600">Payment Progress</span>
+                            <span class="font-semibold">
+                                {% widthratio plan.total_paid plan.total_amount 100 %}%
+                            </span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-blue-600 h-3 rounded-full" style="width: {% widthratio plan.total_paid plan.total_amount 100 %}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Plan Timeline -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <p class="text-gray-600">Start Date</p>
+                            <p class="font-semibold text-gray-900">{{ plan.start_date|date:"d M Y" }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">End Date</p>
+                            <p class="font-semibold text-gray-900">{{ plan.end_date|date:"d M Y" }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Duration</p>
+                            <p class="font-semibold text-gray-900">{{ plan.duration_months }} months</p>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="mt-4 pt-4 border-t border-gray-200 flex space-x-3">
+                        <a href="{% url 'clients:portal_vehicle_detail' plan.client_vehicle.id %}" 
+                           class="flex-1 inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+                            <i class="fas fa-car mr-2"></i>
+                            View Vehicle
+                        </a>
+                        <a href="{% url 'clients:portal_payment_schedules' %}" 
+                           class="flex-1 inline-flex items-center justify-center px-4 py-2 border border-blue-600 rounded-lg text-sm font-medium text-blue-600 hover:bg-blue-50 transition">
+                            <i class="fas fa-calendar-alt mr-2"></i>
+                            Payment Schedule
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- No Plans -->
+        <div class="bg-white rounded-lg shadow p-12 text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                <i class="fas fa-file-invoice-dollar text-3xl text-gray-400"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No Installment Plans</h3>
+            <p class="text-gray-500 mb-6">You don't have any installment plans yet.</p>
+            <a href="{% url 'clients:portal_vehicles' %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
+                View Vehicles
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

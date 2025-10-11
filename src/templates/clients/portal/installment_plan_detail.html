@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Installment Plan Details - Client Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Installment Plan Details</h1>
+                <p class="text-gray-600 mt-1">{{ plan.vehicle.make }} {{ plan.vehicle.model }}</p>
+            </div>
+            <a href="{% url 'clients:portal_installment_plans' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Plans
+            </a>
+        </div>
+    </div>
+
+    <!-- Plan Overview -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <!-- Plan Summary Card -->
+        <div class="lg:col-span-2 bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Plan Summary</h2>
+            
+            <!-- Financial Summary -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-xs text-gray-600 mb-1">Total Amount</p>
+                    <p class="text-lg font-bold text-gray-900">KSH {{ plan.total_amount|floatformat:2 }}</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <p class="text-xs text-gray-600 mb-1">Amount Paid</p>
+                    <p class="text-lg font-bold text-green-600">KSH {{ total_paid|floatformat:2 }}</p>
+                </div>
+                <div class="bg-red-50 p-4 rounded-lg">
+                    <p class="text-xs text-gray-600 mb-1">Balance</p>
+                    <p class="text-lg font-bold text-red-600">KSH {{ remaining_balance|floatformat:2 }}</p>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <p class="text-xs text-gray-600 mb-1">Monthly Payment</p>
+                    <p class="text-lg font-bold text-blue-600">KSH {{ plan.monthly_payment|floatformat:2 }}</p>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="mb-6">
+                <div class="flex justify-between text-sm mb-2">
+                    <span class="text-gray-600">Payment Progress</span>
+                    <span class="font-semibold">{% widthratio total_paid plan.total_amount 100 %}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-4">
+                    <div class="bg-blue-600 h-4 rounded-full transition-all duration-300" style="width: {% widthratio total_paid plan.total_amount 100 %}%"></div>
+                </div>
+            </div>
+
+            <!-- Plan Details -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <p class="text-sm text-gray-600">Start Date</p>
+                    <p class="font-semibold text-gray-900">{{ plan.start_date|date:"d M Y" }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">End Date</p>
+                    <p class="font-semibold text-gray-900">{{ plan.end_date|date:"d M Y" }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Duration</p>
+                    <p class="font-semibold text-gray-900">{{ plan.duration_months }} months</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vehicle Info Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Vehicle</h3>
+            <div class="text-center mb-4">
+                <div class="h-32 bg-gradient-to-br from-gray-200 to-gray-300 rounded-lg flex items-center justify-center mb-3">
+                    <i class="fas fa-car text-5xl text-gray-400"></i>
+                </div>
+                <h4 class="font-bold text-gray-900">{{ plan.vehicle.make }} {{ plan.vehicle.model }}</h4>
+                <p class="text-sm text-gray-600">{{ plan.vehicle.registration_number }}</p>
+            </div>
+            <a href="{% url 'clients:portal_vehicles' %}" class="block text-center px-4 py-2 border border-blue-600 rounded-lg text-sm font-medium text-blue-600 hover:bg-blue-50 transition">
+                View Vehicle Details
+            </a>
+        </div>
+    </div>
+
+    <!-- Payment Schedule -->
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Payment Schedule</h2>
+            <p class="text-sm text-gray-600 mt-1">Scheduled payments for this installment plan</p>
+        </div>
+
+        {% if schedules %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Installment #</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for schedule in schedules %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            #{{ forloop.counter }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ schedule.due_date|date:"d M Y" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                            KSH {{ schedule.amount|floatformat:2 }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ schedule.payment_date|date:"d M Y"|default:"Pending" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if schedule.is_paid %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Paid
+                            </span>
+                            {% elif schedule.due_date < today %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                Overdue
+                            </span>
+                            {% else %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                Pending
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <p class="text-gray-500">No payment schedule available</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Payment History -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Payment History</h2>
+            <p class="text-sm text-gray-600 mt-1">All payments made towards this plan</p>
+        </div>
+
+        {% if payments %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for payment in payments %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ payment.payment_date|date:"d M Y" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                            KSH {{ payment.amount|floatformat:2 }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ payment.payment_method|default:"N/A" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ payment.transaction_reference|default:"N/A" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Completed
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <p class="text-gray-500">No payment history yet</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

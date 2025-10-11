@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Payment Schedules - Client Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Payment Schedules</h1>
+                <p class="text-gray-600 mt-1">Manage your upcoming and past payment schedules</p>
+            </div>
+            <a href="{% url 'clients:portal_dashboard' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                    <i class="fas fa-clock text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-gray-600 text-sm">Upcoming Payments</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ upcoming_schedules.count }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-red-100 text-red-600">
+                    <i class="fas fa-exclamation-triangle text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-gray-600 text-sm">Overdue Payments</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ overdue_schedules.count }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                    <i class="fas fa-check-circle text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-gray-600 text-sm">Completed Payments</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ paid_schedules.count }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overdue Payments -->
+    {% if overdue_schedules %}
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="p-6 border-b border-gray-200 bg-red-50">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle text-red-600 text-xl mr-3"></i>
+                <h2 class="text-xl font-bold text-red-900">Overdue Payments</h2>
+            </div>
+            <p class="text-sm text-red-700 mt-1">Please make these payments as soon as possible to avoid penalties</p>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                {% for schedule in overdue_schedules %}
+                <div class="border-l-4 border-red-500 bg-red-50 rounded-lg p-4">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900 mb-1">
+                                {{ schedule.installment_plan.client_vehicle.vehicle.make }} 
+                                {{ schedule.installment_plan.client_vehicle.vehicle.model }}
+                            </h3>
+                            <p class="text-sm text-gray-600">{{ schedule.installment_plan.client_vehicle.vehicle.registration_number }}</p>
+                            <div class="mt-2 flex items-center space-x-4 text-sm">
+                                <span class="text-red-600 font-semibold">
+                                    <i class="fas fa-calendar-times mr-1"></i>
+                                    Due: {{ schedule.due_date|date:"d M Y" }}
+                                </span>
+                                <span class="text-gray-600">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    {% widthratio schedule.due_date|timesince:schedule.due_date 1 1 %} overdue
+                                </span>
+                            </div>
+                        </div>
+                        <div class="text-right ml-4">
+                            <p class="text-2xl font-bold text-gray-900">KSH {{ schedule.amount|floatformat:2 }}</p>
+                            <span class="inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                                Overdue
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Upcoming Payments -->
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Upcoming Payments</h2>
+            <p class="text-sm text-gray-600 mt-1">Scheduled payments for the coming months</p>
+        </div>
+
+        {% if upcoming_schedules %}
+        <div class="p-6">
+            <div class="space-y-4">
+                {% for schedule in upcoming_schedules %}
+                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900 mb-1">
+                                {{ schedule.installment_plan.client_vehicle.vehicle.make }} 
+                                {{ schedule.installment_plan.client_vehicle.vehicle.model }}
+                            </h3>
+                            <p class="text-sm text-gray-600">{{ schedule.installment_plan.client_vehicle.vehicle.registration_number }}</p>
+                            <div class="mt-2 flex items-center space-x-4 text-sm">
+                                <span class="text-gray-600">
+                                    <i class="fas fa-calendar-day mr-1"></i>
+                                    Due: {{ schedule.due_date|date:"d M Y" }}
+                                </span>
+                                <span class="text-gray-600">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    In {{ schedule.due_date|timeuntil }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="text-right ml-4">
+                            <p class="text-2xl font-bold text-gray-900">KSH {{ schedule.amount|floatformat:2 }}</p>
+                            <span class="inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                                Pending
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                <i class="fas fa-calendar-check text-3xl text-gray-400"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No Upcoming Payments</h3>
+            <p class="text-gray-500">You're all caught up! No payments due at this time.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Recent Paid Schedules -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Recently Completed</h2>
+            <p class="text-sm text-gray-600 mt-1">Your last 10 completed payments</p>
+        </div>
+
+        {% if paid_schedules %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for schedule in paid_schedules %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-900">
+                                {{ schedule.installment_plan.client_vehicle.vehicle.make }} 
+                                {{ schedule.installment_plan.client_vehicle.vehicle.model }}
+                            </div>
+                            <div class="text-xs text-gray-500">{{ schedule.installment_plan.client_vehicle.vehicle.registration_number }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-bold text-gray-900">KSH {{ schedule.amount|floatformat:2 }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ schedule.due_date|date:"d M Y" }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ schedule.payment_date|date:"d M Y" }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Paid
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <p class="text-gray-500">No payment history yet</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <a href="{% url 'clients:portal_payments' %}" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                    <i class="fas fa-money-bill-wave text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="font-semibold text-gray-900">Payment History</h3>
+                    <p class="text-sm text-gray-600">View all your payments</p>
+                </div>
+            </div>
+        </a>
+
+        <a href="{% url 'clients:portal_installment_plans' %}" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                    <i class="fas fa-file-invoice-dollar text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="font-semibold text-gray-900">Installment Plans</h3>
+                    <p class="text-sm text-gray-600">View your payment plans</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}
