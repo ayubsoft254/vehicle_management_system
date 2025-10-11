@@ -1,0 +1,462 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="description" content="Hoza Investments - Your trusted partner in vehicle sales and financing solutions in Kenya. Browse quality vehicles with flexible payment plans.">
+    <title>Hoza Investments - Quality Vehicles & Flexible Financing</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .hero-pattern {
+            background-color: #1e40af;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+    </style>
+</head>
+<body class="antialiased bg-gray-50">
+    
+    <!-- Navigation Bar -->
+    <nav class="fixed w-full bg-white/95 backdrop-blur-sm shadow-sm z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-car text-white text-xl"></i>
+                    </div>
+                    <span class="text-2xl font-bold text-gray-900">Hoza Investments</span>
+                </div>
+                
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="#vehicles" class="text-gray-700 hover:text-primary-600 font-medium transition-colors">Browse Vehicles</a>
+                    <a href="#about" class="text-gray-700 hover:text-primary-600 font-medium transition-colors">About</a>
+                    <a href="#contact" class="text-gray-700 hover:text-primary-600 font-medium transition-colors">Contact</a>
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'dashboard:home' %}" class="text-primary-600 hover:text-primary-700 font-medium transition-colors">Dashboard</a>
+                    {% else %}
+                        <a href="{% url 'account_login' %}" class="text-primary-600 hover:text-primary-700 font-medium transition-colors">Login</a>
+                        <a href="{% url 'account_signup' %}" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">Sign Up</a>
+                    {% endif %}
+                </div>
+                
+                <button id="mobile-menu-btn" class="md:hidden text-gray-700">
+                    <i class="fas fa-bars text-2xl"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-t">
+            <div class="px-4 py-4 space-y-3">
+                <a href="#vehicles" class="block text-gray-700 hover:text-primary-600 font-medium">Browse Vehicles</a>
+                <a href="#about" class="block text-gray-700 hover:text-primary-600 font-medium">About</a>
+                <a href="#contact" class="block text-gray-700 hover:text-primary-600 font-medium">Contact</a>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'dashboard:home' %}" class="block text-primary-600 hover:text-primary-700 font-medium">Dashboard</a>
+                {% else %}
+                    <a href="{% url 'account_login' %}" class="block text-primary-600 hover:text-primary-700 font-medium">Login</a>
+                    <a href="{% url 'account_signup' %}" class="block bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium text-center">Sign Up</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Hero Section -->
+    <section class="hero-pattern pt-24 pb-12 lg:pt-32 lg:pb-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center text-white">
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
+                    Find Your <span class="text-blue-300">Perfect Vehicle</span>
+                </h1>
+                <p class="text-xl text-blue-100 mb-8 max-w-3xl mx-auto">
+                    Browse our extensive inventory of quality vehicles with flexible financing options. Own your dream car today!
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="#vehicles" class="bg-white text-primary-600 px-8 py-4 rounded-lg font-semibold hover:bg-blue-50 transition-colors inline-block shadow-lg">
+                        <i class="fas fa-car mr-2"></i>Browse Vehicles
+                    </a>
+                    <a href="#contact" class="bg-primary-700 text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-800 transition-colors inline-block border-2 border-white/30">
+                        <i class="fas fa-phone mr-2"></i>Contact Us
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Featured Vehicles Section -->
+    {% if featured_vehicles %}
+    <section class="py-12 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-10">
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">Featured Vehicles</h2>
+                <p class="text-gray-600">Check out our handpicked selection of premium vehicles</p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for vehicle in featured_vehicles %}
+                <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow overflow-hidden border border-gray-200">
+                    <div class="relative h-48 bg-gray-200">
+                        {% if vehicle.main_photo %}
+                            <img src="{{ vehicle.main_photo.image.url }}" alt="{{ vehicle.full_name }}" class="w-full h-full object-cover">
+                        {% else %}
+                            <div class="w-full h-full flex items-center justify-center">
+                                <i class="fas fa-car text-gray-400 text-6xl"></i>
+                            </div>
+                        {% endif %}
+                        <span class="absolute top-3 right-3 bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-xs font-bold">
+                            <i class="fas fa-star mr-1"></i>FEATURED
+                        </span>
+                    </div>
+                    <div class="p-5">
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">{{ vehicle.full_name }}</h3>
+                        <div class="flex items-center text-sm text-gray-600 mb-3 space-x-4">
+                            <span><i class="fas fa-tachometer-alt mr-1"></i>{{ vehicle.mileage|floatformat:0 }} KM</span>
+                            <span><i class="fas fa-cog mr-1"></i>{{ vehicle.get_transmission_display }}</span>
+                        </div>
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <p class="text-2xl font-bold text-primary-600">KSH {{ vehicle.selling_price|floatformat:0 }}</p>
+                                {% if vehicle.deposit_required > 0 %}
+                                    <p class="text-xs text-gray-500">From KSH {{ vehicle.deposit_required|floatformat:0 }} deposit</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <a href="{% url 'dashboard:public_vehicle_detail' vehicle.pk %}" 
+                           class="block w-full bg-primary-600 hover:bg-primary-700 text-white text-center px-4 py-2 rounded-lg font-semibold transition-colors">
+                            View Details <i class="fas fa-arrow-right ml-2"></i>
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+    
+    <!-- Vehicles Inventory Section -->
+    <section id="vehicles" class="py-16 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-10">
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">Available Vehicles</h2>
+                <p class="text-gray-600">Browse our complete inventory of {{ total_vehicles }} quality vehicles</p>
+            </div>
+            
+            <!-- Filters -->
+            <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
+                <form method="get" action="#vehicles" class="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                        <input type="text" name="search" value="{{ current_filters.search }}" 
+                               placeholder="Make, model, color..." 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Make</label>
+                        <select name="make" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="">All Makes</option>
+                            {% for make in all_makes %}
+                                <option value="{{ make }}" {% if current_filters.make == make %}selected{% endif %}>{{ make }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Body Type</label>
+                        <select name="body_type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="">All Types</option>
+                            {% for body_type in all_body_types %}
+                                <option value="{{ body_type }}" {% if current_filters.body_type == body_type %}selected{% endif %}>{{ body_type|title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
+                        <div class="flex gap-2">
+                            <input type="number" name="min_price" value="{{ current_filters.min_price }}" placeholder="Min" 
+                                   class="w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <input type="number" name="max_price" value="{{ current_filters.max_price }}" placeholder="Max" 
+                                   class="w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-end gap-2">
+                        <button type="submit" class="flex-1 bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors">
+                            <i class="fas fa-search mr-2"></i>Search
+                        </button>
+                        <a href="{% url 'dashboard:landing' %}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-redo"></i>
+                        </a>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Vehicle Grid -->
+            {% if page_obj %}
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {% for vehicle in page_obj %}
+                    <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow overflow-hidden border border-gray-200">
+                        <div class="relative h-48 bg-gray-200">
+                            {% if vehicle.main_photo %}
+                                <img src="{{ vehicle.main_photo.image.url }}" alt="{{ vehicle.full_name }}" class="w-full h-full object-cover">
+                            {% else %}
+                                <div class="w-full h-full flex items-center justify-center">
+                                    <i class="fas fa-car text-gray-400 text-5xl"></i>
+                                </div>
+                            {% endif %}
+                            <span class="absolute top-3 left-3 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                                AVAILABLE
+                            </span>
+                        </div>
+                        <div class="p-4">
+                            <h3 class="text-lg font-bold text-gray-900 mb-1">{{ vehicle.full_name }}</h3>
+                            <p class="text-sm text-gray-600 mb-3">{{ vehicle.color|title }} • {{ vehicle.body_type|title }}</p>
+                            <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-3">
+                                <span><i class="fas fa-tachometer-alt mr-1"></i>{{ vehicle.mileage|floatformat:0 }} KM</span>
+                                <span><i class="fas fa-cog mr-1"></i>{{ vehicle.get_transmission_display }}</span>
+                            </div>
+                            <div class="mb-3">
+                                <p class="text-2xl font-bold text-primary-600">KSH {{ vehicle.selling_price|floatformat:0|default:"N/A" }}</p>
+                                {% if vehicle.deposit_required > 0 %}
+                                    <p class="text-xs text-gray-500">Deposit from KSH {{ vehicle.deposit_required|floatformat:0 }}</p>
+                                {% endif %}
+                            </div>
+                            <a href="{% url 'dashboard:public_vehicle_detail' vehicle.pk %}" 
+                               class="block w-full bg-primary-600 hover:bg-primary-700 text-white text-center px-4 py-2 rounded-lg font-semibold transition-colors text-sm">
+                                View Details
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <div class="mt-10 flex justify-center">
+                    <nav class="inline-flex rounded-lg shadow-sm">
+                        {% if page_obj.has_previous %}
+                            <a href="?page={{ page_obj.previous_page_number }}{% for key, value in current_filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}#vehicles" 
+                               class="px-4 py-2 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-50 text-gray-700">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        {% endif %}
+                        
+                        <span class="px-6 py-2 bg-white border-t border-b border-gray-300 text-gray-700">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                        </span>
+                        
+                        {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.next_page_number }}{% for key, value in current_filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}#vehicles" 
+                               class="px-4 py-2 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-50 text-gray-700">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        {% endif %}
+                    </nav>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-16">
+                    <i class="fas fa-car text-gray-300 text-6xl mb-4"></i>
+                    <h3 class="text-xl font-semibold text-gray-700 mb-2">No vehicles found</h3>
+                    <p class="text-gray-500 mb-6">Try adjusting your search criteria</p>
+                    <a href="{% url 'dashboard:landing' %}" class="inline-block bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                        Clear Filters
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+    
+    <!-- Features Section -->
+    <section id="about" class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Why Choose Hoza Investments?</h2>
+                <p class="text-xl text-gray-600">Your trusted partner in vehicle ownership</p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                {% for feature in features %}
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="{{ feature.icon }} text-primary-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">{{ feature.title }}</h3>
+                    <p class="text-gray-600">{{ feature.description }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    
+    <!-- CTA Section -->
+    <section class="py-16 bg-primary-600">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-3xl font-bold text-white mb-4">Ready to Own Your Dream Vehicle?</h2>
+            <p class="text-xl text-blue-100 mb-8">Create an account today and start your journey to vehicle ownership</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{% url 'account_signup' %}" class="bg-white text-primary-600 px-8 py-4 rounded-lg font-semibold hover:bg-blue-50 transition-colors inline-block shadow-lg">
+                    <i class="fas fa-user-plus mr-2"></i>Create Free Account
+                </a>
+                <a href="#contact" class="bg-primary-700 text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-800 transition-colors inline-block border-2 border-white/30">
+                    <i class="fas fa-phone mr-2"></i>Talk to Us
+                </a>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Contact Section -->
+    <section id="contact" class="py-16 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Get In Touch</h2>
+                <p class="text-xl text-gray-600">Have questions? We're here to help!</p>
+            </div>
+            
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="bg-white rounded-xl p-8 shadow-sm text-center">
+                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-phone text-green-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">Call Us</h3>
+                    <p class="text-gray-600 mb-3">Mon - Sat, 8AM - 6PM</p>
+                    <a href="tel:+254712345678" class="text-primary-600 hover:text-primary-700 font-semibold text-lg">
+                        +254 712 345 678
+                    </a>
+                </div>
+                
+                <div class="bg-white rounded-xl p-8 shadow-sm text-center">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-envelope text-blue-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">Email Us</h3>
+                    <p class="text-gray-600 mb-3">24/7 support</p>
+                    <a href="mailto:info@hozainvestments.co.ke" class="text-primary-600 hover:text-primary-700 font-semibold">
+                        info@hozainvestments.co.ke
+                    </a>
+                </div>
+                
+                <div class="bg-white rounded-xl p-8 shadow-sm text-center">
+                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-map-marker-alt text-purple-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">Visit Us</h3>
+                    <p class="text-gray-600 mb-3">See our showroom</p>
+                    <p class="text-gray-700 font-semibold">Mombasa Road, Nairobi</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-car text-white text-xl"></i>
+                        </div>
+                        <span class="text-xl font-bold">Hoza Investments</span>
+                    </div>
+                    <p class="text-gray-400">Quality vehicles, flexible financing</p>
+                </div>
+                
+                <div>
+                    <h3 class="font-bold mb-4">Quick Links</h3>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#vehicles" class="hover:text-white transition-colors">Browse Vehicles</a></li>
+                        <li><a href="#about" class="hover:text-white transition-colors">About Us</a></li>
+                        <li><a href="{% url 'account_signup' %}" class="hover:text-white transition-colors">Create Account</a></li>
+                        <li><a href="{% url 'account_login' %}" class="hover:text-white transition-colors">Login</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 class="font-bold mb-4">Contact</h3>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><i class="fas fa-phone mr-2"></i>+254 712 345 678</li>
+                        <li><i class="fas fa-envelope mr-2"></i>info@hozainvestments.co.ke</li>
+                        <li><i class="fas fa-map-marker-alt mr-2"></i>Nairobi, Kenya</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h3 class="font-bold mb-4">Follow Us</h3>
+                    <div class="flex space-x-4">
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors">
+                            <i class="fab fa-facebook-f"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors">
+                            <i class="fab fa-whatsapp"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 pt-8 text-center">
+                <p class="text-gray-400 text-sm">&copy; 2025 Hoza Investments. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+    
+    <script>
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+        
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                    mobileMenu.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

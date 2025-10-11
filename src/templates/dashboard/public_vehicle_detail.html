@@ -1,0 +1,355 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{ vehicle.full_name }} - {{ vehicle.description|truncatewords:20 }}">
+    <title>{{ vehicle.full_name }} - Hoza Investments</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50">
+    
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-car text-white text-xl"></i>
+                    </div>
+                    <span class="text-2xl font-bold text-gray-900">Hoza Investments</span>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <a href="{% url 'dashboard:landing' %}" class="text-gray-700 hover:text-primary-600 font-medium transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to Vehicles
+                    </a>
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'dashboard:home' %}" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+                            Dashboard
+                        </a>
+                    {% else %}
+                        <a href="{% url 'account_login' %}" class="text-primary-600 hover:text-primary-700 font-medium transition-colors">Login</a>
+                        <a href="{% url 'account_signup' %}" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition-colors hidden sm:block">
+                            Sign Up
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Vehicle Header -->
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ vehicle.full_name }}</h1>
+                    <div class="flex items-center space-x-4 text-gray-600">
+                        <span><i class="fas fa-tag mr-1"></i>{{ vehicle.vin }}</span>
+                        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                            <i class="fas fa-check-circle mr-1"></i>Available
+                        </span>
+                    </div>
+                </div>
+                <div class="mt-4 md:mt-0 text-right">
+                    <p class="text-3xl font-bold text-primary-600">KSH {{ vehicle.selling_price|floatformat:0 }}</p>
+                    {% if vehicle.deposit_required > 0 %}
+                        <p class="text-sm text-gray-500">Minimum deposit: KSH {{ vehicle.deposit_required|floatformat:0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid lg:grid-cols-3 gap-6">
+            
+            <!-- Left Column - Images & Details -->
+            <div class="lg:col-span-2 space-y-6">
+                
+                <!-- Image Gallery -->
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                    {% if vehicle.photos.all %}
+                        <div class="relative h-96 bg-gray-200">
+                            <img id="mainImage" src="{{ vehicle.main_photo.image.url }}" alt="{{ vehicle.full_name }}" class="w-full h-full object-cover">
+                        </div>
+                        {% if vehicle.photos.count > 1 %}
+                        <div class="p-4 grid grid-cols-4 gap-2">
+                            {% for photo in vehicle.photos.all %}
+                            <button onclick="changeImage('{{ photo.image.url }}')" class="relative h-20 bg-gray-200 rounded-lg overflow-hidden hover:ring-2 hover:ring-primary-500 transition">
+                                <img src="{{ photo.image.url }}" alt="Vehicle photo" class="w-full h-full object-cover">
+                            </button>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="h-96 bg-gray-200 flex items-center justify-center">
+                            <i class="fas fa-car text-gray-400 text-8xl"></i>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Vehicle Specifications -->
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">Vehicle Specifications</h2>
+                    
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-calendar text-primary-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Year</p>
+                                <p class="font-semibold text-gray-900">{{ vehicle.year }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-tachometer-alt text-primary-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Mileage</p>
+                                <p class="font-semibold text-gray-900">{{ vehicle.mileage|floatformat:0 }} KM</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-cog text-primary-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Transmission</p>
+                                <p class="font-semibold text-gray-900">{{ vehicle.get_transmission_display }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-gas-pump text-primary-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Fuel Type</p>
+                                <p class="font-semibold text-gray-900">{{ vehicle.get_fuel_type_display }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-paint-brush text-primary-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Color</p>
+                                <p class="font-semibold text-gray-900">{{ vehicle.color|title }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-car-side text-primary-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Body Type</p>
+                                <p class="font-semibold text-gray-900">{{ vehicle.get_body_type_display|title }}</p>
+                            </div>
+                        </div>
+                        
+                        {% if vehicle.engine_size %}
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-engine text-primary-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Engine</p>
+                                <p class="font-semibold text-gray-900">{{ vehicle.engine_size }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-users text-primary-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Seats</p>
+                                <p class="font-semibold text-gray-900">{{ vehicle.seats }} Seats</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Description -->
+                {% if vehicle.description %}
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Description</h2>
+                    <p class="text-gray-700 leading-relaxed">{{ vehicle.description }}</p>
+                </div>
+                {% endif %}
+                
+                <!-- Features -->
+                {% if vehicle.features %}
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Features</h2>
+                    <p class="text-gray-700 leading-relaxed whitespace-pre-line">{{ vehicle.features }}</p>
+                </div>
+                {% endif %}
+                
+            </div>
+            
+            <!-- Right Column - Purchase Action -->
+            <div class="lg:col-span-1">
+                
+                <!-- Purchase Card -->
+                <div class="bg-white rounded-xl shadow-lg p-6 sticky top-20">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-2">Interested in this vehicle?</h3>
+                    <p class="text-gray-600 mb-6">Get started with flexible payment options</p>
+                    
+                    <div class="space-y-4 mb-6">
+                        <div class="flex justify-between items-center py-3 border-b">
+                            <span class="text-gray-600">Vehicle Price</span>
+                            <span class="font-bold text-gray-900">KSH {{ vehicle.selling_price|floatformat:0 }}</span>
+                        </div>
+                        {% if vehicle.deposit_required > 0 %}
+                        <div class="flex justify-between items-center py-3 border-b">
+                            <span class="text-gray-600">Minimum Deposit</span>
+                            <span class="font-bold text-gray-900">KSH {{ vehicle.deposit_required|floatformat:0 }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="flex justify-between items-center py-3">
+                            <span class="text-gray-600">Status</span>
+                            <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                                <i class="fas fa-check-circle mr-1"></i>Available
+                            </span>
+                        </div>
+                    </div>
+                    
+                    {% if is_authenticated %}
+                        <!-- User is logged in -->
+                        <a href="{% url 'dashboard:public_vehicle_purchase' vehicle.pk %}" 
+                           class="block w-full bg-primary-600 hover:bg-primary-700 text-white text-center px-6 py-4 rounded-lg font-bold text-lg transition-colors mb-3">
+                            <i class="fas fa-shopping-cart mr-2"></i>Purchase Now
+                        </a>
+                        <a href="tel:+254712345678" 
+                           class="block w-full bg-green-600 hover:bg-green-700 text-white text-center px-6 py-3 rounded-lg font-semibold transition-colors">
+                            <i class="fas fa-phone mr-2"></i>Call Us
+                        </a>
+                    {% else %}
+                        <!-- User is not logged in -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Create an account or login to purchase this vehicle
+                            </p>
+                        </div>
+                        
+                        <a href="{% url 'account_signup' %}?next={% url 'dashboard:public_vehicle_purchase' vehicle.pk %}" 
+                           class="block w-full bg-primary-600 hover:bg-primary-700 text-white text-center px-6 py-4 rounded-lg font-bold text-lg transition-colors mb-3">
+                            <i class="fas fa-user-plus mr-2"></i>Sign Up to Purchase
+                        </a>
+                        
+                        <a href="{% url 'account_login' %}?next={% url 'dashboard:public_vehicle_purchase' vehicle.pk %}" 
+                           class="block w-full bg-gray-600 hover:bg-gray-700 text-white text-center px-6 py-3 rounded-lg font-semibold transition-colors mb-3">
+                            <i class="fas fa-sign-in-alt mr-2"></i>Login to Purchase
+                        </a>
+                        
+                        <a href="tel:+254712345678" 
+                           class="block w-full bg-green-600 hover:bg-green-700 text-white text-center px-6 py-3 rounded-lg font-semibold transition-colors">
+                            <i class="fas fa-phone mr-2"></i>Call Us
+                        </a>
+                    {% endif %}
+                    
+                    <div class="mt-6 pt-6 border-t">
+                        <h4 class="font-bold text-gray-900 mb-3">Need Help?</h4>
+                        <div class="space-y-2 text-sm text-gray-600">
+                            <p><i class="fas fa-phone text-primary-600 mr-2"></i>+254 712 345 678</p>
+                            <p><i class="fas fa-envelope text-primary-600 mr-2"></i>info@hozainvestments.co.ke</p>
+                            <p><i class="fas fa-map-marker-alt text-primary-600 mr-2"></i>Mombasa Road, Nairobi</p>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            
+        </div>
+        
+        <!-- Similar Vehicles -->
+        {% if similar_vehicles %}
+        <div class="mt-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Similar Vehicles</h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {% for similar in similar_vehicles %}
+                <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow overflow-hidden">
+                    <div class="relative h-48 bg-gray-200">
+                        {% if similar.main_photo %}
+                            <img src="{{ similar.main_photo.image.url }}" alt="{{ similar.full_name }}" class="w-full h-full object-cover">
+                        {% else %}
+                            <div class="w-full h-full flex items-center justify-center">
+                                <i class="fas fa-car text-gray-400 text-5xl"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="p-4">
+                        <h3 class="text-lg font-bold text-gray-900 mb-1">{{ similar.full_name }}</h3>
+                        <p class="text-sm text-gray-600 mb-3">{{ similar.color|title }}</p>
+                        <p class="text-xl font-bold text-primary-600 mb-3">KSH {{ similar.selling_price|floatformat:0 }}</p>
+                        <a href="{% url 'dashboard:public_vehicle_detail' similar.pk %}" 
+                           class="block w-full bg-primary-600 hover:bg-primary-700 text-white text-center px-4 py-2 rounded-lg font-semibold transition-colors text-sm">
+                            View Details
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+    </div>
+    
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-8 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p class="text-gray-400">&copy; 2025 Hoza Investments. All rights reserved.</p>
+            <div class="mt-4 space-x-6">
+                <a href="{% url 'dashboard:landing' %}" class="text-gray-400 hover:text-white transition-colors">Browse Vehicles</a>
+                <a href="tel:+254712345678" class="text-gray-400 hover:text-white transition-colors">Contact</a>
+            </div>
+        </div>
+    </footer>
+    
+    <script>
+        function changeImage(imageUrl) {
+            document.getElementById('mainImage').src = imageUrl;
+        }
+    </script>
+</body>
+</html>
