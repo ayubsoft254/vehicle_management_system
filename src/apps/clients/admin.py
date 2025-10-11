@@ -76,12 +76,15 @@ class ClientAdmin(admin.ModelAdmin):
         'date_registered', 'last_updated', 'registered_by',
         'available_credit_display', 'credit_utilization_display',
         'total_purchases_display', 'total_spent_display',
-        'total_paid_display', 'total_balance_display'
+        'total_paid_display', 'total_balance_display',
+        'profile_photo_preview'
     ]
     
     fieldsets = (
         ('Personal Information', {
             'fields': (
+                'profile_photo',
+                'profile_photo_preview',
                 ('first_name', 'other_names', 'last_name'),
                 ('id_type', 'id_number'),
                 ('date_of_birth', 'gender'),
@@ -149,6 +152,22 @@ class ClientAdmin(admin.ModelAdmin):
     date_hierarchy = 'date_registered'
     
     actions = ['activate_clients', 'deactivate_clients', 'mark_as_defaulted']
+    
+    def profile_photo_preview(self, obj):
+        """Display profile photo preview"""
+        if obj.profile_photo:
+            return format_html(
+                '<img src="{}" style="max-width: 150px; max-height: 150px; '
+                'border-radius: 8px; border: 2px solid #ddd;" />',
+                obj.profile_photo.url
+            )
+        return format_html(
+            '<div style="width: 150px; height: 150px; background-color: #f0f0f0; '
+            'border-radius: 8px; display: flex; align-items: center; justify-content: center; '
+            'border: 2px solid #ddd;">'
+            '<span style="color: #999; font-size: 14px;">No Photo</span></div>'
+        )
+    profile_photo_preview.short_description = 'Current Photo'
     
     def get_full_name_display(self, obj):
         """Display full name with link"""
