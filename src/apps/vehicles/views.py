@@ -136,8 +136,18 @@ def vehicle_detail_view(request, pk):
 def vehicle_create_view(request):
     """Create new vehicle"""
     if request.method == 'POST':
+        print("\n" + "="*50)
+        print("POST REQUEST RECEIVED")
+        print("="*50)
+        print("POST Data:", request.POST)
+        print("FILES:", request.FILES)
+        print("-"*50)
+        
         form = VehicleForm(request.POST, request.FILES)
+        print("Form created, checking validity...")
+        
         if form.is_valid():
+            print("✓ Form is VALID!")
             vehicle = form.save(commit=False)
             vehicle.added_by = request.user
             vehicle.save()
@@ -150,7 +160,22 @@ def vehicle_create_view(request):
             )
             
             messages.success(request, f'Vehicle {vehicle.full_name} created successfully!')
+            print(f"✓ Vehicle saved: {vehicle.pk} - {vehicle.full_name}")
+            print("="*50 + "\n")
             return redirect('vehicles:detail', pk=vehicle.pk)
+        else:
+            # Debug: Print form errors to console
+            print("✗ Form is INVALID!")
+            print("\nForm Errors:")
+            for field, errors in form.errors.items():
+                print(f"  - {field}: {errors}")
+            
+            print("\nCleaned Data (partial):")
+            for field, value in form.cleaned_data.items():
+                print(f"  - {field}: {value}")
+            
+            print("="*50 + "\n")
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = VehicleForm()
     

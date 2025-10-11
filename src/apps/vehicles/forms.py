@@ -24,20 +24,24 @@ class VehicleForm(forms.ModelForm):
         widgets = {
             'make': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'e.g., Toyota, Honda, Nissan'
+                'placeholder': 'e.g., Toyota, Honda, Nissan',
+                'required': 'required'
             }),
             'model': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'e.g., Corolla, Civic, Patrol'
+                'placeholder': 'e.g., Corolla, Civic, Patrol',
+                'required': 'required'
             }),
             'year': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': '2020'
+                'placeholder': '2020',
+                'required': 'required'
             }),
             'vin': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
                 'placeholder': '17-character VIN',
-                'maxlength': '17'
+                'maxlength': '17',
+                'required': 'required'
             }),
             'registration_number': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
@@ -45,11 +49,13 @@ class VehicleForm(forms.ModelForm):
             }),
             'color': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'White, Black, Silver, etc.'
+                'placeholder': 'White, Black, Silver, etc.',
+                'required': 'required'
             }),
             'mileage': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'Kilometers'
+                'placeholder': 'Kilometers',
+                'required': 'required'
             }),
             'fuel_type': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
@@ -76,12 +82,14 @@ class VehicleForm(forms.ModelForm):
             'purchase_price': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
                 'placeholder': 'Purchase price in KES',
-                'step': '0.01'
+                'step': '0.01',
+                'required': 'required'
             }),
             'selling_price': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
                 'placeholder': 'Selling price in KES',
-                'step': '0.01'
+                'step': '0.01',
+                'required': 'required'
             }),
             'deposit_required': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
@@ -113,7 +121,8 @@ class VehicleForm(forms.ModelForm):
             }),
             'purchase_date': forms.DateInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'type': 'date'
+                'type': 'date',
+                'required': 'required'
             }),
         }
         labels = {
