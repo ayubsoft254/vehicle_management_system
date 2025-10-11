@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Make Payment - Client Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 max-w-3xl mx-auto">
+    <!-- Page Header -->
+    <div class="mb-6 text-center">
+        <h1 class="text-3xl font-bold text-gray-900">Make Payment</h1>
+        <p class="text-gray-600 mt-1">Choose your preferred payment method</p>
+    </div>
+
+    <!-- Payment Summary -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-lg font-semibold text-blue-900">{{ description }}</h2>
+                <p class="text-blue-700">{{ client_vehicle.vehicle.full_name }}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-blue-700">Amount to Pay</p>
+                <p class="text-3xl font-bold text-blue-900">KSH {{ amount_to_pay|floatformat:0|intcomma }}</p>
+            </div>
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <!-- Payment Methods -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">Select Payment Method</h3>
+            
+            <div class="space-y-4">
+                <!-- M-Pesa -->
+                <label class="block border-2 border-gray-300 rounded-lg p-4 cursor-pointer hover:border-green-500 transition">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <input type="radio" name="payment_method" value="mpesa" class="mr-4" checked onchange="togglePhoneInput()">
+                            <div>
+                                <span class="font-semibold text-gray-900 text-lg">
+                                    <i class="fas fa-mobile-alt text-green-600 mr-2"></i>
+                                    M-Pesa
+                                </span>
+                                <p class="text-sm text-gray-600">Pay using M-Pesa STK Push</p>
+                            </div>
+                        </div>
+                        <span class="text-green-600 font-bold">Instant</span>
+                    </div>
+                    <div id="mpesa_phone" class="mt-4 ml-10">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                        <input type="tel" 
+                               name="phone_number" 
+                               placeholder="254700000000" 
+                               pattern="254[0-9]{9}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                               value="{{ client.phone_number|default:'' }}">
+                        <p class="text-xs text-gray-500 mt-1">Format: 254XXXXXXXXX</p>
+                    </div>
+                </label>
+
+                <!-- Bank Transfer -->
+                <label class="block border-2 border-gray-300 rounded-lg p-4 cursor-pointer hover:border-blue-500 transition">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <input type="radio" name="payment_method" value="bank_transfer" class="mr-4" onchange="togglePhoneInput()">
+                            <div>
+                                <span class="font-semibold text-gray-900 text-lg">
+                                    <i class="fas fa-university text-blue-600 mr-2"></i>
+                                    Bank Transfer
+                                </span>
+                                <p class="text-sm text-gray-600">Transfer directly to our bank account</p>
+                            </div>
+                        </div>
+                        <span class="text-yellow-600 font-bold">1-2 Days</span>
+                    </div>
+                </label>
+
+                <!-- Cash Payment -->
+                <label class="block border-2 border-gray-300 rounded-lg p-4 cursor-pointer hover:border-purple-500 transition">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <input type="radio" name="payment_method" value="cash" class="mr-4" onchange="togglePhoneInput()">
+                            <div>
+                                <span class="font-semibold text-gray-900 text-lg">
+                                    <i class="fas fa-money-bill-wave text-purple-600 mr-2"></i>
+                                    Cash Payment
+                                </span>
+                                <p class="text-sm text-gray-600">Visit our office to pay in cash</p>
+                            </div>
+                        </div>
+                        <span class="text-gray-600 font-bold">Office Visit</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Security Note -->
+        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <div class="flex items-start">
+                <i class="fas fa-shield-alt text-green-600 mt-1 mr-3"></i>
+                <div>
+                    <h4 class="text-sm font-semibold text-green-900 mb-1">Secure Payment</h4>
+                    <p class="text-sm text-green-700">
+                        Your payment is processed securely. We never store your payment details.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex space-x-4">
+            <a href="{% url 'clients:portal_vehicle_detail' client_vehicle.id %}" 
+               class="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-center font-semibold text-gray-700 hover:bg-gray-50 transition">
+                Cancel
+            </a>
+            <button type="submit" 
+                    class="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition">
+                <i class="fas fa-lock mr-2"></i>
+                Proceed to Pay
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function togglePhoneInput() {
+    const mpesaRadio = document.querySelector('input[name="payment_method"][value="mpesa"]');
+    const phoneDiv = document.getElementById('mpesa_phone');
+    phoneDiv.style.display = mpesaRadio.checked ? 'block' : 'none';
+}
+</script>
+{% endblock %}

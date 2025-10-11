@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Payment Pending - Client Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 max-w-2xl mx-auto">
+    <div class="text-center py-12">
+        <!-- Animated Icon -->
+        <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-yellow-100 mb-6">
+            <i class="fas fa-clock text-5xl text-yellow-600 animate-pulse"></i>
+        </div>
+
+        <h1 class="text-3xl font-bold text-gray-900 mb-4">Payment Pending</h1>
+        <p class="text-gray-600 mb-8">Please complete the payment on your phone</p>
+
+        <!-- Payment Details -->
+        <div class="bg-white rounded-lg shadow-lg p-8 mb-8 text-left">
+            <div class="flex items-center justify-between mb-6 pb-6 border-b border-gray-200">
+                <span class="text-gray-600">Amount:</span>
+                <span class="text-3xl font-bold text-green-600">KSH {{ pending_payment.amount|floatformat:0|intcomma }}</span>
+            </div>
+
+            <div class="space-y-4 mb-6">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Payment Method:</span>
+                    <span class="font-semibold text-gray-900">M-Pesa</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Phone Number:</span>
+                    <span class="font-semibold text-gray-900">{{ pending_payment.phone_number }}</span>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h3 class="font-semibold text-green-900 mb-2">
+                    <i class="fas fa-mobile-alt mr-2"></i>
+                    Instructions:
+                </h3>
+                <ol class="list-decimal list-inside space-y-1 text-sm text-green-800">
+                    <li>Check your phone for the M-Pesa prompt</li>
+                    <li>Enter your M-Pesa PIN</li>
+                    <li>Confirm the payment</li>
+                    <li>Wait for confirmation SMS</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Loading Animation -->
+        <div class="mb-8">
+            <div class="flex items-center justify-center space-x-2 mb-2">
+                <div class="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                <div class="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                <div class="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+            </div>
+            <p class="text-sm text-gray-600">Waiting for payment confirmation...</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="space-y-3">
+            <button onclick="checkPaymentStatus()" 
+                    class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">
+                <i class="fas fa-sync-alt mr-2"></i>
+                Check Payment Status
+            </button>
+            <a href="{% url 'clients:portal_dashboard' %}" 
+               class="block w-full px-6 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition">
+                Back to Dashboard
+            </a>
+        </div>
+
+        <!-- Help Text -->
+        <p class="text-sm text-gray-500 mt-8">
+            Didn't receive the prompt? 
+            <a href="#" class="text-blue-600 hover:underline">Try again</a> or 
+            <a href="#" class="text-blue-600 hover:underline">contact support</a>
+        </p>
+    </div>
+</div>
+
+<script>
+function checkPaymentStatus() {
+    // This would call an API endpoint to check payment status
+    alert('Checking payment status...');
+    // In production, this would be an AJAX call to verify payment
+}
+
+// Auto-refresh every 10 seconds to check payment status
+setTimeout(function() {
+    // checkPaymentStatus();
+}, 10000);
+</script>
+{% endblock %}

@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Vehicle Marketplace - Client Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Vehicle Marketplace</h1>
+                <p class="text-gray-600 mt-1">Browse and purchase your next vehicle</p>
+            </div>
+            <a href="{% url 'clients:portal_dashboard' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Make</label>
+                <select name="make" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Makes</option>
+                    {% for make in makes %}
+                    <option value="{{ make }}" {% if current_filters.make == make %}selected{% endif %}>{{ make }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Body Type</label>
+                <select name="body_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Types</option>
+                    {% for body_type in body_types %}
+                    <option value="{{ body_type }}" {% if current_filters.body_type == body_type %}selected{% endif %}>{{ body_type|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Min Price (KSH)</label>
+                <input type="number" name="min_price" value="{{ current_filters.min_price }}" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                       placeholder="0">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Max Price (KSH)</label>
+                <input type="number" name="max_price" value="{{ current_filters.max_price }}"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                       placeholder="10,000,000">
+            </div>
+            
+            <div class="flex items-end space-x-2">
+                <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-filter mr-2"></i>Apply Filters
+                </button>
+                <a href="{% url 'clients:portal_marketplace' %}" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    <i class="fas fa-times"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Vehicles Grid -->
+    {% if page_obj %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+            {% for vehicle in page_obj %}
+            <div class="bg-white rounded-lg shadow hover:shadow-xl transition overflow-hidden">
+                <!-- Vehicle Image -->
+                <div class="h-48 bg-gradient-to-br from-blue-200 to-blue-400 flex items-center justify-center relative">
+                    {% if vehicle.is_featured %}
+                    <span class="absolute top-3 right-3 bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                        <i class="fas fa-star mr-1"></i>Featured
+                    </span>
+                    {% endif %}
+                    <i class="fas fa-car text-7xl text-white opacity-75"></i>
+                </div>
+                
+                <!-- Vehicle Details -->
+                <div class="p-6">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-lg font-bold text-gray-900">{{ vehicle.make }} {{ vehicle.model }}</h3>
+                        <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
+                            Available
+                        </span>
+                    </div>
+                    
+                    <p class="text-gray-600 text-sm mb-4">{{ vehicle.year }} • {{ vehicle.color }}</p>
+                    
+                    <div class="grid grid-cols-2 gap-3 text-sm mb-4">
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-tachometer-alt w-5 text-gray-400"></i>
+                            <span class="ml-2">{{ vehicle.mileage|intcomma }} km</span>
+                        </div>
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-gas-pump w-5 text-gray-400"></i>
+                            <span class="ml-2">{{ vehicle.fuel_type|title }}</span>
+                        </div>
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-cogs w-5 text-gray-400"></i>
+                            <span class="ml-2">{{ vehicle.transmission|title }}</span>
+                        </div>
+                        <div class="flex items-center text-gray-600">
+                            <i class="fas fa-users w-5 text-gray-400"></i>
+                            <span class="ml-2">{{ vehicle.seats }} seats</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Price -->
+                    <div class="border-t border-gray-200 pt-4 mb-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm text-gray-600">Selling Price</p>
+                                <p class="text-2xl font-bold text-gray-900">KSH {{ vehicle.selling_price|floatformat:0|intcomma }}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs text-gray-600">Min. Deposit</p>
+                                <p class="text-sm font-semibold text-blue-600">KSH {{ vehicle.deposit_required|floatformat:0|intcomma }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Button -->
+                    <a href="{% url 'clients:portal_vehicle_marketplace_detail' vehicle.id %}" 
+                       class="block w-full text-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold">
+                        View Details & Purchase
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="bg-white rounded-lg shadow p-4 flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-700">
+                    Showing <span class="font-medium">{{ page_obj.start_index }}</span> to 
+                    <span class="font-medium">{{ page_obj.end_index }}</span> of 
+                    <span class="font-medium">{{ page_obj.paginator.count }}</span> vehicles
+                </p>
+            </div>
+            <div class="flex space-x-2">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+                {% endif %}
+                
+                <span class="px-4 py-2 bg-blue-600 text-white rounded-lg">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+                
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    {% else %}
+        <!-- No Vehicles -->
+        <div class="bg-white rounded-lg shadow p-12 text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                <i class="fas fa-car text-3xl text-gray-400"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No Vehicles Available</h3>
+            <p class="text-gray-500 mb-6">There are no vehicles matching your search criteria.</p>
+            <a href="{% url 'clients:portal_marketplace' %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
+                Clear Filters
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

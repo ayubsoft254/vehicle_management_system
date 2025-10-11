@@ -17,7 +17,8 @@ from apps.payments.models import Payment, InstallmentPlan, PaymentSchedule
 from apps.vehicles.models import Vehicle
 from apps.documents.models import Document
 from apps.insurance.models import InsurancePolicy
-from utils.constants import UserRole
+from utils.constants import UserRole, VehicleStatus
+import json
 
 
 # ==================== DECORATORS ====================
@@ -514,3 +515,351 @@ def portal_notifications(request):
     }
     
     return render(request, 'clients/portal/notifications.html', context)
+
+
+# ==================== VEHICLE MARKETPLACE ====================
+
+@login_required
+@client_required
+def portal_marketplace(request):
+    """
+    View available vehicles for purchase
+    Clients can browse and select vehicles to buy
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    # Get all available vehicles
+    vehicles = Vehicle.objects.available().select_related('added_by')
+    
+    # Apply filters
+    make = request.GET.get('make')
+    body_type = request.GET.get('body_type')
+    min_price = request.GET.get('min_price')
+    max_price = request.GET.get('max_price')
+    
+    if make:
+        vehicles = vehicles.filter(make__icontains=make)
+    if body_type:
+        vehicles = vehicles.filter(body_type=body_type)
+    if min_price:
+        vehicles = vehicles.filter(selling_price__gte=min_price)
+    if max_price:
+        vehicles = vehicles.filter(selling_price__lte=max_price)
+    
+    # Get unique makes and body types for filters
+    makes = Vehicle.objects.available().values_list('make', flat=True).distinct()
+    body_types = Vehicle.objects.available().values_list('body_type', flat=True).distinct()
+    
+    # Pagination
+    paginator = Paginator(vehicles, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'client': client,
+        'page_obj': page_obj,
+        'makes': makes,
+        'body_types': body_types,
+        'current_filters': {
+            'make': make,
+            'body_type': body_type,
+            'min_price': min_price,
+            'max_price': max_price,
+        }
+    }
+    
+    return render(request, 'clients/portal/marketplace.html', context)
+
+
+@login_required
+@client_required
+def portal_vehicle_marketplace_detail(request, vehicle_id):
+    """
+    View details of an available vehicle and initiate purchase
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    # Get vehicle - must be available
+    vehicle = get_object_or_404(Vehicle, id=vehicle_id, status=VehicleStatus.AVAILABLE)
+    
+    # Check if client already has this vehicle
+    already_purchased = ClientVehicle.objects.filter(
+        client=client,
+        vehicle=vehicle
+    ).exists()
+    
+    context = {
+        'client': client,
+        'vehicle': vehicle,
+        'already_purchased': already_purchased,
+    }
+    
+    return render(request, 'clients/portal/marketplace_vehicle_detail.html', context)
+
+
+@login_required
+@client_required
+def portal_initiate_purchase(request, vehicle_id):
+    """
+    Initiate vehicle purchase - choose payment plan
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    # Get vehicle
+    vehicle = get_object_or_404(Vehicle, id=vehicle_id, status=VehicleStatus.AVAILABLE)
+    
+    # Check if already purchased
+    if ClientVehicle.objects.filter(client=client, vehicle=vehicle).exists():
+        messages.warning(request, 'You have already purchased this vehicle.')
+        return redirect('clients:portal_vehicles')
+    
+    if request.method == 'POST':
+        # Get form data
+        down_payment = Decimal(request.POST.get('down_payment', '0'))
+        payment_plan = request.POST.get('payment_plan')  # '6', '12', '24', 'full'
+        
+        # Validate down payment
+        if down_payment < vehicle.deposit_required:
+            messages.error(request, f'Minimum deposit required is KSH {vehicle.deposit_required:,.2f}')
+            return redirect('clients:portal_initiate_purchase', vehicle_id=vehicle_id)
+        
+        if down_payment > vehicle.selling_price:
+            messages.error(request, 'Down payment cannot exceed the vehicle price.')
+            return redirect('clients:portal_initiate_purchase', vehicle_id=vehicle_id)
+        
+        # Create ClientVehicle
+        client_vehicle = ClientVehicle.objects.create(
+            client=client,
+            vehicle=vehicle,
+            purchase_price=vehicle.selling_price,
+            down_payment=down_payment,
+            purchase_date=timezone.now().date(),
+            is_active=True
+        )
+        
+        # If full payment
+        if payment_plan == 'full' or down_payment >= vehicle.selling_price:
+            # Create payment record
+            Payment.objects.create(
+                client_vehicle=client_vehicle,
+                amount=down_payment,
+                payment_date=timezone.now().date(),
+                payment_method='pending',  # Will be updated after actual payment
+                notes='Initial down payment - pending confirmation',
+                recorded_by=request.user
+            )
+            
+            # Redirect to payment page
+            return redirect('clients:portal_make_payment', client_vehicle_id=client_vehicle.id, payment_type='down_payment')
+        
+        # Create installment plan
+        duration_months = int(payment_plan)
+        balance = vehicle.selling_price - down_payment
+        monthly_payment = balance / duration_months
+        
+        installment_plan = InstallmentPlan.objects.create(
+            client_vehicle=client_vehicle,
+            total_amount=vehicle.selling_price,
+            deposit=down_payment,
+            monthly_installment=monthly_payment,
+            number_of_installments=duration_months,
+            interest_rate=Decimal('0.00'),  # Can be configured
+            start_date=timezone.now().date(),
+            is_active=True,
+            created_by=request.user
+        )
+        
+        # Generate payment schedule
+        installment_plan.generate_payment_schedule()
+        
+        # Redirect to payment page for down payment
+        messages.success(request, 'Vehicle purchase initiated! Please complete your down payment.')
+        return redirect('clients:portal_make_payment', client_vehicle_id=client_vehicle.id, payment_type='down_payment')
+    
+    # Calculate payment options
+    selling_price = vehicle.selling_price
+    min_deposit = vehicle.deposit_required
+    
+    payment_options = []
+    for months in [6, 12, 24, 36]:
+        balance = selling_price - min_deposit
+        monthly = balance / months
+        total_with_interest = balance * Decimal('1.05')  # 5% interest
+        monthly_with_interest = total_with_interest / months
+        
+        payment_options.append({
+            'months': months,
+            'monthly_payment': monthly,
+            'monthly_with_interest': monthly_with_interest,
+            'total_interest': total_with_interest - balance,
+            'total_amount': total_with_interest + min_deposit
+        })
+    
+    context = {
+        'client': client,
+        'vehicle': vehicle,
+        'payment_options': payment_options,
+        'min_deposit': min_deposit,
+    }
+    
+    return render(request, 'clients/portal/initiate_purchase.html', context)
+
+
+@login_required
+@client_required
+def portal_make_payment(request, client_vehicle_id, payment_type='installment'):
+    """
+    Make a payment - choose payment method (M-Pesa, Bank Transfer, etc.)
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    # Get client vehicle
+    client_vehicle = get_object_or_404(
+        ClientVehicle.objects.select_related('vehicle', 'installment_plan'),
+        id=client_vehicle_id,
+        client=client
+    )
+    
+    # Determine amount to pay
+    if payment_type == 'down_payment':
+        amount_to_pay = client_vehicle.down_payment
+        description = 'Down Payment'
+    else:
+        # Get next pending schedule
+        next_schedule = PaymentSchedule.objects.filter(
+            installment_plan__client_vehicle=client_vehicle,
+            is_paid=False
+        ).order_by('due_date').first()
+        
+        if next_schedule:
+            amount_to_pay = next_schedule.amount_due
+            description = f'Installment #{next_schedule.installment_number}'
+        else:
+            messages.info(request, 'No pending payments found.')
+            return redirect('clients:portal_vehicle_detail', vehicle_id=client_vehicle.id)
+    
+    if request.method == 'POST':
+        payment_method = request.POST.get('payment_method')
+        
+        if payment_method == 'mpesa':
+            phone_number = request.POST.get('phone_number')
+            # Initiate M-Pesa STK Push
+            # This will be implemented in the M-Pesa integration
+            messages.info(request, 'M-Pesa STK Push initiated. Please check your phone to complete the payment.')
+            # Store pending payment info in session
+            request.session['pending_payment'] = {
+                'client_vehicle_id': client_vehicle_id,
+                'amount': str(amount_to_pay),
+                'payment_type': payment_type,
+                'phone_number': phone_number
+            }
+            return redirect('clients:portal_payment_pending')
+        
+        elif payment_method == 'bank_transfer':
+            # Show bank details for transfer
+            return redirect('clients:portal_payment_bank_details', client_vehicle_id=client_vehicle_id, payment_type=payment_type)
+        
+        elif payment_method == 'cash':
+            messages.info(request, 'Please visit our office to make a cash payment.')
+            return redirect('clients:portal_vehicle_detail', vehicle_id=client_vehicle.id)
+    
+    context = {
+        'client': client,
+        'client_vehicle': client_vehicle,
+        'amount_to_pay': amount_to_pay,
+        'description': description,
+        'payment_type': payment_type,
+    }
+    
+    return render(request, 'clients/portal/make_payment.html', context)
+
+
+@login_required
+@client_required
+def portal_payment_pending(request):
+    """
+    Show pending payment status
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    # Get pending payment info from session
+    pending_payment = request.session.get('pending_payment')
+    
+    if not pending_payment:
+        messages.warning(request, 'No pending payment found.')
+        return redirect('clients:portal_dashboard')
+    
+    context = {
+        'client': client,
+        'pending_payment': pending_payment,
+    }
+    
+    return render(request, 'clients/portal/payment_pending.html', context)
+
+
+@login_required
+@client_required
+def portal_payment_bank_details(request, client_vehicle_id, payment_type):
+    """
+    Show bank details for manual transfer
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    client_vehicle = get_object_or_404(
+        ClientVehicle.objects.select_related('vehicle'),
+        id=client_vehicle_id,
+        client=client
+    )
+    
+    # Determine amount
+    if payment_type == 'down_payment':
+        amount_to_pay = client_vehicle.down_payment
+    else:
+        next_schedule = PaymentSchedule.objects.filter(
+            installment_plan__client_vehicle=client_vehicle,
+            is_paid=False
+        ).order_by('due_date').first()
+        amount_to_pay = next_schedule.amount_due if next_schedule else Decimal('0')
+    
+    # Bank details (should be from settings/config)
+    bank_details = {
+        'bank_name': 'Example Bank Limited',
+        'account_name': 'Vehicle Management System',
+        'account_number': '1234567890',
+        'branch': 'Main Branch',
+        'swift_code': 'EXAMPLEKE',
+    }
+    
+    context = {
+        'client': client,
+        'client_vehicle': client_vehicle,
+        'amount_to_pay': amount_to_pay,
+        'payment_type': payment_type,
+        'bank_details': bank_details,
+    }
+    
+    return render(request, 'clients/portal/payment_bank_details.html', context)

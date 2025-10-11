@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Purchase {{ vehicle.full_name }} - Client Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 max-w-4xl mx-auto">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <a href="{% url 'clients:portal_vehicle_marketplace_detail' vehicle.id %}" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-3">
+            <i class="fas fa-arrow-left mr-2"></i>
+            Back to Vehicle Details
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900">Purchase Vehicle</h1>
+        <p class="text-gray-600 mt-1">{{ vehicle.full_name }}</p>
+    </div>
+
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- Vehicle Summary -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Vehicle Summary</h2>
+            <div class="flex items-center space-x-4 mb-4">
+                <div class="w-24 h-24 bg-gradient-to-br from-blue-200 to-blue-400 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-car text-3xl text-white"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">{{ vehicle.full_name }}</h3>
+                    <p class="text-gray-600">{{ vehicle.color }} • {{ vehicle.mileage|intcomma }} km</p>
+                    <p class="text-2xl font-bold text-blue-600 mt-1">KSH {{ vehicle.selling_price|floatformat:0|intcomma }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Down Payment -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Down Payment</h2>
+            <div class="mb-4">
+                <label for="down_payment" class="block text-sm font-medium text-gray-700 mb-2">
+                    Enter Down Payment Amount (KSH)
+                </label>
+                <input type="number" 
+                       name="down_payment" 
+                       id="down_payment" 
+                       value="{{ min_deposit }}" 
+                       min="{{ min_deposit }}" 
+                       max="{{ vehicle.selling_price }}"
+                       step="1000"
+                       required
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-lg font-semibold"
+                       onchange="calculatePlan()">
+                <p class="text-sm text-gray-600 mt-2">
+                    Minimum deposit required: <span class="font-semibold">KSH {{ min_deposit|floatformat:0|intcomma }}</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Payment Plan Selection -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Choose Payment Plan</h2>
+            
+            <div class="space-y-4">
+                <!-- Full Payment Option -->
+                <label class="block border-2 border-gray-300 rounded-lg p-4 cursor-pointer hover:border-blue-500 transition">
+                    <input type="radio" name="payment_plan" value="full" class="mr-3" onchange="calculatePlan()">
+                    <span class="font-semibold text-gray-900">Pay in Full</span>
+                    <p class="text-sm text-gray-600 ml-7">Complete payment upfront - no interest</p>
+                </label>
+
+                {% for option in payment_options %}
+                <label class="block border-2 border-gray-300 rounded-lg p-4 cursor-pointer hover:border-blue-500 transition">
+                    <input type="radio" name="payment_plan" value="{{ option.months }}" class="mr-3" 
+                           {% if forloop.first %}checked{% endif %} onchange="calculatePlan()">
+                    <div class="ml-7">
+                        <span class="font-semibold text-gray-900">{{ option.months }} Months Payment Plan</span>
+                        <div class="grid grid-cols-2 gap-4 mt-2 text-sm">
+                            <div>
+                                <p class="text-gray-600">Monthly Payment:</p>
+                                <p class="font-bold text-blue-600" id="monthly_{{ option.months }}">
+                                    KSH {{ option.monthly_with_interest|floatformat:0|intcomma }}
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Total Amount:</p>
+                                <p class="font-semibold text-gray-900" id="total_{{ option.months }}">
+                                    KSH {{ option.total_amount|floatformat:0|intcomma }}
+                                </p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">Interest: KSH {{ option.total_interest|floatformat:0|intcomma }}</p>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h3 class="text-lg font-bold text-blue-900 mb-4">Purchase Summary</h3>
+            <dl class="space-y-2">
+                <div class="flex justify-between">
+                    <dt class="text-blue-700">Vehicle Price:</dt>
+                    <dd class="font-semibold text-blue-900">KSH {{ vehicle.selling_price|floatformat:0|intcomma }}</dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-blue-700">Down Payment:</dt>
+                    <dd class="font-semibold text-blue-900" id="summary_deposit">KSH {{ min_deposit|floatformat:0|intcomma }}</dd>
+                </div>
+                <div class="flex justify-between pt-2 border-t border-blue-300">
+                    <dt class="text-blue-700 font-semibold">Balance to Finance:</dt>
+                    <dd class="font-bold text-blue-900" id="summary_balance">KSH {{ vehicle.selling_price|add:min_deposit|floatformat:0|intcomma }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Terms & Conditions -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <label class="flex items-start space-x-3">
+                <input type="checkbox" required class="mt-1">
+                <span class="text-sm text-gray-700">
+                    I agree to the <a href="#" class="text-blue-600 hover:underline">terms and conditions</a> and confirm that all information provided is accurate.
+                </span>
+            </label>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="flex space-x-4">
+            <a href="{% url 'clients:portal_vehicle_marketplace_detail' vehicle.id %}" 
+               class="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-center font-semibold text-gray-700 hover:bg-gray-50 transition">
+                Cancel
+            </a>
+            <button type="submit" 
+                    class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">
+                <i class="fas fa-arrow-right mr-2"></i>
+                Proceed to Payment
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function calculatePlan() {
+    const downPayment = parseFloat(document.getElementById('down_payment').value) || {{ min_deposit }};
+    const vehiclePrice = {{ vehicle.selling_price }};
+    const balance = vehiclePrice - downPayment;
+    
+    // Update summary
+    document.getElementById('summary_deposit').textContent = 'KSH ' + downPayment.toLocaleString();
+    document.getElementById('summary_balance').textContent = 'KSH ' + balance.toLocaleString();
+}
+</script>
+{% endblock %}

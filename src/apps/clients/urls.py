@@ -37,6 +37,16 @@ urlpatterns = [
     path('portal/profile/', portal_views.portal_profile, name='portal_profile'),
     path('portal/notifications/', portal_views.portal_notifications, name='portal_notifications'),
     
+    # Portal Marketplace - Buy Vehicles
+    path('portal/marketplace/', portal_views.portal_marketplace, name='portal_marketplace'),
+    path('portal/marketplace/<int:vehicle_id>/', portal_views.portal_vehicle_marketplace_detail, name='portal_vehicle_marketplace_detail'),
+    path('portal/purchase/<int:vehicle_id>/', portal_views.portal_initiate_purchase, name='portal_initiate_purchase'),
+    
+    # Portal Payments - Make Payments
+    path('portal/make-payment/<int:client_vehicle_id>/<str:payment_type>/', portal_views.portal_make_payment, name='portal_make_payment'),
+    path('portal/payment/pending/', portal_views.portal_payment_pending, name='portal_payment_pending'),
+    path('portal/payment/bank-details/<int:client_vehicle_id>/<str:payment_type>/', portal_views.portal_payment_bank_details, name='portal_payment_bank_details'),
+    
     # ==================== CLIENT MANAGEMENT URLS (For staff) ====================
     
     # Client List & Search

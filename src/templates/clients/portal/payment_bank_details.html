@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bank Transfer Details - Client Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 max-w-3xl mx-auto">
+    <!-- Page Header -->
+    <div class="mb-6 text-center">
+        <h1 class="text-3xl font-bold text-gray-900">Bank Transfer Payment</h1>
+        <p class="text-gray-600 mt-1">Use the details below to complete your payment</p>
+    </div>
+
+    <!-- Payment Amount -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6 text-center">
+        <p class="text-blue-700 mb-2">Amount to Transfer</p>
+        <p class="text-4xl font-bold text-blue-900">KSH {{ amount_to_pay|floatformat:0|intcomma }}</p>
+    </div>
+
+    <!-- Bank Details -->
+    <div class="bg-white rounded-lg shadow-lg p-8 mb-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-6">Our Bank Details</h2>
+        
+        <dl class="space-y-4">
+            <div class="flex justify-between py-3 border-b border-gray-200">
+                <dt class="text-gray-600 font-medium">Bank Name:</dt>
+                <dd class="font-bold text-gray-900 text-right">{{ bank_details.bank_name }}</dd>
+            </div>
+            <div class="flex justify-between py-3 border-b border-gray-200">
+                <dt class="text-gray-600 font-medium">Account Name:</dt>
+                <dd class="font-bold text-gray-900 text-right">{{ bank_details.account_name }}</dd>
+            </div>
+            <div class="flex justify-between py-3 border-b border-gray-200">
+                <dt class="text-gray-600 font-medium">Account Number:</dt>
+                <dd class="font-bold text-gray-900 text-right text-2xl">{{ bank_details.account_number }}</dd>
+            </div>
+            <div class="flex justify-between py-3 border-b border-gray-200">
+                <dt class="text-gray-600 font-medium">Branch:</dt>
+                <dd class="font-bold text-gray-900 text-right">{{ bank_details.branch }}</dd>
+            </div>
+            <div class="flex justify-between py-3">
+                <dt class="text-gray-600 font-medium">SWIFT Code:</dt>
+                <dd class="font-bold text-gray-900 text-right">{{ bank_details.swift_code }}</dd>
+            </div>
+        </dl>
+
+        <!-- Reference Note -->
+        <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h3 class="font-semibold text-yellow-900 mb-2">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                Important:
+            </h3>
+            <p class="text-sm text-yellow-800 mb-2">
+                Please use the following reference when making your transfer:
+            </p>
+            <p class="text-lg font-bold text-yellow-900 bg-yellow-100 p-3 rounded text-center">
+                {{ client_vehicle.vehicle.registration_number }} - {{ client.get_full_name }}
+            </p>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">Payment Instructions</h3>
+        <ol class="list-decimal list-inside space-y-3 text-gray-700">
+            <li>Log into your online banking or visit your bank branch</li>
+            <li>Initiate a transfer to the account details above</li>
+            <li>Enter the exact amount: <strong>KSH {{ amount_to_pay|floatformat:2|intcomma }}</strong></li>
+            <li>Use the reference code provided above</li>
+            <li>Complete the transfer and save your receipt</li>
+            <li>Send proof of payment via email or WhatsApp</li>
+        </ol>
+    </div>
+
+    <!-- Contact Information -->
+    <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+        <h3 class="font-semibold text-green-900 mb-3">
+            <i class="fas fa-upload mr-2"></i>
+            Submit Payment Proof
+        </h3>
+        <p class="text-sm text-green-800 mb-4">
+            Once you've completed the transfer, please send your payment proof to:
+        </p>
+        <div class="space-y-2">
+            <div class="flex items-center text-green-900">
+                <i class="fas fa-envelope w-6"></i>
+                <span class="font-semibold">payments@vehiclemanagement.com</span>
+            </div>
+            <div class="flex items-center text-green-900">
+                <i class="fab fa-whatsapp w-6"></i>
+                <span class="font-semibold">+254 700 000 000</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex space-x-4">
+        <a href="{% url 'clients:portal_vehicle_detail' client_vehicle.id %}" 
+           class="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-center font-semibold text-gray-700 hover:bg-gray-50 transition">
+            Back to Vehicle
+        </a>
+        <button onclick="window.print()" 
+                class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">
+            <i class="fas fa-print mr-2"></i>
+            Print Details
+        </button>
+    </div>
+
+    <!-- Note -->
+    <div class="mt-8 text-center">
+        <p class="text-sm text-gray-500">
+            Payments are typically processed within 1-2 business days. 
+            You'll receive a confirmation once your payment is verified.
+        </p>
+    </div>
+</div>
+{% endblock %}
