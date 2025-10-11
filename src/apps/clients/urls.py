@@ -3,12 +3,41 @@ URL configuration for client app
 Handles all client-related routing
 """
 from django.urls import path
-from . import views
+from . import views, portal_views
 
 app_name = 'clients'
 
 urlpatterns = [
-    # ==================== CLIENT MANAGEMENT URLS ====================
+    # ==================== CLIENT PORTAL URLS (For logged-in clients) ====================
+    
+    # Portal Dashboard
+    path('portal/', portal_views.portal_dashboard, name='portal_dashboard'),
+    
+    # Portal Vehicles
+    path('portal/vehicles/', portal_views.portal_vehicles, name='portal_vehicles'),
+    path('portal/vehicles/<int:vehicle_id>/', portal_views.portal_vehicle_detail, name='portal_vehicle_detail'),
+    
+    # Portal Payments
+    path('portal/payments/', portal_views.portal_payments, name='portal_payments'),
+    path('portal/payment-schedules/', portal_views.portal_payment_schedules, name='portal_payment_schedules'),
+    
+    # Portal Installment Plans
+    path('portal/installment-plans/', portal_views.portal_installment_plans, name='portal_installment_plans'),
+    path('portal/installment-plans/<int:plan_id>/', portal_views.portal_installment_plan_detail, name='portal_installment_plan_detail'),
+    
+    # Portal Documents
+    path('portal/documents/', portal_views.portal_documents, name='portal_documents'),
+    path('portal/documents/<int:document_id>/download/', portal_views.portal_document_download, name='portal_document_download'),
+    
+    # Portal Insurance
+    path('portal/insurance/', portal_views.portal_insurance, name='portal_insurance'),
+    path('portal/insurance/<int:insurance_id>/', portal_views.portal_insurance_detail, name='portal_insurance_detail'),
+    
+    # Portal Profile & Settings
+    path('portal/profile/', portal_views.portal_profile, name='portal_profile'),
+    path('portal/notifications/', portal_views.portal_notifications, name='portal_notifications'),
+    
+    # ==================== CLIENT MANAGEMENT URLS (For staff) ====================
     
     # Client List & Search
     path('', views.client_list, name='client_list'),

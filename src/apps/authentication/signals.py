@@ -15,11 +15,28 @@ logger = logging.getLogger(__name__)
 def create_user_profile(sender, instance, created, **kwargs):
     """
     Automatically create UserProfile when User is created
+    Also create Client profile if user role is CLIENT
     """
     if created:
         try:
             UserProfile.objects.create(user=instance)
             logger.info(f"Profile created for user: {instance.email}")
+            
+            # Create Client profile if role is CLIENT
+            from utils.constants import UserRole
+            if instance.role == UserRole.CLIENT:
+                from apps.clients.models import Client
+                # Create client profile with basic info from user
+                Client.objects.create(
+                    user=instance,
+                    first_name=instance.first_name or 'New',
+                    last_name=instance.last_name or 'Client',
+                    email=instance.email,
+                    id_number=f'TEMP-{instance.id}',  # Temporary, should be updated by user
+                    phone_primary='+254700000000',  # Temporary, should be updated by user
+                    physical_address='To be updated'  # Should be updated by user
+                )
+                logger.info(f"Client profile created for user: {instance.email}")
         except Exception as e:
             logger.error(f"Error creating profile for user {instance.email}: {str(e)}")
 

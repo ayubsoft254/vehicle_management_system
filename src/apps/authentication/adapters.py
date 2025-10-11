@@ -27,6 +27,8 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         Saves a new User instance using information provided in the
         signup form.
         """
+        from utils.constants import UserRole
+        
         # Get data from form
         data = form.cleaned_data
         
@@ -35,10 +37,9 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         user.first_name = data.get('first_name', '')
         user.last_name = data.get('last_name', '')
         
-        # Set default role for new signups
-        # You can customize this based on your needs
+        # Set default role for new signups - CLIENT role for self-registration
         if not user.role:
-            user.role = 'clerk'  # Default role for self-registered users
+            user.role = UserRole.CLIENT  # Clients can access their portal
         
         # Set additional fields if they exist in the form
         if 'phone' in data:
@@ -54,20 +55,24 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         Returns the URL to redirect to after a successful login.
         Can customize based on user role.
         """
+        from utils.constants import UserRole
+        
         # Get the default redirect URL
         path = super().get_login_redirect_url(request)
         
         # Customize redirect based on user role
         if request.user.is_authenticated:
-            if request.user.role == 'admin':
+            if request.user.role == UserRole.CLIENT:
+                return '/clients/portal/'  # Client portal dashboard
+            elif request.user.role == UserRole.ADMIN:
                 return '/dashboard/'
-            elif request.user.role == 'manager':
+            elif request.user.role == UserRole.MANAGER:
                 return '/dashboard/'
-            elif request.user.role == 'sales':
+            elif request.user.role == UserRole.SALES:
                 return '/dashboard/'
-            elif request.user.role == 'accountant':
+            elif request.user.role == UserRole.ACCOUNTANT:
                 return '/dashboard/'
-            elif request.user.role == 'auctioneer':
+            elif request.user.role == UserRole.AUCTIONEER:
                 return '/auctions/'
             else:
                 return '/dashboard/'

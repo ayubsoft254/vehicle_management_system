@@ -39,6 +39,16 @@ class Client(models.Model):
     Stores personal and contact information
     """
     
+    # Link to User Account
+    user = models.OneToOneField(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='client_profile',
+        help_text='Linked user account for client portal access'
+    )
+    
     # Personal Information
     first_name = models.CharField(
         'First Name',

@@ -10,6 +10,7 @@ class UserRole:
     AUCTIONEER = 'auctioneer'
     MANAGER = 'manager'
     CLERK = 'clerk'
+    CLIENT = 'client'  # For customer/client portal access
     
     CHOICES = [
         (ADMIN, 'Administrator'),
@@ -18,6 +19,7 @@ class UserRole:
         (AUCTIONEER, 'Auctioneer'),
         (MANAGER, 'Manager'),
         (CLERK, 'Clerk'),
+        (CLIENT, 'Client'),
     ]
 
 # Vehicle Status

@@ -76,92 +76,166 @@
                 <!-- Navigation -->
                 <nav class="flex-1 px-4 py-6 overflow-y-auto scrollbar-hide">
                     <div class="space-y-1">
-                        <!-- Dashboard -->
-                        <a href="{% url 'dashboard:index' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
-                            <i class="fas fa-home w-5 text-gray-400 group-hover:text-primary-600"></i>
-                            <span class="ml-3 font-medium">Dashboard</span>
-                        </a>
-                        
-                        <!-- Vehicles -->
-                        <a href="{% url 'vehicles:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
-                            <i class="fas fa-car w-5 text-gray-400 group-hover:text-primary-600"></i>
-                            <span class="ml-3 font-medium">Vehicles</span>
-                        </a>
-                        
-                        <!-- Clients -->
-                        <a href="{% url 'clients:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
-                            <i class="fas fa-users w-5 text-gray-400 group-hover:text-primary-600"></i>
-                            <span class="ml-3 font-medium">Clients</span>
-                        </a>
-                        
-                        <!-- Divider -->
-                        <div class="pt-4 pb-2">
-                            <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Financial</p>
-                        </div>
-                        
-                        <!-- Payments -->
-                        <a href="{% url 'payments:payment_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
-                            <i class="fas fa-credit-card w-5 text-gray-400 group-hover:text-primary-600"></i>
-                            <span class="ml-3 font-medium">Payments</span>
-                        </a>
-                        
-                        <!-- Expenses -->
-                        <a href="{% url 'expenses:expense_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
-                            <i class="fas fa-receipt w-5 text-gray-400 group-hover:text-primary-600"></i>
-                            <span class="ml-3 font-medium">Expenses</span>
-                        </a>
-                        
-                        <!-- Payroll -->
-                        <a href="{% url 'payroll:payroll_dashboard' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
-                            <i class="fas fa-money-bill-wave w-5 text-gray-400 group-hover:text-primary-600"></i>
-                            <span class="ml-3 font-medium">Payroll</span>
-                        </a>
-                        
-                        <!-- Divider -->
-                        <div class="pt-4 pb-2">
-                            <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Operations</p>
-                        </div>
-                        
-                        <!-- Auctions -->
-                        <a href="{% url 'auctions:auction_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
-                            <i class="fas fa-gavel w-5 text-gray-400 group-hover:text-primary-600"></i>
-                            <span class="ml-3 font-medium">Auctions</span>
-                        </a>
-                        
-                        <!-- Insurance -->
-                        <a href="{% url 'insurance:policy_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
-                            <i class="fas fa-shield-alt w-5 text-gray-400 group-hover:text-primary-600"></i>
-                            <span class="ml-3 font-medium">Insurance</span>
-                        </a>
-                        
-                        <!-- Repossessions -->
-                        <a href="{% url 'repossessions:repossession_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
-                            <i class="fas fa-truck-loading w-5 text-gray-400 group-hover:text-primary-600"></i>
-                            <span class="ml-3 font-medium">Repossessions</span>
-                        </a>
-                        
-                        <!-- Divider -->
-                        <div class="pt-4 pb-2">
-                            <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Management</p>
-                        </div>
-                        
-                        <!-- Reports -->
-                        <a href="{% url 'reports:dashboard' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
-                            <i class="fas fa-chart-bar w-5 text-gray-400 group-hover:text-primary-600"></i>
-                            <span class="ml-3 font-medium">Reports</span>
-                        </a>
-                        
-                        <!-- Documents -->
-                        <a href="{% url 'documents:document_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
-                            <i class="fas fa-folder w-5 text-gray-400 group-hover:text-primary-600"></i>
-                            <span class="ml-3 font-medium">Documents</span>
-                        </a>
-                        
-                        <!-- Audit -->
-                        <a href="{% url 'audit:log_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
-                            <i class="fas fa-history w-5 text-gray-400 group-hover:text-primary-600"></i>
-                            <span class="ml-3 font-medium">Audit Log</span>
-                        </a>
+                        {% if user.is_authenticated and user.role == 'client' %}
+                            <!-- CLIENT PORTAL NAVIGATION -->
+                            <!-- Dashboard -->
+                            <a href="{% url 'clients:portal_dashboard' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-home w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Dashboard</span>
+                            </a>
+                            
+                            <!-- My Vehicles -->
+                            <a href="{% url 'clients:portal_vehicles' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-car w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">My Vehicles</span>
+                            </a>
+                            
+                            <!-- Divider -->
+                            <div class="pt-4 pb-2">
+                                <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Payments</p>
+                            </div>
+                            
+                            <!-- Payments -->
+                            <a href="{% url 'clients:portal_payments' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-money-bill-wave w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Payments</span>
+                            </a>
+                            
+                            <!-- Payment Schedules -->
+                            <a href="{% url 'clients:portal_payment_schedules' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-calendar-alt w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Payment Schedule</span>
+                            </a>
+                            
+                            <!-- Installment Plans -->
+                            <a href="{% url 'clients:portal_installment_plans' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-credit-card w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Installment Plans</span>
+                            </a>
+                            
+                            <!-- Divider -->
+                            <div class="pt-4 pb-2">
+                                <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Documents</p>
+                            </div>
+                            
+                            <!-- My Documents -->
+                            <a href="{% url 'clients:portal_documents' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-folder w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">My Documents</span>
+                            </a>
+                            
+                            <!-- Insurance -->
+                            <a href="{% url 'clients:portal_insurance' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-shield-alt w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Insurance</span>
+                            </a>
+                            
+                            <!-- Divider -->
+                            <div class="pt-4 pb-2">
+                                <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Account</p>
+                            </div>
+                            
+                            <!-- Profile -->
+                            <a href="{% url 'clients:portal_profile' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-user w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">My Profile</span>
+                            </a>
+                            
+                            <!-- Notifications -->
+                            <a href="{% url 'clients:portal_notifications' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-bell w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Notifications</span>
+                            </a>
+                            
+                        {% else %}
+                            <!-- STAFF NAVIGATION -->
+                            <!-- Dashboard -->
+                            <a href="{% url 'dashboard:index' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-home w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Dashboard</span>
+                            </a>
+                            
+                            <!-- Vehicles -->
+                            <a href="{% url 'vehicles:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-car w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Vehicles</span>
+                            </a>
+                            
+                            <!-- Clients -->
+                            <a href="{% url 'clients:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-users w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Clients</span>
+                            </a>
+                            
+                            <!-- Divider -->
+                            <div class="pt-4 pb-2">
+                                <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Financial</p>
+                            </div>
+                            
+                            <!-- Payments -->
+                            <a href="{% url 'payments:payment_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-credit-card w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Payments</span>
+                            </a>
+                            
+                            <!-- Expenses -->
+                            <a href="{% url 'expenses:expense_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-receipt w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Expenses</span>
+                            </a>
+                            
+                            <!-- Payroll -->
+                            <a href="{% url 'payroll:payroll_dashboard' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-money-bill-wave w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Payroll</span>
+                            </a>
+                            
+                            <!-- Divider -->
+                            <div class="pt-4 pb-2">
+                                <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Operations</p>
+                            </div>
+                            
+                            <!-- Auctions -->
+                            <a href="{% url 'auctions:auction_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-gavel w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Auctions</span>
+                            </a>
+                            
+                            <!-- Insurance -->
+                            <a href="{% url 'insurance:policy_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-shield-alt w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Insurance</span>
+                            </a>
+                            
+                            <!-- Repossessions -->
+                            <a href="{% url 'repossessions:repossession_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-truck-loading w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Repossessions</span>
+                            </a>
+                            
+                            <!-- Divider -->
+                            <div class="pt-4 pb-2">
+                                <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Management</p>
+                            </div>
+                            
+                            <!-- Reports -->
+                            <a href="{% url 'reports:dashboard' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-chart-bar w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Reports</span>
+                            </a>
+                            
+                            <!-- Documents -->
+                            <a href="{% url 'documents:document_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-folder w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Documents</span>
+                            </a>
+                            
+                            <!-- Audit -->
+                            <a href="{% url 'audit:log_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-history w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Audit Log</span>
+                            </a>
+                        {% endif %}
                     </div>
                 </nav>
                 
@@ -205,7 +279,15 @@
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <i class="fas fa-search text-gray-400"></i>
                                     </div>
-                                    <input type="text" name="search" id="search" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent sm:text-sm transition-colors duration-200" placeholder="Search vehicles, clients, transactions...">
+                                    <input type="text" name="search" id="search" 
+                                           class="block w-full pl-10 pr-16 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent focus:bg-white sm:text-sm transition-all duration-200" 
+                                           placeholder="Search vehicles, clients, transactions..."
+                                           autocomplete="off">
+                                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                        <kbd class="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                                            ⌘K
+                                        </kbd>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -305,46 +387,455 @@
     
     <!-- Custom JavaScript -->
     <script>
-        // Mobile Sidebar Toggle
+        // ============================================================================
+        // MOBILE SIDEBAR TOGGLE
+        // ============================================================================
         const sidebar = document.getElementById('sidebar');
         const openSidebarBtn = document.getElementById('open-sidebar');
         const closeSidebarBtn = document.getElementById('close-sidebar');
         const overlay = document.getElementById('mobile-menu-overlay');
         
         function openSidebar() {
-            sidebar.classList.remove('-translate-x-full');
-            overlay.classList.remove('hidden');
+            if (sidebar && overlay) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                document.body.style.overflow = 'hidden'; // Prevent body scroll
+            }
         }
         
         function closeSidebar() {
-            sidebar.classList.add('-translate-x-full');
-            overlay.classList.add('hidden');
+            if (sidebar && overlay) {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+                document.body.style.overflow = ''; // Restore body scroll
+            }
         }
         
         openSidebarBtn?.addEventListener('click', openSidebar);
         closeSidebarBtn?.addEventListener('click', closeSidebar);
         overlay?.addEventListener('click', closeSidebar);
         
-        // Active Link Highlighting
+        // Close sidebar on ESC key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeSidebar();
+            }
+        });
+        
+        // ============================================================================
+        // ACTIVE LINK HIGHLIGHTING
+        // ============================================================================
         const currentPath = window.location.pathname;
         const navLinks = document.querySelectorAll('aside nav a');
         
         navLinks.forEach(link => {
-            if (link.getAttribute('href') === currentPath) {
+            const linkPath = link.getAttribute('href');
+            
+            // Exact match or starts with (for sub-pages)
+            if (linkPath === currentPath || (currentPath.startsWith(linkPath) && linkPath !== '/')) {
                 link.classList.add('bg-primary-50', 'text-primary-700');
                 link.classList.remove('text-gray-700');
+                
+                // Add active indicator
+                const icon = link.querySelector('i');
+                if (icon) {
+                    icon.classList.add('text-primary-600');
+                    icon.classList.remove('text-gray-400');
+                }
             }
         });
         
-        // Auto-hide messages after 5 seconds
+        // ============================================================================
+        // GLOBAL SEARCH FUNCTIONALITY
+        // ============================================================================
+        const searchInput = document.getElementById('search');
+        const searchResultsContainer = document.createElement('div');
+        searchResultsContainer.id = 'search-results';
+        searchResultsContainer.className = 'absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 max-h-96 overflow-y-auto z-50 hidden';
+        
+        if (searchInput) {
+            // Add results container after search input parent
+            searchInput.parentElement.parentElement.style.position = 'relative';
+            searchInput.parentElement.parentElement.appendChild(searchResultsContainer);
+            
+            let searchTimeout;
+            
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim();
+                
+                // Clear previous timeout
+                clearTimeout(searchTimeout);
+                
+                if (query.length < 2) {
+                    searchResultsContainer.classList.add('hidden');
+                    return;
+                }
+                
+                // Debounce search
+                searchTimeout = setTimeout(() => {
+                    performSearch(query);
+                }, 300);
+            });
+            
+            // Close search results when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!searchInput.contains(e.target) && !searchResultsContainer.contains(e.target)) {
+                    searchResultsContainer.classList.add('hidden');
+                }
+            });
+            
+            // Handle keyboard navigation in search results
+            searchInput.addEventListener('keydown', (e) => {
+                const results = searchResultsContainer.querySelectorAll('a');
+                const activeResult = searchResultsContainer.querySelector('a:focus');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (!activeResult) {
+                        results[0]?.focus();
+                    } else {
+                        const currentIndex = Array.from(results).indexOf(activeResult);
+                        results[currentIndex + 1]?.focus();
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (activeResult) {
+                        const currentIndex = Array.from(results).indexOf(activeResult);
+                        if (currentIndex > 0) {
+                            results[currentIndex - 1]?.focus();
+                        } else {
+                            searchInput.focus();
+                        }
+                    }
+                } else if (e.key === 'Escape') {
+                    searchResultsContainer.classList.add('hidden');
+                    searchInput.blur();
+                }
+            });
+        }
+        
+        function performSearch(query) {
+            // Show loading state
+            searchResultsContainer.innerHTML = `
+                <div class="p-4 text-center">
+                    <i class="fas fa-spinner fa-spin text-primary-600 text-2xl"></i>
+                    <p class="mt-2 text-sm text-gray-600">Searching...</p>
+                </div>
+            `;
+            searchResultsContainer.classList.remove('hidden');
+            
+            // Perform search using fetch API
+            fetch(`/api/search/?q=${encodeURIComponent(query)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Search failed');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displaySearchResults(data, query);
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    // Fallback to client-side search
+                    performClientSideSearch(query);
+                });
+        }
+        
+        function performClientSideSearch(query) {
+            const results = {
+                vehicles: [],
+                clients: [],
+                payments: [],
+                auctions: []
+            };
+            
+            // This is a fallback - ideally search should be server-side
+            // For now, show message that search is available on specific pages
+            searchResultsContainer.innerHTML = `
+                <div class="p-6">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-search text-gray-400 text-3xl mb-2"></i>
+                        <p class="text-sm text-gray-600">Search for: <strong>"${escapeHtml(query)}"</strong></p>
+                    </div>
+                    <div class="space-y-2">
+                        <a href="/vehicles/?search=${encodeURIComponent(query)}" class="block p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                            <div class="flex items-center">
+                                <i class="fas fa-car text-blue-600 w-5"></i>
+                                <span class="ml-3 text-sm font-medium text-gray-900">Search Vehicles</span>
+                            </div>
+                        </a>
+                        <a href="/clients/?search=${encodeURIComponent(query)}" class="block p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                            <div class="flex items-center">
+                                <i class="fas fa-users text-green-600 w-5"></i>
+                                <span class="ml-3 text-sm font-medium text-gray-900">Search Clients</span>
+                            </div>
+                        </a>
+                        <a href="/payments/?search=${encodeURIComponent(query)}" class="block p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                            <div class="flex items-center">
+                                <i class="fas fa-credit-card text-yellow-600 w-5"></i>
+                                <span class="ml-3 text-sm font-medium text-gray-900">Search Payments</span>
+                            </div>
+                        </a>
+                        <a href="/documents/?search=${encodeURIComponent(query)}" class="block p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                            <div class="flex items-center">
+                                <i class="fas fa-folder text-purple-600 w-5"></i>
+                                <span class="ml-3 text-sm font-medium text-gray-900">Search Documents</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            `;
+            searchResultsContainer.classList.remove('hidden');
+        }
+        
+        function displaySearchResults(data, query) {
+            if (!data || (!data.vehicles?.length && !data.clients?.length && !data.payments?.length && !data.auctions?.length)) {
+                searchResultsContainer.innerHTML = `
+                    <div class="p-6 text-center">
+                        <i class="fas fa-search text-gray-300 text-4xl mb-2"></i>
+                        <p class="text-sm text-gray-600">No results found for "<strong>${escapeHtml(query)}</strong>"</p>
+                        <p class="text-xs text-gray-500 mt-1">Try different keywords or search in specific modules</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '<div class="p-4">';
+            
+            // Vehicles
+            if (data.vehicles?.length > 0) {
+                html += `
+                    <div class="mb-4">
+                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Vehicles</h4>
+                        <div class="space-y-1">
+                `;
+                data.vehicles.slice(0, 3).forEach(vehicle => {
+                    html += `
+                        <a href="/vehicles/${vehicle.id}/" class="block p-3 hover:bg-blue-50 rounded-lg transition-colors">
+                            <div class="flex items-center">
+                                <i class="fas fa-car text-blue-600 w-5"></i>
+                                <div class="ml-3 flex-1">
+                                    <p class="text-sm font-medium text-gray-900">${escapeHtml(vehicle.make)} ${escapeHtml(vehicle.model)} (${vehicle.year})</p>
+                                    <p class="text-xs text-gray-500">${escapeHtml(vehicle.vin || 'No VIN')}</p>
+                                </div>
+                                <span class="text-xs px-2 py-1 rounded-full ${getStatusClass(vehicle.status)}">${escapeHtml(vehicle.status)}</span>
+                            </div>
+                        </a>
+                    `;
+                });
+                html += '</div></div>';
+            }
+            
+            // Clients
+            if (data.clients?.length > 0) {
+                html += `
+                    <div class="mb-4">
+                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Clients</h4>
+                        <div class="space-y-1">
+                `;
+                data.clients.slice(0, 3).forEach(client => {
+                    html += `
+                        <a href="/clients/${client.id}/" class="block p-3 hover:bg-green-50 rounded-lg transition-colors">
+                            <div class="flex items-center">
+                                <i class="fas fa-user text-green-600 w-5"></i>
+                                <div class="ml-3 flex-1">
+                                    <p class="text-sm font-medium text-gray-900">${escapeHtml(client.full_name)}</p>
+                                    <p class="text-xs text-gray-500">${escapeHtml(client.email || client.phone)}</p>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                });
+                html += '</div></div>';
+            }
+            
+            // Payments
+            if (data.payments?.length > 0) {
+                html += `
+                    <div class="mb-4">
+                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Payments</h4>
+                        <div class="space-y-1">
+                `;
+                data.payments.slice(0, 3).forEach(payment => {
+                    html += `
+                        <a href="/payments/${payment.id}/" class="block p-3 hover:bg-yellow-50 rounded-lg transition-colors">
+                            <div class="flex items-center">
+                                <i class="fas fa-credit-card text-yellow-600 w-5"></i>
+                                <div class="ml-3 flex-1">
+                                    <p class="text-sm font-medium text-gray-900">KES ${formatNumber(payment.amount)}</p>
+                                    <p class="text-xs text-gray-500">${escapeHtml(payment.client_name)} - ${payment.date}</p>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                });
+                html += '</div></div>';
+            }
+            
+            html += '</div>';
+            
+            searchResultsContainer.innerHTML = html;
+            searchResultsContainer.classList.remove('hidden');
+        }
+        
+        // ============================================================================
+        // UTILITY FUNCTIONS
+        // ============================================================================
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+        
+        function getStatusClass(status) {
+            const statusClasses = {
+                'available': 'bg-green-100 text-green-800',
+                'reserved': 'bg-yellow-100 text-yellow-800',
+                'sold': 'bg-blue-100 text-blue-800',
+                'maintenance': 'bg-orange-100 text-orange-800',
+                'repossessed': 'bg-red-100 text-red-800'
+            };
+            return statusClasses[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
+        }
+        
+        function formatNumber(num) {
+            return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        
+        // ============================================================================
+        // FLASH MESSAGES AUTO-HIDE
+        // ============================================================================
         setTimeout(() => {
             const messages = document.querySelectorAll('[class*="bg-red-50"], [class*="bg-green-50"], [class*="bg-yellow-50"], [class*="bg-blue-50"]');
             messages.forEach(msg => {
-                msg.style.transition = 'opacity 0.5s';
-                msg.style.opacity = '0';
-                setTimeout(() => msg.remove(), 500);
+                // Check if it's actually a message (has the flex items-start class)
+                if (msg.classList.contains('flex') && msg.classList.contains('items-start')) {
+                    msg.style.transition = 'opacity 0.5s, transform 0.5s';
+                    msg.style.opacity = '0';
+                    msg.style.transform = 'translateX(100%)';
+                    setTimeout(() => msg.remove(), 500);
+                }
             });
         }, 5000);
+        
+        // ============================================================================
+        // KEYBOARD SHORTCUTS
+        // ============================================================================
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + K to focus search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInput?.focus();
+            }
+            
+            // Ctrl/Cmd + B to toggle sidebar (desktop only)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+                e.preventDefault();
+                if (window.innerWidth >= 1024) {
+                    sidebar?.classList.toggle('hidden');
+                    document.querySelector('.lg\\:pl-64')?.classList.toggle('lg:pl-0');
+                }
+            }
+        });
+        
+        // ============================================================================
+        // NOTIFICATION FUNCTIONALITY
+        // ============================================================================
+        const notificationBtn = document.querySelector('[class*="fa-bell"]')?.parentElement;
+        
+        if (notificationBtn) {
+            notificationBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                // TODO: Implement notification panel
+                console.log('Notifications clicked - to be implemented');
+                alert('Notifications feature coming soon!');
+            });
+        }
+        
+        // ============================================================================
+        // RESPONSIVE UTILITIES
+        // ============================================================================
+        // Close sidebar automatically on window resize
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (window.innerWidth >= 1024) {
+                    closeSidebar();
+                }
+            }, 250);
+        });
+        
+        // ============================================================================
+        // LOADING INDICATOR FOR LINKS
+        // ============================================================================
+        document.querySelectorAll('a[href^="/"]').forEach(link => {
+            link.addEventListener('click', function(e) {
+                // Skip if it's a hash link or has data-no-loading attribute
+                if (this.getAttribute('href').startsWith('#') || this.hasAttribute('data-no-loading')) {
+                    return;
+                }
+                
+                // Add subtle loading indicator
+                const originalHtml = this.innerHTML;
+                if (!this.querySelector('.fa-spinner')) {
+                    const spinner = document.createElement('i');
+                    spinner.className = 'fas fa-spinner fa-spin ml-2';
+                    this.appendChild(spinner);
+                    
+                    // Remove spinner after 2 seconds (fallback)
+                    setTimeout(() => {
+                        this.innerHTML = originalHtml;
+                    }, 2000);
+                }
+            });
+        });
+        
+        // ============================================================================
+        // FORM VALIDATION HELPER
+        // ============================================================================
+        window.validateForm = function(formElement) {
+            const requiredFields = formElement.querySelectorAll('[required]');
+            let isValid = true;
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    isValid = false;
+                    field.classList.add('border-red-500');
+                    
+                    // Add error message if not exists
+                    if (!field.nextElementSibling || !field.nextElementSibling.classList.contains('error-message')) {
+                        const error = document.createElement('p');
+                        error.className = 'error-message text-red-500 text-sm mt-1';
+                        error.textContent = 'This field is required';
+                        field.parentNode.insertBefore(error, field.nextSibling);
+                    }
+                } else {
+                    field.classList.remove('border-red-500');
+                    const errorMsg = field.nextElementSibling;
+                    if (errorMsg && errorMsg.classList.contains('error-message')) {
+                        errorMsg.remove();
+                    }
+                }
+            });
+            
+            return isValid;
+        };
+        
+        // ============================================================================
+        // INITIALIZE
+        // ============================================================================
+        console.log('VMS Application Initialized');
+        console.log('Keyboard shortcuts:');
+        console.log('  Ctrl/Cmd + K: Focus search');
+        console.log('  Ctrl/Cmd + B: Toggle sidebar');
+        console.log('  Esc: Close modals/menus');
     </script>
     
     {% block extra_js %}{% endblock %}
