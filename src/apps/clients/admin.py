@@ -81,6 +81,13 @@ class ClientAdmin(admin.ModelAdmin):
     ]
     
     fieldsets = (
+        ('User Account', {
+            'fields': (
+                'user',
+            ),
+            'description': 'Link a user account to allow this client to login to the client portal. '
+                          'The user must have the CLIENT role.'
+        }),
         ('Personal Information', {
             'fields': (
                 'profile_photo',
