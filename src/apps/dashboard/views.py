@@ -53,44 +53,156 @@ from .widgets import (
 # ============================================================================
 
 def landing_page(request):
-    """Public landing page for the Vehicle Management System"""
+    """Public landing page for the Vehicle Management System with vehicle showcase"""
+    from apps.vehicles.models import Vehicle
+    from django.core.paginator import Paginator
+    
+    # Get available vehicles
+    vehicles = Vehicle.objects.available().select_related('added_by').prefetch_related('photos')
+    
+    # Apply filters from GET parameters
+    search = request.GET.get('search', '')
+    make = request.GET.get('make', '')
+    body_type = request.GET.get('body_type', '')
+    min_price = request.GET.get('min_price', '')
+    max_price = request.GET.get('max_price', '')
+    fuel_type = request.GET.get('fuel_type', '')
+    transmission = request.GET.get('transmission', '')
+    
+    if search:
+        vehicles = vehicles.filter(
+            Q(make__icontains=search) |
+            Q(model__icontains=search) |
+            Q(color__icontains=search)
+        )
+    
+    if make:
+        vehicles = vehicles.filter(make__iexact=make)
+    
+    if body_type:
+        vehicles = vehicles.filter(body_type=body_type)
+    
+    if min_price:
+        try:
+            vehicles = vehicles.filter(selling_price__gte=float(min_price))
+        except ValueError:
+            pass
+    
+    if max_price:
+        try:
+            vehicles = vehicles.filter(selling_price__lte=float(max_price))
+        except ValueError:
+            pass
+    
+    if fuel_type:
+        vehicles = vehicles.filter(fuel_type=fuel_type)
+    
+    if transmission:
+        vehicles = vehicles.filter(transmission=transmission)
+    
+    # Get filter options
+    all_makes = Vehicle.objects.available().values_list('make', flat=True).distinct().order_by('make')
+    all_body_types = Vehicle.objects.available().exclude(body_type='').values_list('body_type', flat=True).distinct()
+    
+    # Featured vehicles (shown at top)
+    featured_vehicles = Vehicle.objects.filter(
+        is_featured=True, 
+        is_active=True, 
+        status='available'
+    ).select_related('added_by').prefetch_related('photos')[:6]
+    
+    # Pagination
+    paginator = Paginator(vehicles, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     context = {
         'system_name': 'Vehicle Management System',
-        'tagline': 'Streamline Your Vehicle Operations',
+        'tagline': 'Find Your Perfect Vehicle',
+        'page_obj': page_obj,
+        'featured_vehicles': featured_vehicles,
+        'total_vehicles': vehicles.count(),
+        'all_makes': all_makes,
+        'all_body_types': all_body_types,
+        'current_filters': {
+            'search': search,
+            'make': make,
+            'body_type': body_type,
+            'min_price': min_price,
+            'max_price': max_price,
+            'fuel_type': fuel_type,
+            'transmission': transmission,
+        },
         'features': [
             {
                 'icon': 'fas fa-car',
-                'title': 'Vehicle Inventory',
-                'description': 'Comprehensive vehicle tracking and management'
+                'title': 'Wide Selection',
+                'description': 'Browse our extensive inventory of quality vehicles'
             },
             {
-                'icon': 'fas fa-users',
-                'title': 'Client Management',
-                'description': 'Manage customer relationships and sales'
+                'icon': 'fas fa-shield-check',
+                'title': 'Quality Assured',
+                'description': 'All vehicles are thoroughly inspected'
             },
             {
-                'icon': 'fas fa-dollar-sign',
-                'title': 'Financial Tracking',
-                'description': 'Track payments, expenses, and financial metrics'
+                'icon': 'fas fa-hand-holding-usd',
+                'title': 'Flexible Payment',
+                'description': 'Multiple payment plans available'
             },
             {
-                'icon': 'fas fa-chart-bar',
-                'title': 'Reports & Analytics',
-                'description': 'Generate insights with comprehensive reporting'
-            },
-            {
-                'icon': 'fas fa-shield-alt',
-                'title': 'Insurance Management',
-                'description': 'Handle insurance policies and claims'
-            },
-            {
-                'icon': 'fas fa-gavel',
-                'title': 'Auction Management',
-                'description': 'Manage vehicle auctions and bidding processes'
+                'icon': 'fas fa-headset',
+                'title': '24/7 Support',
+                'description': 'Our team is here to help you'
             }
         ]
     }
     return render(request, 'dashboard/landing_page.html', context)
+
+
+# ============================================================================
+# PUBLIC VEHICLE VIEWS
+# ============================================================================
+
+def public_vehicle_detail(request, pk):
+    """Public view for vehicle details - no login required"""
+    from apps.vehicles.models import Vehicle
+    
+    vehicle = get_object_or_404(
+        Vehicle.objects.select_related('added_by').prefetch_related('photos'),
+        pk=pk,
+        is_active=True,
+        status='available'
+    )
+    
+    # Get similar vehicles (same make or body type)
+    similar_vehicles = Vehicle.objects.available().filter(
+        Q(make=vehicle.make) | Q(body_type=vehicle.body_type)
+    ).exclude(pk=vehicle.pk).select_related('added_by').prefetch_related('photos')[:4]
+    
+    context = {
+        'vehicle': vehicle,
+        'similar_vehicles': similar_vehicles,
+        'is_authenticated': request.user.is_authenticated,
+    }
+    
+    return render(request, 'dashboard/public_vehicle_detail.html', context)
+
+
+def public_vehicle_purchase(request, pk):
+    """Handle purchase initiation - redirect to login if not authenticated"""
+    if not request.user.is_authenticated:
+        # Store the intended vehicle in session and redirect to signup
+        messages.info(request, 'Please create an account or login to purchase this vehicle.')
+        return redirect(f'/accounts/signup/?next=/purchase-vehicle/{pk}/')
+    
+    # Check if user is a client
+    from utils.constants import UserRole
+    if request.user.role != UserRole.CLIENT:
+        messages.error(request, 'Only clients can purchase vehicles. Please contact admin to set up your client account.')
+        return redirect('dashboard:public_vehicle_detail', pk=pk)
+    
+    # Redirect to client portal purchase flow
+    return redirect('clients:portal_initiate_purchase', vehicle_id=pk)
 
 
 # ============================================================================

@@ -9,8 +9,12 @@ from . import views
 app_name = 'dashboard'
 
 urlpatterns = [
-    # Public landing page
+    # Public landing page with vehicle showcase
     path('', views.landing_page, name='landing'),
+    
+    # Public vehicle views (no login required)
+    path('vehicles/<int:pk>/', views.public_vehicle_detail, name='public_vehicle_detail'),
+    path('purchase-vehicle/<int:pk>/', views.public_vehicle_purchase, name='public_vehicle_purchase'),
     
     # Main dashboard (now at /dashboard/)
     # Keep existing 'index' name and also provide a 'home' alias for backwards compatibility

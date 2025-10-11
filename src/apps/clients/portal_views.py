@@ -610,12 +610,23 @@ def portal_vehicle_marketplace_detail(request, vehicle_id):
 def portal_initiate_purchase(request, vehicle_id):
     """
     Initiate vehicle purchase - choose payment plan
+    Handles both returning clients and new users from public page
     """
     client = get_client_from_user(request.user)
     
     if not client:
-        messages.error(request, 'Client profile not found.')
-        return redirect('clients:portal_dashboard')
+        # If user doesn't have a client profile, create one
+        messages.info(request, 'Setting up your client profile...')
+        client = Client.objects.create(
+            user=request.user,
+            first_name=request.user.first_name,
+            last_name=request.user.last_name,
+            email=request.user.email,
+            phone=request.user.phone if hasattr(request.user, 'phone') else '',
+            is_active=True,
+            created_by=request.user
+        )
+        messages.success(request, 'Your client profile has been created!')
     
     # Get vehicle
     vehicle = get_object_or_404(Vehicle, id=vehicle_id, status=VehicleStatus.AVAILABLE)
