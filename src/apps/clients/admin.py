@@ -67,7 +67,7 @@ class ClientAdmin(admin.ModelAdmin):
     ]
     
     search_fields = [
-        'first_name', 'middle_name', 'last_name',
+        'first_name', 'other_names', 'last_name',
         'id_number', 'phone_primary', 'phone_secondary',
         'email'
     ]
@@ -82,7 +82,7 @@ class ClientAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Personal Information', {
             'fields': (
-                ('first_name', 'middle_name', 'last_name'),
+                ('first_name', 'other_names', 'last_name'),
                 ('id_type', 'id_number'),
                 ('date_of_birth', 'gender'),
             )
@@ -99,16 +99,17 @@ class ClientAdmin(admin.ModelAdmin):
         ('Employment Information', {
             'fields': (
                 'occupation',
-                ('employer_name', 'employer_phone'),
+                'employer',
                 'monthly_income',
             ),
             'classes': ('collapse',)
         }),
-        ('Emergency Contact', {
+        ('Next of Kin', {
             'fields': (
-                'emergency_contact_name',
-                'emergency_contact_phone',
-                'emergency_contact_relationship',
+                'next_of_kin_name',
+                'next_of_kin_phone',
+                'next_of_kin_relationship',
+                'next_of_kin_address',
             ),
             'classes': ('collapse',)
         }),
@@ -179,13 +180,13 @@ class ClientAdmin(admin.ModelAdmin):
     
     def credit_limit_display(self, obj):
         """Display credit limit formatted"""
-        return format_html('KES {:,.2f}', obj.credit_limit)
+        return format_html('KES {}', f'{obj.credit_limit:,.2f}')
     credit_limit_display.short_description = 'Credit Limit'
     credit_limit_display.admin_order_field = 'credit_limit'
     
     def available_credit_display(self, obj):
         """Display available credit formatted"""
-        return format_html('KES {:,.2f}', obj.available_credit)
+        return format_html('KES {}', f'{obj.available_credit:,.2f}')
     available_credit_display.short_description = 'Available Credit'
     
     def credit_utilization_display(self, obj):
@@ -193,38 +194,38 @@ class ClientAdmin(admin.ModelAdmin):
         utilization = obj.credit_utilization
         color = '#dc3545' if utilization > 80 else '#28a745' if utilization < 50 else '#ffc107'
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{:.1f}%</span>',
+            '<span style="color: {}; font-weight: bold;">{}</span>',
             color,
-            utilization
+            f'{utilization:.1f}%'
         )
     credit_utilization_display.short_description = 'Credit Utilization'
     
     def total_purchases_display(self, obj):
         """Display total number of purchases"""
-        count = obj.clientvehicle_set.count()
+        count = obj.vehicles.count()
         return format_html('<strong>{}</strong>', count)
     total_purchases_display.short_description = 'Total Purchases'
     
     def total_spent_display(self, obj):
         """Display total amount spent"""
-        total = obj.clientvehicle_set.aggregate(Sum('purchase_price'))['purchase_price__sum'] or 0
-        return format_html('KES {:,.2f}', total)
+        total = obj.vehicles.aggregate(Sum('purchase_price'))['purchase_price__sum'] or 0
+        return format_html('KES {}', f'{total:,.2f}')
     total_spent_display.short_description = 'Total Spent'
     
     def total_paid_display(self, obj):
         """Display total amount paid"""
-        total = obj.clientvehicle_set.aggregate(Sum('total_paid'))['total_paid__sum'] or 0
-        return format_html('KES {:,.2f}', total)
+        total = obj.vehicles.aggregate(Sum('total_paid'))['total_paid__sum'] or 0
+        return format_html('KES {}', f'{total:,.2f}')
     total_paid_display.short_description = 'Total Paid'
     
     def total_balance_display(self, obj):
         """Display total balance"""
-        total = obj.clientvehicle_set.aggregate(Sum('balance'))['balance__sum'] or 0
+        total = obj.vehicles.aggregate(Sum('balance'))['balance__sum'] or 0
         color = '#dc3545' if total > 0 else '#28a745'
         return format_html(
-            '<span style="color: {}; font-weight: bold;">KES {:,.2f}</span>',
+            '<span style="color: {}; font-weight: bold;">KES {}</span>',
             color,
-            total
+            f'{total:,.2f}'
         )
     total_balance_display.short_description = 'Total Balance'
     
@@ -335,13 +336,13 @@ class ClientVehicleAdmin(admin.ModelAdmin):
     
     def purchase_price_display(self, obj):
         """Display purchase price formatted"""
-        return format_html('KES {:,.2f}', obj.purchase_price)
+        return format_html('KES {}', f'{obj.purchase_price:,.2f}')
     purchase_price_display.short_description = 'Purchase Price'
     purchase_price_display.admin_order_field = 'purchase_price'
     
     def total_paid_display(self, obj):
         """Display total paid formatted"""
-        return format_html('KES {:,.2f}', obj.total_paid)
+        return format_html('KES {}', f'{obj.total_paid:,.2f}')
     total_paid_display.short_description = 'Total Paid'
     total_paid_display.admin_order_field = 'total_paid'
     
@@ -349,9 +350,9 @@ class ClientVehicleAdmin(admin.ModelAdmin):
         """Display balance formatted"""
         color = '#dc3545' if obj.balance > 0 else '#28a745'
         return format_html(
-            '<span style="color: {}; font-weight: bold;">KES {:,.2f}</span>',
+            '<span style="color: {}; font-weight: bold;">KES {}</span>',
             color,
-            obj.balance
+            f'{obj.balance:,.2f}'
         )
     balance_display.short_description = 'Balance'
     balance_display.admin_order_field = 'balance'
@@ -364,8 +365,8 @@ class ClientVehicleAdmin(admin.ModelAdmin):
             '<div style="width: 100px; background-color: #e9ecef; border-radius: 3px;">'
             '<div style="width: {}%; background-color: {}; color: white; '
             'text-align: center; border-radius: 3px; padding: 2px 0; font-size: 11px;">'
-            '{:.1f}%</div></div>',
-            progress, color, progress
+            '{}</div></div>',
+            progress, color, f'{progress:.1f}%'
         )
     payment_progress_display.short_description = 'Progress'
     

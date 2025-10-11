@@ -16,11 +16,12 @@ class CustomAccountAdapter(DefaultAccountAdapter):
     def is_open_for_signup(self, request):
         """
         Whether to allow sign ups.
-        You can set this to False to disable public registration.
+        Set to False to disable public registration.
         Only admins can create users through the admin interface.
         """
-        # Change to False if you want to disable public registration
-        return True
+        # Public registration is disabled for security
+        # Only admins can create user accounts
+        return False
     
     def save_user(self, request, user, form, commit=True):
         """

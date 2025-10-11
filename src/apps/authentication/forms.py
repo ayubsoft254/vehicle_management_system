@@ -65,6 +65,7 @@ class CustomSignupForm(SignupForm):
     def save(self, request):
         """
         Save the user with additional fields
+        Note: Public registration is disabled. This is only used if enabled.
         """
         user = super().save(request)
         
@@ -73,9 +74,8 @@ class CustomSignupForm(SignupForm):
         user.last_name = self.cleaned_data['last_name']
         user.phone = self.cleaned_data.get('phone', '')
         
-        # Set default role for new signups
-        if not user.role:
-            user.role = UserRole.CLERK  # Default role for self-registered users
+        # Role will be set by the adapter's save_user method
+        # Default: UserRole.CLIENT for self-registered users (if enabled)
         
         user.save()
         return user

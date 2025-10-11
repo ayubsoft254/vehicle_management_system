@@ -26,17 +26,22 @@ def create_user_profile(sender, instance, created, **kwargs):
             from utils.constants import UserRole
             if instance.role == UserRole.CLIENT:
                 from apps.clients.models import Client
+                import uuid
+                
+                # Generate a unique temporary ID number using UUID
+                temp_id = f'CLIENT-{str(uuid.uuid4())[:8].upper()}'
+                
                 # Create client profile with basic info from user
                 Client.objects.create(
                     user=instance,
                     first_name=instance.first_name or 'New',
                     last_name=instance.last_name or 'Client',
                     email=instance.email,
-                    id_number=f'TEMP-{instance.id}',  # Temporary, should be updated by user
-                    phone_primary='+254700000000',  # Temporary, should be updated by user
-                    physical_address='To be updated'  # Should be updated by user
+                    id_number=temp_id,  # Unique temporary ID, should be updated by admin
+                    phone_primary=instance.phone or '+254700000000',  # Use user phone or temporary
+                    physical_address='To be updated'  # Should be updated by admin
                 )
-                logger.info(f"Client profile created for user: {instance.email}")
+                logger.info(f"Client profile created for user: {instance.email} with ID: {temp_id}")
         except Exception as e:
             logger.error(f"Error creating profile for user {instance.email}: {str(e)}")
 

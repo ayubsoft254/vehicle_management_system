@@ -102,6 +102,18 @@ class Command(BaseCommand):
                 'address': '654 Office Lane, Nairobi',
                 'city': 'Nairobi',
             },
+            {
+                'email': 'client@sample.test',
+                'first_name': 'Peter',
+                'last_name': 'Client',
+                'role': UserRole.CLIENT,
+                'phone': '+254700000007',
+                'employee_id': None,  # Clients don't have employee IDs
+                'department': None,  # Clients don't have departments
+                'password': 'client123',
+                'address': '999 Customer Avenue, Nairobi',
+                'city': 'Nairobi',
+            },
         ]
 
         created_users = []
