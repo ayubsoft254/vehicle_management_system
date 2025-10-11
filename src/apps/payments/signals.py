@@ -6,6 +6,7 @@ from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.db import transaction
 from django.utils import timezone
+from django.db import models
 from decimal import Decimal
 
 from .models import Payment, InstallmentPlan, PaymentSchedule, PaymentReminder
@@ -31,7 +32,7 @@ def update_client_vehicle_after_payment(sender, instance, created, **kwargs):
         
         # Check if fully paid
         if client_vehicle.balance <= 0:
-            client_vehicle.paid_off = True
+            client_vehicle.is_paid_off = True
             client_vehicle.balance = Decimal('0.00')  # Ensure no negative balance
             
             # Update client status to completed
@@ -108,9 +109,9 @@ def revert_payment_on_delete(sender, instance, **kwargs):
     
     client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
     
-    # Update paid_off status
+    # Update is_paid_off status
     if client_vehicle.balance > 0:
-        client_vehicle.paid_off = False
+        client_vehicle.is_paid_off = False
         
         # Revert client status if needed
         client = client_vehicle.client
@@ -290,7 +291,7 @@ def update_client_credit_on_vehicle_save(sender, instance, created, **kwargs):
     from django.db.models import Sum
     total_debt = ClientVehicle.objects.filter(
         client=client,
-        paid_off=False
+        is_paid_off=False
     ).aggregate(total=Sum('balance'))['total'] or Decimal('0.00')
     
     # Update client's available credit (this would be a property in the Client model)
@@ -348,7 +349,7 @@ def auto_update_client_status_on_payment(sender, instance, **kwargs):
     # Count active vehicle purchases
     active_purchases = ClientVehicle.objects.filter(
         client=client,
-        paid_off=False
+        is_paid_off=False
     ).count()
     
     # Update status based on payment history
@@ -366,7 +367,7 @@ def auto_update_client_status_on_payment(sender, instance, **kwargs):
             client=client
         ).count() == ClientVehicle.objects.filter(
             client=client,
-            paid_off=True
+            is_paid_off=True
         ).count()
         
         if all_paid and client.status != 'completed':

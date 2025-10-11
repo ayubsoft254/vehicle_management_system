@@ -645,6 +645,8 @@ def portal_initiate_purchase(request, vehicle_id):
             vehicle=vehicle,
             purchase_price=vehicle.selling_price,
             deposit_paid=down_payment,
+            total_paid=down_payment,  # Initialize total_paid with down_payment
+            balance=vehicle.selling_price - down_payment,  # Calculate initial balance
             purchase_date=timezone.now().date(),
             is_active=True,
             created_by=request.user
