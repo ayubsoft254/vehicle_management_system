@@ -16,7 +16,7 @@ from .models import Client, ClientVehicle, ClientDocument
 from apps.payments.models import Payment, InstallmentPlan, PaymentSchedule
 from apps.vehicles.models import Vehicle
 from apps.documents.models import Document
-from apps.insurance.models import Insurance
+from apps.insurance.models import InsurancePolicy
 from utils.constants import UserRole
 
 
@@ -94,10 +94,10 @@ def portal_dashboard(request):
     ).count()
     
     # Get active insurance policies
-    active_insurance = Insurance.objects.filter(
+    active_insurance = InsurancePolicy.objects.filter(
         client=client,
         status='active',
-        expiry_date__gte=timezone.now().date()
+        end_date__gte=timezone.now().date()
     ).count()
     
     # Calculate statistics
@@ -182,14 +182,8 @@ def portal_vehicle_detail(request, vehicle_id):
         vehicle=vehicle.vehicle
     ).first()
     
-    # Get documents for this vehicle
-    documents = ClientDocument.objects.filter(
-        client=client,
-        vehicle=vehicle.vehicle
-    ).order_by('-uploaded_at')
-    
     # Get insurance for this vehicle
-    insurance = Insurance.objects.filter(
+    insurance = InsurancePolicy.objects.filter(
         client=client,
         vehicle=vehicle.vehicle
     ).order_by('-start_date').first()
@@ -199,7 +193,6 @@ def portal_vehicle_detail(request, vehicle_id):
         'vehicle': vehicle,
         'payments': payments,
         'installment_plan': installment_plan,
-        'documents': documents,
         'insurance': insurance,
     }
     
@@ -367,7 +360,7 @@ def portal_documents(request):
     # Get all documents
     documents = ClientDocument.objects.filter(
         client=client
-    ).select_related('vehicle').order_by('-uploaded_at')
+    ).order_by('-uploaded_at')
     
     # Group by document type
     doc_types = documents.values('document_type').annotate(count=Count('id'))
@@ -399,16 +392,16 @@ def portal_document_download(request, document_id):
         id=document_id
     )
     
-    if not document.document_file:
+    if not document.file:
         messages.error(request, 'Document file not found.')
         return redirect('clients:portal_documents')
     
     # Serve the file
     try:
         return FileResponse(
-            document.document_file.open('rb'),
+            document.file.open('rb'),
             as_attachment=True,
-            filename=document.document_file.name.split('/')[-1]
+            filename=document.file.name.split('/')[-1]
         )
     except Exception as e:
         messages.error(request, f'Error downloading file: {str(e)}')
@@ -430,14 +423,14 @@ def portal_insurance(request):
         return redirect('clients:portal_dashboard')
     
     # Get all insurance policies
-    policies = Insurance.objects.filter(
+    policies = InsurancePolicy.objects.filter(
         client=client
     ).select_related('vehicle').order_by('-start_date')
     
     # Separate into active and expired
     today = timezone.now().date()
-    active_policies = policies.filter(expiry_date__gte=today, status='active')
-    expired_policies = policies.filter(Q(expiry_date__lt=today) | Q(status='expired'))
+    active_policies = policies.filter(end_date__gte=today, status='active')
+    expired_policies = policies.filter(Q(end_date__lt=today) | Q(status='expired'))
     
     context = {
         'client': client,
@@ -462,7 +455,7 @@ def portal_insurance_detail(request, insurance_id):
     
     # Ensure client can only view their own insurance
     insurance = get_object_or_404(
-        Insurance.objects.select_related('vehicle'),
+        InsurancePolicy.objects.select_related('vehicle'),
         client=client,
         id=insurance_id
     )
