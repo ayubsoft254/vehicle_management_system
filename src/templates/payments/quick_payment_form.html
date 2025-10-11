@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Record Payment - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Record Payment</h1>
+                <p class="text-gray-600 mt-1">Record a new payment for a client vehicle</p>
+            </div>
+            <a href="{% url 'payments:payment_list' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Payments
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Payment Form -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-6">Payment Information</h2>
+                
+                <form method="post" id="paymentForm">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <div class="flex items-start">
+                            <i class="fas fa-exclamation-circle text-red-600 mt-0.5 mr-3"></i>
+                            <div class="flex-1">
+                                {% for error in form.non_field_errors %}
+                                    <p class="text-red-800 text-sm">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="space-y-6">
+                        <!-- Client Vehicle Selection -->
+                        <div>
+                            <label for="{{ form.client_vehicle.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Client & Vehicle <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.client_vehicle }}
+                            {% if form.client_vehicle.errors %}
+                                <p class="mt-1 text-sm text-red-600">{{ form.client_vehicle.errors.0 }}</p>
+                            {% endif %}
+                            <p class="mt-1 text-xs text-gray-500">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Select the client and vehicle for this payment
+                            </p>
+                        </div>
+
+                        <!-- Payment Date -->
+                        <div>
+                            <label for="{{ form.payment_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Payment Date <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.payment_date }}
+                            {% if form.payment_date.errors %}
+                                <p class="mt-1 text-sm text-red-600">{{ form.payment_date.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Amount -->
+                        <div>
+                            <label for="{{ form.amount.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Amount (KES) <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span class="text-gray-500 sm:text-sm">KES</span>
+                                </div>
+                                {{ form.amount }}
+                            </div>
+                            {% if form.amount.errors %}
+                                <p class="mt-1 text-sm text-red-600">{{ form.amount.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Payment Method -->
+                        <div>
+                            <label for="{{ form.payment_method.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Payment Method <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.payment_method }}
+                            {% if form.payment_method.errors %}
+                                <p class="mt-1 text-sm text-red-600">{{ form.payment_method.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Transaction Reference -->
+                        <div>
+                            <label for="{{ form.transaction_reference.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Transaction Reference
+                            </label>
+                            {{ form.transaction_reference }}
+                            {% if form.transaction_reference.errors %}
+                                <p class="mt-1 text-sm text-red-600">{{ form.transaction_reference.errors.0 }}</p>
+                            {% endif %}
+                            <p class="mt-1 text-xs text-gray-500">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                M-Pesa code, cheque number, bank reference, etc.
+                            </p>
+                        </div>
+
+                        <!-- Notes -->
+                        <div>
+                            <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Notes
+                            </label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                                <p class="mt-1 text-sm text-red-600">{{ form.notes.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="flex items-center justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
+                        <a href="{% url 'payments:payment_list' %}" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+                            Cancel
+                        </a>
+                        <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-sm transition">
+                            <i class="fas fa-save mr-2"></i>
+                            Record Payment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Recent Client Vehicles Sidebar -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Recent Client Vehicles</h3>
+                <p class="text-sm text-gray-600 mb-4">Clients with outstanding balances</p>
+                
+                {% if recent_client_vehicles %}
+                <div class="space-y-3 max-h-96 overflow-y-auto">
+                    {% for cv in recent_client_vehicles %}
+                    <a href="?client_vehicle={{ cv.id }}" class="block p-3 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition">
+                        <div class="flex items-start">
+                            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                                <i class="fas fa-user text-blue-600"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-semibold text-gray-900 truncate">{{ cv.client.get_full_name }}</p>
+                                <p class="text-xs text-gray-600 truncate">{{ cv.vehicle.make }} {{ cv.vehicle.model }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ cv.vehicle.registration_number }}</p>
+                                <div class="flex items-center justify-between mt-2">
+                                    <span class="text-xs font-medium text-red-600">Balance:</span>
+                                    <span class="text-xs font-bold text-red-600">KES {{ cv.balance|floatformat:2 }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                    <i class="fas fa-inbox text-gray-300 text-4xl mb-3"></i>
+                    <p class="text-sm text-gray-500">No outstanding balances found</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Quick Info -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                <h4 class="text-sm font-semibold text-blue-900 mb-2">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Quick Tips
+                </h4>
+                <ul class="text-xs text-blue-800 space-y-1">
+                    <li>• Select client & vehicle from dropdown</li>
+                    <li>• Enter exact amount received</li>
+                    <li>• Add transaction reference for tracking</li>
+                    <li>• Balance updates automatically</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Form validation and enhancement
+    document.getElementById('paymentForm').addEventListener('submit', function(e) {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+    });
+    
+    // Format amount input
+    const amountInput = document.getElementById('id_amount');
+    if (amountInput) {
+        amountInput.addEventListener('blur', function() {
+            const value = parseFloat(this.value);
+            if (!isNaN(value)) {
+                this.value = value.toFixed(2);
+            }
+        });
+    }
+</script>
+{% endblock %}

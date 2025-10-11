@@ -1,3 +1,4 @@
+{% load permission_tags %}
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-gray-50">
 <head>
@@ -156,91 +157,121 @@
                         {% else %}
                             <!-- STAFF NAVIGATION -->
                             <!-- Dashboard -->
+                            {% if user.is_superuser or user|can_access:'dashboard' %}
                             <a href="{% url 'dashboard:index' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-home w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Dashboard</span>
                             </a>
+                            {% endif %}
                             
                             <!-- Vehicles -->
+                            {% if user.is_superuser or user|can_access:'vehicles' %}
                             <a href="{% url 'vehicles:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-car w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Vehicles</span>
                             </a>
+                            {% endif %}
                             
                             <!-- Clients -->
+                            {% if user.is_superuser or user|can_access:'clients' %}
                             <a href="{% url 'clients:list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-users w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Clients</span>
                             </a>
+                            {% endif %}
                             
                             <!-- Divider -->
+                            {% if user.is_superuser or user|can_access:'payments' or user|can_access:'expenses' or user|can_access:'payroll' %}
                             <div class="pt-4 pb-2">
                                 <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Financial</p>
                             </div>
+                            {% endif %}
                             
                             <!-- Payments -->
+                            {% if user.is_superuser or user|can_access:'payments' %}
                             <a href="{% url 'payments:payment_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-credit-card w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Payments</span>
                             </a>
+                            {% endif %}
                             
                             <!-- Expenses -->
+                            {% if user.is_superuser or user|can_access:'expenses' %}
                             <a href="{% url 'expenses:expense_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-receipt w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Expenses</span>
                             </a>
+                            {% endif %}
                             
                             <!-- Payroll -->
+                            {% if user.is_superuser or user|can_access:'payroll' %}
                             <a href="{% url 'payroll:payroll_dashboard' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-money-bill-wave w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Payroll</span>
                             </a>
+                            {% endif %}
                             
                             <!-- Divider -->
+                            {% if user.is_superuser or user|can_access:'auctions' or user|can_access:'insurance' or user|can_access:'repossessions' %}
                             <div class="pt-4 pb-2">
                                 <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Operations</p>
                             </div>
+                            {% endif %}
                             
                             <!-- Auctions -->
+                            {% if user.is_superuser or user|can_access:'auctions' %}
                             <a href="{% url 'auctions:auction_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-gavel w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Auctions</span>
                             </a>
+                            {% endif %}
                             
                             <!-- Insurance -->
+                            {% if user.is_superuser or user|can_access:'insurance' %}
                             <a href="{% url 'insurance:policy_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-shield-alt w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Insurance</span>
                             </a>
+                            {% endif %}
                             
                             <!-- Repossessions -->
+                            {% if user.is_superuser or user|can_access:'repossessions' %}
                             <a href="{% url 'repossessions:repossession_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-truck-loading w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Repossessions</span>
                             </a>
+                            {% endif %}
                             
                             <!-- Divider -->
+                            {% if user.is_superuser or user|can_access:'reports' or user|can_access:'documents' or user|can_access:'audit' %}
                             <div class="pt-4 pb-2">
                                 <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Management</p>
                             </div>
+                            {% endif %}
                             
                             <!-- Reports -->
+                            {% if user.is_superuser or user|can_access:'reports' %}
                             <a href="{% url 'reports:dashboard' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-chart-bar w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Reports</span>
                             </a>
+                            {% endif %}
                             
                             <!-- Documents -->
+                            {% if user.is_superuser or user|can_access:'documents' %}
                             <a href="{% url 'documents:document_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-folder w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Documents</span>
                             </a>
+                            {% endif %}
                             
                             <!-- Audit -->
+                            {% if user.is_superuser or user|can_access:'audit' %}
                             <a href="{% url 'audit:log_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-history w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Audit Log</span>
                             </a>
+                            {% endif %}
                         {% endif %}
                     </div>
                 </nav>

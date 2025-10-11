@@ -139,7 +139,7 @@ def record_payment(request, client_vehicle_pk):
                 
                 # Check if fully paid
                 if client_vehicle.balance <= 0:
-                    client_vehicle.paid_off = True
+                    client_vehicle.is_paid_off = True
                     client_vehicle.client.status = 'completed'
                     client_vehicle.client.save()
                     
@@ -178,6 +178,90 @@ def record_payment(request, client_vehicle_pk):
     }
     
     return render(request, 'payments/payment_form.html', context)
+
+
+@login_required
+def quick_record_payment(request):
+    """
+    Quick payment recording - select client/vehicle first
+    Can be accessed from dashboard or admin panel
+    """
+    from .forms import PaymentForm
+    
+    if request.method == 'POST':
+        form = PaymentForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                payment = form.save(commit=False)
+                payment.recorded_by = request.user
+                payment.save()
+                
+                # Update client vehicle balance
+                client_vehicle = payment.client_vehicle
+                client_vehicle.total_paid += payment.amount
+                client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
+                
+                # Check if fully paid
+                if client_vehicle.balance <= 0:
+                    client_vehicle.is_paid_off = True
+                    client_vehicle.client.status = 'completed'
+                    client_vehicle.client.save()
+                    
+                    messages.success(
+                        request,
+                        f'Payment recorded! Vehicle fully paid off! 🎉'
+                    )
+                else:
+                    messages.success(
+                        request,
+                        f'Payment of KES {payment.amount:,.2f} recorded successfully! '
+                        f'Remaining balance: KES {client_vehicle.balance:,.2f}'
+                    )
+                
+                client_vehicle.save()
+                
+                # Update payment schedule if exists
+                update_payment_schedules(payment, client_vehicle)
+                
+                log_audit(
+                    request.user, 'create', 'Payment',
+                    f'Recorded payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
+                )
+                
+                return redirect('payments:payment_detail', pk=payment.pk)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        # Pre-select client_vehicle if passed in GET parameter
+        client_vehicle_id = request.GET.get('client_vehicle')
+        initial = {}
+        client_vehicle = None
+        
+        if client_vehicle_id:
+            try:
+                client_vehicle = ClientVehicle.objects.select_related('client', 'vehicle').get(pk=client_vehicle_id)
+                initial['client_vehicle'] = client_vehicle
+            except ClientVehicle.DoesNotExist:
+                pass
+        
+        form = PaymentForm(initial=initial)
+    
+    # Get recent client vehicles with outstanding balances
+    recent_client_vehicles = ClientVehicle.objects.select_related(
+        'client', 'vehicle'
+    ).filter(
+        is_paid_off=False,
+        balance__gt=0
+    ).order_by('-purchase_date')[:20]
+    
+    context = {
+        'form': form,
+        'client_vehicle': client_vehicle,
+        'recent_client_vehicles': recent_client_vehicles,
+        'is_quick_record': True,
+    }
+    
+    return render(request, 'payments/quick_payment_form.html', context)
 
 
 @login_required

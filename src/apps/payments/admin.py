@@ -117,6 +117,12 @@ class PaymentAdmin(admin.ModelAdmin):
             'recorded_by'
         )
     
+    def changelist_view(self, request, extra_context=None):
+        """Add custom button to changelist"""
+        extra_context = extra_context or {}
+        extra_context['show_record_payment_button'] = True
+        return super().changelist_view(request, extra_context)
+    
     def client_link(self, obj):
         """Display client name with link"""
         client = obj.client_vehicle.client
