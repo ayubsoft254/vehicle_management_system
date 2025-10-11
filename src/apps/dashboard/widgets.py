@@ -35,7 +35,7 @@ WIDGET_TEMPLATES = {
         'query_config': {
             'filters': {
                 'status': 'completed',
-                'payment_date': timezone.now().date(),
+                'payment_date': timezone.now().date().isoformat(),
             },
             'aggregation': 'sum',
             'field': 'amount',
@@ -202,7 +202,7 @@ WIDGET_TEMPLATES = {
         'widget_type': 'metric',
         'data_source': 'Bid',
         'query_config': {
-            'filters': {'created_at__date': timezone.now().date()},
+            'filters': {'created_at__date': timezone.now().date().isoformat()},
             'aggregation': 'count',
             'label': 'Bids Today',
             'format': 'number',
