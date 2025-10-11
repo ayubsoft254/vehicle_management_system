@@ -5,10 +5,45 @@ Provides admin interface for managing clients, vehicles, payments, and documents
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q
 from django.utils import timezone
+from django import forms
 from .models import Client, ClientVehicle, ClientDocument
 from apps.payments.models import Payment
+from apps.authentication.models import User
+from utils.constants import UserRole
+
+
+# ==================== CUSTOM FORMS ====================
+
+class ClientAdminForm(forms.ModelForm):
+    """
+    Custom form for Client admin with filtered user selection
+    """
+    class Meta:
+        model = Client
+        fields = '__all__'
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Filter user field to show only CLIENT role users
+        # or users not yet linked to any client
+        if 'user' in self.fields:
+            # Get users with CLIENT role that don't have a client profile yet
+            # or the current user if editing
+            available_users = User.objects.filter(
+                Q(role=UserRole.CLIENT, client_profile__isnull=True) |
+                Q(id=self.instance.user_id) if self.instance.user_id else Q(role=UserRole.CLIENT, client_profile__isnull=True)
+            ).order_by('first_name', 'last_name')
+            
+            self.fields['user'].queryset = available_users
+            self.fields['user'].help_text = (
+                'Select a user account with CLIENT role. '
+                'Only unlinked CLIENT users are shown. '
+                'Create a CLIENT user first if none are available.'
+            )
+            self.fields['user'].required = False
 
 
 # ==================== INLINE ADMINS ====================
@@ -55,10 +90,12 @@ class ClientAdmin(admin.ModelAdmin):
     """
     Admin interface for Client model
     """
+    form = ClientAdminForm
+    
     list_display = [
         'id', 'get_full_name_display', 'id_number', 'phone_primary',
-        'status_badge', 'credit_limit_display', 'available_credit_display',
-        'total_purchases_display', 'date_registered'
+        'portal_access_badge', 'status_badge', 'credit_limit_display', 
+        'available_credit_display', 'total_purchases_display', 'date_registered'
     ]
     
     list_filter = [
@@ -175,6 +212,28 @@ class ClientAdmin(admin.ModelAdmin):
             '<span style="color: #999; font-size: 14px;">No Photo</span></div>'
         )
     profile_photo_preview.short_description = 'Current Photo'
+    
+    def portal_access_badge(self, obj):
+        """Display portal access status"""
+        if obj.user:
+            if obj.user.is_active:
+                return format_html(
+                    '<span style="background-color: #28a745; color: white; padding: 3px 10px; '
+                    'border-radius: 3px; font-size: 11px; font-weight: bold;">'
+                    '<i class="fas fa-check"></i> ENABLED</span>'
+                )
+            else:
+                return format_html(
+                    '<span style="background-color: #ffc107; color: white; padding: 3px 10px; '
+                    'border-radius: 3px; font-size: 11px; font-weight: bold;">'
+                    '<i class="fas fa-pause"></i> INACTIVE</span>'
+                )
+        return format_html(
+            '<span style="background-color: #dc3545; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px; font-weight: bold;">'
+            '<i class="fas fa-times"></i> NO ACCESS</span>'
+        )
+    portal_access_badge.short_description = 'Portal Access'
     
     def get_full_name_display(self, obj):
         """Display full name with link"""

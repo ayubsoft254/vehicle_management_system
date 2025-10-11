@@ -112,6 +112,10 @@ def get_dashboard_overview_data(user=None):
             'scheduled': scheduled_auctions,
             'completed_today': completed_auctions_today,
         },
+        
+        # Date references for debugging
+        'today': today.isoformat(),
+        'first_day_of_month': first_day_of_month.isoformat(),
     }
     
     return data

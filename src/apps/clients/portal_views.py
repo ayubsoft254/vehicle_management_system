@@ -65,27 +65,27 @@ def portal_dashboard(request):
     vehicles = ClientVehicle.objects.filter(
         client=client,
         is_active=True
-    ).select_related('vehicle').order_by('-date_assigned')[:5]
+    ).select_related('vehicle').order_by('-purchase_date')[:5]
     
     # Get active installment plans
     active_plans = InstallmentPlan.objects.filter(
-        client=client,
+        client_vehicle__client=client,
         is_active=True
     ).annotate(
-        total_paid=Sum('payment__amount'),
-        remaining_balance=F('total_amount') - Sum('payment__amount')
+        total_paid=Sum('client_vehicle__payments__amount'),
+        remaining_balance=F('total_amount') - Sum('client_vehicle__payments__amount')
     )
     
     # Get upcoming payments
     upcoming_payments = PaymentSchedule.objects.filter(
-        installment_plan__client=client,
+        installment_plan__client_vehicle__client=client,
         is_paid=False,
         due_date__gte=timezone.now().date()
     ).select_related('installment_plan').order_by('due_date')[:5]
     
     # Get recent payments
     recent_payments = Payment.objects.filter(
-        client=client
+        client_vehicle__client=client
     ).order_by('-payment_date')[:5]
     
     # Get documents count
@@ -104,7 +104,7 @@ def portal_dashboard(request):
     total_vehicles = vehicles.count()
     total_debt = sum(plan.remaining_balance or 0 for plan in active_plans)
     overdue_payments = PaymentSchedule.objects.filter(
-        installment_plan__client=client,
+        installment_plan__client_vehicle__client=client,
         is_paid=False,
         due_date__lt=timezone.now().date()
     ).count()
@@ -141,7 +141,7 @@ def portal_vehicles(request):
     
     vehicles = ClientVehicle.objects.filter(
         client=client
-    ).select_related('vehicle').order_by('-date_assigned')
+    ).select_related('vehicle').order_by('-purchase_date')
     
     context = {
         'client': client,
@@ -172,14 +172,12 @@ def portal_vehicle_detail(request, vehicle_id):
     
     # Get related payments for this vehicle
     payments = Payment.objects.filter(
-        client=client,
-        vehicle=vehicle.vehicle
+        client_vehicle=vehicle
     ).order_by('-payment_date')
     
     # Get installment plan for this vehicle
     installment_plan = InstallmentPlan.objects.filter(
-        client=client,
-        vehicle=vehicle.vehicle
+        client_vehicle=vehicle
     ).first()
     
     # Get insurance for this vehicle
@@ -215,8 +213,8 @@ def portal_payments(request):
     
     # Get all payments
     payments = Payment.objects.filter(
-        client=client
-    ).select_related('vehicle', 'installment_plan').order_by('-payment_date')
+        client_vehicle__client=client
+    ).select_related('client_vehicle__vehicle').order_by('-payment_date')
     
     # Pagination
     paginator = Paginator(payments, 20)
@@ -249,8 +247,8 @@ def portal_payment_schedules(request):
     
     # Get all payment schedules
     schedules = PaymentSchedule.objects.filter(
-        installment_plan__client=client
-    ).select_related('installment_plan', 'installment_plan__vehicle').order_by('due_date')
+        installment_plan__client_vehicle__client=client
+    ).select_related('installment_plan', 'installment_plan__client_vehicle__vehicle').order_by('due_date')
     
     # Separate into upcoming, overdue, and paid
     today = timezone.now().date()
@@ -284,10 +282,10 @@ def portal_installment_plans(request):
     
     # Get all installment plans
     plans = InstallmentPlan.objects.filter(
-        client=client
-    ).select_related('vehicle').annotate(
-        total_paid=Sum('payment__amount'),
-        remaining_balance=F('total_amount') - Sum('payment__amount')
+        client_vehicle__client=client
+    ).select_related('client_vehicle__vehicle').annotate(
+        total_paid=Sum('client_vehicle__payments__amount'),
+        remaining_balance=F('total_amount') - Sum('client_vehicle__payments__amount')
     ).order_by('-start_date')
     
     context = {
