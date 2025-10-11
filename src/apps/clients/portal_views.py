@@ -741,6 +741,13 @@ def portal_make_payment(request, client_vehicle_id, payment_type='installment'):
     if payment_type == 'down_payment':
         amount_to_pay = client_vehicle.deposit_paid
         description = 'Down Payment'
+    elif payment_type == 'balance':
+        # Full balance payment (when no installment plan)
+        amount_to_pay = client_vehicle.balance
+        description = 'Balance Payment'
+        if amount_to_pay <= 0:
+            messages.success(request, 'This vehicle is already fully paid!')
+            return redirect('clients:portal_vehicle_detail', vehicle_id=client_vehicle.id)
     else:
         # Get next pending schedule
         next_schedule = PaymentSchedule.objects.filter(
@@ -839,6 +846,8 @@ def portal_payment_bank_details(request, client_vehicle_id, payment_type):
     # Determine amount
     if payment_type == 'down_payment':
         amount_to_pay = client_vehicle.deposit_paid
+    elif payment_type == 'balance':
+        amount_to_pay = client_vehicle.balance
     else:
         next_schedule = PaymentSchedule.objects.filter(
             installment_plan__client_vehicle=client_vehicle,

@@ -94,7 +94,7 @@
                         </div>
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <dt class="text-sm text-gray-600 mb-1">Down Payment</dt>
-                            <dd class="text-xl font-bold text-green-600">KSH {{ vehicle.down_payment|floatformat:2 }}</dd>
+                            <dd class="text-xl font-bold text-green-600">KSH {{ vehicle.deposit_paid|floatformat:2 }}</dd>
                         </div>
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <dt class="text-sm text-gray-600 mb-1">Financed Amount</dt>
@@ -135,6 +135,37 @@
                         <dd class="font-bold text-red-600">KSH {{ vehicle.balance|default:"0.00"|floatformat:2 }}</dd>
                     </div>
                 </dl>
+
+                <!-- Payment Action Button -->
+                {% if not vehicle.is_paid_off and vehicle.balance > 0 %}
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    {% if installment_plan %}
+                        <!-- If there's an installment plan, link to make installment payment -->
+                        <a href="{% url 'clients:portal_make_payment' client_vehicle_id=vehicle.id payment_type='installment' %}" class="inline-flex items-center justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition w-full">
+                            <i class="fas fa-credit-card mr-2"></i>
+                            Make Installment Payment
+                        </a>
+                        <p class="text-xs text-gray-500 text-center mt-2">Pay your next installment</p>
+                    {% else %}
+                        <!-- If no installment plan, allow full balance payment -->
+                        <a href="{% url 'clients:portal_make_payment' client_vehicle_id=vehicle.id payment_type='balance' %}" class="inline-flex items-center justify-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition w-full">
+                            <i class="fas fa-money-bill-wave mr-2"></i>
+                            Complete Payment
+                        </a>
+                        <p class="text-xs text-gray-500 text-center mt-2">Pay remaining balance</p>
+                    {% endif %}
+                </div>
+                {% elif vehicle.is_paid_off %}
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <div class="flex items-center justify-center p-4 bg-green-50 rounded-lg">
+                        <i class="fas fa-check-circle text-green-600 text-2xl mr-3"></i>
+                        <div>
+                            <p class="text-green-800 font-semibold">Fully Paid</p>
+                            <p class="text-green-600 text-xs">Vehicle payment completed!</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Installment Plan Link -->
