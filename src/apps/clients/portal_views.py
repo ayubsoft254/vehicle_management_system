@@ -644,9 +644,10 @@ def portal_initiate_purchase(request, vehicle_id):
             client=client,
             vehicle=vehicle,
             purchase_price=vehicle.selling_price,
-            down_payment=down_payment,
+            deposit_paid=down_payment,
             purchase_date=timezone.now().date(),
-            is_active=True
+            is_active=True,
+            created_by=request.user
         )
         
         # If full payment
@@ -738,7 +739,7 @@ def portal_make_payment(request, client_vehicle_id, payment_type='installment'):
     
     # Determine amount to pay
     if payment_type == 'down_payment':
-        amount_to_pay = client_vehicle.down_payment
+        amount_to_pay = client_vehicle.deposit_paid
         description = 'Down Payment'
     else:
         # Get next pending schedule
@@ -837,7 +838,7 @@ def portal_payment_bank_details(request, client_vehicle_id, payment_type):
     
     # Determine amount
     if payment_type == 'down_payment':
-        amount_to_pay = client_vehicle.down_payment
+        amount_to_pay = client_vehicle.deposit_paid
     else:
         next_schedule = PaymentSchedule.objects.filter(
             installment_plan__client_vehicle=client_vehicle,
