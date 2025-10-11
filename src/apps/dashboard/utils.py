@@ -33,35 +33,84 @@ def get_dashboard_overview_data(user=None):
     from apps.clients.models import Client
     from apps.payments.models import Payment, PaymentSchedule
     from apps.auctions.models import Auction
+    from utils.constants import VehicleStatus
     
     today = timezone.now().date()
+    first_day_of_month = today.replace(day=1)
     
+    # Vehicle statistics
+    total_vehicles = Vehicle.objects.count()
+    available_vehicles = Vehicle.objects.filter(status=VehicleStatus.AVAILABLE).count()
+    reserved_vehicles = Vehicle.objects.filter(status=VehicleStatus.RESERVED).count()
+    sold_vehicles = Vehicle.objects.filter(status=VehicleStatus.SOLD).count()
+    repossessed_vehicles = Vehicle.objects.filter(status=VehicleStatus.REPOSSESSED).count()
+    maintenance_vehicles = Vehicle.objects.filter(status=VehicleStatus.MAINTENANCE).count()
+    
+    # Client statistics
+    total_clients = Client.objects.count()
+    active_clients = Client.objects.filter(is_active=True).count()
+    new_clients_today = Client.objects.filter(date_registered__date=today).count()
+    
+    # Payment statistics
+    payments_today = Payment.objects.filter(payment_date=today)
+    total_payments_today = payments_today.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    payments_count_today = payments_today.count()
+    
+    # Monthly revenue
+    monthly_revenue = Payment.objects.filter(
+        payment_date__gte=first_day_of_month,
+        payment_date__lte=today
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    # Pending payments/schedules
+    pending_payments = PaymentSchedule.objects.pending().count()
+    
+    # Auction statistics
+    active_auctions = Auction.objects.filter(status='active').count()
+    scheduled_auctions = Auction.objects.filter(status='scheduled').count()
+    completed_auctions_today = Auction.objects.filter(
+        status='completed',
+        completed_at__date=today
+    ).count()
+    
+    # Compile flat data structure for template
     data = {
+        # Main stats (for stat cards)
+        'total_vehicles': total_vehicles,
+        'total_clients': total_clients,
+        'monthly_revenue': float(monthly_revenue),
+        'pending_sales': reserved_vehicles,  # Vehicles reserved/pending sale
+        
+        # Detailed vehicles stats
         'vehicles': {
-            'total': Vehicle.objects.count(),
-            'available': Vehicle.objects.filter(status='available').count(),
-            'in_stock': Vehicle.objects.filter(status='in_stock').count(),
-            'sold': Vehicle.objects.filter(status='sold').count(),
+            'total': total_vehicles,
+            'available': available_vehicles,
+            'reserved': reserved_vehicles,
+            'sold': sold_vehicles,
+            'repossessed': repossessed_vehicles,
+            'maintenance': maintenance_vehicles,
         },
+        
+        # Detailed clients stats
         'clients': {
-            'total': Client.objects.count(),
-            'active': Client.objects.filter(is_active=True).count(),
-            'new_today': Client.objects.filter(date_registered__date=today).count(),
+            'total': total_clients,
+            'active': active_clients,
+            'new_today': new_clients_today,
         },
+        
+        # Detailed payments stats
         'payments': {
-            'total_today': Payment.objects.filter(
-                payment_date=today
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00'),
-            'count_today': Payment.objects.filter(payment_date=today).count(),
-            'pending': PaymentSchedule.objects.pending().count(),
+            'total_today': float(total_payments_today),
+            'count_today': payments_count_today,
+            'pending': pending_payments,
+            'monthly_revenue': float(monthly_revenue),
         },
+        
+        # Detailed auctions stats
         'auctions': {
-            'active': Auction.objects.filter(status='active').count(),
-            'scheduled': Auction.objects.filter(status='scheduled').count(),
-            'completed_today': Auction.objects.filter(
-                status='completed',
-                completed_at__date=today
-            ).count(),
+            'active': active_auctions,
+            'scheduled': scheduled_auctions,
+            'completed_today': completed_auctions_today,
         },
     }
     
@@ -134,24 +183,28 @@ def get_sales_metrics(days=30):
     
     from apps.vehicles.models import Vehicle
     from apps.payments.models import Payment
+    from utils.constants import VehicleStatus
     
     cutoff = timezone.now() - timedelta(days=days)
     
     # Vehicles sold
     sold_vehicles = Vehicle.objects.filter(
-        status='sold',
-        updated_at__gte=cutoff
+        status=VehicleStatus.SOLD,
+        last_updated__gte=cutoff
     )
     
-    # Revenue
+    # Revenue from payments
     revenue = Payment.objects.filter(
         payment_date__gte=cutoff.date()
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     
+    # Average sale price from sold vehicles
+    avg_price = sold_vehicles.aggregate(avg=Avg('selling_price'))['avg'] or Decimal('0.00')
+    
     data = {
         'vehicles_sold': sold_vehicles.count(),
         'total_revenue': float(revenue),
-        'average_sale_price': float(sold_vehicles.aggregate(avg=Avg('price'))['avg'] or 0),
+        'average_sale_price': float(avg_price),
         'period_days': days,
     }
     
@@ -499,6 +552,7 @@ def get_sales_trend(days=30):
     """Get sales trend data"""
     
     from apps.vehicles.models import Vehicle
+    from utils.constants import VehicleStatus
     
     end_date = timezone.now().date()
     start_date = end_date - timedelta(days=days)
@@ -508,8 +562,8 @@ def get_sales_trend(days=30):
     
     while current <= end_date:
         daily_sales = Vehicle.objects.filter(
-            status='sold',
-            updated_at__date=current
+            status=VehicleStatus.SOLD,
+            last_updated__date=current
         ).count()
         
         trend.append({
