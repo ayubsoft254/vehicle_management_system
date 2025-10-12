@@ -24,10 +24,13 @@ help: ## Show this help message
 # Initial deployment
 deploy: ## Initial deployment - Build and start all services
 	@echo "$(BLUE)Starting initial deployment...$(NC)"
-	@if not exist .env (echo "$(RED)Error: .env file not found. Copy .env.example to .env and configure it.$(NC)" && exit 1)
+	@if [ ! -f .env ]; then \
+		echo "$(RED)Error: .env file not found. Copy .env.example to .env and configure it.$(NC)"; \
+		exit 1; \
+	fi
 	$(DOCKER_COMPOSE) up -d --build
 	@echo "$(GREEN)Waiting for services to be ready...$(NC)"
-	@timeout /t 10 /nobreak > nul
+	@sleep 10
 	$(DOCKER_COMPOSE) exec $(SERVICE_WEB) python manage.py migrate
 	$(DOCKER_COMPOSE) exec $(SERVICE_WEB) python manage.py collectstatic --noinput
 	@echo "$(GREEN)Deployment complete!$(NC)"
@@ -162,12 +165,15 @@ collectstatic: ## Collect static files
 # Database backup and restore
 backup-db: ## Backup database to file
 	@echo "$(BLUE)Backing up database...$(NC)"
-	@if not exist backups mkdir backups
-	$(DOCKER_COMPOSE) exec -T $(SERVICE_DB) pg_dump -U vms_user vms_db > backups/db_backup_$(shell powershell -Command "Get-Date -Format 'yyyyMMdd_HHmmss'").sql
+	@mkdir -p backups
+	$(DOCKER_COMPOSE) exec -T $(SERVICE_DB) pg_dump -U vms_user vms_db > backups/db_backup_$(shell date +%Y%m%d_%H%M%S).sql
 	@echo "$(GREEN)Database backup created in backups/ directory$(NC)"
 
 restore-db: ## Restore database from backup (Usage: make restore-db FILE=backups/backup.sql)
-	@if "$(FILE)"=="" (echo "$(RED)Error: Please specify backup file. Usage: make restore-db FILE=backups/backup.sql$(NC)" && exit 1)
+	@if [ -z "$(FILE)" ]; then \
+		echo "$(RED)Error: Please specify backup file. Usage: make restore-db FILE=backups/backup.sql$(NC)"; \
+		exit 1; \
+	fi
 	@echo "$(BLUE)Restoring database from $(FILE)...$(NC)"
 	$(DOCKER_COMPOSE) exec -T $(SERVICE_DB) psql -U vms_user -d vms_db < $(FILE)
 	@echo "$(GREEN)Database restored successfully!$(NC)"
@@ -189,7 +195,7 @@ test: ## Run tests
 clean: ## Remove all containers, volumes, and images
 	@echo "$(RED)Warning: This will remove all containers, volumes, and images!$(NC)"
 	@echo "$(RED)Database data will be lost!$(NC)"
-	@choice /C YN /M "Are you sure you want to continue"
+	@read -p "Are you sure you want to continue? (yes/no): " confirm && [ "$$confirm" = "yes" ] || exit 1
 	$(DOCKER_COMPOSE) down -v --rmi all
 	@echo "$(GREEN)Cleanup complete!$(NC)"
 
@@ -211,7 +217,7 @@ update: ## Update application code and restart services
 # Development helpers
 dev-setup: ## Setup development environment
 	@echo "$(BLUE)Setting up development environment...$(NC)"
-	@if not exist .env (copy .env.example .env)
+	@if [ ! -f .env ]; then cp .env.example .env; fi
 	@echo "$(GREEN)Development environment setup complete!$(NC)"
 	@echo "$(BLUE)Please edit .env file with your configuration$(NC)"
 
@@ -219,8 +225,8 @@ dev-setup: ## Setup development environment
 health: ## Check health of all services
 	@echo "$(BLUE)Checking service health...$(NC)"
 	@echo "Web service:"
-	@curl -f http://localhost:3333/ > nul 2>&1 && echo "$(GREEN)OK$(NC)" || echo "$(RED)FAIL$(NC)"
+	@curl -f http://localhost:3333/health/ > /dev/null 2>&1 && echo "$(GREEN)OK$(NC)" || echo "$(RED)FAIL$(NC)"
 	@echo "Database:"
-	@$(DOCKER_COMPOSE) exec $(SERVICE_DB) pg_isready -U vms_user && echo "$(GREEN)OK$(NC)" || echo "$(RED)FAIL$(NC)"
+	@$(DOCKER_COMPOSE) exec $(SERVICE_DB) pg_isready -U vms_user > /dev/null 2>&1 && echo "$(GREEN)OK$(NC)" || echo "$(RED)FAIL$(NC)"
 	@echo "Redis:"
-	@$(DOCKER_COMPOSE) exec $(SERVICE_REDIS) redis-cli ping > nul 2>&1 && echo "$(GREEN)OK$(NC)" || echo "$(RED)FAIL$(NC)"
+	@$(DOCKER_COMPOSE) exec $(SERVICE_REDIS) redis-cli ping > /dev/null 2>&1 && echo "$(GREEN)OK$(NC)" || echo "$(RED)FAIL$(NC)"
