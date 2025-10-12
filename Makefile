@@ -30,10 +30,15 @@ deploy: ## Initial deployment - Build and start all services
 	fi
 	$(DOCKER_COMPOSE) up -d --build
 	@echo "$(GREEN)Waiting for services to be ready...$(NC)"
-	@sleep 30
-	@echo "$(BLUE)Checking if web container is running...$(NC)"
+	@sleep 45
+	@echo "$(BLUE)Checking container status...$(NC)"
+	@$(DOCKER_COMPOSE) ps
+	@echo "$(BLUE)Checking web logs for errors...$(NC)"
+	@$(DOCKER_COMPOSE) logs --tail=50 web
+	@echo "$(BLUE)Waiting for container to stabilize...$(NC)"
+	@sleep 15
 	@if ! docker ps | grep -q vms_web; then \
-		echo "$(RED)Error: Web container is not running. Check logs with 'make logs-web'$(NC)"; \
+		echo "$(RED)Error: Web container is not running. Check logs above.$(NC)"; \
 		exit 1; \
 	fi
 	@echo "$(BLUE)Running database migrations...$(NC)"
