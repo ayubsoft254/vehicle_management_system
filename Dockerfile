@@ -31,15 +31,15 @@ RUN pip install --upgrade pip && \
 # Copy project files
 COPY src/ /app/
 
-# Create necessary directories
-RUN mkdir -p /app/logs /app/static_collected /app/media
+# Create a non-root user to run the application
+RUN useradd -m -u 1000 appuser
+
+# Create necessary directories and set permissions
+RUN mkdir -p /app/logs /app/static_collected /app/media && \
+    chown -R appuser:appuser /app
 
 # Collect static files (can be overridden in entrypoint)
 RUN python manage.py collectstatic --noinput || true
-
-# Create a non-root user to run the application
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser

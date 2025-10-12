@@ -56,7 +56,7 @@ services:
       - ./src:/app
       - static_volume:/app/static_collected
       - media_volume:/app/media
-      - ./logs:/app/logs
+      - logs_volume:/app/logs
     ports:
       - "3333:3333"
     env_file:
@@ -96,7 +96,7 @@ services:
     volumes:
       - ./src:/app
       - media_volume:/app/media
-      - ./logs:/app/logs
+      - logs_volume:/app/logs
     env_file:
       - .env
     environment:
@@ -127,7 +127,7 @@ services:
     command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - ./src:/app
-      - ./logs:/app/logs
+      - logs_volume:/app/logs
     env_file:
       - .env
     environment:
@@ -157,6 +157,8 @@ volumes:
   static_volume:
     driver: local
   media_volume:
+    driver: local
+  logs_volume:
     driver: local
 
 networks:
