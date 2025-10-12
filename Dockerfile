@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements file
 COPY requirements.txt .
 
-# Install Python dependencies
+# Install Python dependencies (includes WhiteNoise)
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
     pip install gunicorn
@@ -38,8 +38,9 @@ RUN useradd -m -u 1000 appuser
 RUN mkdir -p /app/logs /app/static_collected /app/media && \
     chown -R appuser:appuser /app
 
-# Collect static files (can be overridden in entrypoint)
-RUN python manage.py collectstatic --noinput || true
+# Collect static files with WhiteNoise compression
+# This will compress and hash static files for production
+RUN python manage.py collectstatic --noinput --clear || true
 
 # Switch to non-root user
 USER appuser

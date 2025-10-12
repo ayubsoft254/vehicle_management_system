@@ -70,6 +70,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # WhiteNoise - should be right after SecurityMiddleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -151,6 +152,22 @@ STATIC_URL = '/static/'
 STATIC_DIR = BASE_DIR / 'static'
 STATICFILES_DIRS = [str(STATIC_DIR)] if STATIC_DIR.exists() else []
 STATIC_ROOT = BASE_DIR / 'static_collected'
+
+# WhiteNoise configuration for serving static files
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+# WhiteNoise settings
+WHITENOISE_AUTOREFRESH = DEBUG  # Auto-refresh in development
+WHITENOISE_USE_FINDERS = DEBUG  # Use finders in development
+WHITENOISE_MANIFEST_STRICT = False  # Don't raise errors for missing files
+WHITENOISE_ALLOW_ALL_ORIGINS = True  # Allow CORS for static files
 
 # Media files (User uploads)
 MEDIA_URL = '/media/'

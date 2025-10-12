@@ -1,0 +1,143 @@
+┌─────────────────────────────────────────────────────────────────┐
+│                       DEPLOYMENT ARCHITECTURE                      │
+│                     with WhiteNoise Integration                    │
+└─────────────────────────────────────────────────────────────────┘
+
+                              INTERNET
+                                 │
+                                 ▼
+                    ┌────────────────────────┐
+                    │   nginx (Host Server)  │
+                    │   Port 80/443 (SSL)    │
+                    │                        │
+                    │   Location: Ubuntu     │
+                    │   /etc/nginx/sites-... │
+                    └────────┬───────────────┘
+                             │
+                             │ Proxy Pass
+                             │
+                             ▼
+                    ┌────────────────────────┐
+                    │   Docker Container     │
+                    │   Port 3333            │
+                    │                        │
+                    │  ┌──────────────────┐  │
+                    │  │   Gunicorn       │  │
+                    │  │   (WSGI Server)  │  │
+                    │  └────────┬─────────┘  │
+                    │           │            │
+                    │           ▼            │
+                    │  ┌──────────────────┐  │
+                    │  │   Django App     │  │
+                    │  │   + WhiteNoise   │  │
+                    │  │                  │  │
+                    │  │ ┌──────────────┐ │  │
+                    │  │ │  Static Files│ │  │
+                    │  │ │  /static/    │ │  │
+                    │  │ │  (Admin CSS) │ │  │
+                    │  │ └──────────────┘ │  │
+                    │  │                  │  │
+                    │  │ ┌──────────────┐ │  │
+                    │  │ │  Media Files │ │  │
+                    │  │ │  /media/     │ │  │
+                    │  │ └──────────────┘ │  │
+                    │  └──────────────────┘  │
+                    └────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│                      REQUEST FLOW EXAMPLE                         │
+└─────────────────────────────────────────────────────────────────┘
+
+1. User Request: https://vms.ayubsoft-inc.systems/admin/
+                                 │
+                                 ▼
+2. nginx receives request (SSL terminated here)
+                                 │
+                                 ▼
+3. nginx proxies to: http://localhost:3333/admin/
+                                 │
+                                 ▼
+4. Gunicorn receives request in container
+                                 │
+                                 ▼
+5. Django processes request
+                                 │
+                                 ▼
+6. HTML references: /static/admin/css/base.css
+                                 │
+                                 ▼
+7. Browser requests: https://vms.ayubsoft-inc.systems/static/admin/css/base.css
+                                 │
+                                 ▼
+8. nginx proxies to: http://localhost:3333/static/admin/css/base.css
+                                 │
+                                 ▼
+9. WhiteNoise intercepts request inside Django
+                                 │
+                                 ▼
+10. WhiteNoise serves compressed static file with cache headers
+                                 │
+                                 ▼
+11. File delivered to browser ✓
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│                   FILES ON UBUNTU SERVER                          │
+└─────────────────────────────────────────────────────────────────┘
+
+/etc/nginx/sites-available/
+└── vms.ayubsoft-inc.systems         ← nginx.conf goes here
+
+/etc/nginx/sites-enabled/
+└── vms.ayubsoft-inc.systems         ← symlink to above
+
+/var/log/nginx/
+├── vms.ayubsoft-inc.systems.access.log
+└── vms.ayubsoft-inc.systems.error.log
+
+/home/user/vehicle_management_system/  ← Your project folder
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+└── src/
+    ├── manage.py
+    └── config/
+        └── settings.py              ← WhiteNoise configured here
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│                INSIDE DOCKER CONTAINER                            │
+└─────────────────────────────────────────────────────────────────┘
+
+/app/
+├── manage.py
+├── config/
+│   └── settings.py                  ← WhiteNoise middleware
+├── static_collected/                ← Collected static files
+│   ├── admin/                       ← Admin panel CSS/JS
+│   │   ├── css/
+│   │   ├── js/
+│   │   └── img/
+│   └── [your app static files]
+└── media/                           ← User uploads
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│                      KEY DIFFERENCES                              │
+└─────────────────────────────────────────────────────────────────┘
+
+BEFORE (nginx serves static):
+nginx → checks /static/ path → serves from /var/www/vms/static/
+nginx → checks other paths → proxies to Django
+
+AFTER (WhiteNoise serves static):
+nginx → proxies ALL requests → Django/WhiteNoise
+        (WhiteNoise handles /static/ efficiently inside container)
+
+BENEFITS:
+✓ No need to mount static files volume
+✓ No need to run collectstatic on host
+✓ Simpler deployment
+✓ Static files stay in container
+✓ Admin panel CSS works immediately
