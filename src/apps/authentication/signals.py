@@ -50,6 +50,7 @@ def create_user_profile(sender, instance, created, **kwargs):
 def save_user_profile(sender, instance, **kwargs):
     """
     Ensure UserProfile exists and is saved when User is saved
+    Also sync User data to Client profile if user has CLIENT role
     """
     try:
         if hasattr(instance, 'profile'):
@@ -60,6 +61,50 @@ def save_user_profile(sender, instance, **kwargs):
             logger.info(f"Profile created for existing user: {instance.email}")
     except Exception as e:
         logger.error(f"Error saving profile for user {instance.email}: {str(e)}")
+    
+    # Sync User information to Client profile if role is CLIENT
+    from utils.constants import UserRole
+    if instance.role == UserRole.CLIENT:
+        try:
+            from apps.clients.models import Client
+            
+            # Check if client profile exists
+            if hasattr(instance, 'client_profile') and instance.client_profile:
+                client = instance.client_profile
+                
+                # Update client profile with user information
+                updated = False
+                
+                # Update first_name if it's different and not empty
+                if instance.first_name and client.first_name != instance.first_name:
+                    # Only update if current value is placeholder or different
+                    if client.first_name in ['New', 'Client', ''] or client.first_name != instance.first_name:
+                        client.first_name = instance.first_name
+                        updated = True
+                
+                # Update last_name if it's different and not empty
+                if instance.last_name and client.last_name != instance.last_name:
+                    if client.last_name in ['New', 'Client', ''] or client.last_name != instance.last_name:
+                        client.last_name = instance.last_name
+                        updated = True
+                
+                # Update email if it's different
+                if instance.email and client.email != instance.email:
+                    client.email = instance.email
+                    updated = True
+                
+                # Update phone if it's different and not empty
+                if instance.phone and client.phone_primary != instance.phone:
+                    # Only update if current value is placeholder or different
+                    if client.phone_primary in ['+254700000000', ''] or client.phone_primary != instance.phone:
+                        client.phone_primary = instance.phone
+                        updated = True
+                
+                if updated:
+                    client.save()
+                    logger.info(f"Client profile synced for user: {instance.email}")
+        except Exception as e:
+            logger.error(f"Error syncing client profile for user {instance.email}: {str(e)}")
 
 
 @receiver(pre_save, sender=User)
@@ -79,6 +124,24 @@ def user_pre_save(sender, instance, **kwargs):
             # Log role changes
             if old_user.role != instance.role:
                 logger.info(f"User {instance.email} role changed from {old_user.role} to {instance.role}")
+                
+                # If role changed TO CLIENT, create Client profile if it doesn't exist
+                from utils.constants import UserRole
+                if instance.role == UserRole.CLIENT:
+                    from apps.clients.models import Client
+                    if not hasattr(instance, 'client_profile') or not instance.client_profile:
+                        import uuid
+                        temp_id = f'CLIENT-{str(uuid.uuid4())[:8].upper()}'
+                        Client.objects.create(
+                            user=instance,
+                            first_name=instance.first_name or 'New',
+                            last_name=instance.last_name or 'Client',
+                            email=instance.email,
+                            id_number=temp_id,
+                            phone_primary=instance.phone or '+254700000000',
+                            physical_address='To be updated'
+                        )
+                        logger.info(f"Client profile created for existing user: {instance.email}")
             
             # Log status changes
             if old_user.is_active != instance.is_active:
