@@ -22,11 +22,13 @@ A comprehensive vehicle sales management system built with Django 5.1, featuring
 ## 🚀 Quick Start with Docker (Recommended)
 
 ### Prerequisites
-- Docker Desktop installed and running
+- **Windows**: Docker Desktop installed and running
+- **Linux/Ubuntu**: Docker and Docker Compose (see [UBUNTU_DEPLOYMENT.md](UBUNTU_DEPLOYMENT.md))
 - Git (optional)
 
 ### 3-Step Deployment
 
+**Windows:**
 ```bash
 # 1. Configure environment
 copy .env.example .env
@@ -39,7 +41,22 @@ make deploy
 make createsuperuser
 ```
 
+**Ubuntu/Linux:**
+```bash
+# 1. Run automated setup script
+chmod +x setup-ubuntu.sh
+./setup-ubuntu.sh
+
+# Or manually:
+cp .env.example .env
+nano .env  # Edit with your settings
+make deploy
+make createsuperuser
+```
+
 **Access at:** http://localhost:3333
+
+**📖 For Ubuntu Server deployment:** See [UBUNTU_DEPLOYMENT.md](UBUNTU_DEPLOYMENT.md) for complete production setup with Nginx and SSL.
 
 ### Docker Commands Quick Reference
 
