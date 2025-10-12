@@ -168,6 +168,7 @@ WHITENOISE_AUTOREFRESH = DEBUG  # Auto-refresh in development
 WHITENOISE_USE_FINDERS = DEBUG  # Use finders in development
 WHITENOISE_MANIFEST_STRICT = False  # Don't raise errors for missing files
 WHITENOISE_ALLOW_ALL_ORIGINS = True  # Allow CORS for static files
+WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ('jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'gz', 'tgz', 'bz2', 'tbz', 'xz', 'br', 'swf', 'flv', 'woff', 'woff2')
 
 # Media files (User uploads)
 MEDIA_URL = '/media/'
