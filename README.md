@@ -76,7 +76,7 @@ make ps                # Show container status
 ## 🛠️ Manual Installation (Without Docker)
 
 ### Prerequisites
-- Python 3.11+
+- Python 3.12+ (or 3.11+)
 - PostgreSQL 13+ (or SQLite for dev)
 - Redis (for Celery)
 
