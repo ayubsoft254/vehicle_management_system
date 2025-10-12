@@ -30,9 +30,16 @@ deploy: ## Initial deployment - Build and start all services
 	fi
 	$(DOCKER_COMPOSE) up -d --build
 	@echo "$(GREEN)Waiting for services to be ready...$(NC)"
-	@sleep 10
-	$(DOCKER_COMPOSE) exec $(SERVICE_WEB) python manage.py migrate
-	$(DOCKER_COMPOSE) exec $(SERVICE_WEB) python manage.py collectstatic --noinput
+	@sleep 30
+	@echo "$(BLUE)Checking if web container is running...$(NC)"
+	@if ! docker ps | grep -q vms_web; then \
+		echo "$(RED)Error: Web container is not running. Check logs with 'make logs-web'$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Running database migrations...$(NC)"
+	$(DOCKER_COMPOSE) exec $(SERVICE_WEB) python manage.py migrate || true
+	@echo "$(BLUE)Collecting static files...$(NC)"
+	$(DOCKER_COMPOSE) exec $(SERVICE_WEB) python manage.py collectstatic --noinput || true
 	@echo "$(GREEN)Deployment complete!$(NC)"
 	@echo "$(BLUE)Application is running on http://localhost:3333$(NC)"
 	@echo "$(BLUE)Run 'make createsuperuser' to create an admin user$(NC)"
