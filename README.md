@@ -1,103 +1,111 @@
-# 🚗 Vehicle Sales Management System
+# 🚗 Vehicle Management System
 
-A comprehensive multi-tenant vehicle sales management system built with Django 5.2.6, featuring role-based access control, payment tracking, inventory management, and more.
+A comprehensive vehicle sales management system built with Django 5.1, featuring role-based access control, payment tracking, inventory management, background task processing with Celery, and production-ready Docker deployment.
 
-## 📋 Features
+## ✨ Features
 
-- **Multi-Tenancy**: Each company gets their own database schema
 - **Role-Based Access Control**: Admin, Sales, Accountant, Auctioneer, Manager, Staff
-- **Vehicle Inventory Management**: Track vehicles with detailed specs
+- **Vehicle Inventory Management**: Track vehicles with detailed specifications
 - **Client Management**: Comprehensive client profiles and history
-- **Payment Processing**: Installment plans, tracking, and reporting
-- **Payroll Management**: Employee salaries, bonuses, deductions
+- **Payment Processing**: Installment plans, tracking, and automated reminders
+- **Payroll Management**: Employee salaries, bonuses, and deductions
 - **Expense Tracking**: Monitor operational costs
-- **Repossession & Auction Management**: Handle repo vehicles and auctions
-- **Insurance Management**: Track policies and expiry dates
-- **Document Management**: Upload and manage contracts, agreements
+- **Repossession & Auction Management**: Handle repossessed vehicles and auctions
+- **Insurance Management**: Track policies and expiry notifications
+- **Document Management**: Upload and manage contracts, agreements, and documents
 - **Comprehensive Reporting**: PDF/CSV exports for all modules
-- **Audit Logging**: Track all system activities
+- **Audit Logging**: Complete system activity tracking
+- **Background Tasks**: Celery for asynchronous processing
+- **Scheduled Tasks**: Automated reminders, notifications, and reports
+- **Docker Ready**: Production deployment with Gunicorn and Nginx
 
-## 🚀 Installation
+## 🚀 Quick Start with Docker (Recommended)
 
 ### Prerequisites
+- Docker Desktop installed and running
+- Git (optional)
 
-- Python 3.10+
-- PostgreSQL 13+
-- Redis (for Celery tasks)
+### 3-Step Deployment
 
-### Setup Steps
-
-1. **Clone the repository**
 ```bash
-git clone <repository-url>
-cd vehicle_sales_system
+# 1. Configure environment
+copy .env.example .env
+notepad .env  # Edit with your settings
+
+# 2. Deploy everything
+make deploy
+
+# 3. Create admin user
+make createsuperuser
 ```
 
-2. **Create virtual environment**
+**Access at:** http://localhost:3333
+
+### Docker Commands Quick Reference
+
 ```bash
+make help              # Show all available commands
+make up                # Start all services
+make down              # Stop all services
+make restart-web       # Restart web service only (DB safe)
+make rebuild-web       # Rebuild web service (DB safe)
+make logs-web          # View web logs
+make backup-db         # Backup database
+make ps                # Show container status
+```
+
+**📖 Full Docker documentation:** [DOCKER_QUICKSTART.md](DOCKER_QUICKSTART.md) | [DEPLOYMENT.md](DEPLOYMENT.md)
+
+## 🛠️ Manual Installation (Without Docker)
+
+### Prerequisites
+- Python 3.11+
+- PostgreSQL 13+ (or SQLite for dev)
+- Redis (for Celery)
+
+### Setup
+
+```bash
+# 1. Virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+venv\Scripts\activate  # Windows
 
-3. **Install dependencies**
-```bash
-cd src
+# 2. Install dependencies
 pip install -r requirements.txt
-```
 
-4. **Environment Configuration**
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
+# 3. Configure
+copy .env.example .env
+notepad .env
 
-5. **Database Setup**
-```bash
-# Create PostgreSQL database
-createdb vehicle_sales_db
+# 4. Database
+cd src
+python manage.py migrate
 
-# Run migrations
-python manage.py migrate_schemas --shared
-
-# Create public tenant
-python manage.py shell
-from apps.core.models import Client, Domain
-tenant = Client(schema_name='public', name='Public')
-tenant.save()
-domain = Domain()
-domain.domain = 'localhost'  # your domain
-domain.tenant = tenant
-domain.is_primary = True
-domain.save()
-exit()
-```
-
-6. **Create Superuser**
-```bash
+# 5. Create admin
 python manage.py createsuperuser
-```
 
-7. **Setup Default Roles**
-```bash
-python manage.py setup_roles
-```
-
-8. **Run Development Server**
-```bash
+# 6. Run
 python manage.py runserver
 ```
 
-Visit `http://localhost:8000` to access the application.
+## 🏗️ Architecture
 
-## 🏗️ Project Structure
+### Docker Services
+
+- **web**: Django + Gunicorn (port 3333)
+- **db**: PostgreSQL with persistent storage
+- **redis**: Cache and Celery message broker
+- **celery_worker**: Background task processing
+- **celery_beat**: Scheduled task execution
+
+### Project Structure
 
 ```
-vehicle_sales_system/
+vehicle_management_system/
 ├── src/
-│   ├── manage.py
-│   ├── config/              # Django settings
-│   ├── apps/
-│   │   ├── core/            # Authentication, RBAC, Dashboard
+│   ├── config/              # Django settings & Celery config
+│   ├── apps/                # Application modules
+│   │   ├── authentication/  # User auth & RBAC
 │   │   ├── vehicles/        # Vehicle inventory
 │   │   ├── clients/         # Client management
 │   │   ├── payments/        # Payment processing
@@ -109,49 +117,55 @@ vehicle_sales_system/
 │   │   ├── notifications/   # SMS/Email alerts
 │   │   ├── documents/       # Document management
 │   │   ├── reports/         # Report generation
-│   │   └── audit/           # Audit logging
+│   │   ├── audit/           # Audit logging
+│   │   ├── permissions/     # Permissions
+│   │   └── dashboard/       # Dashboard & analytics
+│   ├── templates/           # HTML templates
 │   ├── static/              # Static files
-│   ├── media/               # User uploads
-│   └── templates/           # HTML templates
-├── requirements.txt
-├── .env
-└── README.md
+│   └── media/               # User uploads
+├── Dockerfile               # Docker image
+├── docker-compose.yml       # Multi-container setup
+├── Makefile                 # Deployment commands
+├── nginx.conf.example       # Nginx configuration
+└── requirements.txt         # Dependencies
 ```
 
-## 👥 User Roles & Permissions
+## 👥 User Roles
 
 | Role | Access Level |
 |------|--------------|
 | **Admin** | Full system access |
-| **Manager** | Full access except settings |
+| **Manager** | Full access except system settings |
 | **Sales** | Vehicles, clients, payments |
 | **Accountant** | Payments, payroll, expenses, reports |
 | **Auctioneer** | Repossessions, auctions |
-| **Staff** | View-only access to basic modules |
+| **Staff** | View-only basic access |
 
 ## 🔧 Configuration
 
-### Environment Variables
-
-Key environment variables in `.env`:
+### Environment Variables (.env)
 
 ```env
 # Django
-SECRET_KEY=your-secret-key
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
+SECRET_KEY=your-secret-key-here-change-this
+DEBUG=False
+ALLOWED_HOSTS=localhost,127.0.0.1,yourdomain.com
 
-# Database
-DB_NAME=vehicle_sales_db
-DB_USER=postgres
-DB_PASSWORD=your-password
-DB_HOST=localhost
+# Database (PostgreSQL for production)
+DB_ENGINE=django.db.backends.postgresql
+DB_NAME=vms_db
+DB_USER=vms_user
+DB_PASSWORD=strong-password-here
+DB_HOST=db
 DB_PORT=5432
+
+# Redis
+REDIS_URL=redis://redis:6379/0
 
 # Email
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-EMAIL_HOST_USER=your-email@example.com
+EMAIL_HOST_USER=your-email@gmail.com
 EMAIL_HOST_PASSWORD=your-app-password
 
 # SMS (Twilio)
@@ -160,145 +174,233 @@ TWILIO_AUTH_TOKEN=your-token
 TWILIO_PHONE_NUMBER=+1234567890
 ```
 
-## 📱 Multi-Tenancy Setup
+## 🔄 Common Tasks
 
-### Creating a New Tenant
-
-```python
-from apps.core.models import Client, Domain
-
-# Create tenant
-tenant = Client(
-    schema_name='company_schema',
-    name='Company Name',
-    company_name='Company Full Name',
-    company_email='info@company.com',
-    company_phone='+1234567890'
-)
-tenant.save()
-
-# Create domain
-domain = Domain()
-domain.domain = 'company.yourdomain.com'
-domain.tenant = tenant
-domain.is_primary = True
-domain.save()
-
-# Run tenant migrations
-python manage.py migrate_schemas --tenant=company_schema
-```
-
-## 📊 Running the Application
-
-### Development
+### Docker Operations
 
 ```bash
-# Run development server
-python manage.py runserver
+# After code changes
+make rebuild-web          # Rebuild & restart web (DB untouched)
+make migrate              # Run new migrations
+make collectstatic        # Update static files
 
-# Run Celery worker (for background tasks)
-celery -A config worker -l info
+# Database operations
+make backup-db            # Create timestamped backup
+make restore-db FILE=...  # Restore from backup
+make shell                # Django shell
+make shell-db             # PostgreSQL shell
 
-# Run Celery beat (for scheduled tasks)
-celery -A config beat -l info
+# Monitoring
+make logs                 # All logs
+make logs-web             # Web service logs
+make logs-celery          # Celery logs
+make ps                   # Container status
+make health               # Health check
 ```
 
-### Production
+### Service Management (Database Safe)
 
 ```bash
-# Collect static files
-python manage.py collectstatic --noinput
+make restart-web          # Restart web only
+make restart-celery       # Restart Celery only
+make restart-beat         # Restart scheduler only
+make rebuild-web          # Rebuild web (DB safe)
+make rebuild-celery       # Rebuild Celery (DB safe)
+```
 
-# Run with Gunicorn
-gunicorn config.wsgi:application --bind 0.0.0.0:8000
+## 🌐 Production Deployment
+
+### 1. Configure Nginx
+
+```bash
+# Copy template
+sudo cp nginx.conf.example /etc/nginx/sites-available/vms
+
+# Edit configuration
+sudo nano /etc/nginx/sites-available/vms
+# Update: server_name, static/media paths
+
+# Enable site
+sudo ln -s /etc/nginx/sites-available/vms /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 2. Setup SSL/HTTPS
+
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d yourdomain.com
+```
+
+### 3. Production Checklist
+
+- [ ] Set `DEBUG=False`
+- [ ] Generate strong `SECRET_KEY`
+- [ ] Use strong database passwords
+- [ ] Configure `ALLOWED_HOSTS`
+- [ ] Set up PostgreSQL (not SQLite)
+- [ ] Configure email/SMS properly
+- [ ] Enable SSL/HTTPS
+- [ ] Configure firewall
+- [ ] Set up automated backups
+- [ ] Test backup/restore
+- [ ] Configure log rotation
+- [ ] Monitor resources
+
+## 📦 Backup & Restore
+
+### Manual Backup
+
+```bash
+make backup-db
+# Creates: backups/db_backup_YYYYMMDD_HHMMSS.sql
+```
+
+### Restore
+
+```bash
+make restore-db FILE=backups/db_backup_20250112_120000.sql
+```
+
+### Automated Backups (Windows)
+
+**Windows Task Scheduler:**
+1. Open Task Scheduler
+2. Create Basic Task → Daily at 2:00 AM
+3. Action: Start a program
+   - Program: `powershell.exe`
+   - Arguments: `-Command "cd C:\path\to\project; make backup-db"`
+
+**Linux/Mac Cron:**
+```bash
+crontab -e
+# Add: 0 2 * * * cd /path/to/project && make backup-db
 ```
 
 ## 🧪 Testing
 
 ```bash
-# Run tests
-python manage.py test
+# With Docker
+make test
 
-# Run tests with coverage
-coverage run --source='.' manage.py test
-coverage report
+# Without Docker
+python manage.py test
 ```
 
-## 📝 Management Commands
+## 📊 Performance Tuning
+
+### Gunicorn Workers
+
+Edit `.env` or `docker-compose.yml`:
+
+```env
+GUNICORN_WORKERS=8        # (2 × CPU cores) + 1
+GUNICORN_THREADS=4
+```
+
+### Monitor Resources
 
 ```bash
-# Setup default role permissions
-python manage.py setup_roles
-
-# Create tenant
-python manage.py create_tenant
-
-# Migrate all tenants
-python manage.py migrate_schemas
-
-# Migrate specific tenant
-python manage.py migrate_schemas --tenant=schema_name
+docker stats              # Real-time container stats
+make ps                   # Container status
 ```
 
-## 🎨 Customization
+## 🔍 Troubleshooting
 
-### Theme Colors
+### Container won't start
+```bash
+make logs-web
+make ps
+```
 
-Each tenant can customize their theme colors in the admin panel or via the Client model:
+### Database issues
+```bash
+make logs-db
+make shell-db
+```
 
-- `primary_color`: Main brand color (default: #3B82F6)
-- `secondary_color`: Secondary brand color (default: #10B981)
+### Port 3333 in use
+```bash
+# Windows
+netstat -ano | findstr :3333
+taskkill /PID <PID> /F
 
-### Company Branding
+# Linux/Mac
+lsof -ti:3333 | xargs kill -9
+```
 
-Update tenant information:
-- Company Name
-- Logo
-- Contact Details
-- Address
+### Reset everything
+```bash
+make down
+make clean-containers
+make up
+```
 
-## 📚 API Documentation
+## 🔄 Updating Application
 
-*(To be added when API endpoints are implemented)*
+```bash
+# Pull latest code
+git pull origin main
+
+# Update services (DB untouched)
+make rebuild-web
+make rebuild-celery
+make rebuild-beat
+make migrate
+```
+
+Or use single command:
+```bash
+make update
+```
+
+## 📚 Documentation
+
+- **[DOCKER_QUICKSTART.md](DOCKER_QUICKSTART.md)** - Quick Docker reference
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide
+- **[SETUP_COMPLETE.md](SETUP_COMPLETE.md)** - Setup overview
+- **[nginx.conf.example](nginx.conf.example)** - Nginx configuration
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
-## 🐛 Known Issues
+## 🐛 Issues & Support
 
-- None currently
-
-## 📞 Support
-
-For support, email support@yourcompany.com or create an issue in the repository.
+For issues, questions, or feature requests:
+- Open an issue on GitHub
+- Check existing documentation
+- Review logs: `make logs-web`
 
 ## ✨ Roadmap
 
 - [ ] REST API implementation
 - [ ] Mobile application
 - [ ] Advanced analytics dashboard
-- [ ] Integration with accounting software
+- [ ] Accounting software integration
 - [ ] WhatsApp notifications
-- [ ] Vehicle tracking with GPS
-- [ ] Online payment gateway integration
+- [ ] GPS vehicle tracking
+- [ ] Payment gateway integration
 - [ ] Multi-language support
 
 ## 🙏 Acknowledgments
 
 - Django Framework
 - Tailwind CSS
-- Font Awesome Icons
+- PostgreSQL
+- Redis & Celery
+- Docker
 - All open-source contributors
 
 ---
 
-**Built with ❤️ using Django 5.2.6**
+**Built with ❤️ using Django 5.1 | Ready for production with Docker 🐳**
