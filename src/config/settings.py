@@ -4,6 +4,7 @@ Django 5.1 with django-allauth 65.0.2
 """
 from pathlib import Path
 from decouple import config, Csv
+import dj_database_url
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -92,16 +93,14 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
+# Use dj-database-url to parse DATABASE_URL from environment
+# Fallback to SQLite for local development
 DATABASES = {
-    'default': {
-        'ENGINE': config('DB_ENGINE', default='django.db.backends.sqlite3'),
-        'NAME': BASE_DIR / config('DB_NAME', default='db.sqlite3'),
-        # Uncomment below for PostgreSQL/MySQL
-        # 'USER': config('DB_USER', default=''),
-        # 'PASSWORD': config('DB_PASSWORD', default=''),
-        # 'HOST': config('DB_HOST', default='localhost'),
-        # 'PORT': config('DB_PORT', default='5432'),
-    }
+    'default': dj_database_url.config(
+        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # Custom User Model
@@ -137,7 +136,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+# Only include static directory if it exists
+STATIC_DIR = BASE_DIR / 'static'
+STATICFILES_DIRS = [str(STATIC_DIR)] if STATIC_DIR.exists() else []
 STATIC_ROOT = BASE_DIR / 'static_collected'
 
 # Media files (User uploads)

@@ -64,12 +64,7 @@ services:
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY}
-      - DB_ENGINE=django.db.backends.postgresql
-      - DB_NAME=${DB_NAME:-vms_db}
-      - DB_USER=${DB_USER:-vms_user}
-      - DB_PASSWORD=${DB_PASSWORD:-vms_password}
-      - DB_HOST=db
-      - DB_PORT=5432
+      - DATABASE_URL=postgresql://${DB_USER:-vms_user}:${DB_PASSWORD:-vms_password}@db:5432/${DB_NAME:-vms_db}
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       db:
@@ -102,12 +97,7 @@ services:
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY}
-      - DB_ENGINE=django.db.backends.postgresql
-      - DB_NAME=${DB_NAME:-vms_db}
-      - DB_USER=${DB_USER:-vms_user}
-      - DB_PASSWORD=${DB_PASSWORD:-vms_password}
-      - DB_HOST=db
-      - DB_PORT=5432
+      - DATABASE_URL=postgresql://${DB_USER:-vms_user}:${DB_PASSWORD:-vms_password}@db:5432/${DB_NAME:-vms_db}
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       db:
@@ -133,12 +123,7 @@ services:
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY}
-      - DB_ENGINE=django.db.backends.postgresql
-      - DB_NAME=${DB_NAME:-vms_db}
-      - DB_USER=${DB_USER:-vms_user}
-      - DB_PASSWORD=${DB_PASSWORD:-vms_password}
-      - DB_HOST=db
-      - DB_PORT=5432
+      - DATABASE_URL=postgresql://${DB_USER:-vms_user}:${DB_PASSWORD:-vms_password}@db:5432/${DB_NAME:-vms_db}
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       db:
