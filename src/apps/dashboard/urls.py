@@ -13,7 +13,8 @@ urlpatterns = [
     path('', views.landing_page, name='landing'),
     
     # Public vehicle views (no login required)
-    path('vehicles/<int:pk>/', views.public_vehicle_detail, name='public_vehicle_detail'),
+    # Changed from 'vehicles/<int:pk>/' to 'vehicle/<int:pk>/' to avoid conflict with vehicles app
+    path('vehicle/<int:pk>/', views.public_vehicle_detail, name='public_vehicle_detail'),
     path('purchase-vehicle/<int:pk>/', views.public_vehicle_purchase, name='public_vehicle_purchase'),
     
     # Main dashboard (now at /dashboard/)

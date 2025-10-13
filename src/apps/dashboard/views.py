@@ -164,15 +164,47 @@ def landing_page(request):
 # ============================================================================
 
 def public_vehicle_detail(request, pk):
-    """Public view for vehicle details - no login required"""
+    """
+    Public view for vehicle details
+    - Authenticated users with proper permissions can see all vehicles
+    - Non-authenticated users can only see available vehicles
+    """
     from apps.vehicles.models import Vehicle
+    from apps.permissions.models import UserModuleAccess
+    from utils.constants import AccessLevel
     
-    vehicle = get_object_or_404(
-        Vehicle.objects.select_related('added_by').prefetch_related('photos'),
-        pk=pk,
-        is_active=True,
-        status='available'
-    )
+    # Check if user is authenticated and has vehicle module access
+    if request.user.is_authenticated:
+        # Check if user has READ_ONLY or higher access to vehicles module
+        has_vehicle_access = UserModuleAccess.objects.filter(
+            user=request.user,
+            module__code='vehicles',
+            access_level__in=[AccessLevel.READ_ONLY, AccessLevel.READ_WRITE, AccessLevel.FULL_ACCESS]
+        ).exists()
+        
+        # If user has vehicle access, show any vehicle (staff/admin view)
+        if has_vehicle_access or request.user.is_staff or request.user.is_superuser:
+            vehicle = get_object_or_404(
+                Vehicle.objects.select_related('added_by').prefetch_related('photos'),
+                pk=pk,
+                is_active=True
+            )
+        else:
+            # Authenticated client users can only see available vehicles
+            vehicle = get_object_or_404(
+                Vehicle.objects.select_related('added_by').prefetch_related('photos'),
+                pk=pk,
+                is_active=True,
+                status='available'
+            )
+    else:
+        # Non-authenticated users can only see available vehicles
+        vehicle = get_object_or_404(
+            Vehicle.objects.select_related('added_by').prefetch_related('photos'),
+            pk=pk,
+            is_active=True,
+            status='available'
+        )
     
     # Get similar vehicles (same make or body type)
     similar_vehicles = Vehicle.objects.available().filter(
