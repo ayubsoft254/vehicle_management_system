@@ -57,7 +57,7 @@ services:
     volumes:
       - ./src:/app
       - static_volume:/app/static_collected
-      - media_volume:/app/media
+      - ./src/media:/app/media
       - logs_volume:/app/logs
     ports:
       - "3333:3333"
@@ -92,7 +92,7 @@ services:
     command: celery -A config worker -l info
     volumes:
       - ./src:/app
-      - media_volume:/app/media
+      - ./src/media:/app/media
       - logs_volume:/app/logs
     env_file:
       - .env
@@ -142,8 +142,6 @@ volumes:
   redis_data:
     driver: local
   static_volume:
-    driver: local
-  media_volume:
     driver: local
   logs_volume:
     driver: local
