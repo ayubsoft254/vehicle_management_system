@@ -193,3 +193,28 @@ def has_full_access(user, module_name):
     
     except RolePermission.DoesNotExist:
         return False
+
+
+@register.filter
+def can_access(user, module_name):
+    """
+    Filter to check if user can access a module (any access level)
+    Usage: {% if user|can_access:'vehicles' %}
+    """
+    if not user or not user.is_authenticated:
+        return False
+    
+    if user.is_superuser:
+        return True
+    
+    try:
+        permission = RolePermission.objects.get(
+            role=user.role,
+            module_name=module_name,
+            is_active=True
+        )
+        # User can access if they have any access level except NO_ACCESS
+        return permission.access_level != AccessLevel.NO_ACCESS
+    
+    except RolePermission.DoesNotExist:
+        return False
