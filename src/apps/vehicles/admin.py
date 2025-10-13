@@ -157,13 +157,13 @@ class VehicleAdmin(admin.ModelAdmin):
         """Display pricing information"""
         profit_color = '#10b981' if obj.profit >= 0 else '#ef4444'
         return format_html(
-            '<strong>KSh {:,}</strong><br>'
-            '<small style="color: #6b7280;">Purchase: KSh {:,}</small><br>'
-            '<small style="color: {};">Profit: KSh {:,}</small>',
-            obj.selling_price,
-            obj.purchase_price,
+            '<strong>KSh {}</strong><br>'
+            '<small style="color: #6b7280;">Purchase: KSh {}</small><br>'
+            '<small style="color: {};">Profit: KSh {}</small>',
+            f'{obj.selling_price:,}',
+            f'{obj.purchase_price:,}',
             profit_color,
-            obj.profit
+            f'{obj.profit:,}'
         )
     price_info.short_description = 'Price'
     
