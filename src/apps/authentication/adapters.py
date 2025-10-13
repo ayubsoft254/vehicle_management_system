@@ -54,31 +54,36 @@ class CustomAccountAdapter(DefaultAccountAdapter):
     def get_login_redirect_url(self, request):
         """
         Returns the URL to redirect to after a successful login.
-        Can customize based on user role.
+        Redirects based on user role:
+        - CLIENT users → /clients/portal/
+        - All other users → /dashboard/
         """
         from utils.constants import UserRole
+        from django.urls import resolve, Resolver404
         
-        # Get the default redirect URL
-        path = super().get_login_redirect_url(request)
+        # Check if there's a 'next' parameter in the request
+        # Only honor 'next' if it's not the default login page
+        next_url = request.POST.get('next') or request.GET.get('next')
+        if next_url and next_url not in ['/accounts/login/', '/accounts/signup/', '/']:
+            try:
+                # Verify the next URL is valid
+                resolve(next_url)
+                return next_url
+            except Resolver404:
+                pass  # Invalid URL, fall through to role-based redirect
         
-        # Customize redirect based on user role
+        # Role-based redirect
         if request.user.is_authenticated:
             if request.user.role == UserRole.CLIENT:
                 return '/clients/portal/'  # Client portal dashboard
-            elif request.user.role == UserRole.ADMIN:
-                return '/dashboard/'
-            elif request.user.role == UserRole.MANAGER:
-                return '/dashboard/'
-            elif request.user.role == UserRole.SALES:
-                return '/dashboard/'
-            elif request.user.role == UserRole.ACCOUNTANT:
-                return '/dashboard/'
             elif request.user.role == UserRole.AUCTIONEER:
-                return '/auctions/'
+                return '/auctions/'  # Auctioneer specific dashboard
             else:
+                # All other roles (ADMIN, MANAGER, SALES, ACCOUNTANT, CLERK, etc.)
                 return '/dashboard/'
         
-        return path
+        # Fallback to default
+        return super().get_login_redirect_url(request)
     
     def get_logout_redirect_url(self, request):
         """

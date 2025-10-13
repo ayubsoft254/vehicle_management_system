@@ -170,11 +170,20 @@ def user_post_delete(sender, instance, **kwargs):
 def log_user_login(sender, request, user, **kwargs):
     """
     Log when a user successfully logs in
+    Also ensures proper redirect based on user role
     """
+    from utils.constants import UserRole
+    
     # Get IP address
     ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
     
-    logger.info(f"User logged in: {user.email} from IP: {ip_address}")
+    logger.info(f"User logged in: {user.email} (Role: {user.role}) from IP: {ip_address}")
+    
+    # Log the redirect destination for debugging
+    if user.role == UserRole.CLIENT:
+        logger.info(f"CLIENT user {user.email} should redirect to /clients/portal/")
+    else:
+        logger.info(f"User {user.email} with role {user.role} should redirect to /dashboard/")
     
     # You can add additional logic here:
     # - Update last_login timestamp (Django does this automatically)
