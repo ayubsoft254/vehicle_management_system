@@ -115,7 +115,37 @@
     <!-- Dashboard Content -->
     <div class="px-4 sm:px-6 lg:px-8 py-8">
         {% if dashboard %}
-            <!-- Overview Stats -->
+            <!-- Non-Admin Welcome Section -->
+            {% if not user.is_staff and not user.is_superuser %}
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
+                <div class="text-center max-w-2xl mx-auto">
+                    <div class="bg-blue-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-user-circle text-4xl text-blue-600"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-3">Welcome to Your Dashboard!</h2>
+                    <p class="text-gray-600 mb-6">
+                        Access quick actions and manage your tasks efficiently. Use the menu above to navigate to different sections.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <a href="{% url 'vehicles:list' %}" class="p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition">
+                            <i class="fas fa-car text-3xl text-blue-600 mb-2"></i>
+                            <p class="font-semibold text-gray-900">View Vehicles</p>
+                        </a>
+                        <a href="{% url 'clients:client_list' %}" class="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition">
+                            <i class="fas fa-users text-3xl text-green-600 mb-2"></i>
+                            <p class="font-semibold text-gray-900">View Clients</p>
+                        </a>
+                        <a href="{% url 'dashboard:quick_actions' %}" class="p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition">
+                            <i class="fas fa-bolt text-3xl text-purple-600 mb-2"></i>
+                            <p class="font-semibold text-gray-900">Quick Actions</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Overview Stats (Admin Only) -->
+            {% if user.is_staff or user.is_superuser %}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <!-- Total Vehicles -->
                 <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition duration-300">
@@ -189,8 +219,10 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
 
-            <!-- Detailed Statistics Section -->
+            <!-- Detailed Statistics Section (Admin Only) -->
+            {% if user.is_staff or user.is_superuser %}
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                 <!-- Vehicle Breakdown -->
                 <div class="bg-white rounded-xl shadow-lg p-6">
@@ -302,6 +334,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Widgets Section (COMMENTED OUT) -->
             {% comment %}

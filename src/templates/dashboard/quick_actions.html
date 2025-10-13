@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Quick Actions - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">
+                    <i class="fas fa-bolt text-yellow-500 mr-3"></i>
+                    Quick Actions
+                </h1>
+                <p class="mt-2 text-gray-600">Fast access to commonly used features</p>
+            </div>
+            <a href="{% url 'dashboard:index' %}" 
+               class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Actions Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        
+        <!-- Vehicle Management Actions -->
+        <div class="col-span-full">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-car text-blue-600 mr-2"></i>
+                Vehicle Management
+            </h2>
+        </div>
+
+        <!-- Add New Vehicle -->
+        <a href="{% url 'vehicles:create' %}" 
+           class="block p-6 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-plus text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">Add Vehicle</h3>
+                <p class="text-sm text-blue-100">Register a new vehicle in inventory</p>
+            </div>
+        </a>
+
+        <!-- View All Vehicles -->
+        <a href="{% url 'vehicles:list' %}" 
+           class="block p-6 bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-list text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">View Vehicles</h3>
+                <p class="text-sm text-indigo-100">Browse vehicle inventory</p>
+            </div>
+        </a>
+
+        <!-- Upload Vehicle Photos -->
+        <a href="{% url 'vehicles:list' %}" 
+           class="block p-6 bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-camera text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">Upload Photos</h3>
+                <p class="text-sm text-purple-100">Add photos to vehicle listings</p>
+            </div>
+        </a>
+
+        <!-- Vehicle Stats -->
+        <a href="{% url 'vehicles:stats' %}" 
+           class="block p-6 bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-chart-bar text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">Vehicle Stats</h3>
+                <p class="text-sm text-teal-100">View inventory statistics</p>
+            </div>
+        </a>
+
+        <!-- Client Management Actions -->
+        <div class="col-span-full mt-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-users text-green-600 mr-2"></i>
+                Client Management
+            </h2>
+        </div>
+
+        <!-- Add New Client -->
+        <a href="{% url 'clients:client_create' %}" 
+           class="block p-6 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-user-plus text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">Add Client</h3>
+                <p class="text-sm text-green-100">Register a new client</p>
+            </div>
+        </a>
+
+        <!-- View All Clients -->
+        <a href="{% url 'clients:client_list' %}" 
+           class="block p-6 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-users text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">View Clients</h3>
+                <p class="text-sm text-emerald-100">Browse all clients</p>
+            </div>
+        </a>
+
+        <!-- Assign Vehicle -->
+        <a href="{% url 'clients:client_list' %}" 
+           class="block p-6 bg-gradient-to-br from-lime-500 to-lime-600 hover:from-lime-600 hover:to-lime-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-handshake text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">Assign Vehicle</h3>
+                <p class="text-sm text-lime-100">Assign vehicle to client</p>
+            </div>
+        </a>
+
+        <!-- Record Payment -->
+        <a href="{% url 'payments:payment_list' %}" 
+           class="block p-6 bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-money-bill-wave text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">Record Payment</h3>
+                <p class="text-sm text-cyan-100">Process client payments</p>
+            </div>
+        </a>
+
+        <!-- Auction Management -->
+        <div class="col-span-full mt-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-gavel text-orange-600 mr-2"></i>
+                Auction Management
+            </h2>
+        </div>
+
+        <!-- Create Auction -->
+        <a href="{% url 'auctions:auction_create' %}" 
+           class="block p-6 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-gavel text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">Create Auction</h3>
+                <p class="text-sm text-orange-100">Start a new vehicle auction</p>
+            </div>
+        </a>
+
+        <!-- View Auctions -->
+        <a href="{% url 'auctions:auction_list' %}" 
+           class="block p-6 bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-list-ul text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">View Auctions</h3>
+                <p class="text-sm text-amber-100">Browse all auctions</p>
+            </div>
+        </a>
+
+        <!-- Reports & Analytics -->
+        <div class="col-span-full mt-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-chart-line text-red-600 mr-2"></i>
+                Reports & Analytics
+            </h2>
+        </div>
+
+        <!-- Financial Reports -->
+        <a href="{% url 'reports:financial' %}" 
+           class="block p-6 bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-file-invoice-dollar text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">Financial Reports</h3>
+                <p class="text-sm text-red-100">View financial analytics</p>
+            </div>
+        </a>
+
+        <!-- Client Reports -->
+        <a href="{% url 'reports:clients' %}" 
+           class="block p-6 bg-gradient-to-br from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-users-cog text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">Client Reports</h3>
+                <p class="text-sm text-pink-100">Client performance data</p>
+            </div>
+        </a>
+
+        <!-- Vehicle Reports -->
+        <a href="{% url 'reports:vehicles' %}" 
+           class="block p-6 bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-car-side text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">Vehicle Reports</h3>
+                <p class="text-sm text-rose-100">Inventory analytics</p>
+            </div>
+        </a>
+
+        <!-- Sales Reports -->
+        <a href="{% url 'reports:sales' %}" 
+           class="block p-6 bg-gradient-to-br from-fuchsia-500 to-fuchsia-600 hover:from-fuchsia-600 hover:to-fuchsia-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
+            <div class="flex flex-col items-center text-center text-white">
+                <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-chart-pie text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold mb-2">Sales Reports</h3>
+                <p class="text-sm text-fuchsia-100">Sales performance metrics</p>
+            </div>
+        </a>
+
+        <!-- Custom Quick Actions from Database -->
+        {% if quick_actions %}
+            <div class="col-span-full mt-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-star text-yellow-600 mr-2"></i>
+                    Custom Actions
+                </h2>
+            </div>
+
+            {% for action in quick_actions %}
+            <a href="{{ action.action_url }}" 
+               class="block p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1"
+               style="background: linear-gradient(to bottom right, {{ action.color }}, {{ action.color }}dd);">
+                <div class="flex flex-col items-center text-center text-white">
+                    <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+                        <i class="fas fa-{{ action.icon }} text-3xl"></i>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">{{ action.name }}</h3>
+                    <p class="text-sm opacity-90">{{ action.description }}</p>
+                </div>
+            </a>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Help Section -->
+    <div class="mt-12 bg-blue-50 border border-blue-200 rounded-xl p-6">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-600 text-2xl"></i>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-lg font-bold text-blue-900 mb-2">Quick Actions Help</h3>
+                <p class="text-blue-800 text-sm">
+                    Quick Actions provide fast access to commonly used features in the system. 
+                    Click on any action card to navigate directly to that feature. 
+                    For vehicle photo uploads, first select the vehicle from the list, then use the "Upload Photos" button.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
