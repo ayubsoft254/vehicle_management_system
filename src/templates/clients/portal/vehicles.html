@@ -128,7 +128,7 @@
                             </div>
 
                             <!-- Status Badge -->
-                            <div class="flex justify-between items-center">
+                            <div class="flex justify-between items-center mb-3">
                                 {% if cv.is_active %}
                                 <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
                                     Active
@@ -144,6 +144,17 @@
                                     View Details
                                 </a>
                             </div>
+                            
+                            <!-- Remove Vehicle Option -->
+                            {% if cv.is_active and not cv.is_paid_off %}
+                            <div class="mt-2 pt-3 border-t border-gray-200">
+                                <a href="{% url 'clients:portal_remove_vehicle' cv.id %}" 
+                                   class="inline-flex items-center justify-center w-full px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-medium rounded-md transition border border-red-200">
+                                    <i class="fas fa-times-circle mr-1"></i>
+                                    Remove from Profile
+                                </a>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}

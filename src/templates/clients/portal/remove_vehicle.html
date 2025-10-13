@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Remove Vehicle - Client Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Remove Vehicle</h1>
+                <p class="text-gray-600 mt-1">Remove this vehicle from your profile</p>
+            </div>
+            <a href="{% url 'clients:portal_vehicle_detail' client_vehicle.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Vehicle
+            </a>
+        </div>
+    </div>
+
+    <!-- Warning Alert -->
+    <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-red-400 text-xl"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800">Warning: This action will remove the vehicle from your profile</h3>
+                <div class="mt-2 text-sm text-red-700">
+                    <p>Please carefully review the information below before proceeding. This action cannot be undone easily.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Vehicle Information -->
+        <div class="lg:col-span-2">
+            <!-- Vehicle Details Card -->
+            <div class="bg-white rounded-lg shadow mb-6">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-900">Vehicle to be Removed</h2>
+                </div>
+                <div class="p-6">
+                    <div class="flex items-start space-x-4">
+                        <!-- Vehicle Icon/Image -->
+                        <div class="flex-shrink-0">
+                            <div class="w-24 h-24 bg-gradient-to-br from-gray-200 to-gray-300 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-car text-3xl text-gray-400"></i>
+                            </div>
+                        </div>
+                        
+                        <!-- Vehicle Details -->
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">
+                                {{ client_vehicle.vehicle.year }} {{ client_vehicle.vehicle.make }} {{ client_vehicle.vehicle.model }}
+                            </h3>
+                            <dl class="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                    <dt class="text-gray-600">Registration Number:</dt>
+                                    <dd class="font-semibold text-gray-900">{{ client_vehicle.vehicle.registration_number }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-gray-600">VIN:</dt>
+                                    <dd class="font-semibold text-gray-900 text-xs">{{ client_vehicle.vehicle.vin }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-gray-600">Purchase Date:</dt>
+                                    <dd class="font-semibold text-gray-900">{{ client_vehicle.purchase_date|date:"d M Y" }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-gray-600">Color:</dt>
+                                    <dd class="font-semibold text-gray-900">{{ client_vehicle.vehicle.color|default:"N/A" }}</dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Summary -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-900">Payment Summary</h2>
+                </div>
+                <div class="p-6">
+                    <dl class="space-y-4">
+                        <div class="flex justify-between items-center pb-4 border-b border-gray-200">
+                            <dt class="text-gray-600">Purchase Price:</dt>
+                            <dd class="text-lg font-bold text-gray-900">KSH {{ client_vehicle.purchase_price|floatformat:2 }}</dd>
+                        </div>
+                        <div class="flex justify-between items-center pb-4 border-b border-gray-200">
+                            <dt class="text-gray-600">Amount Paid:</dt>
+                            <dd class="text-lg font-bold text-green-600">KSH {{ amount_paid|floatformat:2 }}</dd>
+                        </div>
+                        <div class="flex justify-between items-center pb-4 border-b border-gray-200">
+                            <dt class="text-gray-600">Remaining Balance:</dt>
+                            <dd class="text-lg font-bold text-red-600">KSH {{ balance_remaining|floatformat:2 }}</dd>
+                        </div>
+                        <div class="flex justify-between items-center pb-4 border-b border-gray-200">
+                            <dt class="text-gray-600">Number of Payments Made:</dt>
+                            <dd class="text-lg font-bold text-gray-900">{{ payment_count }}</dd>
+                        </div>
+                        {% if installment_plan %}
+                        <div class="flex justify-between items-center">
+                            <dt class="text-gray-600">Monthly Installment:</dt>
+                            <dd class="text-lg font-bold text-gray-900">KSH {{ installment_plan.monthly_installment|floatformat:2 }}</dd>
+                        </div>
+                        {% endif %}
+                    </dl>
+
+                    <!-- Payment Progress Bar -->
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                        <div class="flex justify-between text-sm mb-2">
+                            <span class="text-gray-600">Payment Progress</span>
+                            <span class="font-bold">{{ client_vehicle.payment_progress|default:"0"|floatformat:1 }}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-blue-600 h-3 rounded-full transition-all duration-300" style="width: {{ client_vehicle.payment_progress|default:"0" }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmation Form -->
+        <div>
+            <div class="bg-white rounded-lg shadow sticky top-4">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-900">Confirm Removal</h2>
+                </div>
+                <div class="p-6">
+                    <!-- Important Information -->
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                        <h4 class="text-sm font-semibold text-yellow-800 mb-2">Important Information</h4>
+                        <ul class="text-xs text-yellow-700 space-y-1 list-disc list-inside">
+                            <li>Removing this vehicle will cancel your payment plan</li>
+                            <li>Any payments made will be reviewed for refund</li>
+                            <li>Our team will contact you within 3-5 business days</li>
+                            <li>You can still browse and purchase other vehicles</li>
+                            {% if amount_paid > 0 %}
+                            <li class="font-semibold">Refund amount: KSH {{ amount_paid|floatformat:2 }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+
+                    <!-- Removal Form -->
+                    <form method="post" action="{% url 'clients:portal_remove_vehicle' client_vehicle.id %}">
+                        {% csrf_token %}
+                        
+                        <!-- Reason for Removal -->
+                        <div class="mb-6">
+                            <label for="removal_reason" class="block text-sm font-medium text-gray-700 mb-2">
+                                Reason for Removal (Optional)
+                            </label>
+                            <textarea 
+                                name="removal_reason" 
+                                id="removal_reason" 
+                                rows="4" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                placeholder="Please let us know why you're removing this vehicle..."
+                            ></textarea>
+                            <p class="text-xs text-gray-500 mt-1">Help us improve our service by sharing your feedback</p>
+                        </div>
+
+                        <!-- Confirmation Checkbox -->
+                        <div class="mb-6">
+                            <label class="flex items-start space-x-3">
+                                <input 
+                                    type="checkbox" 
+                                    name="confirm_removal" 
+                                    value="yes" 
+                                    required
+                                    class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                >
+                                <span class="text-sm text-gray-700">
+                                    I understand that removing this vehicle will cancel my payment plan and that I will be contacted regarding any refunds or next steps.
+                                </span>
+                            </label>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="space-y-3">
+                            <button 
+                                type="submit" 
+                                class="w-full px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition flex items-center justify-center"
+                            >
+                                <i class="fas fa-trash-alt mr-2"></i>
+                                Remove Vehicle
+                            </button>
+                            <a 
+                                href="{% url 'clients:portal_vehicle_detail' client_vehicle.id %}" 
+                                class="w-full px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition flex items-center justify-center"
+                            >
+                                <i class="fas fa-times mr-2"></i>
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+
+                    <!-- Help Section -->
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                        <h4 class="text-sm font-semibold text-gray-700 mb-2">Need Help?</h4>
+                        <p class="text-xs text-gray-600 mb-3">If you're having payment difficulties or need to discuss alternative options, please contact our support team.</p>
+                        <a href="tel:+254700000000" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            <i class="fas fa-phone mr-1"></i>
+                            Call Support
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Add confirmation dialog
+document.querySelector('form').addEventListener('submit', function(e) {
+    const checkbox = document.querySelector('input[name="confirm_removal"]');
+    if (!checkbox.checked) {
+        e.preventDefault();
+        alert('Please confirm that you understand the implications of removing this vehicle.');
+        return false;
+    }
+    
+    const confirmed = confirm('Are you absolutely sure you want to remove this vehicle? This action will cancel your payment plan.');
+    if (!confirmed) {
+        e.preventDefault();
+        return false;
+    }
+});
+</script>
+{% endblock %}

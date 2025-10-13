@@ -17,6 +17,7 @@ from apps.payments.models import Payment, InstallmentPlan, PaymentSchedule
 from apps.vehicles.models import Vehicle
 from apps.documents.models import Document
 from apps.insurance.models import InsurancePolicy
+from apps.auctions.models import Auction, Bid, AuctionParticipant, AuctionWatchlist
 from utils.constants import UserRole, VehicleStatus
 import json
 
@@ -886,3 +887,127 @@ def portal_payment_bank_details(request, client_vehicle_id, payment_type):
     }
     
     return render(request, 'clients/portal/payment_bank_details.html', context)
+
+
+# ==================== VEHICLE REMOVAL ====================
+
+@login_required
+@client_required
+def portal_remove_vehicle(request, vehicle_id):
+    """
+    Allow clients to remove a vehicle from their profile
+    This is used when a client decides not to continue with a vehicle purchase
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    # Get the client vehicle - ensure it belongs to the client
+    client_vehicle = get_object_or_404(
+        ClientVehicle.objects.select_related('vehicle'),
+        id=vehicle_id,
+        client=client
+    )
+    
+    # Check if vehicle is already fully paid
+    if client_vehicle.is_paid_off:
+        messages.warning(request, 'This vehicle is fully paid and cannot be removed. Please contact support for assistance.')
+        return redirect('clients:portal_vehicle_detail', vehicle_id=client_vehicle.id)
+    
+    if request.method == 'POST':
+        # Confirm removal
+        confirmation = request.POST.get('confirm_removal')
+        removal_reason = request.POST.get('removal_reason', '')
+        
+        if confirmation == 'yes':
+            # Store vehicle info for the message
+            vehicle_name = f"{client_vehicle.vehicle.year} {client_vehicle.vehicle.make} {client_vehicle.vehicle.model}"
+            
+            # Get associated installment plan if exists
+            installment_plan = InstallmentPlan.objects.filter(
+                client_vehicle=client_vehicle
+            ).first()
+            
+            # Deactivate the installment plan
+            if installment_plan:
+                installment_plan.is_active = False
+                installment_plan.save()
+                
+                # Mark all pending payment schedules as cancelled
+                PaymentSchedule.objects.filter(
+                    installment_plan=installment_plan,
+                    is_paid=False
+                ).update(is_paid=False)  # Keep them as unpaid but plan is inactive
+            
+            # Update the vehicle status back to available if no payments made
+            # or keep as is if some payments were made (for accounting purposes)
+            if client_vehicle.total_paid == Decimal('0.00'):
+                # No payments made, return vehicle to available
+                vehicle = client_vehicle.vehicle
+                vehicle.status = VehicleStatus.AVAILABLE
+                vehicle.save()
+            
+            # Mark the client vehicle as inactive instead of deleting
+            # This preserves the record for auditing purposes
+            client_vehicle.is_active = False
+            client_vehicle.notes = f"Vehicle removed by client. Reason: {removal_reason or 'Not specified'}"
+            client_vehicle.save()
+            
+            # Update client's current debt
+            client.current_debt -= client_vehicle.balance
+            if client.current_debt < 0:
+                client.current_debt = Decimal('0.00')
+            client.save()
+            
+            # Create an audit log entry if audit app is available
+            try:
+                from apps.audit.models import AuditLog
+                AuditLog.objects.create(
+                    user=request.user,
+                    action='vehicle_removal',
+                    model_name='ClientVehicle',
+                    object_id=client_vehicle.id,
+                    description=f"Client removed vehicle: {vehicle_name}. Reason: {removal_reason or 'Not specified'}",
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+            except ImportError:
+                pass  # Audit app not available
+            
+            messages.success(
+                request, 
+                f'Vehicle "{vehicle_name}" has been removed from your profile. '
+                f'Any payments made will be processed for refund by our team. '
+                f'We will contact you shortly regarding the next steps.'
+            )
+            return redirect('clients:portal_vehicles')
+        else:
+            messages.error(request, 'Please confirm that you want to remove this vehicle.')
+            return redirect('clients:portal_remove_vehicle', vehicle_id=client_vehicle.id)
+    
+    # GET request - show confirmation page
+    # Calculate what client stands to lose
+    amount_paid = client_vehicle.total_paid
+    balance_remaining = client_vehicle.balance
+    
+    # Get payment count
+    payment_count = Payment.objects.filter(
+        client_vehicle=client_vehicle
+    ).count()
+    
+    # Get installment plan details
+    installment_plan = InstallmentPlan.objects.filter(
+        client_vehicle=client_vehicle
+    ).first()
+    
+    context = {
+        'client': client,
+        'client_vehicle': client_vehicle,
+        'amount_paid': amount_paid,
+        'balance_remaining': balance_remaining,
+        'payment_count': payment_count,
+        'installment_plan': installment_plan,
+    }
+    
+    return render(request, 'clients/portal/remove_vehicle.html', context)

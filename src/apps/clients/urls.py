@@ -16,6 +16,7 @@ urlpatterns = [
     # Portal Vehicles
     path('portal/vehicles/', portal_views.portal_vehicles, name='portal_vehicles'),
     path('portal/vehicles/<int:vehicle_id>/', portal_views.portal_vehicle_detail, name='portal_vehicle_detail'),
+    path('portal/vehicles/<int:vehicle_id>/remove/', portal_views.portal_remove_vehicle, name='portal_remove_vehicle'),
     
     # Portal Payments
     path('portal/payments/', portal_views.portal_payments, name='portal_payments'),
