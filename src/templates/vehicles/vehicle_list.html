@@ -1,9 +1,115 @@
 {% extends "base.html" %}
 {% load static %}
-{% load humanize %} extends 'base.html' %}
-{% load static %}
+{% load humanize %}
 
 {% block title %}Vehicles - Vehicle Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Vehicle card hover effects */
+    .vehicle-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .vehicle-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    
+    /* Button hover effects */
+    .action-btn {
+        transition: all 0.2s ease-in-out;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-1px);
+    }
+    
+    .action-btn:active {
+        transform: translateY(0);
+    }
+    
+    /* Dropdown animation */
+    .dropdown-menu {
+        animation: slideDown 0.2s ease-out;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Checkbox styling */
+    .vehicle-checkbox {
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .vehicle-checkbox:checked {
+        background-color: #3b82f6;
+        border-color: #3b82f6;
+    }
+    
+    /* Badge pulse animation for featured vehicles */
+    .featured-badge {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.8;
+        }
+    }
+    
+    /* Price highlight */
+    .price-tag {
+        position: relative;
+    }
+    
+    .price-tag::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+    
+    .vehicle-card:hover .price-tag::before {
+        transform: scaleX(1);
+    }
+    
+    /* Status badge styles */
+    .status-badge {
+        backdrop-filter: blur(8px);
+        font-weight: 600;
+        letter-spacing: 0.05em;
+    }
+    
+    /* Loading spinner for search */
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -11,9 +117,10 @@
     <!-- Page Header -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-900">Vehicle Inventory</h1>
-            <p class="mt-1 text-sm text-gray-600">Manage and track your vehicle inventory</p>
+            <h1 class="text-3xl font-bold text-gray-900">{% if user.is_authenticated %}Vehicle Inventory{% else %}Available Vehicles{% endif %}</h1>
+            <p class="mt-1 text-sm text-gray-600">{% if user.is_authenticated %}Manage and track your vehicle inventory{% else %}Browse our collection of quality vehicles{% endif %}</p>
         </div>
+        {% if user.is_authenticated and perms.vehicles.add_vehicle %}
         <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
             <a href="{% url 'vehicles:create' %}" 
                class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
@@ -30,6 +137,7 @@
                 Export CSV
             </a>
         </div>
+        {% endif %}
     </div>
 
     <!-- Statistics Cards -->
@@ -220,7 +328,8 @@
                     Vehicles ({{ page_obj.paginator.count }})
                 </h2>
                 
-                <!-- Bulk Actions (if applicable) -->
+                <!-- Bulk Actions (Admin Only) -->
+                {% if user.is_authenticated and user.is_staff %}
                 <div class="flex items-center gap-2">
                     <select id="bulkAction" class="rounded-lg border-gray-300 text-sm">
                         <option value="">Bulk Actions</option>
@@ -235,20 +344,21 @@
                         Apply
                     </button>
                 </div>
+                {% endif %}
             </div>
 
             {% if page_obj %}
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {% for vehicle in page_obj %}
-                        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition duration-300">
+                        <div class="vehicle-card bg-white border border-gray-200 rounded-lg overflow-hidden">
                             <!-- Vehicle Image -->
-                            <div class="relative h-48 bg-gray-200">
+                            <div class="relative h-48 bg-gray-200 overflow-hidden">
                                 {% if vehicle.photos.first %}
                                     <img src="{{ vehicle.photos.first.image.url }}" 
                                          alt="{{ vehicle.full_name }}"
-                                         class="w-full h-full object-cover">
+                                         class="w-full h-full object-cover transition duration-300 hover:scale-110">
                                 {% else %}
-                                    <div class="flex items-center justify-center h-full">
+                                    <div class="flex items-center justify-center h-full bg-gradient-to-br from-gray-100 to-gray-200">
                                         <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                         </svg>
@@ -257,13 +367,13 @@
                                 
                                 <!-- Featured Badge -->
                                 {% if vehicle.is_featured %}
-                                    <span class="absolute top-2 right-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded">
-                                        FEATURED
+                                    <span class="featured-badge absolute top-2 right-2 bg-yellow-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                                        ⭐ FEATURED
                                     </span>
                                 {% endif %}
                                 
                                 <!-- Status Badge -->
-                                <span class="absolute top-2 left-2 px-2 py-1 rounded text-xs font-bold
+                                <span class="status-badge absolute top-2 left-2 px-3 py-1.5 rounded-full text-xs shadow-lg
                                     {% if vehicle.status == 'available' %}bg-green-500 text-white
                                     {% elif vehicle.status == 'sold' %}bg-purple-500 text-white
                                     {% elif vehicle.status == 'reserved' %}bg-yellow-500 text-white
@@ -272,10 +382,13 @@
                                     {{ vehicle.get_status_display|upper }}
                                 </span>
 
-                                <!-- Checkbox for Bulk Selection -->
+                                <!-- Checkbox for Bulk Selection (Admin Only) -->
+                                {% if user.is_authenticated and user.is_staff %}
                                 <input type="checkbox" 
-                                       class="absolute bottom-2 left-2 vehicle-checkbox w-4 h-4 text-blue-600 rounded" 
-                                       value="{{ vehicle.pk }}">
+                                       class="vehicle-checkbox absolute bottom-2 left-2 w-5 h-5 text-blue-600 rounded shadow-md" 
+                                       value="{{ vehicle.pk }}"
+                                       title="Select for bulk action">
+                                {% endif %}
                             </div>
 
                             <!-- Vehicle Info -->
@@ -308,28 +421,110 @@
                                 </div>
 
                                 <div class="pt-4 border-t border-gray-200">
-                                    <div class="flex items-center justify-between mb-3">
-                                        <span class="text-2xl font-bold text-blue-600">
+                                    <!-- Price -->
+                                    <div class="mb-4">
+                                        <span class="price-tag text-2xl font-bold text-blue-600 inline-block pb-1">
                                             ${{ vehicle.selling_price|floatformat:0|intcomma }}
                                         </span>
-                                        <div class="flex gap-2">
-                                            <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" 
-                                               class="inline-flex items-center px-3 py-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs font-medium rounded-lg transition"
-                                               title="Upload Photos">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                                </svg>
-                                            </a>
+                                    </div>
+
+                                    <!-- Action Buttons -->
+                                    {% if user.is_authenticated and user.is_staff %}
+                                    <!-- Admin Action Buttons - Well Spaced Grid -->
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <!-- View Details - Primary Action -->
+                                        <a href="{% url 'vehicles:detail' vehicle.pk %}" 
+                                           class="action-btn col-span-2 inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm hover:shadow-md"
+                                           title="View Full Details">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                            </svg>
+                                            View Details
+                                        </a>
+
+                                        <!-- Edit Button -->
+                                        <a href="{% url 'vehicles:update' vehicle.pk %}" 
+                                           class="action-btn inline-flex items-center justify-center px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 font-medium rounded-lg"
+                                           title="Edit Vehicle">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                            </svg>
+                                            Edit
+                                        </a>
+
+                                        <!-- Upload Photos -->
+                                        <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" 
+                                           class="action-btn inline-flex items-center justify-center px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 font-medium rounded-lg"
+                                           title="Upload Photos">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                            </svg>
+                                            Photos
+                                        </a>
+                                    </div>
+
+                                    <!-- Secondary Actions - Dropdown Menu -->
+                                    <div class="mt-2 relative">
+                                        <button type="button" 
+                                                onclick="toggleDropdown(event, 'dropdown-{{ vehicle.pk }}')"
+                                                class="action-btn w-full inline-flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                                            </svg>
+                                            More Actions
+                                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                            </svg>
+                                        </button>
+                                        
+                                        <!-- Dropdown Menu -->
+                                        <div id="dropdown-{{ vehicle.pk }}" 
+                                             class="dropdown-menu hidden absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-xl border border-gray-200 z-10 overflow-hidden">
                                             <a href="{% url 'vehicles:detail' vehicle.pk %}" 
-                                               class="inline-flex items-center px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-medium rounded-lg transition"
-                                               title="View Details">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                                </svg>
+                                               class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition">
+                                                <i class="fas fa-file-alt w-4 mr-2"></i>
+                                                View Documents
+                                            </a>
+                                            <a href="{% url 'vehicles:detail' vehicle.pk %}#maintenance" 
+                                               class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition">
+                                                <i class="fas fa-wrench w-4 mr-2"></i>
+                                                Maintenance History
+                                            </a>
+                                            <a href="{% url 'vehicles:detail' vehicle.pk %}#insurance" 
+                                               class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 transition">
+                                                <i class="fas fa-shield-alt w-4 mr-2"></i>
+                                                Insurance Details
+                                            </a>
+                                            {% if vehicle.status == 'available' %}
+                                            <a href="#" 
+                                               onclick="markAsSold(event, {{ vehicle.pk }})"
+                                               class="block px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition">
+                                                <i class="fas fa-tag w-4 mr-2"></i>
+                                                Mark as Sold
+                                            </a>
+                                            {% endif %}
+                                            <div class="border-t border-gray-200"></div>
+                                            <a href="{% url 'vehicles:delete' vehicle.pk %}" 
+                                               onclick="return confirm('Are you sure you want to delete this vehicle?')"
+                                               class="block px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition">
+                                                <i class="fas fa-trash w-4 mr-2"></i>
+                                                Delete Vehicle
                                             </a>
                                         </div>
                                     </div>
+                                    {% else %}
+                                    <!-- Public User Buttons - Simple View Details -->
+                                    <a href="{% url 'vehicles:detail' vehicle.pk %}" 
+                                       class="action-btn w-full inline-flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm hover:shadow-md"
+                                       title="View Full Details">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                        View Details
+                                    </a>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -408,67 +603,71 @@ document.addEventListener('DOMContentLoaded', function() {
     const toggleBtn = document.getElementById('toggleFilters');
     const advancedFilters = document.getElementById('advancedFilters');
     
-    toggleBtn.addEventListener('click', function() {
-        advancedFilters.classList.toggle('hidden');
-        toggleBtn.textContent = advancedFilters.classList.contains('hidden') ? 'Show Filters' : 'Hide Filters';
-    });
+    if (toggleBtn && advancedFilters) {
+        toggleBtn.addEventListener('click', function() {
+            advancedFilters.classList.toggle('hidden');
+            toggleBtn.textContent = advancedFilters.classList.contains('hidden') ? 'Show Filters' : 'Hide Filters';
+        });
+    }
 
     // Bulk actions
     const bulkActionSelect = document.getElementById('bulkAction');
     const applyBulkBtn = document.getElementById('applyBulkAction');
     const checkboxes = document.querySelectorAll('.vehicle-checkbox');
 
-    applyBulkBtn.addEventListener('click', function() {
-        const action = bulkActionSelect.value;
-        const selectedIds = Array.from(checkboxes)
-            .filter(cb => cb.checked)
-            .map(cb => cb.value);
+    if (applyBulkBtn) {
+        applyBulkBtn.addEventListener('click', function() {
+            const action = bulkActionSelect.value;
+            const selectedIds = Array.from(checkboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
 
-        if (!action) {
-            alert('Please select an action');
-            return;
-        }
-
-        if (selectedIds.length === 0) {
-            alert('Please select at least one vehicle');
-            return;
-        }
-
-        if (confirm(`Apply "${action}" to ${selectedIds.length} vehicle(s)?`)) {
-            // Create and submit form
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '{% url "vehicles:bulk_action" %}';
-            
-            // Add CSRF token
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
-            if (csrfToken) {
-                form.appendChild(csrfToken.cloneNode());
+            if (!action) {
+                alert('Please select an action');
+                return;
             }
-            
-            // Add action
-            const actionInput = document.createElement('input');
-            actionInput.type = 'hidden';
-            actionInput.name = 'action';
-            actionInput.value = action;
-            form.appendChild(actionInput);
-            
-            // Add vehicle IDs
-            const idsInput = document.createElement('input');
-            idsInput.type = 'hidden';
-            idsInput.name = 'vehicle_ids';
-            idsInput.value = selectedIds.join(',');
-            form.appendChild(idsInput);
-            
-            document.body.appendChild(form);
-            form.submit();
-        }
-    });
+
+            if (selectedIds.length === 0) {
+                alert('Please select at least one vehicle');
+                return;
+            }
+
+            if (confirm(`Apply "${action}" to ${selectedIds.length} vehicle(s)?`)) {
+                // Create and submit form
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{% url "vehicles:bulk_action" %}';
+                
+                // Add CSRF token
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+                if (csrfToken) {
+                    form.appendChild(csrfToken.cloneNode());
+                }
+                
+                // Add action
+                const actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = 'action';
+                actionInput.value = action;
+                form.appendChild(actionInput);
+                
+                // Add vehicle IDs
+                const idsInput = document.createElement('input');
+                idsInput.type = 'hidden';
+                idsInput.name = 'vehicle_ids';
+                idsInput.value = selectedIds.join(',');
+                form.appendChild(idsInput);
+                
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    }
 
     // Select all checkbox functionality
     const selectAllBtn = document.createElement('button');
     selectAllBtn.textContent = 'Select All';
-    selectAllBtn.className = 'text-sm text-blue-600 hover:text-blue-800 mr-2';
+    selectAllBtn.className = 'text-sm text-blue-600 hover:text-blue-800 mr-2 font-medium';
     selectAllBtn.type = 'button';
     
     selectAllBtn.addEventListener('click', function() {
@@ -480,7 +679,84 @@ document.addEventListener('DOMContentLoaded', function() {
     if (bulkActionSelect && checkboxes.length > 0) {
         bulkActionSelect.parentElement.insertBefore(selectAllBtn, bulkActionSelect);
     }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!event.target.closest('button[onclick^="toggleDropdown"]')) {
+            const dropdowns = document.querySelectorAll('[id^="dropdown-"]');
+            dropdowns.forEach(dropdown => {
+                if (!dropdown.classList.contains('hidden')) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+        }
+    });
 });
+
+// Toggle dropdown menu
+function toggleDropdown(event, dropdownId) {
+    event.stopPropagation();
+    const dropdown = document.getElementById(dropdownId);
+    
+    // Close all other dropdowns first
+    const allDropdowns = document.querySelectorAll('[id^="dropdown-"]');
+    allDropdowns.forEach(dd => {
+        if (dd.id !== dropdownId && !dd.classList.contains('hidden')) {
+            dd.classList.add('hidden');
+        }
+    });
+    
+    // Toggle current dropdown
+    dropdown.classList.toggle('hidden');
+}
+
+// Mark vehicle as sold
+function markAsSold(event, vehicleId) {
+    event.preventDefault();
+    
+    if (confirm('Mark this vehicle as sold?')) {
+        // Create and submit form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/vehicles/${vehicleId}/mark-sold/`;
+        
+        // Add CSRF token
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = '{{ csrf_token }}';
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Add smooth scroll behavior for hash links
+document.querySelectorAll('a[href*="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+        const href = this.getAttribute('href');
+        if (href.includes('#') && !href.startsWith('#')) {
+            const hash = href.split('#')[1];
+            if (hash) {
+                e.preventDefault();
+                window.location.href = href;
+            }
+        }
+    });
+});
+
+// Add loading state to form submissions
+const searchForm = document.getElementById('searchForm');
+if (searchForm) {
+    searchForm.addEventListener('submit', function() {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-2 inline-block" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Searching...';
+        }
+    });
+}
 </script>
 
 {% endblock %}

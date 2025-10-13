@@ -20,11 +20,17 @@ import csv
 from datetime import datetime
 
 
-@login_required
-@module_permission_required('vehicles', AccessLevel.READ_ONLY)
 def vehicle_list_view(request):
-    """List all vehicles with search and filter"""
-    vehicles = Vehicle.objects.all().select_related('added_by').prefetch_related('photos')
+    """List all vehicles with search and filter - Public and authenticated users"""
+    vehicles = Vehicle.objects.all().prefetch_related('photos')
+    
+    # For authenticated users with permissions, include more details
+    if request.user.is_authenticated:
+        vehicles = vehicles.select_related('added_by')
+    
+    # For public users, only show available vehicles
+    if not request.user.is_authenticated:
+        vehicles = vehicles.filter(status=VehicleStatus.AVAILABLE)
     
     # Search and filter
     form = VehicleSearchForm(request.GET)
