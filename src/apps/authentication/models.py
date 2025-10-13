@@ -71,7 +71,7 @@ class User(AbstractUser):
         'User Role',
         max_length=20,
         choices=UserRole.CHOICES,
-        default=UserRole.CLERK,
+        default=UserRole.CLIENT,
         help_text='User role determines access permissions'
     )
     

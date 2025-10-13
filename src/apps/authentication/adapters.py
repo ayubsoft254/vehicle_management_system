@@ -38,9 +38,9 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         user.first_name = data.get('first_name', '')
         user.last_name = data.get('last_name', '')
         
-        # Set default role for new signups - CLIENT role for self-registration
-        if not user.role:
-            user.role = UserRole.CLIENT  # Clients can access their portal
+        # Always set CLIENT role for self-registration (public signup)
+        # Admin-created users will have their role set during user creation
+        user.role = UserRole.CLIENT
         
         # Set additional fields if they exist in the form
         if 'phone' in data:
