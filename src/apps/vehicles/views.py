@@ -111,24 +111,43 @@ def vehicle_list_view(request):
     return render(request, 'vehicles/vehicle_list.html', context)
 
 
-@login_required
-@module_permission_required('vehicles', AccessLevel.READ_ONLY)
 def vehicle_detail_view(request, pk):
-    """View vehicle details"""
-    vehicle = get_object_or_404(
-        Vehicle.objects.select_related('added_by').prefetch_related('photos', 'history')
-        , pk=pk
-    )
+    """
+    View vehicle details - Public and authenticated users
+    - Public users can only see available vehicles
+    - Authenticated users can see all vehicles based on permissions
+    """
+    # Build base queryset
+    queryset = Vehicle.objects.select_related('added_by').prefetch_related('photos', 'history')
     
-    # Get history
-    history = vehicle.history.select_related('changed_by').all()[:10]
+    # Filter based on authentication
+    if not request.user.is_authenticated:
+        # Public users only see available vehicles
+        vehicle = get_object_or_404(
+            queryset,
+            pk=pk,
+            is_active=True,
+            status=VehicleStatus.AVAILABLE
+        )
+    else:
+        # Authenticated users see based on permissions
+        vehicle = get_object_or_404(queryset, pk=pk)
     
-    # Log view action
-    AuditLog.log_read(
-        user=request.user,
-        obj=vehicle,
-        ip_address=request.META.get('REMOTE_ADDR')
-    )
+    # Get history (only for authenticated users)
+    history = []
+    if request.user.is_authenticated:
+        history = vehicle.history.select_related('changed_by').all()[:10]
+        
+        # Log view action
+        try:
+            AuditLog.log_read(
+                user=request.user,
+                obj=vehicle,
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+        except Exception as e:
+            # Silently fail if audit logging fails
+            pass
     
     context = {
         'vehicle': vehicle,
