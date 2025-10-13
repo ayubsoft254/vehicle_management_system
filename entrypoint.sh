@@ -12,11 +12,15 @@ while ! nc -z db 5432; do
 done
 echo "Database is ready!"
 
+# Ensure directories have correct permissions
+echo "Setting up directories..."
+mkdir -p /app/logs /app/static_collected /app/media
+
 # Run migrations
 echo "Running database migrations..."
 python manage.py migrate --noinput
 
-# Collect static files
+# Collect static files (without --clear to avoid permission issues)
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 

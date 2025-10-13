@@ -38,12 +38,12 @@ RUN useradd -m -u 1000 appuser
 RUN mkdir -p /app/logs /app/static_collected /app/media && \
     chown -R appuser:appuser /app
 
-# Collect static files with WhiteNoise compression
-# This will compress and hash static files for production
-RUN python manage.py collectstatic --noinput --clear || true
-
 # Switch to non-root user
 USER appuser
+
+# Collect static files with WhiteNoise compression as appuser
+# Don't use --clear flag to avoid permission issues
+RUN python manage.py collectstatic --noinput || true
 
 # Expose port 3333
 EXPOSE 3333
