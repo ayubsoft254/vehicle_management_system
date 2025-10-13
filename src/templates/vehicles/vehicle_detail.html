@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load permission_tags %}
 
 {% block title %}{{ vehicle.full_name }} - Vehicle Details{% endblock %}
 
@@ -61,49 +62,56 @@
         </div>
 
         <!-- Action Buttons -->
+        {% can_edit user 'vehicles' as can_edit_vehicles %}
+        {% can_delete user 'vehicles' as can_delete_vehicles %}
+        
         <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
-            <a href="{% url 'vehicles:update' vehicle.pk %}" 
-               class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                </svg>
-                Edit
-            </a>
-            
-            <a href="{% url 'vehicles:change_status' vehicle.pk %}" 
-               class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                </svg>
-                Change Status
-            </a>
-            
-            <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" 
-               class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition duration-150">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-                Add Photos
-            </a>
-
-            <form action="{% url 'vehicles:toggle_featured' vehicle.pk %}" method="post" class="inline">
-                {% csrf_token %}
-                <button type="submit" 
-                        class="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition duration-150">
-                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+            {% if can_edit_vehicles %}
+                <a href="{% url 'vehicles:update' vehicle.pk %}" 
+                   class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                     </svg>
-                    {% if vehicle.is_featured %}Remove Featured{% else %}Mark Featured{% endif %}
-                </button>
-            </form>
+                    Edit
+                </a>
+                
+                <a href="{% url 'vehicles:change_status' vehicle.pk %}" 
+                   class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                    Change Status
+                </a>
+                
+                <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" 
+                   class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition duration-150">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    Add Photos
+                </a>
+
+                <form action="{% url 'vehicles:toggle_featured' vehicle.pk %}" method="post" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" 
+                            class="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition duration-150">
+                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        {% if vehicle.is_featured %}Remove Featured{% else %}Mark Featured{% endif %}
+                    </button>
+                </form>
+            {% endif %}
             
-            <a href="{% url 'vehicles:delete' vehicle.pk %}" 
-               class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition duration-150">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                </svg>
-                Delete
-            </a>
+            {% if can_delete_vehicles %}
+                <a href="{% url 'vehicles:delete' vehicle.pk %}" 
+                   class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition duration-150">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    Delete
+                </a>
+            {% endif %}
         </div>
     </div>
 
@@ -140,6 +148,7 @@
                     </div>
                     
                     <!-- Thumbnail Gallery -->
+                    {% can_delete user 'vehicles' as can_delete_photos %}
                     {% if vehicle.photos.count > 1 %}
                         <div class="p-4 bg-gray-50">
                             <div class="flex gap-2 overflow-x-auto" id="thumbnailGallery">
@@ -151,13 +160,15 @@
                                              class="thumbnail w-20 h-20 object-cover rounded cursor-pointer border-2 {% if forloop.first %}border-blue-500{% else %}border-gray-300{% endif %} hover:border-blue-400 transition">
                                         
                                         <!-- Delete Button -->
-                                        <a href="{% url 'vehicles:delete_photo' vehicle.pk photo.pk %}"
-                                           class="absolute top-0 right-0 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"
-                                           onclick="return confirm('Delete this photo?')">
-                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                            </svg>
-                                        </a>
+                                        {% if can_delete_photos %}
+                                            <a href="{% url 'vehicles:delete_photo' vehicle.pk photo.pk %}"
+                                               class="absolute top-0 right-0 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"
+                                               onclick="return confirm('Delete this photo?')">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                            </a>
+                                        {% endif %}
                                     </div>
                                 {% endfor %}
                             </div>
@@ -165,15 +176,18 @@
                     {% endif %}
                 {% else %}
                     <!-- No Photos Placeholder -->
+                    {% can_edit user 'vehicles' as can_edit_vehicles %}
                     <div class="flex flex-col items-center justify-center h-96 bg-gray-100">
                         <svg class="w-24 h-24 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
                         <p class="text-gray-500 mb-4">No photos available</p>
-                        <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" 
-                           class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-                            Upload Photos
-                        </a>
+                        {% if can_edit_vehicles %}
+                            <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" 
+                               class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                                Upload Photos
+                            </a>
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>
@@ -463,27 +477,32 @@
                     
                     <div class="pt-2 border-t border-gray-200">
                         <p class="text-sm font-medium text-gray-500 mb-1">Last Updated</p>
-                        <p class="text-sm text-gray-900">{{ vehicle.updated_at|date:"M d, Y g:i A" }}</p>
+                        <p class="text-sm text-gray-900">{{ vehicle.last_updated|date:"M d, Y g:i A" }}</p>
                     </div>
                 </div>
             </div>
 
             <!-- Quick Actions Card -->
+            {% can_edit user 'vehicles' as can_edit_vehicles %}
+            {% can_delete user 'vehicles' as can_delete_vehicles %}
+            
             <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
                 <div class="space-y-2">
-                    <a href="{% url 'vehicles:update' vehicle.pk %}" 
-                       class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
-                        Edit Vehicle
-                    </a>
-                    <a href="{% url 'vehicles:change_status' vehicle.pk %}" 
-                       class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
-                        Change Status
-                    </a>
-                    <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" 
-                       class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
-                        Upload Photos
-                    </a>
+                    {% if can_edit_vehicles %}
+                        <a href="{% url 'vehicles:update' vehicle.pk %}" 
+                           class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
+                            Edit Vehicle
+                        </a>
+                        <a href="{% url 'vehicles:change_status' vehicle.pk %}" 
+                           class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
+                            Change Status
+                        </a>
+                        <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" 
+                           class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
+                            Add Photos
+                        </a>
+                    {% endif %}
                     <button onclick="window.print()" 
                             class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
                         Print Details
