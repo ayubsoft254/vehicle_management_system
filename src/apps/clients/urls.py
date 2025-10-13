@@ -48,6 +48,16 @@ urlpatterns = [
     path('portal/payment/pending/', portal_views.portal_payment_pending, name='portal_payment_pending'),
     path('portal/payment/bank-details/<int:client_vehicle_id>/<str:payment_type>/', portal_views.portal_payment_bank_details, name='portal_payment_bank_details'),
     
+    # Portal Auctions
+    path('portal/auctions/', portal_views.portal_auctions, name='portal_auctions'),
+    path('portal/auctions/<uuid:auction_id>/', portal_views.portal_auction_detail, name='portal_auction_detail'),
+    path('portal/auctions/<uuid:auction_id>/bid/', portal_views.portal_place_bid, name='portal_place_bid'),
+    path('portal/auctions/<uuid:auction_id>/register/', portal_views.portal_register_auction, name='portal_register_auction'),
+    path('portal/auctions/<uuid:auction_id>/watch/', portal_views.portal_add_to_watchlist, name='portal_add_to_watchlist'),
+    path('portal/auctions/<uuid:auction_id>/unwatch/', portal_views.portal_remove_from_watchlist, name='portal_remove_from_watchlist'),
+    path('portal/my-bids/', portal_views.portal_my_bids, name='portal_my_bids'),
+    path('portal/watchlist/', portal_views.portal_my_watchlist, name='portal_my_watchlist'),
+    
     # ==================== CLIENT MANAGEMENT URLS (For staff) ====================
     
     # Client List & Search

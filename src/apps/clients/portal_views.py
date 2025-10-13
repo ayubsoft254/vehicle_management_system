@@ -5,7 +5,7 @@ Views for client-facing portal where clients can manage their accounts
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q, Sum, Count, Prefetch, F
+from django.db.models import Q, Sum, Count, Prefetch, F, Max, Avg
 from django.http import JsonResponse, Http404, FileResponse
 from django.utils import timezone
 from django.core.paginator import Paginator
@@ -1011,3 +1011,401 @@ def portal_remove_vehicle(request, vehicle_id):
     }
     
     return render(request, 'clients/portal/remove_vehicle.html', context)
+
+
+# ==================== AUCTIONS ====================
+
+@login_required
+@client_required
+def portal_auctions(request):
+    """
+    View all active and upcoming auctions
+    Clients can browse auction vehicles
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    # Get active and scheduled auctions
+    auctions = Auction.objects.filter(
+        status__in=['active', 'scheduled']
+    ).select_related('vehicle').annotate(
+        bid_count=Count('bids'),
+        max_bid=Max('bids__bid_amount')
+    ).order_by('end_date')
+    
+    # Apply filters
+    status = request.GET.get('status')
+    if status:
+        auctions = auctions.filter(status=status)
+    
+    search = request.GET.get('search')
+    if search:
+        auctions = auctions.filter(
+            Q(title__icontains=search) |
+            Q(description__icontains=search) |
+            Q(vehicle__make__icontains=search) |
+            Q(vehicle__model__icontains=search)
+        )
+    
+    min_price = request.GET.get('min_price')
+    if min_price:
+        auctions = auctions.filter(starting_price__gte=Decimal(min_price))
+    
+    max_price = request.GET.get('max_price')
+    if max_price:
+        auctions = auctions.filter(starting_price__lte=Decimal(max_price))
+    
+    # Pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(auctions, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get user's watchlist
+    watchlist_ids = AuctionWatchlist.objects.filter(
+        user=request.user
+    ).values_list('auction_id', flat=True)
+    
+    # Get auctions user is participating in
+    participating_ids = AuctionParticipant.objects.filter(
+        user=request.user,
+        is_approved=True
+    ).values_list('auction_id', flat=True)
+    
+    context = {
+        'client': client,
+        'page_obj': page_obj,
+        'watchlist_ids': list(watchlist_ids),
+        'participating_ids': list(participating_ids),
+        'active_count': Auction.objects.filter(status='active').count(),
+        'upcoming_count': Auction.objects.filter(status='scheduled').count(),
+    }
+    
+    return render(request, 'clients/portal/auctions.html', context)
+
+
+@login_required
+@client_required
+def portal_auction_detail(request, auction_id):
+    """
+    View details of a specific auction
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    # Get auction
+    auction = get_object_or_404(
+        Auction.objects.select_related('vehicle'),
+        id=auction_id
+    )
+    
+    # Increment view count
+    auction.views_count += 1
+    auction.save(update_fields=['views_count'])
+    
+    # Get recent bids
+    recent_bids = auction.bids.select_related('bidder').order_by('-created_at')[:10]
+    
+    # Check if user is registered for this auction
+    is_registered = AuctionParticipant.objects.filter(
+        auction=auction,
+        user=request.user,
+        is_approved=True
+    ).exists()
+    
+    # Check if user is watching
+    is_watching = AuctionWatchlist.objects.filter(
+        auction=auction,
+        user=request.user
+    ).exists()
+    
+    # Get user's bids on this auction
+    user_bids = auction.bids.filter(bidder=request.user).order_by('-created_at')[:5]
+    
+    # Check if user is highest bidder
+    highest_bid = auction.bids.filter(is_active=True).order_by('-bid_amount').first()
+    is_highest_bidder = highest_bid and highest_bid.bidder == request.user if highest_bid else False
+    
+    # Calculate minimum bid
+    min_bid = auction.current_bid + auction.bid_increment if auction.current_bid > 0 else auction.starting_price
+    
+    # Get statistics
+    total_participants = auction.participants.filter(is_approved=True).count()
+    average_bid = auction.bids.aggregate(avg=Avg('bid_amount'))['avg'] or Decimal('0')
+    
+    context = {
+        'client': client,
+        'auction': auction,
+        'recent_bids': recent_bids,
+        'is_registered': is_registered,
+        'is_watching': is_watching,
+        'user_bids': user_bids,
+        'is_highest_bidder': is_highest_bidder,
+        'min_bid': min_bid,
+        'total_participants': total_participants,
+        'average_bid': average_bid,
+        'highest_bid': highest_bid,
+    }
+    
+    return render(request, 'clients/portal/auction_detail.html', context)
+
+
+@login_required
+@client_required
+def portal_place_bid(request, auction_id):
+    """
+    Place a bid on an auction
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    auction = get_object_or_404(Auction, id=auction_id)
+    
+    if not auction.is_active:
+        messages.error(request, 'This auction is not active.')
+        return redirect('clients:portal_auction_detail', auction_id=auction_id)
+    
+    # Check if user is registered (if required)
+    if auction.require_registration:
+        is_registered = AuctionParticipant.objects.filter(
+            auction=auction,
+            user=request.user,
+            is_approved=True
+        ).exists()
+        
+        if not is_registered:
+            messages.error(request, 'You must register for this auction before bidding.')
+            return redirect('clients:portal_register_auction', auction_id=auction_id)
+    
+    if request.method == 'POST':
+        bid_amount = Decimal(request.POST.get('bid_amount', '0'))
+        
+        # Validate bid
+        can_bid, message = auction.can_place_bid(request.user, bid_amount)
+        
+        if not can_bid:
+            messages.error(request, message)
+            return redirect('clients:portal_auction_detail', auction_id=auction_id)
+        
+        # Create bid
+        bid = Bid.objects.create(
+            auction=auction,
+            bidder=request.user,
+            bid_amount=bid_amount,
+            bid_type='manual',
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
+        )
+        
+        messages.success(request, f'Bid of KSH {bid_amount:,.2f} placed successfully!')
+        
+        # Check if auction should be extended
+        time_remaining = auction.time_remaining
+        if time_remaining and time_remaining.total_seconds() < 300:  # Less than 5 minutes
+            auction.extend_auction()
+            messages.info(request, 'Auction extended by 5 minutes due to late bid.')
+        
+        return redirect('clients:portal_auction_detail', auction_id=auction_id)
+    
+    # GET request - show bid form
+    min_bid = auction.current_bid + auction.bid_increment if auction.current_bid > 0 else auction.starting_price
+    
+    context = {
+        'client': client,
+        'auction': auction,
+        'min_bid': min_bid,
+    }
+    
+    return render(request, 'clients/portal/place_bid.html', context)
+
+
+@login_required
+@client_required
+def portal_register_auction(request, auction_id):
+    """
+    Register to participate in an auction
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    auction = get_object_or_404(Auction, id=auction_id)
+    
+    # Check if already registered
+    existing = AuctionParticipant.objects.filter(
+        auction=auction,
+        user=request.user
+    ).first()
+    
+    if existing:
+        if existing.is_approved:
+            messages.info(request, 'You are already registered for this auction.')
+        else:
+            messages.info(request, 'Your registration is pending approval.')
+        return redirect('clients:portal_auction_detail', auction_id=auction_id)
+    
+    if request.method == 'POST':
+        # Get client profile if not exists
+        if not client:
+            client = Client.objects.filter(user=request.user).first()
+        
+        # Create participant registration
+        participant = AuctionParticipant.objects.create(
+            auction=auction,
+            user=request.user,
+            client=client,
+            is_approved=not auction.require_registration,  # Auto-approve if registration not required
+            email_notifications=request.POST.get('email_notifications', 'on') == 'on',
+            sms_notifications=request.POST.get('sms_notifications', 'off') == 'on'
+        )
+        
+        if auction.require_registration:
+            messages.success(request, 'Registration submitted successfully. Awaiting approval.')
+        else:
+            messages.success(request, 'You are now registered for this auction!')
+        
+        return redirect('clients:portal_auction_detail', auction_id=auction_id)
+    
+    context = {
+        'client': client,
+        'auction': auction,
+    }
+    
+    return render(request, 'clients/portal/register_auction.html', context)
+
+
+@login_required
+@client_required
+def portal_add_to_watchlist(request, auction_id):
+    """
+    Add auction to watchlist
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    auction = get_object_or_404(Auction, id=auction_id)
+    
+    watchlist, created = AuctionWatchlist.objects.get_or_create(
+        auction=auction,
+        user=request.user,
+        defaults={
+            'notify_before_end': True,
+            'notify_on_outbid': True
+        }
+    )
+    
+    if created:
+        auction.watchers_count += 1
+        auction.save(update_fields=['watchers_count'])
+        messages.success(request, 'Auction added to your watchlist.')
+    else:
+        messages.info(request, 'This auction is already in your watchlist.')
+    
+    return redirect('clients:portal_auction_detail', auction_id=auction_id)
+
+
+@login_required
+@client_required
+def portal_remove_from_watchlist(request, auction_id):
+    """
+    Remove auction from watchlist
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    auction = get_object_or_404(Auction, id=auction_id)
+    
+    deleted_count = AuctionWatchlist.objects.filter(
+        auction=auction,
+        user=request.user
+    ).delete()[0]
+    
+    if deleted_count:
+        auction.watchers_count = max(0, auction.watchers_count - 1)
+        auction.save(update_fields=['watchers_count'])
+        messages.success(request, 'Auction removed from your watchlist.')
+    
+    return redirect('clients:portal_auction_detail', auction_id=auction_id)
+
+
+@login_required
+@client_required
+def portal_my_bids(request):
+    """
+    View client's bidding history
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    # Get all bids by the user
+    bids = Bid.objects.filter(
+        bidder=request.user
+    ).select_related('auction', 'auction__vehicle').order_by('-created_at')
+    
+    # Pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(bids, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Statistics
+    total_bids = bids.count()
+    active_bids = bids.filter(auction__status='active').count()
+    winning_bids = bids.filter(is_winning_bid=True).count()
+    total_amount_bid = bids.aggregate(total=Sum('bid_amount'))['total'] or Decimal('0')
+    
+    context = {
+        'client': client,
+        'page_obj': page_obj,
+        'total_bids': total_bids,
+        'active_bids': active_bids,
+        'winning_bids': winning_bids,
+        'total_amount_bid': total_amount_bid,
+    }
+    
+    return render(request, 'clients/portal/my_bids.html', context)
+
+
+@login_required
+@client_required
+def portal_my_watchlist(request):
+    """
+    View client's auction watchlist
+    """
+    client = get_client_from_user(request.user)
+    
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+    
+    # Get watchlist
+    watchlist = AuctionWatchlist.objects.filter(
+        user=request.user
+    ).select_related('auction', 'auction__vehicle').order_by('-added_at')
+    
+    context = {
+        'client': client,
+        'watchlist': watchlist,
+    }
+    
+    return render(request, 'clients/portal/watchlist.html', context)
