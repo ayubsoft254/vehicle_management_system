@@ -123,8 +123,16 @@ if settings.DEBUG:
     # Serve media files in development
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     
-    # Serve static files in development
+    # Serve static files in development (WhiteNoise handles this in production)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+else:
+    # ============================================================================
+    # MEDIA FILES IN PRODUCTION
+    # ============================================================================
+    # WhiteNoise only serves static files, not media files by default
+    # We need to explicitly add media file serving for production
+    # NOTE: For high-traffic sites, use cloud storage (S3, Azure Blob, etc.)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     
     # ============================================================================
     # DEBUG TOOLBAR (Development Only)

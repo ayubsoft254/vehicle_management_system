@@ -156,7 +156,7 @@ STATIC_ROOT = BASE_DIR / 'static_collected'
 # WhiteNoise configuration for serving static files
 STORAGES = {
     "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "BACKEND": "config.storage_backends.SecureMediaStorage",
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
@@ -173,6 +173,28 @@ WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ('jpg', 'jpeg', 'png', 'gif', 'webp', 'zip
 # Media files (User uploads)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# IMPORTANT: WhiteNoise can serve media files using WHITENOISE_ROOT
+# This serves files at the root URL, but we'll handle media separately
+# For production, consider using cloud storage (S3, Azure Blob, etc.)
+# For now, we'll use WhiteNoise's ability to serve additional directories
+WHITENOISE_IMMUTABLE_FILE_TEST = lambda path, url: False  # Don't cache media files
+WHITENOISE_MAX_AGE = 0 if DEBUG else 31536000  # No cache in dev, 1 year in prod for static
+
+# Cloud Storage Configuration (for future migration to AWS S3/Azure Blob)
+# Uncomment and configure when ready to use cloud storage
+# USE_S3 = config('USE_S3', default=False, cast=bool)
+# if USE_S3:
+#     AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
+#     AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY')
+#     AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME')
+#     AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
+#     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+#     AWS_DEFAULT_ACL = 'private'
+#     AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+#     
+#     STORAGES["default"]["BACKEND"] = "config.storage_backends.MediaStorage"
+#     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
