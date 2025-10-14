@@ -197,11 +197,35 @@ class VehiclePhotoForm(forms.ModelForm):
             'is_primary': forms.CheckboxInput(attrs={
                 'class': 'w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
             }),
-            'order': forms.NumberInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'min': '0'
-            }),
+            'order': forms.HiddenInput(),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set default value for order field
+        self.fields['order'].required = False
+        self.fields['order'].initial = 0
+        # Make caption optional
+        self.fields['caption'].required = False
+        # Make is_primary optional with default False
+        self.fields['is_primary'].required = False
+        self.fields['is_primary'].initial = False
+        # Ensure image is required
+        self.fields['image'].required = True
+    
+    def clean_order(self):
+        """Ensure order field always has a valid value"""
+        order = self.cleaned_data.get('order')
+        if order is None or order == '':
+            return 0
+        return order
+    
+    def clean_is_primary(self):
+        """Ensure is_primary field always has a valid boolean value"""
+        is_primary = self.cleaned_data.get('is_primary')
+        if is_primary is None:
+            return False
+        return is_primary
 
 
 class VehicleSearchForm(forms.Form):

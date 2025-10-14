@@ -324,13 +324,31 @@ def vehicle_photo_upload_view(request, pk):
     if request.method == 'POST':
         form = VehiclePhotoForm(request.POST, request.FILES)
         if form.is_valid():
-            photo = form.save(commit=False)
-            photo.vehicle = vehicle
-            photo.uploaded_by = request.user
-            photo.save()
-            
-            messages.success(request, 'Photo uploaded successfully!')
-            return redirect('vehicles:detail', pk=vehicle.pk)
+            try:
+                photo = form.save(commit=False)
+                # Set required foreign key relationships
+                photo.vehicle = vehicle
+                photo.uploaded_by = request.user
+                
+                # Ensure order has a valid value if not set
+                if photo.order is None:
+                    photo.order = 0
+                
+                # Save the photo
+                photo.save()
+                
+                messages.success(request, f'Photo uploaded successfully! {vehicle.photos.count()} photo(s) total.')
+                return redirect('vehicles:detail', pk=vehicle.pk)
+            except Exception as e:
+                messages.error(request, f'Error saving photo: {str(e)}')
+        else:
+            # Add form errors to messages for debugging
+            for field, errors in form.errors.items():
+                for error in errors:
+                    if field == '__all__':
+                        messages.error(request, f'{error}')
+                    else:
+                        messages.error(request, f'{field}: {error}')
     else:
         form = VehiclePhotoForm()
     
