@@ -169,7 +169,7 @@ class VehicleAdmin(admin.ModelAdmin):
     
     def mileage_display(self, obj):
         """Display mileage formatted"""
-        return format_html('{:,} KM', obj.mileage)
+        return format_html('{:} KM', obj.mileage)
     mileage_display.short_description = 'Mileage'
     
     def profit_display(self, obj):
