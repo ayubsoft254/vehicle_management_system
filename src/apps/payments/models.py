@@ -254,7 +254,9 @@ class InstallmentPlan(models.Model):
         max_digits=12,
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0.01'))],
-        help_text="Monthly installment amount"
+        blank=True,
+        null=True,
+        help_text="Monthly installment amount (auto-calculated if blank)"
     )
     
     number_of_installments = models.PositiveIntegerField(
@@ -327,9 +329,21 @@ class InstallmentPlan(models.Model):
         return f"Plan for {self.client_vehicle.client.get_full_name()} - {self.client_vehicle.vehicle}"
     
     def save(self, *args, **kwargs):
-        """Calculate end date if not provided"""
+        """Calculate end date and monthly installment if not provided"""
         if not self.end_date and self.start_date:
             self.end_date = self.start_date + relativedelta(months=self.number_of_installments)
+            
+        if not self.monthly_installment and self.total_amount is not None and self.deposit is not None and self.number_of_installments:
+            principal = self.total_amount - self.deposit
+            if self.interest_rate > 0:
+                rate = Decimal(str(self.interest_rate)) / Decimal('100.00')
+                months = Decimal(str(self.number_of_installments))
+                interest = principal * rate * (months / Decimal('12.00'))
+                total_with_interest = principal + interest
+            else:
+                total_with_interest = principal
+            self.monthly_installment = round(total_with_interest / Decimal(str(self.number_of_installments)), 2)
+            
         super().save(*args, **kwargs)
     
     @property
