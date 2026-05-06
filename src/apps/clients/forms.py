@@ -10,6 +10,7 @@ from .models import Client, ClientVehicle, ClientDocument
 from apps.payments.models import Payment, InstallmentPlan
 from apps.vehicles.models import Vehicle
 from utils.constants import ClientStatus
+from django.db.models import Q
 
 
 class ClientForm(forms.ModelForm):
@@ -237,8 +238,13 @@ class ClientVehicleForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Filter only available vehicles
-        self.fields['vehicle'].queryset = Vehicle.objects.filter(status='available')
+        # Filter only available vehicles, or the currently assigned vehicle if updating
+        if self.instance and self.instance.pk:
+            self.fields['vehicle'].queryset = Vehicle.objects.filter(
+                Q(status='available') | Q(pk=self.instance.vehicle.pk)
+            )
+        else:
+            self.fields['vehicle'].queryset = Vehicle.objects.filter(status='available')
     
     def clean(self):
         """Validate vehicle assignment"""
@@ -250,7 +256,9 @@ class ClientVehicleForm(forms.ModelForm):
         
         # Check if vehicle is already assigned
         if vehicle and vehicle.status != 'available':
-            raise ValidationError(f"Vehicle {vehicle} is not available for assignment.")
+            # Allow if updating and vehicle hasn't changed
+            if not (self.instance and self.instance.pk and self.instance.vehicle == vehicle):
+                raise ValidationError(f"Vehicle {vehicle} is not available for assignment.")
         
         # Validate deposit
         if deposit_paid and purchase_price:
@@ -262,10 +270,17 @@ class ClientVehicleForm(forms.ModelForm):
         # Check client credit limit
         if client and purchase_price:
             balance = purchase_price - (deposit_paid or 0)
-            if balance > client.available_credit:
+            
+            # If updating, add back the existing balance to available credit
+            if self.instance and self.instance.pk:
+                effective_available_credit = client.available_credit + self.instance.balance
+            else:
+                effective_available_credit = client.available_credit
+                
+            if balance > effective_available_credit:
                 raise ValidationError(
                     f"Purchase exceeds client's available credit. "
-                    f"Available: KES {client.available_credit:,.2f}"
+                    f"Available: KES {effective_available_credit:,.2f}"
                 )
         
         return cleaned_data
