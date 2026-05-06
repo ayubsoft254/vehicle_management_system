@@ -65,17 +65,10 @@ def validate_international_phone(value):
 def validate_vin(value):
     """
     Validate Vehicle Identification Number (VIN)
-    17 characters, alphanumeric, no I, O, Q
+    Alphanumeric with hyphens/dashes allowed, no I, O, Q
     """
     if not value:
         return value
-    
-    # VIN should be 17 characters
-    if len(value) != 17:
-        raise ValidationError(
-            _('VIN must be exactly 17 characters long.'),
-            code='invalid_vin_length'
-        )
     
     # VIN should not contain I, O, or Q
     if re.search(r'[IOQ]', value.upper()):
@@ -84,10 +77,10 @@ def validate_vin(value):
             code='invalid_vin_characters'
         )
     
-    # VIN should be alphanumeric
-    if not value.isalnum():
+    # VIN should be alphanumeric or hyphens
+    if not re.match(r'^[A-Z0-9\-]+$', value.upper()):
         raise ValidationError(
-            _('VIN must contain only letters and numbers.'),
+            _('VIN must contain only letters, numbers, and hyphens.'),
             code='invalid_vin_format'
         )
     

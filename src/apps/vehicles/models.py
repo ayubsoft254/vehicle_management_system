@@ -70,10 +70,10 @@ class Vehicle(models.Model):
     # Identification
     vin = models.CharField(
         'VIN (Vehicle Identification Number)',
-        max_length=17,
+        max_length=100,
         unique=True,
         validators=[validate_vin],
-        help_text='17-character unique vehicle identifier'
+        help_text='Unique vehicle identifier (can include hyphens)'
     )
     
     registration_number = models.CharField(
