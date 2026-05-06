@@ -185,7 +185,7 @@ class ClientVehicleForm(forms.ModelForm):
     class Meta:
         model = ClientVehicle
         fields = [
-            'client', 'vehicle',
+            'vehicle',
             'purchase_date', 'purchase_price',
             'deposit_paid', 'monthly_installment', 'installment_months',
             'interest_rate',
@@ -193,9 +193,6 @@ class ClientVehicleForm(forms.ModelForm):
         ]
         
         widgets = {
-            'client': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-            }),
             'vehicle': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
             }),
@@ -237,22 +234,33 @@ class ClientVehicleForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        # Extract client if passed explicitly (for new assignments)
+        self.client = kwargs.pop('client', None)
         super().__init__(*args, **kwargs)
-        # Filter only available vehicles, or the currently assigned vehicle if updating
+        
+        # If updating, get client from instance
         if self.instance and self.instance.pk:
+            self.client = self.instance.client
             self.fields['vehicle'].queryset = Vehicle.objects.filter(
                 Q(status='available') | Q(pk=self.instance.vehicle.pk)
             )
         else:
             self.fields['vehicle'].queryset = Vehicle.objects.filter(status='available')
+            
+        # Make interest rate optional and default to 0
+        self.fields['interest_rate'].required = False
     
     def clean(self):
         """Validate vehicle assignment"""
         cleaned_data = super().clean()
-        client = cleaned_data.get('client')
+        client = self.client
         vehicle = cleaned_data.get('vehicle')
         deposit_paid = cleaned_data.get('deposit_paid')
         purchase_price = cleaned_data.get('purchase_price')
+        
+        # Default interest rate to 0 if left blank
+        if cleaned_data.get('interest_rate') is None:
+            cleaned_data['interest_rate'] = Decimal('0.00')
         
         # Check if vehicle is already assigned
         if vehicle and vehicle.status != 'available':
@@ -267,8 +275,8 @@ class ClientVehicleForm(forms.ModelForm):
             if deposit_paid < 0:
                 raise ValidationError("Deposit cannot be negative.")
         
-        # Check client credit limit
-        if client and purchase_price:
+        # Check client credit limit (only if a limit is set > 0)
+        if client and purchase_price and client.credit_limit > 0:
             balance = purchase_price - (deposit_paid or 0)
             
             # If updating, add back the existing balance to available credit
@@ -294,15 +302,12 @@ class PaymentForm(forms.ModelForm):
     class Meta:
         model = Payment
         fields = [
-            'client_vehicle', 'amount', 'payment_date',
+            'amount', 'payment_date',
             'payment_method', 'transaction_reference',
             'notes'
         ]
         
         widgets = {
-            'client_vehicle': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-            }),
             'amount': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '0.00',
@@ -327,6 +332,10 @@ class PaymentForm(forms.ModelForm):
             }),
         }
     
+    def __init__(self, *args, **kwargs):
+        self.client_vehicle = kwargs.pop('client_vehicle', None)
+        super().__init__(*args, **kwargs)
+        
     def clean_amount(self):
         """Validate payment amount"""
         amount = self.cleaned_data.get('amount')
@@ -339,15 +348,14 @@ class PaymentForm(forms.ModelForm):
     def clean(self):
         """Additional validation"""
         cleaned_data = super().clean()
-        client_vehicle = cleaned_data.get('client_vehicle')
         amount = cleaned_data.get('amount')
         
         # Check if payment exceeds remaining balance
-        if client_vehicle and amount:
-            if amount > client_vehicle.balance:
+        if self.client_vehicle and amount:
+            if amount > self.client_vehicle.balance:
                 raise ValidationError(
                     f"Payment amount (KES {amount:,.2f}) exceeds remaining balance "
-                    f"(KES {client_vehicle.balance:,.2f})"
+                    f"(KES {self.client_vehicle.balance:,.2f})"
                 )
         
         return cleaned_data
