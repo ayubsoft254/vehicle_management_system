@@ -377,6 +377,11 @@ class InstallmentPlan(models.Model):
     def amount_paid(self):
         """Get total amount paid so far"""
         return self.client_vehicle.total_paid
+        
+    @property
+    def total_paid(self):
+        """Alias for amount_paid used in some templates"""
+        return self.amount_paid
     
     @property
     def remaining_balance(self):
