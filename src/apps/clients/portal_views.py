@@ -73,10 +73,7 @@ def portal_dashboard(request):
     active_plans = InstallmentPlan.objects.filter(
         client_vehicle__client=client,
         is_active=True
-    ).annotate(
-        total_paid=Sum('client_vehicle__payments__amount'),
-        remaining_balance=F('total_amount') - Sum('client_vehicle__payments__amount')
-    )
+    ).select_related('client_vehicle')
     
     # Get upcoming payments
     upcoming_payments = PaymentSchedule.objects.filter(
@@ -285,10 +282,7 @@ def portal_installment_plans(request):
     # Get all installment plans
     plans = InstallmentPlan.objects.filter(
         client_vehicle__client=client
-    ).select_related('client_vehicle__vehicle').annotate(
-        total_paid=Sum('client_vehicle__payments__amount'),
-        remaining_balance=F('total_amount') - Sum('client_vehicle__payments__amount')
-    ).order_by('-start_date')
+    ).select_related('client_vehicle', 'client_vehicle__vehicle').order_by('-start_date')
     
     context = {
         'client': client,
