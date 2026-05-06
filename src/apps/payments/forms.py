@@ -137,7 +137,7 @@ class InstallmentPlanForm(forms.ModelForm):
             }),
             'monthly_installment': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': '0.00',
+                'placeholder': 'Auto-calculated if blank',
                 'step': '0.01',
                 'min': '0.01'
             }),
@@ -212,28 +212,25 @@ class InstallmentPlanForm(forms.ModelForm):
         number_of_installments = cleaned_data.get('number_of_installments')
         interest_rate = cleaned_data.get('interest_rate')
         
-        if all([total_amount, deposit, monthly_installment, number_of_installments]):
+        if total_amount is not None and deposit is not None and number_of_installments:
             # Calculate expected values
             balance_after_deposit = total_amount - deposit
             
             # Calculate with interest if applicable
             if interest_rate and interest_rate > 0:
-                interest_amount = balance_after_deposit * (interest_rate / 100) * (number_of_installments / 12)
+                interest_amount = balance_after_deposit * (interest_rate / 100) * (Decimal(str(number_of_installments)) / Decimal('12.00'))
                 total_with_interest = balance_after_deposit + interest_amount
             else:
                 total_with_interest = balance_after_deposit
             
-            total_installments = monthly_installment * number_of_installments
-            
-            # Allow for small rounding differences (up to 1 KES)
-            difference = abs(total_with_interest - total_installments)
-            if difference > 1:
-                raise ValidationError(
-                    f"Payment plan calculation mismatch: "
-                    f"Balance after deposit (KES {total_with_interest:,.2f}) "
-                    f"does not match total installments (KES {total_installments:,.2f}). "
-                    f"Difference: KES {difference:,.2f}"
-                )
+            if not monthly_installment:
+                # Auto-calculate
+                monthly_installment = total_with_interest / Decimal(str(number_of_installments))
+                cleaned_data['monthly_installment'] = round(monthly_installment, 2)
+                self.instance.monthly_installment = round(monthly_installment, 2)
+            else:
+                # Allow the custom amount provided by the user
+                pass
         
         return cleaned_data
 
