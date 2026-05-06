@@ -229,10 +229,11 @@ def assign_vehicle(request, client_pk):
     client = get_object_or_404(Client, pk=client_pk)
     
     if request.method == 'POST':
-        form = ClientVehicleForm(request.POST)
+        form = ClientVehicleForm(request.POST, client=client)
         if form.is_valid():
             with transaction.atomic():
                 client_vehicle = form.save(commit=False)
+                client_vehicle.client = client
                 client_vehicle.created_by = request.user
                 
                 # Calculate balance
@@ -252,6 +253,22 @@ def assign_vehicle(request, client_pk):
                 client.status = 'active'
                 client.save()
                 
+                # Automatically create Installment Plan if there's a balance and payment terms are provided
+                if client_vehicle.balance > 0 and client_vehicle.installment_months:
+                    from apps.payments.models import InstallmentPlan
+                    plan = InstallmentPlan.objects.create(
+                        client_vehicle=client_vehicle,
+                        total_amount=client_vehicle.purchase_price,
+                        deposit=client_vehicle.deposit_paid,
+                        monthly_installment=client_vehicle.monthly_installment,
+                        number_of_installments=client_vehicle.installment_months,
+                        interest_rate=client_vehicle.interest_rate or Decimal('0.00'),
+                        start_date=timezone.now().date(),
+                        is_active=True,
+                        created_by=request.user
+                    )
+                    # Note: PaymentSchedule generation is handled by the post_save signal on InstallmentPlan
+                
                 log_audit(
                     request.user, 'create', 'ClientVehicle',
                     f'Assigned vehicle {vehicle} to client {client.get_full_name()}'
@@ -263,15 +280,20 @@ def assign_vehicle(request, client_pk):
                 )
                 return redirect('clients:client_detail', pk=client.pk)
         else:
+            print("Form errors:", form.errors)
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = ClientVehicleForm(initial={'client': client})
+        form = ClientVehicleForm(client=client)
+    
+    # Get vehicle prices for JavaScript
+    vehicle_prices = {v.id: float(v.selling_price) for v in Vehicle.objects.filter(status='available')}
     
     context = {
         'form': form,
         'client': client,
         'title': f'Assign Vehicle to {client.get_full_name()}',
-        'button_text': 'Assign Vehicle'
+        'button_text': 'Assign Vehicle',
+        'vehicle_prices_json': json.dumps(vehicle_prices)
     }
     
     return render(request, 'clients/assign_vehicle.html', context)
@@ -323,7 +345,36 @@ def client_vehicle_update(request, pk):
     if request.method == 'POST':
         form = ClientVehicleForm(request.POST, instance=client_vehicle)
         if form.is_valid():
-            form.save()
+            client_vehicle = form.save()
+            
+            # Automatically create Installment Plan if there's a balance and payment terms are provided
+            if client_vehicle.balance > 0 and client_vehicle.installment_months:
+                from apps.payments.models import InstallmentPlan
+                plan, created = InstallmentPlan.objects.get_or_create(
+                    client_vehicle=client_vehicle,
+                    defaults={
+                        'total_amount': client_vehicle.purchase_price,
+                        'deposit': client_vehicle.deposit_paid,
+                        'monthly_installment': client_vehicle.monthly_installment,
+                        'number_of_installments': client_vehicle.installment_months,
+                        'interest_rate': client_vehicle.interest_rate or Decimal('0.00'),
+                        'start_date': timezone.now().date(),
+                        'is_active': True,
+                        'created_by': request.user
+                    }
+                )
+                
+                # Update existing plan if it exists and hasn't started payments
+                if not created and not plan.payment_schedules.filter(is_paid=True).exists():
+                    plan.total_amount = client_vehicle.purchase_price
+                    plan.deposit = client_vehicle.deposit_paid
+                    plan.monthly_installment = client_vehicle.monthly_installment
+                    plan.number_of_installments = client_vehicle.installment_months
+                    plan.interest_rate = client_vehicle.interest_rate or Decimal('0.00')
+                    plan.save()
+                    # Re-generate schedules
+                    plan.payment_schedules.all().delete()
+                    plan.generate_payment_schedule()
             
             log_audit(
                 request.user, 'update', 'ClientVehicle',
@@ -337,11 +388,17 @@ def client_vehicle_update(request, pk):
     else:
         form = ClientVehicleForm(instance=client_vehicle)
     
+    # Get vehicle prices for JavaScript (include the currently assigned vehicle)
+    vehicle_prices = {v.id: float(v.selling_price) for v in Vehicle.objects.filter(
+        Q(status='available') | Q(id=client_vehicle.vehicle.id)
+    )}
+    
     context = {
         'form': form,
         'client_vehicle': client_vehicle,
         'title': 'Update Vehicle Assignment',
-        'button_text': 'Update Assignment'
+        'button_text': 'Update Assignment',
+        'vehicle_prices_json': json.dumps(vehicle_prices)
     }
     
     return render(request, 'clients/assign_vehicle.html', context)
@@ -357,21 +414,16 @@ def record_payment(request, client_vehicle_pk):
     client_vehicle = get_object_or_404(ClientVehicle, pk=client_vehicle_pk)
     
     if request.method == 'POST':
-        form = PaymentForm(request.POST)
+        form = PaymentForm(request.POST, client_vehicle=client_vehicle)
         if form.is_valid():
             with transaction.atomic():
                 payment = form.save(commit=False)
+                payment.client_vehicle = client_vehicle
                 payment.recorded_by = request.user
                 payment.save()
-                
-                # Update client vehicle balance
-                client_vehicle.total_paid += payment.amount
-                client_vehicle.update_balance()
-                
                 # Check if fully paid
-                if client_vehicle.paid_off:
-                    client_vehicle.client.status = 'completed'
-                    client_vehicle.client.save()
+                client_vehicle.refresh_from_db()
+                if client_vehicle.is_paid_off:
                     messages.success(
                         request, 
                         f'Payment recorded! Vehicle fully paid off!'
