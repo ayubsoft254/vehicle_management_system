@@ -131,3 +131,5 @@ push-to-server.ps1
 vehicle_management_system.code-workspace
 
 nginx.conf
+
+**/db.sqlite3
