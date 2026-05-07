@@ -531,6 +531,7 @@ def upload_document(request, client_pk):
         form = ClientDocumentForm(request.POST, request.FILES)
         if form.is_valid():
             document = form.save(commit=False)
+            document.client = client
             document.uploaded_by = request.user
             document.save()
             
@@ -544,7 +545,7 @@ def upload_document(request, client_pk):
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = ClientDocumentForm(initial={'client': client})
+        form = ClientDocumentForm()
     
     context = {
         'form': form,
@@ -614,9 +615,12 @@ def create_installment_plan(request, client_vehicle_pk):
         return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
     
     if request.method == 'POST':
-        form = InstallmentPlanForm(request.POST)
+        form = InstallmentPlanForm(request.POST, client_vehicle=client_vehicle)
         if form.is_valid():
             plan = form.save(commit=False)
+            plan.client_vehicle = client_vehicle
+            plan.total_amount = client_vehicle.purchase_price
+            plan.deposit = client_vehicle.deposit_paid
             plan.created_by = request.user
             plan.save()
             
@@ -632,15 +636,12 @@ def create_installment_plan(request, client_vehicle_pk):
     else:
         # Pre-fill form with client vehicle data
         initial_data = {
-            'client_vehicle': client_vehicle,
-            'total_amount': client_vehicle.purchase_price,
-            'deposit': client_vehicle.deposit_paid,
             'monthly_installment': client_vehicle.monthly_installment,
             'number_of_installments': client_vehicle.installment_months,
             'interest_rate': client_vehicle.interest_rate,
             'start_date': client_vehicle.purchase_date,
         }
-        form = InstallmentPlanForm(initial=initial_data)
+        form = InstallmentPlanForm(initial=initial_data, client_vehicle=client_vehicle)
     
     context = {
         'form': form,

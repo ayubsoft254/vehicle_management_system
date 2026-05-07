@@ -368,12 +368,9 @@ class ClientDocumentForm(forms.ModelForm):
     
     class Meta:
         model = ClientDocument
-        fields = ['client', 'document_type', 'title', 'file', 'description']
+        fields = ['document_type', 'title', 'file', 'description']
         
         widgets = {
-            'client': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-            }),
             'document_type': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
             }),
@@ -472,26 +469,11 @@ class InstallmentPlanForm(forms.ModelForm):
     class Meta:
         model = InstallmentPlan
         fields = [
-            'client_vehicle', 'total_amount', 'deposit',
             'monthly_installment', 'number_of_installments',
-            'interest_rate', 'start_date',
-            'notes'
+            'interest_rate', 'start_date'
         ]
         
         widgets = {
-            'client_vehicle': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-            }),
-            'total_amount': forms.NumberInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': '0.00',
-                'step': '0.01'
-            }),
-            'deposit': forms.NumberInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': '0.00',
-                'step': '0.01'
-            }),
             'monthly_installment': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '0.00',
@@ -511,22 +493,21 @@ class InstallmentPlanForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'type': 'date'
             }),
-            'notes': forms.Textarea(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Plan notes (Optional)',
-                'rows': 3
-            }),
         }
+
+    def __init__(self, *args, **kwargs):
+        self.client_vehicle = kwargs.pop('client_vehicle', None)
+        super().__init__(*args, **kwargs)
     
     def clean(self):
         """Validate installment plan calculations"""
         cleaned_data = super().clean()
-        total_amount = cleaned_data.get('total_amount')
-        deposit = cleaned_data.get('deposit')
         monthly_installment = cleaned_data.get('monthly_installment')
         number_of_installments = cleaned_data.get('number_of_installments')
         
-        if all([total_amount, deposit, monthly_installment, number_of_installments]):
+        if self.client_vehicle and monthly_installment and number_of_installments:
+            total_amount = self.client_vehicle.purchase_price
+            deposit = self.client_vehicle.deposit_paid
             balance = total_amount - deposit
             total_installments = monthly_installment * number_of_installments
             
