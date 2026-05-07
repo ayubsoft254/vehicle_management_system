@@ -87,7 +87,7 @@
                         <dd class="mt-1 text-sm text-gray-900">{{ auction.vehicle.get_condition_display|default:"N/A" }}</dd>
                     </div>
                 </dl>
-                <a href="{% url 'vehicles:vehicle_detail' auction.vehicle.pk %}" 
+                <a href="{% url 'vehicles:detail' auction.vehicle.pk %}" 
                    class="mt-4 inline-flex items-center text-sm text-primary-600 hover:text-primary-700 font-medium">
                     <i class="fas fa-external-link-alt mr-1"></i> View Full Vehicle Details
                 </a>

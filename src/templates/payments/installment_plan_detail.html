@@ -263,7 +263,7 @@
                     <div>
                         <label class="block text-xs font-medium text-gray-500 uppercase mb-1">Registration</label>
                         <p class="text-sm font-semibold text-gray-900">
-                            <a href="{% url 'vehicles:vehicle_detail' plan.client_vehicle.vehicle.pk %}" class="hover:text-primary-600">
+                            <a href="{% url 'vehicles:detail' plan.client_vehicle.vehicle.pk %}" class="hover:text-primary-600">
                                 {{ plan.client_vehicle.vehicle.registration_number }}
                             </a>
                         </p>

@@ -281,7 +281,7 @@
                 <div>
                     <p class="font-medium text-gray-900">{{ expense.vehicle.make }} {{ expense.vehicle.model }}</p>
                     <p class="text-sm text-gray-500 mt-1">{{ expense.vehicle.registration_number }}</p>
-                    <a href="{% url 'vehicles:vehicle_detail' expense.vehicle.pk %}" 
+                    <a href="{% url 'vehicles:detail' expense.vehicle.pk %}" 
                        class="text-sm text-primary-600 hover:text-primary-700 mt-2 inline-block">
                         View Vehicle <i class="fas fa-arrow-right ml-1"></i>
                     </a>

@@ -18,7 +18,7 @@
                 <i class="fas fa-print mr-2"></i>
                 Print Report
             </button>
-            <a href="{% url 'payments:export_defaulters_csv' %}" 
+            <a href="#" 
                class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-download mr-2"></i>
                 Export CSV
@@ -279,7 +279,7 @@
                                     <i class="fas fa-phone"></i>
                                 </a>
                                 {% if defaulter.days_overdue >= 90 %}
-                                <a href="{% url 'repossessions:initiate_repossession' defaulter.client_vehicle_id %}" 
+                                <a href="#" 
                                    class="text-red-600 hover:text-red-900 transition-colors duration-150" 
                                    title="Initiate Repossession">
                                     <i class="fas fa-gavel"></i>
