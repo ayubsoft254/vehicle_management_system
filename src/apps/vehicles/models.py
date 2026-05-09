@@ -80,15 +80,6 @@ class Vehicle(models.Model):
         help_text='Vehicle registration/license plate number (e.g., KAA 123A)'
     )
     
-    chassis_number = models.CharField(
-        'Chassis Number',
-        max_length=100,
-        unique=True,
-        blank=True,
-        null=True,
-        help_text='Vehicle chassis number'
-    )
-    
     engine_number = models.CharField(
         'Engine Number',
         max_length=100,
@@ -274,6 +265,23 @@ class Vehicle(models.Model):
         help_text='Where vehicle is currently located'
     )
     
+    # Shipping Information
+    ship_name = models.CharField(
+        'Ship Name',
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text='Name of the vessel/ship used for transport'
+    )
+    
+    vessel_number = models.CharField(
+        'Vessel Number',
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text='Vessel identification number or code'
+    )
+    
     # Dates
     purchase_date = models.DateField(
         'Purchase Date',
@@ -322,8 +330,7 @@ class Vehicle(models.Model):
     
     def __str__(self):
         reg_or_vin = self.registration_number or self.vin[:8]
-        chassis_info = f" - {self.chassis_number}" if self.chassis_number else ""
-        return f"{self.year} {self.make} {self.model} - {reg_or_vin}{chassis_info}"
+        return f"{self.year} {self.make} {self.model} - {reg_or_vin}"
     
     @property
     def full_name(self):
