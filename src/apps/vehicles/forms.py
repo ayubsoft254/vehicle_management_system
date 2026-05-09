@@ -14,13 +14,14 @@ class VehicleForm(forms.ModelForm):
     class Meta:
         model = Vehicle
         fields = [
-            'make', 'model', 'year', 'vin', 'registration_number', 'chassis_number',
+            'make', 'model', 'year', 'vin', 'registration_number',
             'color', 'mileage', 'fuel_type', 'transmission',
             'engine_size', 'body_type', 'seats', 'doors',
             'condition', 'purchase_price', 'selling_price', 'deposit_required',
-            'duty_cost', 'clearance_cost', 'commission_cost',
+            'duty_cost', 'clearance_cost',
             'status', 'is_active', 'is_featured',
-            'description', 'features', 'location', 'purchase_date'
+            'description', 'features', 'location', 'ship_name', 'vessel_number',
+            'purchase_date'
         ]
         widgets = {
             'make': forms.TextInput(attrs={
@@ -48,10 +49,7 @@ class VehicleForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
                 'placeholder': 'KAA 123A'
             }),
-            'chassis_number': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'Chassis number'
-            }),
+
             'color': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
                 'placeholder': 'White, Black, Silver, etc.',
@@ -111,11 +109,6 @@ class VehicleForm(forms.ModelForm):
                 'placeholder': 'Clearance/port cost in KES',
                 'step': '0.01'
             }),
-            'commission_cost': forms.NumberInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'Commission/agent fees in KES',
-                'step': '0.01'
-            }),
             'status': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
             }),
@@ -139,9 +132,18 @@ class VehicleForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
                 'placeholder': 'Current location of vehicle'
             }),
+            'ship_name': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Name of the vessel/ship'
+            }),
+            'vessel_number': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Vessel identification number'
+            }),
             'purchase_date': forms.DateInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'type': 'date'
+                'type': 'date',
+                'required': 'required'
             }),
         }
         labels = {
@@ -156,7 +158,7 @@ class VehicleForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         # Fields with defaults in the model - make optional in form
-        optional_fields = ['seats', 'condition', 'deposit_required', 'purchase_date']
+        optional_fields = ['seats', 'condition', 'deposit_required']
         for field_name in optional_fields:
             self.fields[field_name].required = False
             # Remove HTML5 required attribute from widget if present
