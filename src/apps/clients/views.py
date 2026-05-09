@@ -6,10 +6,10 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q, Sum, Count, F
+from django.db import models, transaction
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
-from django.db import transaction
 from datetime import datetime, timedelta
 import csv
 import json
@@ -299,7 +299,6 @@ def assign_vehicle(request, client_pk):
                         deposit=client_vehicle.deposit_paid,
                         monthly_installment=client_vehicle.monthly_installment,
                         number_of_installments=client_vehicle.installment_months,
-                        interest_rate=client_vehicle.interest_rate or Decimal('0.00'),
                         start_date=timezone.now().date(),
                         is_active=True,
                         created_by=request.user
@@ -318,13 +317,41 @@ def assign_vehicle(request, client_pk):
                 insurance_agent_id = request.POST.get('insurance_agent_id', '').strip()
                 insurance_has_plan = request.POST.get('insurance_has_payment_plan') == 'on'
                 insurance_deposit = request.POST.get('insurance_deposit', '').strip()
-                insurance_months = request.POST.get('insurance_installment_months', '').strip()
+                insurance_first_date = request.POST.get('insurance_first_payment_date', '').strip()
+                insurance_last_date = request.POST.get('insurance_last_payment_date', '').strip()
                 insurance_interest_rate = request.POST.get('insurance_interest_rate', '0').strip()
                 
                 if insurance_provider_id and insurance_policy_number and insurance_start_date and insurance_end_date:
                     try:
                         from apps.insurance.models import InsuranceProvider, InsurancePolicy
+                        from datetime import datetime as dt
+                        
                         provider = InsuranceProvider.objects.get(pk=insurance_provider_id)
+                        
+                        # Calculate insurance installment months from date range
+                        insurance_months = None
+                        if insurance_has_plan and insurance_first_date and insurance_last_date:
+                            first = dt.strptime(insurance_first_date, '%Y-%m-%d').date()
+                            last = dt.strptime(insurance_last_date, '%Y-%m-%d').date()
+                            # Calculate months between dates
+                            months_diff = (last.year - first.year) * 12 + (last.month - first.month)
+                            insurance_months = max(1, months_diff)
+                        
+                        # Calculate monthly installment
+                        insurance_monthly = None
+                        if insurance_has_plan and insurance_selling_price:
+                            selling = Decimal(insurance_selling_price or '0')
+                            deposit = Decimal(insurance_deposit or '0')
+                            balance = selling - deposit
+                            rate = Decimal(insurance_interest_rate or '0')
+                            
+                            if insurance_months and insurance_months > 0:
+                                total_with_interest = balance
+                                if rate > 0:
+                                    interest = balance * (rate / 100) * (insurance_months / 12)
+                                    total_with_interest = balance + interest
+                                insurance_monthly = total_with_interest / insurance_months
+                        
                         InsurancePolicy.objects.create(
                             vehicle=vehicle,
                             provider=provider,
@@ -341,7 +368,8 @@ def assign_vehicle(request, client_pk):
                             agent_id=insurance_agent_id,
                             has_payment_plan=insurance_has_plan,
                             insurance_deposit=Decimal(insurance_deposit or '0') if insurance_has_plan else Decimal('0'),
-                            insurance_installment_months=int(insurance_months) if insurance_months and insurance_has_plan else None,
+                            insurance_installment_months=insurance_months if insurance_has_plan else None,
+                            insurance_monthly_installment=insurance_monthly if insurance_has_plan else None,
                             insurance_interest_rate=Decimal(insurance_interest_rate or '0') if insurance_has_plan else Decimal('0'),
                             status='active',
                             created_by=request.user,
@@ -358,15 +386,46 @@ def assign_vehicle(request, client_pk):
                 tracker_selling_prices = request.POST.getlist('tracker_selling_price[]')
                 tracker_has_plans = request.POST.getlist('tracker_has_plan[]')
                 tracker_deposits = request.POST.getlist('tracker_deposit[]')
-                tracker_months = request.POST.getlist('tracker_installment_months[]')
+                tracker_first_dates = request.POST.getlist('tracker_first_payment_date[]')
+                tracker_last_dates = request.POST.getlist('tracker_last_payment_date[]')
                 tracker_interest_rates = request.POST.getlist('tracker_interest_rate[]')
                 
                 for i, name in enumerate(tracker_names):
                     if name.strip():
                         try:
                             from apps.clients.models import VehicleTracker
+                            from datetime import datetime as dt
+                            
                             has_plan = tracker_has_plans[i] == 'on' if i < len(tracker_has_plans) else False
                             install_date = tracker_install_dates[i] if i < len(tracker_install_dates) and tracker_install_dates[i] else timezone.now().date()
+                            
+                            # Calculate tracker installment months from date range
+                            tracker_months = None
+                            if has_plan and i < len(tracker_first_dates) and i < len(tracker_last_dates):
+                                first_date_str = tracker_first_dates[i] if tracker_first_dates[i] else None
+                                last_date_str = tracker_last_dates[i] if tracker_last_dates[i] else None
+                                if first_date_str and last_date_str:
+                                    first = dt.strptime(first_date_str, '%Y-%m-%d').date()
+                                    last = dt.strptime(last_date_str, '%Y-%m-%d').date()
+                                    # Calculate months between dates
+                                    months_diff = (last.year - first.year) * 12 + (last.month - first.month)
+                                    tracker_months = max(1, months_diff)
+                            
+                            # Calculate monthly installment
+                            tracker_monthly = None
+                            if has_plan and i < len(tracker_selling_prices) and tracker_selling_prices[i]:
+                                selling = Decimal(tracker_selling_prices[i] or '0')
+                                deposit = Decimal(tracker_deposits[i] if i < len(tracker_deposits) else '0')
+                                balance = selling - deposit
+                                rate = Decimal(tracker_interest_rates[i] if i < len(tracker_interest_rates) else '0')
+                                
+                                if tracker_months and tracker_months > 0:
+                                    total_with_interest = balance
+                                    if rate > 0:
+                                        interest = balance * (rate / 100) * (tracker_months / 12)
+                                        total_with_interest = balance + interest
+                                    tracker_monthly = total_with_interest / tracker_months
+                            
                             VehicleTracker.objects.create(
                                 client_vehicle=client_vehicle,
                                 tracker_name=name,
@@ -376,7 +435,8 @@ def assign_vehicle(request, client_pk):
                                 selling_price=Decimal(tracker_selling_prices[i]) if i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0'),
                                 has_payment_plan=has_plan,
                                 deposit=Decimal(tracker_deposits[i]) if i < len(tracker_deposits) and tracker_deposits[i] and has_plan else Decimal('0'),
-                                installment_months=int(tracker_months[i]) if i < len(tracker_months) and tracker_months[i] and has_plan else None,
+                                installment_months=tracker_months if has_plan else None,
+                                monthly_installment=tracker_monthly if has_plan else None,
                                 interest_rate=Decimal(tracker_interest_rates[i]) if i < len(tracker_interest_rates) and tracker_interest_rates[i] and has_plan else Decimal('0'),
                                 installed_date=install_date,
                                 created_by=request.user,
@@ -428,6 +488,9 @@ def client_vehicle_detail(request, pk):
     """
     Display details of a client's vehicle purchase
     """
+    from apps.payments.models import PaymentSchedule
+    from django.utils import timezone
+    
     client_vehicle = get_object_or_404(
         ClientVehicle.objects.select_related('client', 'vehicle'), 
         pk=pk
@@ -444,11 +507,38 @@ def client_vehicle_detail(request, pk):
     except InstallmentPlan.DoesNotExist:
         installment_plan = None
     
+    # Get payment schedule information
+    next_payment = None
+    total_paid_schedule = Decimal('0.00')
+    total_remaining_schedule = Decimal('0.00')
+    
+    if installment_plan:
+        # Get next unpaid installment
+        next_payment = PaymentSchedule.objects.filter(
+            installment_plan=installment_plan,
+            is_paid=False
+        ).order_by('due_date').first()
+        
+        # Calculate totals from payment schedule
+        all_schedules = PaymentSchedule.objects.filter(installment_plan=installment_plan)
+        total_paid_schedule = all_schedules.aggregate(
+            total=models.Sum('amount_paid')
+        )['total'] or Decimal('0.00')
+        
+        total_remaining_schedule = all_schedules.filter(
+            is_paid=False
+        ).aggregate(
+            total=models.Sum('amount_due')
+        )['total'] or Decimal('0.00')
+    
     context = {
         'client_vehicle': client_vehicle,
         'payments': payments,
         'installment_plan': installment_plan,
         'payment_progress': client_vehicle.payment_progress,
+        'next_payment': next_payment,
+        'total_paid_schedule': total_paid_schedule,
+        'total_remaining_schedule': total_remaining_schedule,
     }
     
     log_audit(
@@ -519,6 +609,7 @@ def client_vehicle_update(request, pk):
     
     context = {
         'form': form,
+        'client': client_vehicle.client,
         'client_vehicle': client_vehicle,
         'title': 'Update Vehicle Assignment',
         'button_text': 'Update Assignment',
