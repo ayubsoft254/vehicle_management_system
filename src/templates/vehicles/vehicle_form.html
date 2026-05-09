@@ -149,20 +149,6 @@
                         {% endif %}
                     </div>
 
-                    <!-- Chassis Number -->
-                    <div>
-                        <label for="{{ form.chassis_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                            Chassis Number
-                        </label>
-                        {{ form.chassis_number }}
-                        {% if form.chassis_number.errors %}
-                            <p class="mt-1 text-sm text-red-600">{{ form.chassis_number.errors.0 }}</p>
-                        {% endif %}
-                        {% if form.chassis_number.help_text %}
-                            <p class="mt-1 text-sm text-gray-500">{{ form.chassis_number.help_text }}</p>
-                        {% endif %}
-                    </div>
-
                     <!-- Color -->
                     <div>
                         <label for="{{ form.color.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
@@ -392,22 +378,6 @@
                         {% endif %}
                     </div>
 
-                    <!-- Commission Cost -->
-                    <div>
-                        <label for="{{ form.commission_cost.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                            Commission Cost (KES)
-                        </label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span class="text-gray-500 sm:text-sm">KES</span>
-                            </div>
-                            {{ form.commission_cost }}
-                        </div>
-                        {% if form.commission_cost.errors %}
-                            <p class="mt-1 text-sm text-red-600">{{ form.commission_cost.errors.0 }}</p>
-                        {% endif %}
-                    </div>
-
                     <!-- Extra Costs Section -->
                     <div class="md:col-span-2">
                         <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
@@ -478,10 +448,6 @@
                                     <span id="clearanceDisplay">0</span>
                                 </div>
                                 <div class="flex justify-between">
-                                    <span>+ Commission:</span>
-                                    <span id="commissionDisplay">0</span>
-                                </div>
-                                <div class="flex justify-between">
                                     <span>+ Extra Costs:</span>
                                     <span id="extraCostsDisplay">0</span>
                                 </div>
@@ -500,7 +466,7 @@
                     <!-- Purchase Date -->
                     <div>
                         <label for="{{ form.purchase_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                            Purchase Date
+                            Purchase Date <span class="text-red-500">*</span>
                         </label>
                         {{ form.purchase_date }}
                         {% if form.purchase_date.errors %}
@@ -600,6 +566,28 @@
                             <p class="mt-1 text-sm text-red-600">{{ form.features.errors.0 }}</p>
                         {% endif %}
                         <p class="mt-1 text-sm text-gray-500">List all special features, upgrades, and additional equipment</p>
+                    </div>
+                    
+                    <!-- Ship Name -->
+                    <div>
+                        <label for="{{ form.ship_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Ship Name
+                        </label>
+                        {{ form.ship_name }}
+                        {% if form.ship_name.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.ship_name.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Vessel Number -->
+                    <div>
+                        <label for="{{ form.vessel_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Vessel Number
+                        </label>
+                        {{ form.vessel_number }}
+                        {% if form.vessel_number.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.vessel_number.errors.0 }}</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -775,7 +763,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const sellingPrice = parseFloat(document.getElementById('id_selling_price').value) || 0;
         const dutyCost = parseFloat(document.getElementById('id_duty_cost').value) || 0;
         const clearanceCost = parseFloat(document.getElementById('id_clearance_cost').value) || 0;
-        const commissionCost = parseFloat(document.getElementById('id_commission_cost').value) || 0;
         
         // Calculate total extra costs
         const extraCostInputs = document.querySelectorAll('input[data-extra-cost-amount]');
@@ -785,14 +772,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Calculate total cost
-        const totalCost = purchasePrice + dutyCost + clearanceCost + commissionCost + totalExtraCosts;
+        const totalCost = purchasePrice + dutyCost + clearanceCost + totalExtraCosts;
         const profit = sellingPrice - totalCost;
         
         // Update displays
         document.getElementById('purchaseDisplay').textContent = formatNumber(purchasePrice);
         document.getElementById('dutyDisplay').textContent = formatNumber(dutyCost);
         document.getElementById('clearanceDisplay').textContent = formatNumber(clearanceCost);
-        document.getElementById('commissionDisplay').textContent = formatNumber(commissionCost);
         document.getElementById('extraCostsDisplay').textContent = formatNumber(totalExtraCosts);
         document.getElementById('totalCostDisplay').textContent = formatNumber(totalCost);
         document.getElementById('profitDisplay').textContent = formatNumber(profit);
