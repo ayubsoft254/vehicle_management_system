@@ -73,27 +73,32 @@
         <!-- Profit / Loss Summary Panel -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden" id="profit-loss-panel">
             <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
-                <h2 class="text-lg font-semibold text-white"><i class="fas fa-chart-line mr-2"></i>Deal Summary — Profit / Loss</h2>
+                <h2 class="text-lg font-semibold text-white"><i class="fas fa-chart-line mr-2"></i>Deal Summary — Cost & Profit</h2>
             </div>
             <div class="p-6">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p class="text-xs text-gray-500 uppercase font-medium">Vehicle Cost</p>
-                        <p class="text-lg font-bold text-gray-700 mt-1" id="pl-cost">KES 0.00</p>
-                        <p class="text-xs text-gray-400 mt-0.5">Dealer bought at</p>
-                    </div>
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p class="text-xs text-gray-500 uppercase font-medium">Client Price</p>
+                        <p class="text-xs text-gray-500 uppercase font-medium">Purchase Price</p>
                         <p class="text-lg font-bold text-blue-600 mt-1" id="pl-price">KES 0.00</p>
-                        <p class="text-xs text-gray-400 mt-0.5">Sale price</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Vehicle sale price</p>
                     </div>
                     <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
                         <p class="text-xs text-gray-500 uppercase font-medium">Insurance + Tracker</p>
                         <p class="text-lg font-bold text-orange-500 mt-1" id="pl-expenses">KES 0.00</p>
                         <p class="text-xs text-gray-400 mt-0.5">Additional costs</p>
                     </div>
+                    <div class="bg-blue-50 rounded-lg p-4 border-2 border-blue-300">
+                        <p class="text-xs text-blue-700 uppercase font-medium">Total Cost</p>
+                        <p class="text-lg font-bold text-blue-700 mt-1" id="pl-total-cost">KES 0.00</p>
+                        <p class="text-xs text-blue-600 mt-0.5">Price + Extras</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p class="text-xs text-gray-500 uppercase font-medium">Vehicle Cost</p>
+                        <p class="text-lg font-bold text-gray-700 mt-1" id="pl-cost">KES 0.00</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Dealer cost</p>
+                    </div>
                     <div class="rounded-lg p-4 border-2" id="pl-result-box">
-                        <p class="text-xs uppercase font-medium" id="pl-result-label">Net Profit / Loss</p>
+                        <p class="text-xs uppercase font-medium" id="pl-result-label">Net Profit</p>
                         <p class="text-xl font-bold mt-1" id="pl-result">KES 0.00</p>
                         <p class="text-xs mt-0.5" id="pl-result-sub">—</p>
                     </div>
@@ -122,11 +127,6 @@
                         <label for="{{ form.deposit_paid.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Deposit Paid (KES) <span class="text-red-500">*</span></label>
                         {{ form.deposit_paid }}
                         {% if form.deposit_paid.errors %}<p class="mt-1 text-sm text-red-600">{{ form.deposit_paid.errors.0 }}</p>{% endif %}
-                    </div>
-                    <div>
-                        <label for="{{ form.interest_rate.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Interest Rate (%)</label>
-                        {{ form.interest_rate }}
-                        {% if form.interest_rate.errors %}<p class="mt-1 text-sm text-red-600">{{ form.interest_rate.errors.0 }}</p>{% endif %}
                     </div>
                 </div>
             </div>
@@ -277,29 +277,23 @@
                 <!-- Insurance Payment Plan -->
                 <div class="border-t border-gray-200 pt-6">
                     <div class="flex items-center mb-4">
-                        <input type="checkbox" id="id_insurance_has_payment_plan" name="insurance_has_payment_plan" class="h-4 w-4 text-primary-600" onchange="toggleInsurancePaymentPlan()">
+                        <input type="checkbox" id="id_insurance_has_payment_plan" name="insurance_has_payment_plan" class="h-4 w-4 text-primary-600" onchange="toggleInsurancePaymentPlan();updateProfitLoss()">
                         <label for="id_insurance_has_payment_plan" class="ml-2 text-sm font-medium text-gray-900">Insurance has payment plan</label>
                     </div>
-                    <div id="insurance-payment-plan-section" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div id="insurance-payment-plan-section" class="hidden grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">First Payment Date</label>
+                            <input type="date" name="insurance_first_payment_date" id="id_insurance_first_payment_date" class="form-input" oninput="calculateInsuranceInstallment();updateProfitLoss()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Last Payment Date</label>
+                            <input type="date" name="insurance_last_payment_date" id="id_insurance_last_payment_date" class="form-input" oninput="calculateInsuranceInstallment();updateProfitLoss()">
+                        </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Deposit (KES)</label>
-                            <input type="number" name="insurance_deposit" id="id_insurance_deposit" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="calculateInsuranceInstallment()">
+                            <input type="number" name="insurance_deposit" id="id_insurance_deposit" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="calculateInsuranceInstallment();updateProfitLoss()">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Installment Months</label>
-                            <select name="insurance_installment_months" id="id_insurance_installment_months" class="form-input" onchange="calculateInsuranceInstallment()">
-                                <option value="">-- Select --</option>
-                                <option value="6">6 Months</option>
-                                <option value="12">12 Months</option>
-                                <option value="24">24 Months</option>
-                                <option value="36">36 Months</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Interest Rate (%)</label>
-                            <input type="number" name="insurance_interest_rate" id="id_insurance_interest_rate" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="calculateInsuranceInstallment()">
-                        </div>
-                        <div class="md:col-span-3">
+                        <div class="md:col-span-4">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Monthly Installment (KES) — Auto-calculated</label>
                             <input type="number" name="insurance_monthly_installment" id="id_insurance_monthly_installment" placeholder="0.00" step="0.01" min="0" class="form-input bg-gray-100" readonly>
                             <p class="mt-2 text-xs text-gray-500">
@@ -367,25 +361,25 @@
                         <!-- Payment Plan -->
                         <div class="border-t border-orange-200 pt-4">
                             <div class="flex items-center mb-3">
-                                <input type="checkbox" name="tracker_has_plan[]" class="h-4 w-4 text-primary-600 tracker-has-plan" onchange="toggleTrackerPaymentPlan(this)">
+                                <input type="checkbox" name="tracker_has_plan[]" class="h-4 w-4 text-primary-600 tracker-has-plan" onchange="toggleTrackerPaymentPlan(this);updateTrackerExpense()">
                                 <label class="ml-2 text-sm font-medium text-gray-900">Tracker has payment plan</label>
                             </div>
-                            <div class="tracker-payment-plan hidden grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="tracker-payment-plan hidden grid grid-cols-1 md:grid-cols-5 gap-3">
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">Deposit (KES)</label>
-                                    <input type="number" name="tracker_deposit[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm">
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">First Payment Date</label>
+                                    <input type="date" name="tracker_first_payment_date[]" class="form-input text-sm" oninput="updateTrackerExpense()">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">Months</label>
-                                    <select name="tracker_installment_months[]" class="form-input text-sm">
-                                        <option value="">-- Select --</option>
-                                        <option value="6">6 Months</option>
-                                        <option value="12">12 Months</option>
-                                    </select>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Last Payment Date</label>
+                                    <input type="date" name="tracker_last_payment_date[]" class="form-input text-sm" oninput="updateTrackerExpense()">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Deposit (KES)</label>
+                                    <input type="number" name="tracker_deposit[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm" oninput="updateTrackerExpense()">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">Monthly (KES)</label>
-                                    <input type="number" name="tracker_monthly[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm">
+                                    <input type="number" name="tracker_monthly[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm bg-gray-100" readonly>
                                 </div>
                             </div>
                         </div>
@@ -397,6 +391,43 @@
                     <button type="button" class="px-4 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 font-medium rounded-lg transition duration-150" onclick="addTracker()">
                         <i class="fas fa-plus mr-2"></i>Add Another Tracker
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Information -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-user-tie mr-2"></i>Broker Information</h2>
+            </div>
+            <div class="p-6 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label for="{{ form.broker_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Broker Name</label>
+                        {{ form.broker_name }}
+                        {% if form.broker_name.errors %}<p class="mt-1 text-sm text-red-600">{{ form.broker_name.errors.0 }}</p>{% endif %}
+                        <p class="mt-1 text-xs text-gray-500">Name of the broker handling this transaction.</p>
+                    </div>
+                    <div>
+                        <label for="{{ form.broker_id_no.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Broker ID Number</label>
+                        {{ form.broker_id_no }}
+                        {% if form.broker_id_no.errors %}<p class="mt-1 text-sm text-red-600">{{ form.broker_id_no.errors.0 }}</p>{% endif %}
+                        <p class="mt-1 text-xs text-gray-500">Broker identification number.</p>
+                    </div>
+                    <div>
+                        <label for="{{ form.broker_phone_no.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Broker Phone Number</label>
+                        {{ form.broker_phone_no }}
+                        {% if form.broker_phone_no.errors %}<p class="mt-1 text-sm text-red-600">{{ form.broker_phone_no.errors.0 }}</p>{% endif %}
+                        <p class="mt-1 text-xs text-gray-500">Broker contact phone number.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="{{ form.commission_percentage.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Commission Percentage (%)</label>
+                        {{ form.commission_percentage }}
+                        {% if form.commission_percentage.errors %}<p class="mt-1 text-sm text-red-600">{{ form.commission_percentage.errors.0 }}</p>{% endif %}
+                        <p class="mt-1 text-xs text-gray-500">Commission percentage on the purchase price (e.g., 5.00 for 5%).</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -527,30 +558,25 @@ function addTracker() {
 
             <div class="border-t border-orange-200 pt-4">
                 <div class="flex items-center mb-3">
-                    <input type="checkbox" name="tracker_has_plan[]" class="h-4 w-4 text-primary-600 tracker-has-plan" onchange="toggleTrackerPaymentPlan(this); calculateTrackerInstallment(this)">
+                    <input type="checkbox" name="tracker_has_plan[]" class="h-4 w-4 text-primary-600 tracker-has-plan" onchange="toggleTrackerPaymentPlan(this); updateTrackerExpense()">
                     <label class="ml-2 text-sm font-medium text-gray-900">Tracker has payment plan</label>
                 </div>
-                <div class="tracker-payment-plan hidden grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="tracker-payment-plan hidden grid grid-cols-1 md:grid-cols-5 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">First Payment Date</label>
+                        <input type="date" name="tracker_first_payment_date[]" class="form-input text-sm" oninput="calculateTrackerInstallment(this); updateTrackerExpense(); updateProfitLoss()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Last Payment Date</label>
+                        <input type="date" name="tracker_last_payment_date[]" class="form-input text-sm" oninput="calculateTrackerInstallment(this); updateTrackerExpense(); updateProfitLoss()">
+                    </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Deposit (KES)</label>
-                        <input type="number" name="tracker_deposit[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm tracker-deposit" oninput="calculateTrackerInstallment(this)">
+                        <input type="number" name="tracker_deposit[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm" oninput="calculateTrackerInstallment(this); updateTrackerExpense(); updateProfitLoss()">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Months</label>
-                        <select name="tracker_installment_months[]" class="form-input text-sm tracker-months" onchange="calculateTrackerInstallment(this)">
-                            <option value="">-- Select --</option>
-                            <option value="6">6 Months</option>
-                            <option value="12">12 Months</option>
-                            <option value="24">24 Months</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Interest (%)</label>
-                        <input type="number" name="tracker_interest_rate[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm tracker-interest" oninput="calculateTrackerInstallment(this)">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Monthly (KES) — Auto</label>
-                        <input type="number" name="tracker_monthly[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm tracker-monthly bg-gray-100" readonly>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Monthly (KES)</label>
+                        <input type="number" name="tracker_monthly[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm bg-gray-100" readonly>
                     </div>
                 </div>
             </div>
@@ -582,21 +608,44 @@ function updateProfitLoss() {
     const vehicleId   = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
     const priceInput  = parseFloat(document.getElementById('{{ form.purchase_price.id_for_label }}')?.value) || 0;
     const costPrice   = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
-    const insurance   = parseFloat(document.getElementById('id_insurance_premium')?.value) || 0;
-    const insuranceBuying = parseFloat(document.getElementById('id_insurance_buying_price')?.value) || 0;
     
-    // Calculate total tracker cost
+    // Insurance costs
+    const insuranceHasPlan = document.getElementById('id_insurance_has_payment_plan')?.checked;
+    let insuranceCost = 0;
+    if (insuranceHasPlan) {
+        insuranceCost = parseFloat(document.getElementById('id_insurance_monthly_installment')?.value || 0);
+        const months = Math.max(1, Math.round((new Date(document.getElementById('id_insurance_last_payment_date')?.value) - new Date(document.getElementById('id_insurance_first_payment_date')?.value)) / (1000 * 60 * 60 * 24 * 30.44)));
+        insuranceCost = insuranceCost * months;
+    } else {
+        insuranceCost = parseFloat(document.getElementById('id_insurance_premium')?.value || 0) + 
+                       parseFloat(document.getElementById('id_insurance_buying_price')?.value || 0);
+    }
+    
+    // Tracker costs
     let trackerCost = 0;
-    document.querySelectorAll('.tracker-buying-price').forEach(input => {
-        trackerCost += parseFloat(input.value) || 0;
+    document.querySelectorAll('.tracker-item').forEach(tracker => {
+        const hasPlan = tracker.querySelector('.tracker-has-plan')?.checked;
+        if (hasPlan) {
+            const monthly = parseFloat(tracker.querySelector('input[name="tracker_monthly[]"]')?.value || 0);
+            const firstDate = tracker.querySelector('input[name="tracker_first_payment_date[]"]')?.value;
+            const lastDate = tracker.querySelector('input[name="tracker_last_payment_date[]"]')?.value;
+            if (firstDate && lastDate) {
+                const months = Math.max(1, Math.round((new Date(lastDate) - new Date(firstDate)) / (1000 * 60 * 60 * 24 * 30.44)));
+                trackerCost += monthly * months;
+            }
+        } else {
+            trackerCost += parseFloat(tracker.querySelector('.tracker-buying-price')?.value || 0);
+        }
     });
     
-    const expenses    = insurance + insuranceBuying + trackerCost;
-    const netProfit   = priceInput - costPrice - expenses;
+    const totalExpenses = insuranceCost + trackerCost;
+    const totalCost = priceInput + totalExpenses;
+    const netProfit = totalCost - costPrice;
 
     document.getElementById('pl-cost').textContent    = fmt(costPrice);
     document.getElementById('pl-price').textContent   = fmt(priceInput);
-    document.getElementById('pl-expenses').textContent = fmt(expenses);
+    document.getElementById('pl-expenses').textContent = fmt(totalExpenses);
+    document.getElementById('pl-total-cost').textContent = fmt(totalCost);
     document.getElementById('pl-result').textContent  = fmt(Math.abs(netProfit));
 
     const box   = document.getElementById('pl-result-box');
@@ -653,23 +702,21 @@ document.addEventListener('DOMContentLoaded', function() {
 function calculateInsuranceInstallment() {
     const sellingPrice = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0);
     const deposit = parseFloat(document.getElementById('id_insurance_deposit')?.value || 0);
-    const months = parseInt(document.getElementById('id_insurance_installment_months')?.value || 0);
-    const interestRate = parseFloat(document.getElementById('id_insurance_interest_rate')?.value || 0);
+    const firstDate = document.getElementById('id_insurance_first_payment_date')?.value;
+    const lastDate = document.getElementById('id_insurance_last_payment_date')?.value;
     
-    if (sellingPrice > 0 && deposit >= 0 && months > 0) {
+    if (sellingPrice > 0 && deposit >= 0 && firstDate && lastDate) {
+        // Calculate months between dates
+        const start = new Date(firstDate);
+        const end = new Date(lastDate);
+        const months = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24 * 30.44)));
+        
         const balance = sellingPrice - deposit;
-        let totalWithInterest = balance;
-        
-        if (interestRate > 0) {
-            const interest = balance * (interestRate / 100) * (months / 12);
-            totalWithInterest = balance + interest;
-        }
-        
-        const monthly = totalWithInterest / months;
+        const monthly = balance / months;
         document.getElementById('id_insurance_monthly_installment').value = monthly.toFixed(2);
         
         // Show summary
-        const summary = `Balance: KES ${balance.toFixed(2)} + Interest (${interestRate}%) = KES ${totalWithInterest.toFixed(2)} ÷ ${months} months`;
+        const summary = `${months} months from ${firstDate} to ${lastDate} | Balance: KES ${balance.toFixed(2)} ÷ ${months} months`;
         document.getElementById('insurance-calc-summary').textContent = summary;
     }
 }
@@ -680,11 +727,17 @@ function calculateTrackerInstallment(elem) {
     if (!item) return;
     
     const sellingPrice = parseFloat(item.querySelector('.tracker-selling-price')?.value || 0);
-    const deposit = parseFloat(item.querySelector('.tracker-deposit')?.value || 0);
-    const months = parseInt(item.querySelector('.tracker-months')?.value || 0);
-    const interestRate = parseFloat(item.querySelector('.tracker-interest')?.value || 0);
+    const deposit = parseFloat(item.querySelector('input[name="tracker_deposit[]"]')?.value || 0);
+    const firstDate = item.querySelector('input[name="tracker_first_payment_date[]"]')?.value;
+    const lastDate = item.querySelector('input[name="tracker_last_payment_date[]"]')?.value;
+    const interestRate = parseFloat(item.querySelector('input[name="tracker_interest_rate[]"]')?.value || 0);
     
-    if (sellingPrice > 0 && deposit >= 0 && months > 0) {
+    if (sellingPrice > 0 && deposit >= 0 && firstDate && lastDate) {
+        // Calculate months between dates
+        const start = new Date(firstDate);
+        const end = new Date(lastDate);
+        const months = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24 * 30.44)));
+        
         const balance = sellingPrice - deposit;
         let totalWithInterest = balance;
         
@@ -694,14 +747,24 @@ function calculateTrackerInstallment(elem) {
         }
         
         const monthly = totalWithInterest / months;
-        item.querySelector('.tracker-monthly').value = monthly.toFixed(2);
+        item.querySelector('input[name="tracker_monthly[]"]').value = monthly.toFixed(2);
     }
+    updateTrackerExpense();
 }
 
 // Initialize calculations on input change
 document.addEventListener('change', function(e) {
     if (e.target.name === 'insurance_selling_price') {
         calculateInsuranceInstallment();
+    }
+});
+
+// Insurance date field listeners
+['id_insurance_first_payment_date', 'id_insurance_last_payment_date', 'id_insurance_deposit', 'id_insurance_interest_rate'].forEach(id => {
+    const elem = document.getElementById(id);
+    if (elem) {
+        elem.addEventListener('change', calculateInsuranceInstallment);
+        elem.addEventListener('input', calculateInsuranceInstallment);
     }
 });
 
