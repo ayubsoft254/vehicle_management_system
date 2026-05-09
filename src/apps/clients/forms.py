@@ -183,18 +183,31 @@ class ClientVehicleForm(forms.ModelForm):
         model = ClientVehicle
         fields = [
             'vehicle',
+            'broker_name', 'broker_id_no', 'broker_phone_no',
             'purchase_date', 'purchase_price',
             'deposit_paid', 'payment_type',
             'remainder_payment_type', 'monthly_payment_date', 'weekly_payment_day',
             'allow_flexible_payments',
             'monthly_installment', 'installment_months',
-            'interest_rate',
+            'commission_percentage',
             'notes'
         ]
         
         widgets = {
             'vehicle': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+            }),
+            'broker_name': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': 'Broker name'
+            }),
+            'broker_id_no': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': 'Broker ID number'
+            }),
+            'broker_phone_no': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': 'Broker phone number'
             }),
             'purchase_date': forms.DateInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
@@ -238,7 +251,7 @@ class ClientVehicleForm(forms.ModelForm):
                 'placeholder': '12',
                 'min': '1'
             }),
-            'interest_rate': forms.NumberInput(attrs={
+            'commission_percentage': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '0.00',
                 'step': '0.01',
@@ -266,12 +279,13 @@ class ClientVehicleForm(forms.ModelForm):
             self.fields['vehicle'].queryset = Vehicle.objects.filter(status='available')
         
         # Customize vehicle field to display chassis number
-        self.fields['vehicle'].label_from_instance = lambda obj: f"{obj.year} {obj.make} {obj.model} - {obj.chassis_number}" if obj.chassis_number else f"{obj.year} {obj.make} {obj.model}"
-            
+        self.fields['vehicle'].label_from_instance = lambda obj: f"{obj.year} {obj.make} {obj.model} - {obj.vin}"
+        
         # Make optional fields non-required
         optional_fields = [
-            'interest_rate', 'remainder_payment_type', 'monthly_payment_date',
-            'weekly_payment_day', 'monthly_installment', 'installment_months'
+            'remainder_payment_type', 'monthly_payment_date',
+            'weekly_payment_day', 'monthly_installment', 'installment_months', 
+            'broker_name', 'broker_id_no', 'broker_phone_no', 'commission_percentage'
         ]
         for field_name in optional_fields:
             self.fields[field_name].required = False
@@ -288,10 +302,6 @@ class ClientVehicleForm(forms.ModelForm):
         monthly_payment_date = cleaned_data.get('monthly_payment_date')
         weekly_payment_day = cleaned_data.get('weekly_payment_day')
         installment_months = cleaned_data.get('installment_months')
-        
-        # Default interest rate to 0 if left blank
-        if cleaned_data.get('interest_rate') is None:
-            cleaned_data['interest_rate'] = Decimal('0.00')
         
         # Check if vehicle is already assigned
         if vehicle and vehicle.status != 'available':
@@ -522,7 +532,7 @@ class InstallmentPlanForm(forms.ModelForm):
         model = InstallmentPlan
         fields = [
             'monthly_installment', 'number_of_installments',
-            'interest_rate', 'start_date'
+            'start_date'
         ]
         
         widgets = {
@@ -535,11 +545,6 @@ class InstallmentPlanForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '12',
                 'min': '1'
-            }),
-            'interest_rate': forms.NumberInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': '0.00',
-                'step': '0.01'
             }),
             'start_date': forms.DateInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
