@@ -132,29 +132,6 @@ def validate_engine_number(value):
     return value.upper()
 
 
-def validate_chassis_number(value):
-    """
-    Validate chassis number format
-    """
-    if not value:
-        return value
-    
-    # Chassis number should be 6-20 alphanumeric characters
-    if not 6 <= len(value) <= 20:
-        raise ValidationError(
-            _('Chassis number must be between 6 and 20 characters.'),
-            code='invalid_chassis_number_length'
-        )
-    
-    if not value.isalnum():
-        raise ValidationError(
-            _('Chassis number must contain only letters and numbers.'),
-            code='invalid_chassis_number_format'
-        )
-    
-    return value.upper()
-
-
 def validate_year(value):
     """
     Validate vehicle year
