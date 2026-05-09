@@ -366,12 +366,10 @@ class Command(BaseCommand):
             # Calculate installment details
             down_payment = vehicle.selling_price * Decimal('0.3')  # 30% down payment
             loan_amount = vehicle.selling_price - down_payment
-            interest_rate = Decimal(random.choice([10.0, 12.0, 15.0]))
             duration_months = random.choice([12, 24, 36, 48, 60])
             
-            # Calculate monthly payment
-            monthly_rate = interest_rate / Decimal('100') / Decimal('12')
-            monthly_payment = loan_amount * monthly_rate / (Decimal('1') - (Decimal('1') + monthly_rate) ** -duration_months)
+            # Calculate monthly payment (simple division: balance / months)
+            monthly_payment = round(loan_amount / Decimal(str(duration_months)), 2)
             
             start_date = datetime.now().date() - timedelta(days=random.randint(30, 365))
             end_date = start_date + timedelta(days=duration_months * 30)
@@ -390,7 +388,6 @@ class Command(BaseCommand):
                     balance=loan_amount,
                     monthly_installment=monthly_payment,
                     installment_months=duration_months,
-                    interest_rate=interest_rate,
                     is_active=True,
                     is_paid_off=False
                 )
@@ -401,7 +398,6 @@ class Command(BaseCommand):
                     deposit=down_payment,
                     monthly_installment=monthly_payment,
                     number_of_installments=duration_months,
-                    interest_rate=interest_rate,
                     start_date=start_date,
                     end_date=end_date,
                     is_active=True,
