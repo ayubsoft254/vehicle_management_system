@@ -149,6 +149,20 @@
                         {% endif %}
                     </div>
 
+                    <!-- Chassis Number -->
+                    <div>
+                        <label for="{{ form.chassis_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Chassis Number
+                        </label>
+                        {{ form.chassis_number }}
+                        {% if form.chassis_number.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.chassis_number.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.chassis_number.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.chassis_number.help_text }}</p>
+                        {% endif %}
+                    </div>
+
                     <!-- Color -->
                     <div>
                         <label for="{{ form.color.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
@@ -255,10 +269,34 @@
                             <p class="mt-1 text-sm text-gray-500">{{ form.doors.help_text }}</p>
                         {% endif %}
                     </div>
-                </div>
-            </div>
 
-            <!-- Pricing Information Section -->
+                    <!-- Number of Seats -->
+                    <div>
+                        <label for="{{ form.seats.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Number of Seats
+                        </label>
+                        {{ form.seats }}
+                        {% if form.seats.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.seats.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.seats.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.seats.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Condition -->
+                    <div>
+                        <label for="{{ form.condition.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Condition
+                        </label>
+                        {{ form.condition }}
+                        {% if form.condition.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.condition.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.condition.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.condition.help_text }}</p>
+                        {% endif %}
+                    </div>
             <div class="mb-8">
                 <h2 class="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
                     Pricing Information
@@ -268,11 +306,11 @@
                     <!-- Purchase Price -->
                     <div>
                         <label for="{{ form.purchase_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                            Purchase Price ($) <span class="text-red-500">*</span>
+                            Purchase Price (KES) <span class="text-red-500">*</span>
                         </label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span class="text-gray-500 sm:text-sm">$</span>
+                                <span class="text-gray-500 sm:text-sm">KES</span>
                             </div>
                             {{ form.purchase_price }}
                         </div>
@@ -287,11 +325,11 @@
                     <!-- Selling Price -->
                     <div>
                         <label for="{{ form.selling_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                            Selling Price ($) <span class="text-red-500">*</span>
+                            Selling Price (KES) <span class="text-red-500">*</span>
                         </label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span class="text-gray-500 sm:text-sm">$</span>
+                                <span class="text-gray-500 sm:text-sm">KES</span>
                             </div>
                             {{ form.selling_price }}
                         </div>
@@ -303,19 +341,174 @@
                         {% endif %}
                     </div>
 
-                    <!-- Profit Display (Read-only, calculated) -->
+                    <!-- Deposit Required -->
+                    <div>
+                        <label for="{{ form.deposit_required.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Deposit Required (KES)
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-gray-500 sm:text-sm">KES</span>
+                            </div>
+                            {{ form.deposit_required }}
+                        </div>
+                        {% if form.deposit_required.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.deposit_required.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.deposit_required.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.deposit_required.help_text }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Duty Cost -->
+                    <div>
+                        <label for="{{ form.duty_cost.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Duty Cost (KES)
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-gray-500 sm:text-sm">KES</span>
+                            </div>
+                            {{ form.duty_cost }}
+                        </div>
+                        {% if form.duty_cost.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.duty_cost.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Clearance Cost -->
+                    <div>
+                        <label for="{{ form.clearance_cost.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Clearance Cost (KES)
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-gray-500 sm:text-sm">KES</span>
+                            </div>
+                            {{ form.clearance_cost }}
+                        </div>
+                        {% if form.clearance_cost.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.clearance_cost.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Commission Cost -->
+                    <div>
+                        <label for="{{ form.commission_cost.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Commission Cost (KES)
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-gray-500 sm:text-sm">KES</span>
+                            </div>
+                            {{ form.commission_cost }}
+                        </div>
+                        {% if form.commission_cost.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.commission_cost.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Extra Costs Section -->
+                    <div class="md:col-span-2">
+                        <div class="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-sm font-semibold text-gray-900">Additional Extra Costs</h3>
+                                <button type="button" id="addExtraCostBtn" class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/>
+                                    </svg>
+                                    Add Cost
+                                </button>
+                            </div>
+                            
+                            <!-- Extra Costs Table -->
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full" id="extraCostsTable">
+                                    <thead class="bg-gray-200">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Description</th>
+                                            <th class="px-4 py-2 text-right text-sm font-medium text-gray-700">Amount (KES)</th>
+                                            <th class="px-4 py-2 text-center text-sm font-medium text-gray-700">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="extraCostsBody">
+                                        <!-- Extra cost rows will be added here dynamically -->
+                                    </tbody>
+                                </table>
+                                {% if form.instance.pk and form.instance.extra_costs.exists %}
+                                    <script>
+                                        document.addEventListener('DOMContentLoaded', function() {
+                                            var extraCosts = {{ form.instance.extra_costs.values_list|safe }};
+                                            extraCosts.forEach(function(cost) {
+                                                addExtraCostRow(cost[1], cost[2]); // [1] = description, [2] = amount
+                                            });
+                                        });
+                                    </script>
+                                {% endif %}
+                            </div>
+                            {% if not form.instance.pk or not form.instance.extra_costs.exists %}
+                                <div class="text-center py-4 text-gray-500">
+                                    <p class="text-sm">No extra costs added yet. Click "Add Cost" to add one.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
                     <div class="md:col-span-2">
                         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <div class="flex items-center">
+                            <div class="flex items-center mb-3">
                                 <svg class="w-5 h-5 text-blue-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                                 </svg>
                                 <p class="text-sm text-blue-700">
-                                    <span class="font-medium">Profit Calculation:</span> 
-                                    <span id="profitDisplay">Selling Price - Purchase Price = Profit</span>
+                                    <span class="font-medium">Cost Breakdown:</span>
                                 </p>
                             </div>
+                            <div class="text-sm text-blue-700 space-y-1 ml-7">
+                                <div class="flex justify-between">
+                                    <span>Purchase Price:</span>
+                                    <span id="purchaseDisplay">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>+ Duty:</span>
+                                    <span id="dutyDisplay">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>+ Clearance:</span>
+                                    <span id="clearanceDisplay">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>+ Commission:</span>
+                                    <span id="commissionDisplay">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>+ Extra Costs:</span>
+                                    <span id="extraCostsDisplay">0</span>
+                                </div>
+                                <div class="flex justify-between font-semibold border-t border-blue-300 pt-2 mt-2">
+                                    <span>Total Cost:</span>
+                                    <span id="totalCostDisplay">0</span>
+                                </div>
+                                <div class="flex justify-between text-green-700 font-medium mt-2">
+                                    <span>Profit (Selling - Total Cost):</span>
+                                    <span id="profitDisplay">0</span>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- Purchase Date -->
+                    <div>
+                        <label for="{{ form.purchase_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Purchase Date
+                        </label>
+                        {{ form.purchase_date }}
+                        {% if form.purchase_date.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.purchase_date.errors.0 }}</p>
+                        {% endif %}
+                        {% if form.purchase_date.help_text %}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.purchase_date.help_text }}</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -487,11 +680,13 @@ document.addEventListener('DOMContentLoaded', function() {
         checkbox.classList.add('h-4', 'w-4', 'text-blue-600', 'focus:ring-blue-500', 'border-gray-300', 'rounded');
     });
 
-    // Add pl-7 to price inputs (for $ symbol)
+    // Add pl-10 to price inputs (for KES symbol)
     const purchasePrice = document.querySelector('input[name="purchase_price"]');
     const sellingPrice = document.querySelector('input[name="selling_price"]');
-    if (purchasePrice) purchasePrice.classList.add('pl-7');
-    if (sellingPrice) sellingPrice.classList.add('pl-7');
+    const depositRequired = document.querySelector('input[name="deposit_required"]');
+    if (purchasePrice) purchasePrice.classList.add('pl-10');
+    if (sellingPrice) sellingPrice.classList.add('pl-10');
+    if (depositRequired) depositRequired.classList.add('pl-10');
 
     // Profit calculation
     function calculateProfit() {
@@ -502,7 +697,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const profitDisplay = document.getElementById('profitDisplay');
         if (profitDisplay) {
             const profitColor = profit >= 0 ? 'text-green-700' : 'text-red-700';
-            profitDisplay.innerHTML = `Selling Price ($${selling.toFixed(2)}) - Purchase Price ($${purchase.toFixed(2)}) = <span class="${profitColor} font-bold">$${profit.toFixed(2)}</span>`;
+            profitDisplay.innerHTML = `Selling Price (KES ${selling.toFixed(2)}) - Purchase Price (KES ${purchase.toFixed(2)}) = <span class="${profitColor} font-bold">KES ${profit.toFixed(2)}</span>`;
         }
     }
 
@@ -555,6 +750,7 @@ document.addEventListener('DOMContentLoaded', function() {
     formInputs.forEach(input => {
         input.addEventListener('change', function() {
             formChanged = true;
+            updatePricingCalculations();
         });
     });
 
@@ -568,6 +764,142 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('submit', function() {
         formChanged = false; // Allow form submission without warning
     });
+
+    // Pricing calculations
+    function formatNumber(num) {
+        return parseFloat(num).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    function updatePricingCalculations() {
+        const purchasePrice = parseFloat(document.getElementById('id_purchase_price').value) || 0;
+        const sellingPrice = parseFloat(document.getElementById('id_selling_price').value) || 0;
+        const dutyCost = parseFloat(document.getElementById('id_duty_cost').value) || 0;
+        const clearanceCost = parseFloat(document.getElementById('id_clearance_cost').value) || 0;
+        const commissionCost = parseFloat(document.getElementById('id_commission_cost').value) || 0;
+        
+        // Calculate total extra costs
+        const extraCostInputs = document.querySelectorAll('input[data-extra-cost-amount]');
+        let totalExtraCosts = 0;
+        extraCostInputs.forEach(input => {
+            totalExtraCosts += parseFloat(input.value) || 0;
+        });
+        
+        // Calculate total cost
+        const totalCost = purchasePrice + dutyCost + clearanceCost + commissionCost + totalExtraCosts;
+        const profit = sellingPrice - totalCost;
+        
+        // Update displays
+        document.getElementById('purchaseDisplay').textContent = formatNumber(purchasePrice);
+        document.getElementById('dutyDisplay').textContent = formatNumber(dutyCost);
+        document.getElementById('clearanceDisplay').textContent = formatNumber(clearanceCost);
+        document.getElementById('commissionDisplay').textContent = formatNumber(commissionCost);
+        document.getElementById('extraCostsDisplay').textContent = formatNumber(totalExtraCosts);
+        document.getElementById('totalCostDisplay').textContent = formatNumber(totalCost);
+        document.getElementById('profitDisplay').textContent = formatNumber(profit);
+        
+        // Color the profit based on positive/negative
+        const profitDisplay = document.getElementById('profitDisplay');
+        if (profit >= 0) {
+            profitDisplay.parentElement.className = 'flex justify-between text-green-700 font-medium mt-2';
+        } else {
+            profitDisplay.parentElement.className = 'flex justify-between text-red-700 font-medium mt-2';
+        }
+    }
+
+    // Extra costs management
+    let extraCostRowCount = 0;
+    
+    function addExtraCostRow(description = '', amount = '') {
+        const tbody = document.getElementById('extraCostsBody');
+        const container = document.getElementById('extraCostsTable').parentElement;
+        
+        const rowId = 'extra-cost-' + (++extraCostRowCount);
+        const row = document.createElement('tr');
+        row.id = rowId;
+        row.className = 'border-b border-gray-300 hover:bg-gray-100';
+        row.innerHTML = `
+            <td class="px-4 py-2">
+                <input type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" 
+                       placeholder="e.g., Vehicle Inspection, Repairs" 
+                       value="${description}" data-extra-cost-description>
+            </td>
+            <td class="px-4 py-2">
+                <input type="number" class="w-full px-2 py-1 border border-gray-300 rounded text-sm text-right" 
+                       placeholder="0.00" step="0.01" 
+                       value="${amount}" data-extra-cost-amount 
+                       onchange="updatePricingCalculations()">
+            </td>
+            <td class="px-4 py-2 text-center">
+                <button type="button" class="text-red-600 hover:text-red-900 text-sm font-medium" 
+                        onclick="removeExtraCostRow('${rowId}')">Remove</button>
+            </td>
+        `;
+        
+        tbody.appendChild(row);
+        
+        // Remove "no costs" message if it exists
+        const noMessage = tbody.parentElement.querySelector('.text-center.py-4');
+        if (noMessage) {
+            noMessage.remove();
+        }
+        
+        updatePricingCalculations();
+    }
+
+    function removeExtraCostRow(rowId) {
+        document.getElementById(rowId).remove();
+        
+        // Show "no costs" message if no rows
+        const tbody = document.getElementById('extraCostsBody');
+        if (tbody.querySelectorAll('tr').length === 0) {
+            const noMessage = document.createElement('div');
+            noMessage.className = 'text-center py-4 text-gray-500';
+            noMessage.innerHTML = '<p class="text-sm">No extra costs added yet. Click "Add Cost" to add one.</p>';
+            tbody.parentElement.parentElement.appendChild(noMessage);
+        }
+        
+        updatePricingCalculations();
+    }
+
+    document.getElementById('addExtraCostBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        addExtraCostRow();
+    });
+
+    // Submit handler to append extra costs to form
+    form.addEventListener('submit', function(e) {
+        // Create hidden inputs for extra costs
+        const tbody = document.getElementById('extraCostsBody');
+        const rows = tbody.querySelectorAll('tr');
+        
+        // Remove old extra cost inputs if any
+        document.querySelectorAll('input[data-extra-cost-form]').forEach(el => el.remove());
+        
+        // Add new extra cost inputs
+        rows.forEach((row, index) => {
+            const description = row.querySelector('[data-extra-cost-description]').value;
+            const amount = row.querySelector('[data-extra-cost-amount]').value;
+            
+            if (description && amount) {
+                const descInput = document.createElement('input');
+                descInput.type = 'hidden';
+                descInput.name = 'extra_cost_description_' + index;
+                descInput.value = description;
+                descInput.setAttribute('data-extra-cost-form', 'true');
+                form.appendChild(descInput);
+                
+                const amountInput = document.createElement('input');
+                amountInput.type = 'hidden';
+                amountInput.name = 'extra_cost_amount_' + index;
+                amountInput.value = amount;
+                amountInput.setAttribute('data-extra-cost-form', 'true');
+                form.appendChild(amountInput);
+            }
+        });
+    });
+
+    // Initial calculation
+    updatePricingCalculations();
 });
 </script>
 
