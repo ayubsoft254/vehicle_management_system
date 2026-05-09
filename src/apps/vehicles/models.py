@@ -59,11 +59,7 @@ class Vehicle(models.Model):
     )
     
     year = models.IntegerField(
-        'Year of Manufacture',
-        validators=[
-            MinValueValidator(1900),
-            MaxValueValidator(timezone.now().year + 1)
-        ],
+        'Year of Manufacture',        
         help_text='Year the vehicle was manufactured'
     )
     
@@ -71,19 +67,34 @@ class Vehicle(models.Model):
     vin = models.CharField(
         'VIN (Vehicle Identification Number)',
         max_length=100,
-        unique=True,
-        validators=[validate_vin],
+        unique=True,        
         help_text='Unique vehicle identifier (can include hyphens)'
     )
     
     registration_number = models.CharField(
         'Registration Number',
         max_length=20,
-        unique=True,
-        validators=[validate_license_plate],
+        unique=True,        
         blank=True,
         null=True,
         help_text='Vehicle registration/license plate number (e.g., KAA 123A)'
+    )
+    
+    chassis_number = models.CharField(
+        'Chassis Number',
+        max_length=100,
+        unique=True,
+        blank=True,
+        null=True,
+        help_text='Vehicle chassis number'
+    )
+    
+    engine_number = models.CharField(
+        'Engine Number',
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text='Vehicle engine number'
     )
     
     # Specifications
@@ -94,8 +105,7 @@ class Vehicle(models.Model):
     )
     
     mileage = models.IntegerField(
-        'Mileage (KM)',
-        validators=[MinValueValidator(0)],
+        'Mileage (KM)',        
         help_text='Current mileage in kilometers'
     )
     
@@ -147,14 +157,12 @@ class Vehicle(models.Model):
     )
     
     seats = models.IntegerField(
-        'Number of Seats',
-        validators=[MinValueValidator(1), MaxValueValidator(50)],
+        'Number of Seats',        
         default=5
     )
     
     doors = models.IntegerField(
-        'Number of Doors',
-        validators=[MinValueValidator(2), MaxValueValidator(6)],
+        'Number of Doors',       
         default=4
     )
     
@@ -195,6 +203,34 @@ class Vehicle(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
         default=Decimal('0.00'),
         help_text='Minimum deposit required for purchase'
+    )
+    
+    # Additional Costs
+    duty_cost = models.DecimalField(
+        'Duty Cost',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        default=Decimal('0.00'),
+        help_text='Import duty cost'
+    )
+    
+    clearance_cost = models.DecimalField(
+        'Clearance Cost',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        default=Decimal('0.00'),
+        help_text='Port/customs clearance cost'
+    )
+    
+    commission_cost = models.DecimalField(
+        'Commission Cost',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        default=Decimal('0.00'),
+        help_text='Commission or agent fees'
     )
     
     # Status
@@ -285,7 +321,9 @@ class Vehicle(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.year} {self.make} {self.model} - {self.registration_number or self.vin[:8]}"
+        reg_or_vin = self.registration_number or self.vin[:8]
+        chassis_info = f" - {self.chassis_number}" if self.chassis_number else ""
+        return f"{self.year} {self.make} {self.model} - {reg_or_vin}{chassis_info}"
     
     @property
     def full_name(self):
@@ -345,6 +383,53 @@ class Vehicle(models.Model):
         if new_status == VehicleStatus.SOLD and not self.date_sold:
             self.date_sold = timezone.now().date()
             self.save()
+
+
+class VehicleExtraCost(models.Model):
+    """
+    Additional costs for vehicle (e.g., repairs, customization, other fees)
+    """
+    vehicle = models.ForeignKey(
+        Vehicle,
+        on_delete=models.CASCADE,
+        related_name='extra_costs'
+    )
+    
+    description = models.CharField(
+        'Description',
+        max_length=255,
+        help_text='Description of the cost'
+    )
+    
+    amount = models.DecimalField(
+        'Amount',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Cost amount'
+    )
+    
+    date_added = models.DateTimeField(
+        'Date Added',
+        auto_now_add=True
+    )
+    
+    added_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='vehicle_extra_costs_added'
+    )
+    
+    class Meta:
+        db_table = 'vehicle_extra_costs'
+        verbose_name = 'Vehicle Extra Cost'
+        verbose_name_plural = 'Vehicle Extra Costs'
+        ordering = ['-date_added']
+    
+    def __str__(self):
+        return f"{self.vehicle} - {self.description}: {self.amount}"
 
 
 class VehiclePhoto(models.Model):
@@ -407,8 +492,9 @@ class VehiclePhoto(models.Model):
     
     def save(self, *args, **kwargs):
         """Ensure only one primary photo per vehicle"""
-        if self.is_primary:
+        if self.is_primary and self.vehicle.pk:
             # Set all other photos for this vehicle as non-primary
+            # Only if vehicle has been saved (has a pk)
             VehiclePhoto.objects.filter(
                 vehicle=self.vehicle,
                 is_primary=True
