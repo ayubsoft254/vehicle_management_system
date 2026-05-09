@@ -430,15 +430,6 @@ class ClientVehicle(models.Model):
         help_text='Number of months for payment'
     )
     
-    interest_rate = models.DecimalField(
-        'Interest Rate (%)',
-        max_digits=5,
-        decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.00'))],
-        default=Decimal('0.00'),
-        help_text='Annual interest rate'
-    )
-    
     # Payment Type & Flexibility
     PAYMENT_TYPE_CHOICES = [
         ('full', 'Pay in Full'),
@@ -525,6 +516,49 @@ class ClientVehicle(models.Model):
         'Notes',
         blank=True,
         help_text='Additional notes about this purchase'
+    )
+    
+    # Commission & Sales
+    broker_name = models.CharField(
+        'Broker Name',
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text='Name of the broker handling this transaction'
+    )
+    
+    broker_id_no = models.CharField(
+        'Broker ID Number',
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text='Broker identification number'
+    )
+    
+    broker_phone_no = models.CharField(
+        'Broker Phone Number',
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text='Broker contact phone number'
+    )
+    
+    commission_amount = models.DecimalField(
+        'Commission Amount',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        default=Decimal('0.00'),
+        help_text='Commission amount for the broker'
+    )
+    
+    commission_percentage = models.DecimalField(
+        'Commission Percentage',
+        max_digits=5,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        default=Decimal('0.00'),
+        help_text='Commission percentage (e.g., 5.00 for 5%)'
     )
     
     # Metadata
@@ -801,19 +835,10 @@ class VehicleTracker(models.Model):
             
             balance_after_deposit = self.selling_price - self.deposit
             
-            # Calculate total with interest
-            if self.interest_rate and self.interest_rate > Decimal('0.00'):
-                rate = Decimal(str(self.interest_rate)) / Decimal('100.00')
-                months = Decimal(str(self.installment_months))
-                interest = balance_after_deposit * rate * (months / Decimal('12.00'))
-                total_with_interest = balance_after_deposit + interest
-            else:
-                total_with_interest = balance_after_deposit
-            
-            # Calculate monthly installment
-            if self.installment_months and total_with_interest:
+            # Calculate monthly installment (no interest)
+            if self.installment_months and balance_after_deposit:
                 self.monthly_installment = round(
-                    total_with_interest / Decimal(str(self.installment_months)),
+                    balance_after_deposit / Decimal(str(self.installment_months)),
                     2
                 )
         
