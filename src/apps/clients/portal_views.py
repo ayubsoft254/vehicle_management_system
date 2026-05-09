@@ -179,6 +179,21 @@ def portal_vehicle_detail(request, vehicle_id):
         client_vehicle=vehicle
     ).first()
     
+    # Get next payment due (for installment plan)
+    next_payment_schedule = None
+    upcoming_schedules = []
+    if installment_plan:
+        next_payment_schedule = PaymentSchedule.objects.filter(
+            installment_plan=installment_plan,
+            is_paid=False
+        ).order_by('due_date').first()
+        
+        # Get upcoming 3 payment schedules
+        upcoming_schedules = PaymentSchedule.objects.filter(
+            installment_plan=installment_plan,
+            is_paid=False
+        ).order_by('due_date')[:3]
+    
     # Get insurance for this vehicle
     insurance = InsurancePolicy.objects.filter(
         client=client,
@@ -190,7 +205,10 @@ def portal_vehicle_detail(request, vehicle_id):
         'vehicle': vehicle,
         'payments': payments,
         'installment_plan': installment_plan,
+        'next_payment_schedule': next_payment_schedule,
+        'upcoming_schedules': upcoming_schedules,
         'insurance': insurance,
+        'today': timezone.now().date(),
     }
     
     return render(request, 'clients/portal/vehicle_detail.html', context)
