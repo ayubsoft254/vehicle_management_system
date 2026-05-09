@@ -97,8 +97,43 @@ def client_detail(request, pk):
     """
     client = get_object_or_404(Client, pk=pk)
     
-    # Get client's vehicles
+    # Get client's vehicles with payment plans
     client_vehicles = ClientVehicle.objects.filter(client=client).select_related('vehicle')
+    
+    # Enrich vehicles with payment plan and schedule information
+    vehicles_with_plans = []
+    for cv in client_vehicles:
+        vehicle_data = {
+            'client_vehicle': cv,
+            'installment_plan': None,
+            'next_payment': None,
+            'payment_schedule': None,
+            'all_schedules': None,
+        }
+        
+        # Get installment plan if it exists
+        try:
+            plan = InstallmentPlan.objects.get(client_vehicle=cv)
+            vehicle_data['installment_plan'] = plan
+            
+            # Get ALL payment schedules for the full breakdown table
+            from apps.payments.models import PaymentSchedule
+            all_schedules = PaymentSchedule.objects.filter(
+                installment_plan=plan
+            ).order_by('installment_number')
+            vehicle_data['all_schedules'] = all_schedules
+            
+            # Get upcoming payment schedule (next 5)
+            payment_schedule = all_schedules.filter(is_paid=False)[:5]
+            vehicle_data['payment_schedule'] = payment_schedule
+            
+            # Get next payment
+            next_payment = all_schedules.filter(is_paid=False).order_by('due_date').first()
+            vehicle_data['next_payment'] = next_payment
+        except InstallmentPlan.DoesNotExist:
+            pass
+        
+        vehicles_with_plans.append(vehicle_data)
     
     # Get client's payments
     payments = Payment.objects.filter(
@@ -120,6 +155,7 @@ def client_detail(request, pk):
     context = {
         'client': client,
         'client_vehicles': client_vehicles,
+        'vehicles_with_plans': vehicles_with_plans,
         'payments': payments,
         'documents': documents,
         'total_purchases': total_purchases,
@@ -224,7 +260,7 @@ def client_delete(request, pk):
 @login_required
 def assign_vehicle(request, client_pk):
     """
-    Assign a vehicle to a client
+    Assign a vehicle to a client with insurance and multiple trackers
     """
     client = get_object_or_404(Client, pk=client_pk)
     
@@ -253,8 +289,9 @@ def assign_vehicle(request, client_pk):
                 client.status = 'active'
                 client.save()
                 
-                # Automatically create Installment Plan if there's a balance and payment terms are provided
-                if client_vehicle.balance > 0 and client_vehicle.installment_months:
+                # Create Installment Plan based on payment type
+                # Only create plan if payment_type is 'installment' or 'flexible' (not 'full')
+                if client_vehicle.balance > 0 and client_vehicle.payment_type in ['installment', 'flexible']:
                     from apps.payments.models import InstallmentPlan
                     plan = InstallmentPlan.objects.create(
                         client_vehicle=client_vehicle,
@@ -267,11 +304,90 @@ def assign_vehicle(request, client_pk):
                         is_active=True,
                         created_by=request.user
                     )
-                    # Note: PaymentSchedule generation is handled by the post_save signal on InstallmentPlan
+                
+                # --- Handle Insurance ---
+                insurance_provider_id = request.POST.get('insurance_provider_id')
+                insurance_policy_number = request.POST.get('insurance_policy_number', '').strip()
+                insurance_policy_type = request.POST.get('insurance_policy_type', 'comprehensive')
+                insurance_start_date = request.POST.get('insurance_start_date', '').strip()
+                insurance_end_date = request.POST.get('insurance_end_date', '').strip()
+                insurance_premium = request.POST.get('insurance_premium', '').strip()
+                insurance_buying_price = request.POST.get('insurance_buying_price', '').strip()
+                insurance_selling_price = request.POST.get('insurance_selling_price', '').strip()
+                insurance_agent_name = request.POST.get('insurance_agent_name', '').strip()
+                insurance_agent_id = request.POST.get('insurance_agent_id', '').strip()
+                insurance_has_plan = request.POST.get('insurance_has_payment_plan') == 'on'
+                insurance_deposit = request.POST.get('insurance_deposit', '').strip()
+                insurance_months = request.POST.get('insurance_installment_months', '').strip()
+                insurance_interest_rate = request.POST.get('insurance_interest_rate', '0').strip()
+                
+                if insurance_provider_id and insurance_policy_number and insurance_start_date and insurance_end_date:
+                    try:
+                        from apps.insurance.models import InsuranceProvider, InsurancePolicy
+                        provider = InsuranceProvider.objects.get(pk=insurance_provider_id)
+                        InsurancePolicy.objects.create(
+                            vehicle=vehicle,
+                            provider=provider,
+                            client=client,
+                            policy_number=insurance_policy_number,
+                            policy_type=insurance_policy_type,
+                            start_date=insurance_start_date,
+                            end_date=insurance_end_date,
+                            premium_amount=Decimal(insurance_premium or '0'),
+                            sum_insured=client_vehicle.purchase_price,
+                            buying_price=Decimal(insurance_buying_price or '0'),
+                            selling_price=Decimal(insurance_selling_price or '0'),
+                            agent_name=insurance_agent_name,
+                            agent_id=insurance_agent_id,
+                            has_payment_plan=insurance_has_plan,
+                            insurance_deposit=Decimal(insurance_deposit or '0') if insurance_has_plan else Decimal('0'),
+                            insurance_installment_months=int(insurance_months) if insurance_months and insurance_has_plan else None,
+                            insurance_interest_rate=Decimal(insurance_interest_rate or '0') if insurance_has_plan else Decimal('0'),
+                            status='active',
+                            created_by=request.user,
+                        )
+                    except Exception as e:
+                        messages.warning(request, f'Vehicle assigned but insurance could not be saved: {e}')
+                
+                # --- Handle Multiple Trackers ---
+                tracker_names = request.POST.getlist('tracker_name[]')
+                tracker_serials = request.POST.getlist('tracker_serial[]')
+                tracker_providers = request.POST.getlist('tracker_provider[]')
+                tracker_install_dates = request.POST.getlist('tracker_install_date[]')
+                tracker_buying_prices = request.POST.getlist('tracker_buying_price[]')
+                tracker_selling_prices = request.POST.getlist('tracker_selling_price[]')
+                tracker_has_plans = request.POST.getlist('tracker_has_plan[]')
+                tracker_deposits = request.POST.getlist('tracker_deposit[]')
+                tracker_months = request.POST.getlist('tracker_installment_months[]')
+                tracker_interest_rates = request.POST.getlist('tracker_interest_rate[]')
+                
+                for i, name in enumerate(tracker_names):
+                    if name.strip():
+                        try:
+                            from apps.clients.models import VehicleTracker
+                            has_plan = tracker_has_plans[i] == 'on' if i < len(tracker_has_plans) else False
+                            install_date = tracker_install_dates[i] if i < len(tracker_install_dates) and tracker_install_dates[i] else timezone.now().date()
+                            VehicleTracker.objects.create(
+                                client_vehicle=client_vehicle,
+                                tracker_name=name,
+                                serial_number=tracker_serials[i] if i < len(tracker_serials) else '',
+                                provider=tracker_providers[i] if i < len(tracker_providers) else '',
+                                buying_price=Decimal(tracker_buying_prices[i]) if i < len(tracker_buying_prices) and tracker_buying_prices[i] else Decimal('0'),
+                                selling_price=Decimal(tracker_selling_prices[i]) if i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0'),
+                                has_payment_plan=has_plan,
+                                deposit=Decimal(tracker_deposits[i]) if i < len(tracker_deposits) and tracker_deposits[i] and has_plan else Decimal('0'),
+                                installment_months=int(tracker_months[i]) if i < len(tracker_months) and tracker_months[i] and has_plan else None,
+                                interest_rate=Decimal(tracker_interest_rates[i]) if i < len(tracker_interest_rates) and tracker_interest_rates[i] and has_plan else Decimal('0'),
+                                installed_date=install_date,
+                                created_by=request.user,
+                            )
+                        except Exception as e:
+                            messages.warning(request, f'Tracker "{name}" could not be saved: {e}')
                 
                 log_audit(
                     request.user, 'create', 'ClientVehicle',
-                    f'Assigned vehicle {vehicle} to client {client.get_full_name()}'
+                    f'Assigned vehicle {vehicle} to client {client.get_full_name()} '
+                    f'with payment type: {client_vehicle.get_payment_type_display()}'
                 )
                 
                 messages.success(
@@ -286,14 +402,22 @@ def assign_vehicle(request, client_pk):
         form = ClientVehicleForm(client=client)
     
     # Get vehicle prices for JavaScript
-    vehicle_prices = {v.id: float(v.selling_price) for v in Vehicle.objects.filter(status='available')}
+    vehicles_qs = Vehicle.objects.filter(status='available')
+    vehicle_prices = {v.id: float(v.selling_price) for v in vehicles_qs}
+    vehicle_cost_prices = {v.id: float(v.purchase_price) for v in vehicles_qs}
+    
+    # Get insurance providers
+    from apps.insurance.models import InsuranceProvider
+    insurance_providers = InsuranceProvider.objects.filter(is_active=True).order_by('name')
     
     context = {
         'form': form,
         'client': client,
         'title': f'Assign Vehicle to {client.get_full_name()}',
         'button_text': 'Assign Vehicle',
-        'vehicle_prices_json': json.dumps(vehicle_prices)
+        'vehicle_prices_json': json.dumps(vehicle_prices),
+        'vehicle_cost_prices_json': json.dumps(vehicle_cost_prices),
+        'insurance_providers': insurance_providers,
     }
     
     return render(request, 'clients/assign_vehicle.html', context)
@@ -389,16 +513,17 @@ def client_vehicle_update(request, pk):
         form = ClientVehicleForm(instance=client_vehicle)
     
     # Get vehicle prices for JavaScript (include the currently assigned vehicle)
-    vehicle_prices = {v.id: float(v.selling_price) for v in Vehicle.objects.filter(
-        Q(status='available') | Q(id=client_vehicle.vehicle.id)
-    )}
+    vehicles = Vehicle.objects.filter(Q(status='available') | Q(id=client_vehicle.vehicle.id))
+    vehicle_prices = {v.id: float(v.selling_price) for v in vehicles}
+    vehicle_cost_prices = {v.id: float(v.purchase_price) for v in vehicles}
     
     context = {
         'form': form,
         'client_vehicle': client_vehicle,
         'title': 'Update Vehicle Assignment',
         'button_text': 'Update Assignment',
-        'vehicle_prices_json': json.dumps(vehicle_prices)
+        'vehicle_prices_json': json.dumps(vehicle_prices),
+        'vehicle_cost_prices_json': json.dumps(vehicle_cost_prices)
     }
     
     return render(request, 'clients/assign_vehicle.html', context)

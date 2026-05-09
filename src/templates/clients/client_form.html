@@ -122,7 +122,7 @@
                 </h2>
             </div>
             <div class="p-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <!-- ID Type -->
                     <div>
                         <label for="{{ form.id_type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
@@ -143,6 +143,18 @@
                         {% if form.id_number.errors %}
                         <p class="mt-1 text-sm text-red-600">{{ form.id_number.errors.0 }}</p>
                         {% endif %}
+                    </div>
+
+                    <!-- KRA PIN -->
+                    <div>
+                        <label for="{{ form.kra_pin.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            KRA PIN
+                        </label>
+                        {{ form.kra_pin }}
+                        {% if form.kra_pin.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.kra_pin.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-xs text-gray-500">Kenya Revenue Authority PIN (Optional)</p>
                     </div>
                 </div>
             </div>

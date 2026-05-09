@@ -5,22 +5,17 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-6 max-w-4xl">
-    
-    <!-- Breadcrumb -->
     <nav class="flex mb-6" aria-label="Breadcrumb">
         <ol class="inline-flex items-center space-x-1 md:space-x-3">
             <li class="inline-flex items-center">
                 <a href="{% url 'clients:client_list' %}" class="text-gray-700 hover:text-primary-600 inline-flex items-center">
-                    <i class="fas fa-users mr-2"></i>
-                    Clients
+                    <i class="fas fa-users mr-2"></i>Clients
                 </a>
             </li>
             <li>
                 <div class="flex items-center">
                     <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
-                    <a href="{% url 'clients:client_detail' client.pk %}" class="text-gray-700 hover:text-primary-600">
-                        {{ client.get_full_name }}
-                    </a>
+                    <a href="{% url 'clients:client_detail' client.pk %}" class="text-gray-700 hover:text-primary-600">{{ client.get_full_name }}</a>
                 </div>
             </li>
             <li>
@@ -32,7 +27,6 @@
         </ol>
     </nav>
 
-    <!-- Page Header -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
         <div class="flex items-center space-x-4">
             {% if client.profile_photo %}
@@ -43,227 +37,22 @@
             </div>
             {% endif %}
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">
-                    <i class="fas fa-car mr-2"></i>Assign Vehicle to {{ client.get_full_name }}
-                </h1>
+                <h1 class="text-2xl font-bold text-gray-900"><i class="fas fa-car mr-2"></i>Assign Vehicle to {{ client.get_full_name }}</h1>
                 <p class="mt-1 text-gray-600">Complete the form below to assign a vehicle purchase</p>
             </div>
         </div>
     </div>
 
-    <!-- Form -->
     <form method="post" class="space-y-6">
         {% csrf_token %}
 
-        <!-- Vehicle Selection -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">
-                    <i class="fas fa-car mr-2"></i> Vehicle Selection
-                </h2>
-            </div>
-            <div class="p-6">
-                <!-- Vehicle -->
-                <div>
-                    <label for="{{ form.vehicle.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                        Select Vehicle <span class="text-red-500">*</span>
-                    </label>
-                    {{ form.vehicle }}
-                    {% if form.vehicle.errors %}
-                    <p class="mt-1 text-sm text-red-600">{{ form.vehicle.errors.0 }}</p>
-                    {% endif %}
-                    <p class="mt-1 text-xs text-gray-500">Select a vehicle from available inventory</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Purchase Details -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">
-                    <i class="fas fa-money-bill-wave mr-2"></i> Purchase Details
-                </h2>
-            </div>
-            <div class="p-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Purchase Date -->
-                    <div>
-                        <label for="{{ form.purchase_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Purchase Date <span class="text-red-500">*</span>
-                        </label>
-                        {{ form.purchase_date }}
-                        {% if form.purchase_date.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.purchase_date.errors.0 }}</p>
-                        {% endif %}
-                    </div>
-
-                    <!-- Purchase Price -->
-                    <div>
-                        <label for="{{ form.purchase_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Purchase Price (KES) <span class="text-red-500">*</span>
-                        </label>
-                        {{ form.purchase_price }}
-                        {% if form.purchase_price.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.purchase_price.errors.0 }}</p>
-                        {% endif %}
-                    </div>
-
-                    <!-- Deposit Paid -->
-                    <div>
-                        <label for="{{ form.deposit_paid.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Deposit Paid (KES) <span class="text-red-500">*</span>
-                        </label>
-                        {{ form.deposit_paid }}
-                        {% if form.deposit_paid.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.deposit_paid.errors.0 }}</p>
-                        {% endif %}
-                    </div>
-
-                    <!-- Interest Rate -->
-                    <div>
-                        <label for="{{ form.interest_rate.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Interest Rate (%)
-                        </label>
-                        {{ form.interest_rate }}
-                        {% if form.interest_rate.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.interest_rate.errors.0 }}</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Payment Plan -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">
-                    <i class="fas fa-calendar-alt mr-2"></i> Payment Plan
-                </h2>
-            </div>
-            <div class="p-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Monthly Installment -->
-                    <div>
-                        <label for="{{ form.monthly_installment.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Monthly Installment (KES)
-                        </label>
-                        {{ form.monthly_installment }}
-                        {% if form.monthly_installment.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.monthly_installment.errors.0 }}</p>
-                        {% endif %}
-                    </div>
-
-                    <!-- Installment Period -->
-                    <div>
-                        <label for="{{ form.installment_months.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Installment Period (Months)
-                        </label>
-                        {{ form.installment_months }}
-                        {% if form.installment_months.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.installment_months.errors.0 }}</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Additional Information -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">
-                    <i class="fas fa-info-circle mr-2"></i> Additional Information
-                </h2>
-            </div>
-            <div class="p-6">
-                <!-- Notes -->
-                <div>
-                    <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                        Notes
-                    </label>
-                    {{ form.notes }}
-                    {% if form.notes.errors %}
-                    <p class="mt-1 text-sm text-red-600">{{ form.notes.errors.0 }}</p>
-                    {% endif %}
-                    <p class="mt-1 text-xs text-gray-500">Any additional information about this purchase</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Form Actions -->
-        <div class="flex items-center justify-end space-x-4">
-            <a href="{% url 'clients:client_detail' client.pk %}" 
-               class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
-                <i class="fas fa-times mr-2"></i> Cancel
-            </a>
-            <button type="submit" 
-                    class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
-                <i class="fas fa-check mr-2"></i> {{ button_text|default:"Assign Vehicle" }}
-            </button>
-        </div>
-    </form>
-</div>
-
-<style>
-    /* Style form inputs */
-    input[type="text"],
-    input[type="date"],
-    input[type="number"],
-    select,
-    textarea {
-        width: 100%;
-        padding: 0.625rem 1rem;
-        border: 1px solid #d1d5db;
-        border-radius: 0.5rem;
-        font-size: 0.875rem;
-        line-height: 1.25rem;
-        transition: all 0.15s ease-in-out;
-    }
-
-    input:focus,
-    select:focus,
-    textarea:focus {
-                </div>
-            </li>
-        </ol>
-    </nav>
-
-    <!-- Page Header -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <div class="flex items-center space-x-4">
-            {% if client.profile_photo %}
-            <img class="h-16 w-16 rounded-full object-cover" src="{{ client.profile_photo.url }}" alt="{{ client.get_full_name }}">
-            {% else %}
-            <div class="h-16 w-16 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
-                <span class="text-white font-bold text-xl">{{ client.initials }}</span>
-            </div>
-            {% endif %}
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">
-                    <i class="fas fa-car mr-2"></i>Assign Vehicle to {{ client.get_full_name }}
-                </h1>
-                <p class="mt-1 text-gray-600">Complete the form below to assign a vehicle purchase</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Form -->
-    <form method="post" class="space-y-6">
-        {% csrf_token %}
-        
         {% if form.non_field_errors %}
-        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+        <div class="bg-red-50 border-l-4 border-red-500 p-4">
             <div class="flex">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-exclamation-circle text-red-500"></i>
-                </div>
-                <div class="ml-3">
-                    <h3 class="text-sm font-medium text-red-800">Please correct the following errors:</h3>
-                    <ul class="mt-2 text-sm text-red-700 list-disc list-inside">
-                        {% for error in form.non_field_errors %}
-                            <li>{{ error }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
+                <i class="fas fa-exclamation-circle text-red-500 mr-3 mt-0.5"></i>
+                <ul class="text-sm text-red-700 list-disc list-inside">
+                    {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+                </ul>
             </div>
         </div>
         {% endif %}
@@ -271,21 +60,43 @@
         <!-- Vehicle Selection -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">
-                    <i class="fas fa-car mr-2"></i> Vehicle Selection
-                </h2>
+                <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-car mr-2"></i>Vehicle Selection</h2>
             </div>
             <div class="p-6">
-                <!-- Vehicle -->
-                <div>
-                    <label for="{{ form.vehicle.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                        Select Vehicle <span class="text-red-500">*</span>
-                    </label>
-                    {{ form.vehicle }}
-                    {% if form.vehicle.errors %}
-                    <p class="mt-1 text-sm text-red-600">{{ form.vehicle.errors.0 }}</p>
-                    {% endif %}
-                    <p class="mt-1 text-xs text-gray-500">Select a vehicle from available inventory</p>
+                <label for="{{ form.vehicle.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Select Vehicle <span class="text-red-500">*</span></label>
+                {{ form.vehicle }}
+                {% if form.vehicle.errors %}<p class="mt-1 text-sm text-red-600">{{ form.vehicle.errors.0 }}</p>{% endif %}
+                <p class="mt-1 text-xs text-gray-500">Select a vehicle from available inventory.</p>
+            </div>
+        </div>
+
+        <!-- Profit / Loss Summary Panel -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden" id="profit-loss-panel">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+                <h2 class="text-lg font-semibold text-white"><i class="fas fa-chart-line mr-2"></i>Deal Summary — Profit / Loss</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p class="text-xs text-gray-500 uppercase font-medium">Vehicle Cost</p>
+                        <p class="text-lg font-bold text-gray-700 mt-1" id="pl-cost">KES 0.00</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Dealer bought at</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p class="text-xs text-gray-500 uppercase font-medium">Client Price</p>
+                        <p class="text-lg font-bold text-blue-600 mt-1" id="pl-price">KES 0.00</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Sale price</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p class="text-xs text-gray-500 uppercase font-medium">Insurance + Tracker</p>
+                        <p class="text-lg font-bold text-orange-500 mt-1" id="pl-expenses">KES 0.00</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Additional costs</p>
+                    </div>
+                    <div class="rounded-lg p-4 border-2" id="pl-result-box">
+                        <p class="text-xs uppercase font-medium" id="pl-result-label">Net Profit / Loss</p>
+                        <p class="text-xl font-bold mt-1" id="pl-result">KES 0.00</p>
+                        <p class="text-xs mt-0.5" id="pl-result-sub">—</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -293,89 +104,299 @@
         <!-- Purchase Details -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">
-                    <i class="fas fa-money-bill-wave mr-2"></i> Purchase Details
-                </h2>
+                <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-money-bill-wave mr-2"></i>Purchase Details</h2>
             </div>
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Purchase Date -->
                     <div>
-                        <label for="{{ form.purchase_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Purchase Date <span class="text-red-500">*</span>
-                        </label>
+                        <label for="{{ form.purchase_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Purchase Date <span class="text-red-500">*</span></label>
                         {{ form.purchase_date }}
-                        {% if form.purchase_date.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.purchase_date.errors.0 }}</p>
-                        {% endif %}
+                        {% if form.purchase_date.errors %}<p class="mt-1 text-sm text-red-600">{{ form.purchase_date.errors.0 }}</p>{% endif %}
                     </div>
-
-                    <!-- Purchase Price -->
                     <div>
-                        <label for="{{ form.purchase_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Purchase Price (KES) <span class="text-red-500">*</span>
-                        </label>
+                        <label for="{{ form.purchase_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Client Purchase Price (KES) <span class="text-red-500">*</span></label>
                         {{ form.purchase_price }}
-                        {% if form.purchase_price.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.purchase_price.errors.0 }}</p>
-                        {% endif %}
+                        {% if form.purchase_price.errors %}<p class="mt-1 text-sm text-red-600">{{ form.purchase_price.errors.0 }}</p>{% endif %}
                     </div>
-
-                    <!-- Deposit Paid -->
                     <div>
-                        <label for="{{ form.deposit_paid.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Deposit Paid (KES) <span class="text-red-500">*</span>
-                        </label>
+                        <label for="{{ form.deposit_paid.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Deposit Paid (KES) <span class="text-red-500">*</span></label>
                         {{ form.deposit_paid }}
-                        {% if form.deposit_paid.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.deposit_paid.errors.0 }}</p>
-                        {% endif %}
+                        {% if form.deposit_paid.errors %}<p class="mt-1 text-sm text-red-600">{{ form.deposit_paid.errors.0 }}</p>{% endif %}
                     </div>
-
-                    <!-- Interest Rate -->
                     <div>
-                        <label for="{{ form.interest_rate.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Interest Rate (%)
-                        </label>
+                        <label for="{{ form.interest_rate.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Interest Rate (%)</label>
                         {{ form.interest_rate }}
-                        {% if form.interest_rate.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.interest_rate.errors.0 }}</p>
-                        {% endif %}
+                        {% if form.interest_rate.errors %}<p class="mt-1 text-sm text-red-600">{{ form.interest_rate.errors.0 }}</p>{% endif %}
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Payment Plan -->
+        <!-- Payment Method -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">
-                    <i class="fas fa-calendar-alt mr-2"></i> Payment Plan
-                </h2>
+                <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-credit-card mr-2"></i>Payment Method</h2>
             </div>
             <div class="p-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Monthly Installment -->
-                    <div>
-                        <label for="{{ form.monthly_installment.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Monthly Installment (KES)
-                        </label>
-                        {{ form.monthly_installment }}
-                        {% if form.monthly_installment.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.monthly_installment.errors.0 }}</p>
-                        {% endif %}
+                <label class="block text-sm font-medium text-gray-700 mb-3">How will the customer pay? <span class="text-red-500">*</span></label>
+                <div class="space-y-2">
+                    {% for value, label in form.payment_type.field.choices %}
+                    <div class="flex items-center">
+                        <input type="radio" id="payment_type_{{ value }}" name="{{ form.payment_type.name }}" value="{{ value }}"
+                            {% if form.payment_type.value == value %}checked{% endif %}
+                            class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
+                            onchange="updatePaymentFields()">
+                        <label for="payment_type_{{ value }}" class="ml-3 text-sm font-medium text-gray-700">{{ label }}</label>
                     </div>
+                    {% endfor %}
+                </div>
+                {% if form.payment_type.errors %}<p class="mt-2 text-sm text-red-600">{{ form.payment_type.errors.0 }}</p>{% endif %}
+            </div>
+        </div>
 
-                    <!-- Installment Period -->
-                    <div>
-                        <label for="{{ form.installment_months.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Installment Period (Months)
-                        </label>
-                        {{ form.installment_months }}
-                        {% if form.installment_months.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.installment_months.errors.0 }}</p>
-                        {% endif %}
+        <!-- Payment Configuration -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden" id="payment-config-section">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-calendar-alt mr-2"></i>Payment Configuration</h2>
+            </div>
+            <div class="p-6 space-y-6">
+                <div id="remainder-type-section" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-3">How will the remainder be paid? <span class="text-red-500">*</span></label>
+                    <div class="flex gap-4">
+                        <div class="flex items-center">
+                            <input type="radio" id="remainder_monthly" name="{{ form.remainder_payment_type.name }}" value="monthly"
+                                {% if form.remainder_payment_type.value == 'monthly' %}checked{% endif %}
+                                class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300" onchange="updatePaymentFields()">
+                            <label for="remainder_monthly" class="ml-2 text-sm text-gray-700">Monthly</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="radio" id="remainder_weekly" name="{{ form.remainder_payment_type.name }}" value="weekly"
+                                {% if form.remainder_payment_type.value == 'weekly' %}checked{% endif %}
+                                class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300" onchange="updatePaymentFields()">
+                            <label for="remainder_weekly" class="ml-2 text-sm text-gray-700">Weekly</label>
+                        </div>
                     </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div id="monthly-date-section" class="hidden">
+                        <label for="{{ form.monthly_payment_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Monthly Payment Date <span class="text-red-500">*</span></label>
+                        {{ form.monthly_payment_date }}
+                        <p class="mt-1 text-xs text-gray-500">Day of the month (e.g. 12 for 12th)</p>
+                    </div>
+                    <div id="weekly-day-section" class="hidden">
+                        <label for="{{ form.weekly_payment_day.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Weekly Payment Day <span class="text-red-500">*</span></label>
+                        {{ form.weekly_payment_day }}
+                    </div>
+                    <div id="installment-period-section" class="hidden">
+                        <label for="{{ form.installment_months.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Payment Period (Months) <span class="text-red-500">*</span></label>
+                        {{ form.installment_months }}
+                        <p class="mt-1 text-xs text-gray-500">Total months to complete payments</p>
+                    </div>
+                </div>
+                <div id="flexible-payment-section" class="hidden">
+                    <div class="flex items-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <input type="checkbox" id="{{ form.allow_flexible_payments.id_for_label }}" name="{{ form.allow_flexible_payments.name }}"
+                            {% if form.allow_flexible_payments.value %}checked{% endif %}
+                            class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded">
+                        <label for="{{ form.allow_flexible_payments.id_for_label }}" class="ml-3">
+                            <span class="text-sm font-medium text-gray-900">Allow Flexible Payments</span>
+                            <p class="text-xs text-gray-600 mt-0.5">Customer can make payments at any time</p>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Insurance Section -->
+        <div class="bg-white rounded-lg shadow-sm border border-blue-200 overflow-hidden">
+            <div class="bg-blue-50 px-6 py-4 border-b border-blue-200">
+                <h2 class="text-lg font-semibold text-blue-900"><i class="fas fa-shield-alt mr-2"></i>Insurance (Optional)</h2>
+                <p class="text-xs text-blue-600 mt-1">Fill in to add an insurance policy for this vehicle at the time of sale.</p>
+            </div>
+            <div class="p-6">
+                <!-- Policy Basics -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Insurance Provider</label>
+                        <select name="insurance_provider_id" id="id_insurance_provider_id" class="form-input">
+                            <option value="">-- None / Skip --</option>
+                            {% for provider in insurance_providers %}
+                            <option value="{{ provider.pk }}">{{ provider.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Policy Number</label>
+                        <input type="text" name="insurance_policy_number" id="id_insurance_policy_number" placeholder="e.g. INS-2026-001234" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Policy Type</label>
+                        <select name="insurance_policy_type" id="id_insurance_policy_type" class="form-input">
+                            <option value="comprehensive">Comprehensive</option>
+                            <option value="third_party">Third Party</option>
+                            <option value="third_party_fire_theft">Third Party Fire &amp; Theft</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Premium Amount (KES)</label>
+                        <input type="number" name="insurance_premium" id="id_insurance_premium" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="updateProfitLoss()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                        <input type="date" name="insurance_start_date" id="id_insurance_start_date" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                        <input type="date" name="insurance_end_date" id="id_insurance_end_date" class="form-input">
+                    </div>
+                </div>
+
+                <!-- Insurance Pricing & Agent -->
+                <div class="border-t border-gray-200 pt-6 mb-6">
+                    <h3 class="text-sm font-semibold text-gray-900 mb-4">Pricing &amp; Agent Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Buying Price (KES)</label>
+                            <input type="number" name="insurance_buying_price" id="id_insurance_buying_price" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="updateProfitLoss()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price (KES)</label>
+                            <input type="number" name="insurance_selling_price" id="id_insurance_selling_price" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="updateProfitLoss()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Agent Name</label>
+                            <input type="text" name="insurance_agent_name" id="id_insurance_agent_name" placeholder="e.g. John Doe" class="form-input">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Agent ID</label>
+                            <input type="text" name="insurance_agent_id" id="id_insurance_agent_id" placeholder="e.g. AG001234" class="form-input">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Insurance Payment Plan -->
+                <div class="border-t border-gray-200 pt-6">
+                    <div class="flex items-center mb-4">
+                        <input type="checkbox" id="id_insurance_has_payment_plan" name="insurance_has_payment_plan" class="h-4 w-4 text-primary-600" onchange="toggleInsurancePaymentPlan()">
+                        <label for="id_insurance_has_payment_plan" class="ml-2 text-sm font-medium text-gray-900">Insurance has payment plan</label>
+                    </div>
+                    <div id="insurance-payment-plan-section" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Deposit (KES)</label>
+                            <input type="number" name="insurance_deposit" id="id_insurance_deposit" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="calculateInsuranceInstallment()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Installment Months</label>
+                            <select name="insurance_installment_months" id="id_insurance_installment_months" class="form-input" onchange="calculateInsuranceInstallment()">
+                                <option value="">-- Select --</option>
+                                <option value="6">6 Months</option>
+                                <option value="12">12 Months</option>
+                                <option value="24">24 Months</option>
+                                <option value="36">36 Months</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Interest Rate (%)</label>
+                            <input type="number" name="insurance_interest_rate" id="id_insurance_interest_rate" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="calculateInsuranceInstallment()">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Monthly Installment (KES) — Auto-calculated</label>
+                            <input type="number" name="insurance_monthly_installment" id="id_insurance_monthly_installment" placeholder="0.00" step="0.01" min="0" class="form-input bg-gray-100" readonly>
+                            <p class="mt-2 text-xs text-gray-500">
+                                <span id="insurance-calc-summary"></span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tracker Section -->
+        <div class="bg-white rounded-lg shadow-sm border border-orange-200 overflow-hidden">
+            <div class="bg-orange-50 px-6 py-4 border-b border-orange-200">
+                <h2 class="text-lg font-semibold text-orange-900"><i class="fas fa-map-marker-alt mr-2"></i>Vehicle Trackers (Optional)</h2>
+                <p class="text-xs text-orange-600 mt-1">Add one or more GPS trackers for vehicle tracking and monitoring.</p>
+            </div>
+            <div class="p-6">
+                <!-- Tracker Container -->
+                <div id="trackers-container" class="space-y-6">
+                    <!-- Tracker 1 Template -->
+                    <div class="tracker-item border border-orange-100 rounded-lg p-6 bg-orange-50">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-sm font-semibold text-orange-900">Tracker 1</h3>
+                            <button type="button" class="text-orange-600 hover:text-orange-800 text-sm font-medium" onclick="removeTracker(this)" style="display:none;">
+                                <i class="fas fa-trash mr-1"></i>Remove
+                            </button>
+                        </div>
+
+                        <!-- Basic Info -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Name / Model</label>
+                                <input type="text" name="tracker_name[]" placeholder="e.g. Teltonika FMB920" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Serial Number / IMEI</label>
+                                <input type="text" name="tracker_serial[]" placeholder="Serial / IMEI number" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Provider / Vendor</label>
+                                <input type="text" name="tracker_provider[]" placeholder="Vendor name" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Installation Date</label>
+                                <input type="date" name="tracker_install_date[]" class="form-input">
+                            </div>
+                        </div>
+
+                        <!-- Pricing -->
+                        <div class="border-t border-orange-200 pt-4 mb-4">
+                            <h4 class="text-xs font-semibold text-gray-900 mb-3 uppercase">Tracker Pricing</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Buying Price (KES)</label>
+                                    <input type="number" name="tracker_buying_price[]" placeholder="0.00" step="0.01" min="0" class="form-input tracker-buying-price" oninput="updateTrackerExpense()">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price (KES)</label>
+                                    <input type="number" name="tracker_selling_price[]" placeholder="0.00" step="0.01" min="0" class="form-input tracker-selling-price" oninput="updateTrackerExpense()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Plan -->
+                        <div class="border-t border-orange-200 pt-4">
+                            <div class="flex items-center mb-3">
+                                <input type="checkbox" name="tracker_has_plan[]" class="h-4 w-4 text-primary-600 tracker-has-plan" onchange="toggleTrackerPaymentPlan(this)">
+                                <label class="ml-2 text-sm font-medium text-gray-900">Tracker has payment plan</label>
+                            </div>
+                            <div class="tracker-payment-plan hidden grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Deposit (KES)</label>
+                                    <input type="number" name="tracker_deposit[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Months</label>
+                                    <select name="tracker_installment_months[]" class="form-input text-sm">
+                                        <option value="">-- Select --</option>
+                                        <option value="6">6 Months</option>
+                                        <option value="12">12 Months</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Monthly (KES)</label>
+                                    <input type="number" name="tracker_monthly[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Tracker Button -->
+                <div class="mt-6 flex justify-center">
+                    <button type="button" class="px-4 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 font-medium rounded-lg transition duration-150" onclick="addTracker()">
+                        <i class="fas fa-plus mr-2"></i>Add Another Tracker
+                    </button>
                 </div>
             </div>
         </div>
@@ -383,89 +404,339 @@
         <!-- Additional Information -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">
-                    <i class="fas fa-info-circle mr-2"></i> Additional Information
-                </h2>
+                <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-info-circle mr-2"></i>Additional Information</h2>
             </div>
             <div class="p-6">
-                <!-- Notes -->
-                <div>
-                    <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                        Notes
-                    </label>
-                    {{ form.notes }}
-                    {% if form.notes.errors %}
-                    <p class="mt-1 text-sm text-red-600">{{ form.notes.errors.0 }}</p>
-                    {% endif %}
-                    <p class="mt-1 text-xs text-gray-500">Any additional information about this purchase</p>
-                </div>
+                <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                {{ form.notes }}
+                {% if form.notes.errors %}<p class="mt-1 text-sm text-red-600">{{ form.notes.errors.0 }}</p>{% endif %}
             </div>
         </div>
 
         <!-- Form Actions -->
         <div class="flex items-center justify-end space-x-4">
-            <a href="{% url 'clients:client_detail' client.pk %}" 
-               class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
-                <i class="fas fa-times mr-2"></i> Cancel
+            <a href="{% url 'clients:client_detail' client.pk %}" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
+                <i class="fas fa-times mr-2"></i>Cancel
             </a>
-            <button type="submit" 
-                    class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
-                <i class="fas fa-check mr-2"></i> {{ button_text|default:"Assign Vehicle" }}
+            <button type="submit" class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-check mr-2"></i>{{ button_text|default:"Assign Vehicle" }}
             </button>
         </div>
     </form>
 </div>
 
 <style>
-    /* Style form inputs */
-    input[type="text"],
-    input[type="date"],
-    input[type="number"],
-    select,
-    textarea {
-        width: 100%;
-        padding: 0.625rem 1rem;
-        border: 1px solid #d1d5db;
-        border-radius: 0.5rem;
-        font-size: 0.875rem;
-        line-height: 1.25rem;
-        transition: all 0.15s ease-in-out;
-    }
-
-    input:focus,
-    select:focus,
-    textarea:focus {
-        outline: none;
-        border-color: #3b82f6;
-        ring: 2px;
-        ring-color: #3b82f6;
-    }
-    textarea {
-        min-height: 100px;
-        resize: vertical;
-    }
+.form-input {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    transition: all 0.15s ease-in-out;
+}
+.form-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+input[type="text"], input[type="date"], input[type="number"], select, textarea {
+    width: 100%; padding: 0.625rem 1rem; border: 1px solid #d1d5db;
+    border-radius: 0.5rem; font-size: 0.875rem; transition: all 0.15s ease-in-out;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+textarea { min-height: 100px; resize: vertical; }
 </style>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const vehicleSelect = document.getElementById('{{ form.vehicle.id_for_label }}');
-        const priceInput = document.getElementById('{{ form.purchase_price.id_for_label }}');
-        const vehiclePrices = {{ vehicle_prices_json|safe|default:"{}" }};
-        
-        if (vehicleSelect && priceInput) {
-            vehicleSelect.addEventListener('change', function() {
-                const vehicleId = this.value;
-                if (vehicleId && vehiclePrices[vehicleId] !== undefined) {
-                    // Only update if price is empty or user is changing vehicles
-                    priceInput.value = vehiclePrices[vehicleId].toFixed(2);
-                }
-            });
-            
-            // Trigger change event if a vehicle is already selected and price is empty
-            if (vehicleSelect.value && !priceInput.value && vehiclePrices[vehicleSelect.value]) {
-                priceInput.value = vehiclePrices[vehicleSelect.value].toFixed(2);
+const vehiclePrices     = {{ vehicle_prices_json|safe|default:"{}" }};
+const vehicleCostPrices = {{ vehicle_cost_prices_json|safe|default:"{}" }};
+
+function fmt(n) { return 'KES ' + n.toLocaleString('en-KE', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function toggleInsurancePaymentPlan() {
+    const checkbox = document.getElementById('id_insurance_has_payment_plan');
+    const section = document.getElementById('insurance-payment-plan-section');
+    if (checkbox && section) {
+        if (checkbox.checked) {
+            section.classList.remove('hidden');
+        } else {
+            section.classList.add('hidden');
+        }
+    }
+}
+
+function toggleTrackerPaymentPlan(checkbox) {
+    const item = checkbox.closest('.tracker-item');
+    if (item) {
+        const section = item.querySelector('.tracker-payment-plan');
+        if (section) {
+            if (checkbox.checked) {
+                section.classList.remove('hidden');
+            } else {
+                section.classList.add('hidden');
             }
         }
+    }
+}
+
+function addTracker() {
+    const container = document.getElementById('trackers-container');
+    if (!container) {
+        console.error('trackers-container not found');
+        return;
+    }
+    
+    const count = container.querySelectorAll('.tracker-item').length + 1;
+    const template = `
+        <div class="tracker-item border border-orange-100 rounded-lg p-6 bg-orange-50">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-sm font-semibold text-orange-900">Tracker ${count}</h3>
+                <button type="button" class="text-orange-600 hover:text-orange-800 text-sm font-medium" onclick="removeTracker(this)">
+                    <i class="fas fa-trash mr-1"></i>Remove
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Name / Model</label>
+                    <input type="text" name="tracker_name[]" placeholder="e.g. Teltonika FMB920" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Serial Number / IMEI</label>
+                    <input type="text" name="tracker_serial[]" placeholder="Serial / IMEI number" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Provider / Vendor</label>
+                    <input type="text" name="tracker_provider[]" placeholder="Vendor name" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Installation Date</label>
+                    <input type="date" name="tracker_install_date[]" class="form-input">
+                </div>
+            </div>
+
+            <div class="border-t border-orange-200 pt-4 mb-4">
+                <h4 class="text-xs font-semibold text-gray-900 mb-3 uppercase">Tracker Pricing</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Buying Price (KES)</label>
+                        <input type="number" name="tracker_buying_price[]" placeholder="0.00" step="0.01" min="0" class="form-input tracker-buying-price" oninput="updateTrackerExpense()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price (KES)</label>
+                        <input type="number" name="tracker_selling_price[]" placeholder="0.00" step="0.01" min="0" class="form-input tracker-selling-price" oninput="updateTrackerExpense()">
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-orange-200 pt-4">
+                <div class="flex items-center mb-3">
+                    <input type="checkbox" name="tracker_has_plan[]" class="h-4 w-4 text-primary-600 tracker-has-plan" onchange="toggleTrackerPaymentPlan(this); calculateTrackerInstallment(this)">
+                    <label class="ml-2 text-sm font-medium text-gray-900">Tracker has payment plan</label>
+                </div>
+                <div class="tracker-payment-plan hidden grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Deposit (KES)</label>
+                        <input type="number" name="tracker_deposit[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm tracker-deposit" oninput="calculateTrackerInstallment(this)">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Months</label>
+                        <select name="tracker_installment_months[]" class="form-input text-sm tracker-months" onchange="calculateTrackerInstallment(this)">
+                            <option value="">-- Select --</option>
+                            <option value="6">6 Months</option>
+                            <option value="12">12 Months</option>
+                            <option value="24">24 Months</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Interest (%)</label>
+                        <input type="number" name="tracker_interest_rate[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm tracker-interest" oninput="calculateTrackerInstallment(this)">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Monthly (KES) — Auto</label>
+                        <input type="number" name="tracker_monthly[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm tracker-monthly bg-gray-100" readonly>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', template);
+    updateTrackerExpense();
+}
+
+function removeTracker(button) {
+    const item = button.closest('.tracker-item');
+    if (item) {
+        item.remove();
+        updateTrackerExpense();
+    }
+}
+
+function updateTrackerExpense() {
+    const trackers = document.querySelectorAll('.tracker-item');
+    let totalTrackerCost = 0;
+    trackers.forEach(tracker => {
+        const buyingPrice = parseFloat(tracker.querySelector('input[name="tracker_buying_price[]"]')?.value) || 0;
+        totalTrackerCost += buyingPrice;
     });
+    updateProfitLoss();
+}
+
+function updateProfitLoss() {
+    const vehicleId   = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
+    const priceInput  = parseFloat(document.getElementById('{{ form.purchase_price.id_for_label }}')?.value) || 0;
+    const costPrice   = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
+    const insurance   = parseFloat(document.getElementById('id_insurance_premium')?.value) || 0;
+    const insuranceBuying = parseFloat(document.getElementById('id_insurance_buying_price')?.value) || 0;
+    
+    // Calculate total tracker cost
+    let trackerCost = 0;
+    document.querySelectorAll('.tracker-buying-price').forEach(input => {
+        trackerCost += parseFloat(input.value) || 0;
+    });
+    
+    const expenses    = insurance + insuranceBuying + trackerCost;
+    const netProfit   = priceInput - costPrice - expenses;
+
+    document.getElementById('pl-cost').textContent    = fmt(costPrice);
+    document.getElementById('pl-price').textContent   = fmt(priceInput);
+    document.getElementById('pl-expenses').textContent = fmt(expenses);
+    document.getElementById('pl-result').textContent  = fmt(Math.abs(netProfit));
+
+    const box   = document.getElementById('pl-result-box');
+    const label = document.getElementById('pl-result-label');
+    const sub   = document.getElementById('pl-result-sub');
+
+    if (netProfit > 0) {
+        box.className   = 'rounded-lg p-4 border-2 border-green-300 bg-green-50';
+        label.className = 'text-xs uppercase font-medium text-green-700';
+        label.textContent = 'Net Profit';
+        document.getElementById('pl-result').className = 'text-xl font-bold mt-1 text-green-700';
+        sub.textContent = '[Profitable deal]';
+        sub.className   = 'text-xs mt-0.5 text-green-600';
+    } else if (netProfit < 0) {
+        box.className   = 'rounded-lg p-4 border-2 border-red-300 bg-red-50';
+        label.className = 'text-xs uppercase font-medium text-red-700';
+        label.textContent = 'Net Loss';
+        document.getElementById('pl-result').className = 'text-xl font-bold mt-1 text-red-700';
+        sub.textContent = '[Below cost price]';
+        sub.className   = 'text-xs mt-0.5 text-red-600';
+    } else {
+        box.className   = 'rounded-lg p-4 border-2 border-gray-300 bg-gray-50';
+        label.className = 'text-xs uppercase font-medium text-gray-600';
+        label.textContent = 'Break Even';
+        document.getElementById('pl-result').className = 'text-xl font-bold mt-1 text-gray-600';
+        sub.textContent = 'No profit or loss';
+        sub.className   = 'text-xs mt-0.5 text-gray-500';
+    }
+}
+
+function updatePaymentFields() {
+    const paymentType = document.querySelector('input[name="payment_type"]:checked')?.value;
+    const sections = ['remainder-type-section','monthly-date-section','weekly-day-section','installment-period-section','flexible-payment-section'];
+    sections.forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
+
+    if (paymentType === 'installment' || paymentType === 'flexible') {
+        document.getElementById('remainder-type-section')?.classList.remove('hidden');
+        document.getElementById('installment-period-section')?.classList.remove('hidden');
+        const remainderType = document.querySelector('input[name="remainder_payment_type"]:checked')?.value;
+        if (remainderType === 'monthly') document.getElementById('monthly-date-section')?.classList.remove('hidden');
+        else if (remainderType === 'weekly') document.getElementById('weekly-day-section')?.classList.remove('hidden');
+    }
+    if (paymentType === 'flexible') document.getElementById('flexible-payment-section')?.classList.remove('hidden');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize payment fields
+    updatePaymentFields();
+    
+    // Initialize profit/loss
+    updateProfitLoss();
+
+// Auto-calculate insurance installment
+function calculateInsuranceInstallment() {
+    const sellingPrice = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0);
+    const deposit = parseFloat(document.getElementById('id_insurance_deposit')?.value || 0);
+    const months = parseInt(document.getElementById('id_insurance_installment_months')?.value || 0);
+    const interestRate = parseFloat(document.getElementById('id_insurance_interest_rate')?.value || 0);
+    
+    if (sellingPrice > 0 && deposit >= 0 && months > 0) {
+        const balance = sellingPrice - deposit;
+        let totalWithInterest = balance;
+        
+        if (interestRate > 0) {
+            const interest = balance * (interestRate / 100) * (months / 12);
+            totalWithInterest = balance + interest;
+        }
+        
+        const monthly = totalWithInterest / months;
+        document.getElementById('id_insurance_monthly_installment').value = monthly.toFixed(2);
+        
+        // Show summary
+        const summary = `Balance: KES ${balance.toFixed(2)} + Interest (${interestRate}%) = KES ${totalWithInterest.toFixed(2)} ÷ ${months} months`;
+        document.getElementById('insurance-calc-summary').textContent = summary;
+    }
+}
+
+// Auto-calculate tracker installment
+function calculateTrackerInstallment(elem) {
+    const item = elem.closest('.tracker-item');
+    if (!item) return;
+    
+    const sellingPrice = parseFloat(item.querySelector('.tracker-selling-price')?.value || 0);
+    const deposit = parseFloat(item.querySelector('.tracker-deposit')?.value || 0);
+    const months = parseInt(item.querySelector('.tracker-months')?.value || 0);
+    const interestRate = parseFloat(item.querySelector('.tracker-interest')?.value || 0);
+    
+    if (sellingPrice > 0 && deposit >= 0 && months > 0) {
+        const balance = sellingPrice - deposit;
+        let totalWithInterest = balance;
+        
+        if (interestRate > 0) {
+            const interest = balance * (interestRate / 100) * (months / 12);
+            totalWithInterest = balance + interest;
+        }
+        
+        const monthly = totalWithInterest / months;
+        item.querySelector('.tracker-monthly').value = monthly.toFixed(2);
+    }
+}
+
+// Initialize calculations on input change
+document.addEventListener('change', function(e) {
+    if (e.target.name === 'insurance_selling_price') {
+        calculateInsuranceInstallment();
+    }
+});
+
+// Initialize checkboxes
+    const insuranceCheckbox = document.getElementById('id_insurance_has_payment_plan');
+    if (insuranceCheckbox) {
+        toggleInsurancePaymentPlan();
+    }
+    
+    // Initialize tracker checkboxes
+    document.querySelectorAll('.tracker-has-plan').forEach(checkbox => {
+        toggleTrackerPaymentPlan(checkbox);
+    });
+
+    // Vehicle selection change
+    const vehicleSelect = document.getElementById('{{ form.vehicle.id_for_label }}');
+    const priceInput    = document.getElementById('{{ form.purchase_price.id_for_label }}');
+
+    if (vehicleSelect && priceInput) {
+        vehicleSelect.addEventListener('change', function() {
+            const vid = this.value;
+            if (vid && vehiclePrices[vid] !== undefined) {
+                priceInput.value = vehiclePrices[vid].toFixed(2);
+            }
+            updateProfitLoss();
+        });
+        priceInput.addEventListener('input', updateProfitLoss);
+    }
+
+    // Insurance field changes
+    document.addEventListener('change', function(e) {
+        if (e.target.name === 'insurance_premium' || e.target.name === 'insurance_buying_price') {
+            updateProfitLoss();
+        }
+    });
+});
 </script>
 {% endblock %}

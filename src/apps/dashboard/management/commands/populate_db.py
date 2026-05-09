@@ -25,9 +25,10 @@ except ImportError:
     Client = None
 
 try:
-    from apps.payments.models import Payment, InstallmentPlan
+    from apps.payments.models import Payment, PaymentSplit, InstallmentPlan
 except ImportError:
     Payment = None
+    PaymentSplit = None
     InstallmentPlan = None
 
 try:
@@ -132,6 +133,9 @@ class Command(BaseCommand):
                 self.stdout.write('Creating insurance claims...')
                 self.create_claims(policies)
                 
+                self.stdout.write('Creating vehicle trackers...')
+                self.create_vehicle_trackers(vehicles)
+                
                 self.stdout.write('Creating auctions...')
                 auctions = self.create_auctions(vehicles)
                 
@@ -153,7 +157,7 @@ class Command(BaseCommand):
                 self.stdout.write('Creating documents...')
                 self.create_documents(vehicles, clients)
                 
-                self.stdout.write(self.style.SUCCESS('\n✅ Database populated successfully!'))
+                self.stdout.write(self.style.SUCCESS('\n[SUCCESS] Database populated successfully!'))
                 self.print_summary(users, clients, vehicles)
                 
         except Exception as e:
@@ -313,11 +317,16 @@ class Command(BaseCommand):
             
             purchase_date = datetime.now().date() - timedelta(days=random.randint(30, 730))
             
+            # Generate unique VIN and Chassis Number
+            vin = f'VIN{year}{random.randint(1000000, 9999999)}'
+            chassis = f'CH{year}{random.randint(100000, 999999)}'
+            
             vehicle = Vehicle.objects.create(
                 make=make,
                 model=model,
                 year=year,
-                vin=f'VIN{year}{random.randint(1000000, 9999999)}',
+                vin=vin,
+                chassis_number=chassis,
                 registration_number=f'K{random.choice("ABCDEFGH")}{random.randint(100, 999)}{random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")}',
                 color=random.choice(['White', 'Black', 'Silver', 'Blue', 'Red', 'Gray', 'Pearl']),
                 mileage=random.randint(10000, 150000),
@@ -346,9 +355,11 @@ class Command(BaseCommand):
             return []
         
         plans = []
-        sold_vehicles = [v for v in vehicles if v.status == 'SOLD'][:len(clients)//2]
+        # Get some vehicles to mark as sold for installment plans
+        # Since we don't have pre-sold vehicles, we'll just use some from the inventory
+        vehicles_for_plans = random.sample(vehicles, min(len(vehicles), len(clients)))
         
-        for i, vehicle in enumerate(sold_vehicles):
+        for i, vehicle in enumerate(vehicles_for_plans):
             if i >= len(clients):
                 break
                 
@@ -407,7 +418,7 @@ class Command(BaseCommand):
         return plans
 
     def create_payments(self, installment_plans):
-        """Create payment records"""
+        """Create payment records with split payment support"""
         if not Payment or not installment_plans:
             self.stdout.write('  Skipping (Payment model not available or no plans)')
             return []
@@ -418,17 +429,50 @@ class Command(BaseCommand):
             # Get the client_vehicle from the plan
             client_vehicle = plan.client_vehicle
             
-            # Create deposit payment
+            # Create deposit payment (can be split between multiple methods)
             try:
-                down_payment = Payment.objects.create(
-                    client_vehicle=client_vehicle,
-                    amount=plan.deposit,
-                    payment_date=plan.start_date,
-                    payment_method=random.choice(['cash', 'bank_transfer', 'mpesa']),
-                    transaction_reference=f'DP{random.randint(100000, 999999)}',
-                    notes='Deposit payment'
-                )
-                payments.append(down_payment)
+                # Randomly decide if this is a split payment (60% chance of split)
+                is_split = random.random() > 0.4
+                
+                if is_split and PaymentSplit:
+                    # Split payment: 50% cash, 50% bank transfer
+                    split_amount_1 = plan.deposit / Decimal('2')
+                    split_amount_2 = plan.deposit - split_amount_1
+                    
+                    payment = Payment.objects.create(
+                        client_vehicle=client_vehicle,
+                        amount=plan.deposit,
+                        payment_date=plan.start_date,
+                        payment_method='mixed',
+                        transaction_reference=f'DEP{random.randint(100000, 999999)}',
+                        notes='Deposit payment (split)'
+                    )
+                    
+                    # Create split records
+                    PaymentSplit.objects.create(
+                        payment=payment,
+                        payment_method='cash',
+                        amount=split_amount_1,
+                        transaction_reference=f'CASH{random.randint(100000, 999999)}'
+                    )
+                    PaymentSplit.objects.create(
+                        payment=payment,
+                        payment_method='bank_transfer',
+                        amount=split_amount_2,
+                        transaction_reference=f'BT{random.randint(100000, 999999)}'
+                    )
+                else:
+                    # Single payment method
+                    payment = Payment.objects.create(
+                        client_vehicle=client_vehicle,
+                        amount=plan.deposit,
+                        payment_date=plan.start_date,
+                        payment_method=random.choice(['cash', 'bank_transfer', 'mpesa']),
+                        transaction_reference=f'DEP{random.randint(100000, 999999)}',
+                        notes='Deposit payment'
+                    )
+                
+                payments.append(payment)
             except Exception as e:
                 self.stdout.write(f'    Warning: Could not create payment: {e}')
             
@@ -440,19 +484,50 @@ class Command(BaseCommand):
                 payment_date = plan.start_date + timedelta(days=(i + 1) * 30)
                 
                 try:
-                    payment = Payment.objects.create(
-                        client_vehicle=client_vehicle,
-                        amount=plan.monthly_installment,
-                        payment_date=payment_date,
-                        payment_method=random.choice(['bank_transfer', 'mpesa', 'mpesa', 'cash']),
-                        transaction_reference=f'PAY{random.randint(100000, 999999)}',
-                        notes=f'Monthly installment {i + 1} of {plan.number_of_installments}'
-                    )
+                    # 30% chance of split monthly payment
+                    is_split_monthly = random.random() > 0.7
+                    
+                    if is_split_monthly and PaymentSplit:
+                        # Split between MPesa and cash
+                        split_amount_1 = plan.monthly_installment * Decimal('0.6')
+                        split_amount_2 = plan.monthly_installment - split_amount_1
+                        
+                        payment = Payment.objects.create(
+                            client_vehicle=client_vehicle,
+                            amount=plan.monthly_installment,
+                            payment_date=payment_date,
+                            payment_method='mixed',
+                            transaction_reference=f'INST{random.randint(100000, 999999)}',
+                            notes=f'Monthly installment {i + 1} of {plan.number_of_installments} (split)'
+                        )
+                        
+                        PaymentSplit.objects.create(
+                            payment=payment,
+                            payment_method='mpesa',
+                            amount=split_amount_1,
+                            transaction_reference=f'MPESA{random.randint(100000, 999999)}'
+                        )
+                        PaymentSplit.objects.create(
+                            payment=payment,
+                            payment_method='cash',
+                            amount=split_amount_2,
+                            transaction_reference=f'CASH{random.randint(100000, 999999)}'
+                        )
+                    else:
+                        payment = Payment.objects.create(
+                            client_vehicle=client_vehicle,
+                            amount=plan.monthly_installment,
+                            payment_date=payment_date,
+                            payment_method=random.choice(['bank_transfer', 'mpesa', 'mpesa', 'cash']),
+                            transaction_reference=f'INST{random.randint(100000, 999999)}',
+                            notes=f'Monthly installment {i + 1} of {plan.number_of_installments}'
+                        )
+                    
                     payments.append(payment)
                 except Exception as e:
                     self.stdout.write(f'    Warning: Could not create payment: {e}')
         
-        self.stdout.write(f'  Created {len(payments)} payments')
+        self.stdout.write(f'  Created {len(payments)} payments (with splits)')
         return payments
 
     def create_expense_categories(self):
@@ -545,7 +620,7 @@ class Command(BaseCommand):
         return expenses
 
     def create_insurance_policies(self, vehicles):
-        """Create insurance policies"""
+        """Create insurance policies with pricing and payment plan support"""
         if not InsurancePolicy or not InsuranceProvider or not vehicles:
             return []
         
@@ -569,24 +644,50 @@ class Command(BaseCommand):
             )
             providers.append(provider)
         
+        agent_names = ['Jane Smith', 'Peter Kipchoge', 'Alice Omondi', 'David Mureithi', 'Grace Karwai']
+        
         for vehicle in random.sample(vehicles, min(len(vehicles), 40)):
             start_date = datetime.now().date() - timedelta(days=random.randint(0, 365))
             
-            policy = InsurancePolicy.objects.create(
-                vehicle=vehicle,
-                provider=random.choice(providers),
-                policy_number=f'POL{random.randint(100000, 999999)}',
-                policy_type=random.choice(['comprehensive', 'third_party', 'third_party_fire_theft']),
-                premium_amount=Decimal(random.randint(30000, 150000)),
-                sum_insured=vehicle.selling_price,
-                start_date=start_date,
-                end_date=start_date + timedelta(days=365),
-                status=random.choice(['active', 'active', 'expired']),
-                notes=f'Policy for {vehicle.registration_number}'
-            )
-            policies.append(policy)
+            # New fields: pricing and agent details
+            buying_price = vehicle.purchase_price if hasattr(vehicle, 'purchase_price') else vehicle.selling_price * Decimal('0.8')
+            selling_price = vehicle.selling_price
+            has_plan = random.random() > 0.6  # 40% have payment plans
+            
+            policy_data = {
+                'vehicle': vehicle,
+                'provider': random.choice(providers),
+                'policy_number': f'POL{random.randint(100000, 999999)}',
+                'policy_type': random.choice(['comprehensive', 'third_party', 'third_party_fire_theft']),
+                'premium_amount': Decimal(random.randint(30000, 150000)),
+                'sum_insured': vehicle.selling_price,
+                'start_date': start_date,
+                'end_date': start_date + timedelta(days=365),
+                'status': random.choice(['active', 'active', 'expired']),
+                'buying_price': buying_price,
+                'selling_price': selling_price,
+                'agent_name': random.choice(agent_names),
+                'agent_id': f'AG{random.randint(10000, 99999)}',
+                'has_payment_plan': has_plan,
+            }
+            
+            # Add payment plan fields if applicable
+            if has_plan:
+                policy_data.update({
+                    'insurance_deposit': Decimal(random.randint(10000, 30000)),
+                    'insurance_installment_months': random.choice([6, 12, 24]),
+                    'insurance_monthly_installment': Decimal(random.randint(5000, 20000)),
+                    'insurance_total_paid': Decimal(0),
+                    'insurance_balance': Decimal(random.randint(50000, 150000))
+                })
+            
+            try:
+                policy = InsurancePolicy.objects.create(**policy_data)
+                policies.append(policy)
+            except Exception as e:
+                self.stdout.write(f'    Warning: Could not create policy: {e}')
         
-        self.stdout.write(f'  Created {len(policies)} insurance policies')
+        self.stdout.write(f'  Created {len(policies)} insurance policies with pricing/plans')
         return policies
 
     def create_claims(self, policies):
@@ -613,6 +714,66 @@ class Command(BaseCommand):
         
         self.stdout.write(f'  Created {len(claims)} insurance claims')
         return claims
+
+    def create_vehicle_trackers(self, vehicles):
+        """Create vehicle trackers for sold vehicles"""
+        try:
+            from apps.clients.models import ClientVehicle, VehicleTracker
+        except ImportError:
+            self.stdout.write('  Skipping (VehicleTracker model not available)')
+            return []
+        
+        trackers = []
+        
+        # Get sold vehicles with ClientVehicle entries
+        client_vehicles = ClientVehicle.objects.filter(is_active=True)[:30]
+        
+        if not client_vehicles:
+            self.stdout.write('  No sold vehicles found for trackers')
+            return []
+        
+        tracker_providers = ['Saudia Tracking', 'Trackmatic', 'AfriCoverage', 'TrackerSmart', 'GPS Track Africa']
+        
+        for cv in client_vehicles:
+            # 70% of vehicles have trackers
+            if random.random() > 0.3:
+                # Most vehicles have 1 tracker, some have 2
+                num_trackers = random.choice([1, 1, 1, 2])
+                
+                for i in range(num_trackers):
+                    has_plan = random.random() > 0.6  # 40% have payment plans
+                    
+                    tracker_data = {
+                        'client_vehicle': cv,
+                        'tracker_name': f'{random.choice(tracker_providers)} Tracker {i+1}',
+                        'serial_number': f'TRK{random.randint(100000, 999999)}',
+                        'provider': random.choice(tracker_providers),
+                        'buying_price': Decimal(random.randint(5000, 15000)),
+                        'selling_price': Decimal(random.randint(8000, 20000)),
+                        'has_payment_plan': has_plan,
+                        'installed_date': datetime.now().date() - timedelta(days=random.randint(30, 365)),
+                        'created_by_id': User.objects.first().id if User.objects.exists() else None,
+                        'notes': f'Tracker installed for {cv.vehicle.registration_number}'
+                    }
+                    
+                    # Add payment plan fields if applicable
+                    if has_plan:
+                        tracker_data.update({
+                            'deposit': Decimal(random.randint(2000, 5000)),
+                            'installment_months': random.choice([6, 12]),
+                            'monthly_installment': Decimal(random.randint(500, 2000)),
+                            'total_paid': Decimal(0),
+                            'balance': Decimal(random.randint(5000, 15000))
+                        })
+                    
+                    try:
+                        tracker = VehicleTracker.objects.create(**tracker_data)
+                        trackers.append(tracker)
+                    except Exception as e:
+                        self.stdout.write(f'    Warning: Could not create tracker: {e}')
+        
+        self.stdout.write(f'  Created {len(trackers)} vehicle trackers with payment plans')
+        return trackers
 
     def create_auctions(self, vehicles):
         """Create auction records"""
@@ -881,38 +1042,38 @@ class Command(BaseCommand):
         self.stdout.write('\n' + '='*60)
         self.stdout.write(self.style.SUCCESS('DATABASE POPULATION SUMMARY'))
         self.stdout.write('='*60)
-        self.stdout.write(f'👥 Users: {User.objects.count()}')
+        self.stdout.write(f'[USERS] {User.objects.count()}')
         
         if Client:
-            self.stdout.write(f'👤 Clients: {Client.objects.count()}')
+            self.stdout.write(f'[CLIENTS] {Client.objects.count()}')
         if Vehicle:
-            self.stdout.write(f'🚗 Vehicles: {Vehicle.objects.count()}')
+            self.stdout.write(f'[VEHICLES] {Vehicle.objects.count()}')
         if InstallmentPlan:
-            self.stdout.write(f'📝 Installment Plans: {InstallmentPlan.objects.count()}')
+            self.stdout.write(f'[PLANS] Installment Plans: {InstallmentPlan.objects.count()}')
         if Payment:
-            self.stdout.write(f'💰 Payments: {Payment.objects.count()}')
+            self.stdout.write(f'[PAYMENTS] {Payment.objects.count()}')
         if Expense:
-            self.stdout.write(f'💸 Expenses: {Expense.objects.count()}')
+            self.stdout.write(f'[EXPENSES] {Expense.objects.count()}')
         if InsurancePolicy:
-            self.stdout.write(f'🛡️ Insurance Policies: {InsurancePolicy.objects.count()}')
+            self.stdout.write(f'[INSURANCE] Insurance Policies: {InsurancePolicy.objects.count()}')
         if InsuranceClaim:
-            self.stdout.write(f'📋 Insurance Claims: {InsuranceClaim.objects.count()}')
+            self.stdout.write(f'[CLAIMS] Insurance Claims: {InsuranceClaim.objects.count()}')
         if Auction:
-            self.stdout.write(f'🔨 Auctions: {Auction.objects.count()}')
+            self.stdout.write(f'[AUCTIONS] {Auction.objects.count()}')
         if Bid:
-            self.stdout.write(f'💵 Bids: {Bid.objects.count()}')
+            self.stdout.write(f'[BIDS] {Bid.objects.count()}')
         if Repossession:
-            self.stdout.write(f'🚛 Repossessions: {Repossession.objects.count()}')
+            self.stdout.write(f'[REPOSSESSIONS] {Repossession.objects.count()}')
         if Employee:
-            self.stdout.write(f'� Employees: {Employee.objects.count()}')
+            self.stdout.write(f'[EMPLOYEES] {Employee.objects.count()}')
         if Document:
-            self.stdout.write(f'📁 Documents: {Document.objects.count()}')
+            self.stdout.write(f'[DOCUMENTS] {Document.objects.count()}')
             
         self.stdout.write('='*60)
-        self.stdout.write('\n🔑 Admin Login:')
+        self.stdout.write('\n[ADMIN LOGIN]')
         self.stdout.write('   Email: admin@hozainvestments.co.ke')
         self.stdout.write('   Password: admin123')
-        self.stdout.write('\n📧 Staff Login (any):')
+        self.stdout.write('\n[STAFF LOGIN]')
         self.stdout.write('   Email: user1@hozainvestments.co.ke (or user2, user3, etc.)')
         self.stdout.write('   Password: password123')
         self.stdout.write('='*60 + '\n')

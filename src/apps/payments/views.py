@@ -116,8 +116,10 @@ def payment_detail(request, pk):
 def record_payment(request, client_vehicle_pk):
     """
     Record a new payment for a client vehicle
+    Supports single payment method or split across multiple methods
     """
     from .forms import PaymentForm
+    from .models import PaymentSplit
     
     client_vehicle = get_object_or_404(
         ClientVehicle.objects.select_related('client', 'vehicle'),
@@ -125,48 +127,129 @@ def record_payment(request, client_vehicle_pk):
     )
     
     if request.method == 'POST':
-        form = PaymentForm(request.POST)
-        if form.is_valid():
+        # Check if this is a split payment
+        split_methods = request.POST.getlist('split_method[]')
+        split_amounts = request.POST.getlist('split_amount[]')
+        split_references = request.POST.getlist('split_reference[]')
+        
+        # Filter out empty splits
+        valid_splits = [
+            (m, a, r) for m, a, r in zip(split_methods, split_amounts, split_references) 
+            if m and a
+        ]
+        
+        if valid_splits and len(valid_splits) > 1:
+            # Multi-split payment
             with transaction.atomic():
-                payment = form.save(commit=False)
-                payment.client_vehicle = client_vehicle
-                payment.recorded_by = request.user
-                payment.save()
-                
-                # Update client vehicle balance
-                client_vehicle.total_paid += payment.amount
-                client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
-                
-                # Check if fully paid
-                if client_vehicle.balance <= 0:
-                    client_vehicle.is_paid_off = True
-                    client_vehicle.client.status = 'completed'
-                    client_vehicle.client.save()
+                try:
+                    # Calculate total from splits
+                    total_amount = sum(Decimal(a) for _, a, _ in valid_splits)
                     
-                    messages.success(
-                        request,
-                        f'Payment recorded! Vehicle fully paid off! 🎉'
+                    # Create main payment with MIXED method
+                    payment = Payment.objects.create(
+                        client_vehicle=client_vehicle,
+                        amount=total_amount,
+                        payment_date=request.POST.get('payment_date') or timezone.now().date(),
+                        payment_method='mixed',
+                        notes=request.POST.get('notes', ''),
+                        recorded_by=request.user,
                     )
-                else:
-                    messages.success(
-                        request,
-                        f'Payment of KES {payment.amount:,.2f} recorded successfully! '
-                        f'Remaining balance: KES {client_vehicle.balance:,.2f}'
+                    
+                    # Create split records
+                    for method, amount, reference in valid_splits:
+                        PaymentSplit.objects.create(
+                            payment=payment,
+                            payment_method=method,
+                            amount=Decimal(amount),
+                            transaction_reference=reference or None,
+                        )
+                    
+                    # Update client vehicle balance
+                    client_vehicle.total_paid += payment.amount
+                    client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
+                    
+                    # Check if fully paid
+                    if client_vehicle.balance <= 0:
+                        client_vehicle.is_paid_off = True
+                        client_vehicle.client.status = 'completed'
+                        client_vehicle.client.save()
+                        
+                        messages.success(
+                            request,
+                            f'Split payment recorded! Vehicle fully paid off! 🎉'
+                        )
+                    else:
+                        split_summary = ', '.join([
+                            f"{Payment.PAYMENT_METHOD_CHOICES[
+                                [x[0] for x in Payment.PAYMENT_METHOD_CHOICES].index(m)
+                            ][1]} KES {a:,.2f}"
+                            for m, a, _ in valid_splits
+                        ])
+                        messages.success(
+                            request,
+                            f'Split payment of KES {payment.amount:,.2f} recorded! '
+                            f'({split_summary}) — '
+                            f'Remaining balance: KES {client_vehicle.balance:,.2f}'
+                        )
+                    
+                    client_vehicle.save()
+                    
+                    # Update payment schedule if exists
+                    update_payment_schedules(payment, client_vehicle)
+                    
+                    log_audit(
+                        request.user, 'create', 'Payment',
+                        f'Recorded split payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
                     )
-                
-                client_vehicle.save()
-                
-                # Update payment schedule if exists
-                update_payment_schedules(payment, client_vehicle)
-                
-                log_audit(
-                    request.user, 'create', 'Payment',
-                    f'Recorded payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
-                )
-                
-                return redirect('payments:payment_detail', pk=payment.pk)
+                    
+                    return redirect('payments:payment_detail', pk=payment.pk)
+                    
+                except (ValueError, Decimal.InvalidOperation) as e:
+                    messages.error(request, f'Invalid split amounts: {str(e)}')
         else:
-            messages.error(request, 'Please correct the errors below.')
+            # Single payment (traditional flow)
+            form = PaymentForm(request.POST)
+            if form.is_valid():
+                with transaction.atomic():
+                    payment = form.save(commit=False)
+                    payment.client_vehicle = client_vehicle
+                    payment.recorded_by = request.user
+                    payment.save()
+                    
+                    # Update client vehicle balance
+                    client_vehicle.total_paid += payment.amount
+                    client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
+                    
+                    # Check if fully paid
+                    if client_vehicle.balance <= 0:
+                        client_vehicle.is_paid_off = True
+                        client_vehicle.client.status = 'completed'
+                        client_vehicle.client.save()
+                        
+                        messages.success(
+                            request,
+                            f'Payment recorded! Vehicle fully paid off! 🎉'
+                        )
+                    else:
+                        messages.success(
+                            request,
+                            f'Payment of KES {payment.amount:,.2f} recorded successfully! '
+                            f'Remaining balance: KES {client_vehicle.balance:,.2f}'
+                        )
+                    
+                    client_vehicle.save()
+                    
+                    # Update payment schedule if exists
+                    update_payment_schedules(payment, client_vehicle)
+                    
+                    log_audit(
+                        request.user, 'create', 'Payment',
+                        f'Recorded payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
+                    )
+                    
+                    return redirect('payments:payment_detail', pk=payment.pk)
+            else:
+                messages.error(request, 'Please correct the errors below.')
     else:
         form = PaymentForm(initial={'client_vehicle': client_vehicle})
     
@@ -185,52 +268,125 @@ def quick_record_payment(request):
     """
     Quick payment recording - select client/vehicle first
     Can be accessed from dashboard or admin panel
+    Supports single payment or split across multiple methods
     """
     from .forms import PaymentForm
+    from .models import PaymentSplit
     
     if request.method == 'POST':
-        form = PaymentForm(request.POST)
-        if form.is_valid():
+        # Check if this is a split payment
+        split_methods = request.POST.getlist('split_method[]')
+        split_amounts = request.POST.getlist('split_amount[]')
+        split_references = request.POST.getlist('split_reference[]')
+        
+        # Filter out empty splits
+        valid_splits = [
+            (m, a, r) for m, a, r in zip(split_methods, split_amounts, split_references) 
+            if m and a
+        ]
+        
+        if valid_splits and len(valid_splits) > 1:
+            # Multi-split payment
             with transaction.atomic():
-                payment = form.save(commit=False)
-                payment.recorded_by = request.user
-                payment.save()
-                
-                # Update client vehicle balance
-                client_vehicle = payment.client_vehicle
-                client_vehicle.total_paid += payment.amount
-                client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
-                
-                # Check if fully paid
-                if client_vehicle.balance <= 0:
-                    client_vehicle.is_paid_off = True
-                    client_vehicle.client.status = 'completed'
-                    client_vehicle.client.save()
+                try:
+                    client_vehicle_id = request.POST.get('client_vehicle')
+                    client_vehicle = ClientVehicle.objects.get(pk=client_vehicle_id)
                     
-                    messages.success(
-                        request,
-                        f'Payment recorded! Vehicle fully paid off! 🎉'
+                    # Calculate total from splits
+                    total_amount = sum(Decimal(a) for _, a, _ in valid_splits)
+                    
+                    # Create main payment with MIXED method
+                    payment = Payment.objects.create(
+                        client_vehicle=client_vehicle,
+                        amount=total_amount,
+                        payment_date=request.POST.get('payment_date') or timezone.now().date(),
+                        payment_method='mixed',
+                        notes=request.POST.get('notes', ''),
+                        recorded_by=request.user,
                     )
-                else:
-                    messages.success(
-                        request,
-                        f'Payment of KES {payment.amount:,.2f} recorded successfully! '
-                        f'Remaining balance: KES {client_vehicle.balance:,.2f}'
+                    
+                    # Create split records
+                    for method, amount, reference in valid_splits:
+                        PaymentSplit.objects.create(
+                            payment=payment,
+                            payment_method=method,
+                            amount=Decimal(amount),
+                            transaction_reference=reference or None,
+                        )
+                    
+                    # Update client vehicle balance
+                    client_vehicle.total_paid += payment.amount
+                    client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
+                    
+                    # Check if fully paid
+                    if client_vehicle.balance <= 0:
+                        client_vehicle.is_paid_off = True
+                        client_vehicle.client.status = 'completed'
+                        client_vehicle.client.save()
+                        
+                        messages.success(request, f'Split payment recorded! Vehicle fully paid off! 🎉')
+                    else:
+                        messages.success(
+                            request,
+                            f'Split payment of KES {payment.amount:,.2f} recorded! '
+                            f'Remaining balance: KES {client_vehicle.balance:,.2f}'
+                        )
+                    
+                    client_vehicle.save()
+                    
+                    # Update payment schedule if exists
+                    update_payment_schedules(payment, client_vehicle)
+                    
+                    log_audit(
+                        request.user, 'create', 'Payment',
+                        f'Recorded split payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
                     )
-                
-                client_vehicle.save()
-                
-                # Update payment schedule if exists
-                update_payment_schedules(payment, client_vehicle)
-                
-                log_audit(
-                    request.user, 'create', 'Payment',
-                    f'Recorded payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
-                )
-                
-                return redirect('payments:payment_detail', pk=payment.pk)
+                    
+                    return redirect('payments:payment_detail', pk=payment.pk)
+                    
+                except (ValueError, Decimal.InvalidOperation, ClientVehicle.DoesNotExist) as e:
+                    messages.error(request, f'Error processing split payment: {str(e)}')
         else:
-            messages.error(request, 'Please correct the errors below.')
+            # Single payment (traditional flow)
+            form = PaymentForm(request.POST)
+            if form.is_valid():
+                with transaction.atomic():
+                    payment = form.save(commit=False)
+                    payment.recorded_by = request.user
+                    payment.save()
+                    
+                    # Update client vehicle balance
+                    client_vehicle = payment.client_vehicle
+                    client_vehicle.total_paid += payment.amount
+                    client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
+                    
+                    # Check if fully paid
+                    if client_vehicle.balance <= 0:
+                        client_vehicle.is_paid_off = True
+                        client_vehicle.client.status = 'completed'
+                        client_vehicle.client.save()
+                        
+                        messages.success(request, f'Payment recorded! Vehicle fully paid off! 🎉')
+                    else:
+                        messages.success(
+                            request,
+                            f'Payment of KES {payment.amount:,.2f} recorded successfully! '
+                            f'Remaining balance: KES {client_vehicle.balance:,.2f}'
+                        )
+                    
+                    client_vehicle.save()
+                    
+                    # Update payment schedule if exists
+                    update_payment_schedules(payment, client_vehicle)
+                    
+                    log_audit(
+                        request.user, 'create', 'Payment',
+                        f'Recorded payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
+                    )
+                    
+                    return redirect('payments:payment_detail', pk=payment.pk)
+            else:
+                messages.error(request, 'Please correct the errors below.')
     else:
         # Pre-select client_vehicle if passed in GET parameter
         client_vehicle_id = request.GET.get('client_vehicle')

@@ -175,6 +175,10 @@
                             <dd class="mt-1 text-sm text-gray-900">{{ client.id_number }}</dd>
                         </div>
                         <div>
+                            <dt class="text-sm font-medium text-gray-500">KRA PIN</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ client.kra_pin|default:"N/A" }}</dd>
+                        </div>
+                        <div>
                             <dt class="text-sm font-medium text-gray-500">Registered</dt>
                             <dd class="mt-1 text-sm text-gray-900">{{ client.date_registered|date:"M d, Y" }}</dd>
                         </div>
@@ -297,54 +301,188 @@
                     </a>
                 </div>
                 <div class="divide-y divide-gray-200">
-                    {% for cv in client_vehicles %}
+                    {% for vehicle_info in vehicles_with_plans %}
                     <div class="p-6 hover:bg-gray-50 transition-colors duration-150">
-                        <div class="flex items-start justify-between">
+                        <div class="flex items-start justify-between mb-4">
                             <div class="flex-1">
                                 <h3 class="text-lg font-medium text-gray-900">
-                                    <a href="{% url 'clients:client_vehicle_detail' cv.pk %}" class="hover:text-primary-600">
-                                        {{ cv.vehicle.full_name }}
+                                    <a href="{% url 'clients:client_vehicle_detail' vehicle_info.client_vehicle.pk %}" class="hover:text-primary-600">
+                                        {{ vehicle_info.client_vehicle.vehicle.full_name }}
                                     </a>
                                 </h3>
-                                <p class="text-sm text-gray-600 mt-1">{{ cv.vehicle.registration_number }}</p>
-                                
-                                <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <div>
-                                        <p class="text-xs text-gray-500">Purchase Price</p>
-                                        <p class="text-sm font-semibold text-gray-900">KES {{ cv.purchase_price|floatformat:2 }}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs text-gray-500">Total Paid</p>
-                                        <p class="text-sm font-semibold text-green-600">KES {{ cv.total_paid|floatformat:2 }}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs text-gray-500">Balance</p>
-                                        <p class="text-sm font-semibold text-red-600">KES {{ cv.balance|floatformat:2 }}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs text-gray-500">Progress</p>
-                                        <p class="text-sm font-semibold text-primary-600">{{ cv.payment_progress|floatformat:1 }}%</p>
-                                    </div>
-                                </div>
-
-                                <!-- Progress Bar -->
-                                <div class="mt-4">
-                                    <div class="w-full bg-gray-200 rounded-full h-2">
-                                        <div class="bg-primary-600 h-2 rounded-full transition-all duration-300" style="width: {{ cv.payment_progress }}%"></div>
-                                    </div>
-                                </div>
-
-                                <div class="mt-3 flex items-center space-x-4 text-sm text-gray-500">
-                                    <span><i class="fas fa-calendar mr-1"></i> Purchased: {{ cv.purchase_date|date:"M d, Y" }}</span>
-                                    {% if cv.is_paid_off %}
-                                    <span class="text-green-600"><i class="fas fa-check-circle mr-1"></i> Paid Off</span>
-                                    {% endif %}
-                                </div>
+                                <p class="text-sm text-gray-600 mt-1">{{ vehicle_info.client_vehicle.vehicle.registration_number }}</p>
                             </div>
-                            <a href="{% url 'clients:client_vehicle_detail' cv.pk %}" 
+                            <a href="{% url 'clients:client_vehicle_detail' vehicle_info.client_vehicle.pk %}" 
                                class="ml-4 text-primary-600 hover:text-primary-700">
                                 <i class="fas fa-arrow-right"></i>
                             </a>
+                        </div>
+
+                        <!-- Payment Method Badge -->
+                        <div class="mb-4">
+                            {% if vehicle_info.client_vehicle.payment_type == 'full' %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                <i class="fas fa-check-circle mr-1"></i> Pay in Full
+                            </span>
+                            {% elif vehicle_info.client_vehicle.payment_type == 'installment' %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                <i class="fas fa-calendar-alt mr-1"></i> Monthly Installments
+                            </span>
+                            {% elif vehicle_info.client_vehicle.payment_type == 'flexible' %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                <i class="fas fa-sync-alt mr-1"></i> Flexible Payments
+                            </span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <p class="text-xs text-gray-500">Purchase Price</p>
+                                <p class="text-sm font-semibold text-gray-900">KES {{ vehicle_info.client_vehicle.purchase_price|floatformat:2 }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Total Paid</p>
+                                <p class="text-sm font-semibold text-green-600">KES {{ vehicle_info.client_vehicle.total_paid|floatformat:2 }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Balance</p>
+                                <p class="text-sm font-semibold text-red-600">KES {{ vehicle_info.client_vehicle.balance|floatformat:2 }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Progress</p>
+                                <p class="text-sm font-semibold text-primary-600">{{ vehicle_info.client_vehicle.payment_progress|floatformat:1 }}%</p>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="mt-3 mb-4">
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-primary-600 h-2 rounded-full transition-all duration-300" style="width: {{ vehicle_info.client_vehicle.payment_progress }}%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Plan Information (if applicable) -->
+                        {% if vehicle_info.installment_plan %}
+                        <div class="bg-gray-50 rounded-lg p-4 mt-4 mb-4 border border-gray-200">
+                            <h4 class="text-sm font-semibold text-gray-900 mb-3">
+                                <i class="fas fa-calendar-alt mr-2 text-primary-500"></i> Payment Plan
+                            </h4>
+                            
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                                <div>
+                                    <p class="text-xs text-gray-500">Deposit Paid</p>
+                                    <p class="text-sm font-semibold text-gray-900">KES {{ vehicle_info.installment_plan.deposit_amount|floatformat:2 }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500">Remainder</p>
+                                    <p class="text-sm font-semibold text-gray-900">KES {{ vehicle_info.installment_plan.remainder_amount|floatformat:2 }}</p>
+                                </div>
+                                {% if vehicle_info.client_vehicle.remainder_payment_type == 'monthly' %}
+                                <div>
+                                    <p class="text-xs text-gray-500">Monthly On</p>
+                                    <p class="text-sm font-semibold text-gray-900">Day {{ vehicle_info.client_vehicle.monthly_payment_date }}</p>
+                                </div>
+                                {% elif vehicle_info.client_vehicle.remainder_payment_type == 'weekly' %}
+                                <div>
+                                    <p class="text-xs text-gray-500">Weekly On</p>
+                                    <p class="text-sm font-semibold text-gray-900">
+                                        {% if vehicle_info.client_vehicle.weekly_payment_day == 0 %}Monday
+                                        {% elif vehicle_info.client_vehicle.weekly_payment_day == 1 %}Tuesday
+                                        {% elif vehicle_info.client_vehicle.weekly_payment_day == 2 %}Wednesday
+                                        {% elif vehicle_info.client_vehicle.weekly_payment_day == 3 %}Thursday
+                                        {% elif vehicle_info.client_vehicle.weekly_payment_day == 4 %}Friday
+                                        {% elif vehicle_info.client_vehicle.weekly_payment_day == 5 %}Saturday
+                                        {% elif vehicle_info.client_vehicle.weekly_payment_day == 6 %}Sunday
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <p class="text-xs text-gray-500">Duration</p>
+                                    <p class="text-sm font-semibold text-gray-900">{{ vehicle_info.installment_plan.installment_months }} months</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500">Installment Amount</p>
+                                    <p class="text-sm font-semibold text-gray-900">KES {{ vehicle_info.installment_plan.monthly_amount|floatformat:2 }}</p>
+                                </div>
+                                {% if vehicle_info.client_vehicle.allow_flexible_payments %}
+                                <div>
+                                    <p class="text-xs text-gray-500">Flexible</p>
+                                    <p class="text-sm font-semibold text-green-600">
+                                        <i class="fas fa-check-circle mr-1"></i> Yes
+                                    </p>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Full Payment Schedule Breakdown Table -->
+                            {% if vehicle_info.all_schedules %}
+                            <div class="border-t border-gray-200 pt-4 mt-3">
+                                <div class="flex items-center justify-between mb-3">
+                                    <p class="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                                        <i class="fas fa-table mr-1"></i> Payment Schedule Breakdown
+                                    </p>
+                                    <span class="text-xs text-gray-500">{{ vehicle_info.all_schedules|length }} installment(s)</span>
+                                </div>
+                                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                                    <table class="min-w-full text-xs">
+                                        <thead>
+                                            <tr class="bg-gray-100 text-gray-600 uppercase tracking-wide">
+                                                <th class="px-3 py-2 text-left font-semibold">#</th>
+                                                <th class="px-3 py-2 text-left font-semibold">Due Date</th>
+                                                <th class="px-3 py-2 text-right font-semibold">Amount Due</th>
+                                                <th class="px-3 py-2 text-right font-semibold">Amount Paid</th>
+                                                <th class="px-3 py-2 text-right font-semibold">Remaining</th>
+                                                <th class="px-3 py-2 text-center font-semibold">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-100">
+                                            {% for sched in vehicle_info.all_schedules %}
+                                            <tr class="{% if sched.is_paid %}bg-green-50{% elif sched.is_overdue %}bg-red-50{% else %}bg-white{% endif %} hover:bg-opacity-80 transition-colors">
+                                                <td class="px-3 py-2 font-medium text-gray-700">{{ sched.installment_number }}</td>
+                                                <td class="px-3 py-2 text-gray-700">{{ sched.due_date|date:"d M Y" }}</td>
+                                                <td class="px-3 py-2 text-right font-medium text-gray-900">KES {{ sched.amount_due|floatformat:2 }}</td>
+                                                <td class="px-3 py-2 text-right font-medium {% if sched.amount_paid > 0 %}text-green-700{% else %}text-gray-400{% endif %}">KES {{ sched.amount_paid|floatformat:2 }}</td>
+                                                <td class="px-3 py-2 text-right font-medium {% if sched.remaining_amount <= 0 %}text-green-600{% else %}text-red-600{% endif %}">KES {{ sched.remaining_amount|floatformat:2 }}</td>
+                                                <td class="px-3 py-2 text-center">
+                                                    {% if sched.is_paid %}
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                        <i class="fas fa-check mr-1"></i>Paid
+                                                    </span>
+                                                    {% elif sched.is_overdue %}
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                        <i class="fas fa-exclamation-triangle mr-1"></i>Overdue
+                                                    </span>
+                                                    {% else %}
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                        <i class="fas fa-clock mr-1"></i>Upcoming
+                                                    </span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr class="bg-gray-100 font-semibold border-t-2 border-gray-300">
+                                                <td class="px-3 py-2 text-gray-700" colspan="2">TOTAL</td>
+                                                <td class="px-3 py-2 text-right text-gray-900">KES {{ vehicle_info.installment_plan.total_amount|floatformat:2 }}</td>
+                                                <td class="px-3 py-2 text-right text-green-700">KES {{ vehicle_info.installment_plan.total_paid|floatformat:2 }}</td>
+                                                <td class="px-3 py-2 text-right text-red-600">KES {{ vehicle_info.installment_plan.remaining_balance|floatformat:2 }}</td>
+                                                <td class="px-3 py-2"></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <div class="flex items-center space-x-4 text-sm text-gray-500">
+                            <span><i class="fas fa-calendar mr-1"></i> Purchased: {{ vehicle_info.client_vehicle.purchase_date|date:"M d, Y" }}</span>
+                            {% if vehicle_info.client_vehicle.is_paid_off %}
+                            <span class="text-green-600"><i class="fas fa-check-circle mr-1"></i> Paid Off</span>
+                            {% endif %}
                         </div>
                     </div>
                     {% empty %}

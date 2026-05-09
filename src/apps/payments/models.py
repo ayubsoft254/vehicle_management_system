@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.utils import timezone
 from decimal import Decimal
+from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 
 User = get_user_model()
@@ -107,6 +108,7 @@ class Payment(models.Model):
         ('bank_transfer', 'Bank Transfer'),
         ('cheque', 'Cheque'),
         ('card', 'Credit/Debit Card'),
+        ('mixed', 'Multiple Methods'),
         ('other', 'Other'),
     ]
     
@@ -186,7 +188,9 @@ class Payment(models.Model):
         ]
     
     def __str__(self):
-        return f"Payment {self.receipt_number or self.pk} - KES {self.amount:,.2f}"
+        # Convert amount to float to ensure proper formatting (avoids SafeString formatting issues)
+        amount_value = float(self.amount) if self.amount else 0.0
+        return f"Payment {self.receipt_number or self.pk} - KES {amount_value:,.2f}"
     
     def save(self, *args, **kwargs):
         """Generate receipt number if not provided"""
@@ -216,6 +220,60 @@ class Payment(models.Model):
     def vehicle(self):
         """Get the vehicle for this payment"""
         return self.client_vehicle.vehicle
+
+    @property
+    def is_split(self):
+        """Check if this payment uses multiple methods"""
+        return self.splits.exists()
+
+
+# ==================== PAYMENT SPLIT MODEL ====================
+
+class PaymentSplit(models.Model):
+    """
+    Allows a single Payment to be split across multiple payment methods.
+    e.g. KES 200,000 = 15,000 Bank + 20,000 MPesa + 165,000 Cash
+    """
+
+    PAYMENT_METHOD_CHOICES = Payment.PAYMENT_METHOD_CHOICES
+
+    payment = models.ForeignKey(
+        Payment,
+        on_delete=models.CASCADE,
+        related_name='splits',
+        help_text='The parent payment this split belongs to'
+    )
+
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        help_text='Payment method for this portion'
+    )
+
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        help_text='Amount paid via this method'
+    )
+
+    transaction_reference = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text='Transaction reference / M-Pesa code / Cheque number'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'payment_splits'
+        verbose_name = 'Payment Split'
+        verbose_name_plural = 'Payment Splits'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.get_payment_method_display()} — KES {self.amount:,.2f}"
 
 
 # ==================== INSTALLMENT PLAN MODEL ====================
@@ -352,6 +410,26 @@ class InstallmentPlan(models.Model):
         return self.total_amount - self.deposit
     
     @property
+    def deposit_amount(self):
+        """Alias for deposit"""
+        return self.deposit
+    
+    @property
+    def remainder_amount(self):
+        """Alias for balance after deposit"""
+        return self.balance_after_deposit
+    
+    @property
+    def monthly_amount(self):
+        """Alias for monthly_installment"""
+        return self.monthly_installment
+    
+    @property
+    def installment_months(self):
+        """Alias for number_of_installments"""
+        return self.number_of_installments
+    
+    @property
     def total_with_interest(self):
         """Calculate total amount including interest"""
         if self.interest_rate > 0:
@@ -396,6 +474,22 @@ class InstallmentPlan(models.Model):
         return 0
     
     @property
+    def accumulated_late_fees(self):
+        """Calculate accumulated late fees from overdue schedules"""
+        total_fees = Decimal('0.00')
+        for schedule in self.payment_schedules.filter(is_paid=False):
+            schedule.update_late_fees()  # Update before summing
+            total_fees += schedule.late_fee_applied
+        return total_fees
+    
+    def get_total_cost_with_fees(self):
+        """Get total cost including deposit, interest, and late fees"""
+        total = self.total_amount  # Base amount
+        total += self.total_interest  # Add interest
+        total += self.accumulated_late_fees  # Add accumulated late fees
+        return total
+    
+    @property
     def is_overdue(self):
         """Check if plan is overdue"""
         if not self.is_completed and self.end_date:
@@ -403,20 +497,69 @@ class InstallmentPlan(models.Model):
         return False
     
     def generate_payment_schedule(self):
-        """Generate payment schedules for this plan"""
+        """
+        Generate payment schedules for this plan
+        Supports monthly (on specific day) and weekly (on specific weekday) payment patterns
+        """
+        from dateutil.relativedelta import relativedelta
+        
         # Delete existing schedules
         self.payment_schedules.all().delete()
         
-        # Generate new schedules
+        # Get payment configuration from client vehicle
+        client_vehicle = self.client_vehicle
+        remainder_type = getattr(client_vehicle, 'remainder_payment_type', 'monthly')
+        monthly_date = getattr(client_vehicle, 'monthly_payment_date', None)
+        weekly_day = getattr(client_vehicle, 'weekly_payment_day', None)
+        
         current_date = self.start_date
-        for i in range(1, self.number_of_installments + 1):
-            PaymentSchedule.objects.create(
-                installment_plan=self,
-                installment_number=i,
-                due_date=current_date,
-                amount_due=self.monthly_installment
-            )
-            current_date = current_date + relativedelta(months=1)
+        
+        if remainder_type == 'weekly' and weekly_day is not None:
+            # Weekly payment schedule - every specific weekday (0=Monday, 6=Sunday)
+            # Move to first occurrence of the target weekday
+            days_until_target = (weekly_day - current_date.weekday()) % 7
+            if days_until_target == 0 and current_date != self.start_date:
+                # Already on target day, move to next occurrence
+                days_until_target = 7
+            current_date = current_date + timedelta(days=days_until_target)
+            
+            for i in range(1, self.number_of_installments + 1):
+                PaymentSchedule.objects.create(
+                    installment_plan=self,
+                    installment_number=i,
+                    due_date=current_date,
+                    amount_due=self.monthly_installment
+                )
+                current_date = current_date + timedelta(weeks=1)
+        
+        else:
+            # Monthly payment schedule - on specific day of month
+            if monthly_date is None:
+                monthly_date = self.start_date.day
+            
+            for i in range(1, self.number_of_installments + 1):
+                # Try to set to the specified day of month
+                try:
+                    target_date = current_date.replace(day=monthly_date)
+                except ValueError:
+                    # Day doesn't exist in this month (e.g., Feb 31)
+                    # Use last day of month
+                    target_date = current_date + relativedelta(day=31)
+                
+                # If target date is before or equal to current date, move to next month
+                if target_date <= self.start_date and i == 1:
+                    # For first payment, if target is in past, move to next month
+                    target_date = (current_date + relativedelta(months=1)).replace(day=monthly_date)
+                
+                PaymentSchedule.objects.create(
+                    installment_plan=self,
+                    installment_number=i,
+                    due_date=target_date,
+                    amount_due=self.monthly_installment
+                )
+                
+                # Move to next month
+                current_date = target_date + relativedelta(months=1)
 
 
 # ==================== PAYMENT SCHEDULE MODEL ====================
@@ -466,6 +609,14 @@ class PaymentSchedule(models.Model):
         default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
         help_text="Amount paid for this installment"
+    )
+    
+    late_fee_applied = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text="Late fees applied (0.1% per day, max 50% of amount due)"
     )
     
     # Status
@@ -532,6 +683,26 @@ class PaymentSchedule(models.Model):
     def is_partial_payment(self):
         """Check if partial payment has been made"""
         return self.amount_paid > 0 and self.amount_paid < self.amount_due
+    
+    def calculate_late_fee(self):
+        """
+        Calculate late fee for overdue installment
+        0.1% per day, capped at 50% of amount due
+        """
+        if self.is_overdue and not self.is_paid:
+            days_overdue = self.days_overdue
+            daily_rate = Decimal('0.001')  # 0.1% per day
+            fee = self.amount_due * daily_rate * Decimal(str(days_overdue))
+            
+            # Cap at 50% of amount due
+            max_fee = self.amount_due * Decimal('0.50')
+            return min(fee, max_fee)
+        return Decimal('0.00')
+    
+    def update_late_fees(self):
+        """Update late fees and save"""
+        self.late_fee_applied = self.calculate_late_fee()
+        self.save(update_fields=['late_fee_applied'])
     
     def mark_as_paid(self, payment, amount=None):
         """Mark this schedule as paid"""

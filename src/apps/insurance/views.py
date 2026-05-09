@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 import csv
 import json
 
-from .models import InsuranceProvider, InsurancePolicy, InsuranceClaim, InsurancePayment
+from .models import InsuranceProvider, InsurancePolicy, InsuranceClaim, InsurancePayment, InsurancePaymentSchedule
 from .forms import (
     InsuranceProviderForm, InsurancePolicyForm, InsuranceClaimForm,
     ClaimUpdateForm, InsurancePaymentForm, InsurancePolicySearchForm,
@@ -271,11 +271,17 @@ def policy_detail(request, pk):
     # Get related data
     claims = InsuranceClaim.objects.filter(policy=policy).order_by('-claim_date')
     payments = InsurancePayment.objects.filter(policy=policy).order_by('-payment_date')
+    payment_schedules = policy.insurance_payment_schedules.all().order_by('installment_number')
+    
+    # Update late fees for all overdue schedules
+    for schedule in payment_schedules.filter(is_paid=False):
+        schedule.update_late_fees()
     
     context = {
         'policy': policy,
         'claims': claims,
         'payments': payments,
+        'payment_schedules': payment_schedules,
         'total_claims': claims.count(),
         'total_payments': payments.aggregate(Sum('amount'))['amount__sum'] or 0,
     }
@@ -635,6 +641,15 @@ def payment_create(request, policy_pk):
             payment.policy = policy
             payment.recorded_by = request.user
             payment.save()
+            
+            # Link to oldest unpaid schedule (if policy has payment plan)
+            if policy.has_payment_plan:
+                unpaid_schedule = policy.insurance_payment_schedules.filter(
+                    is_paid=False
+                ).order_by('installment_number').first()
+                
+                if unpaid_schedule:
+                    unpaid_schedule.mark_as_paid(payment, amount=payment.amount)
             
             log_audit(
                 request.user, 'create', 'InsurancePayment',

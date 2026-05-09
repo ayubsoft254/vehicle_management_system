@@ -177,6 +177,38 @@ def vehicle_create_view(request):
             vehicle.added_by = request.user
             vehicle.save()
             
+            # Handle extra costs
+            from .models import VehicleExtraCost
+            from decimal import Decimal
+            
+            # Process extra costs from form data
+            index = 0
+            while True:
+                desc_key = f'extra_cost_description_{index}'
+                amount_key = f'extra_cost_amount_{index}'
+                
+                if desc_key not in request.POST or amount_key not in request.POST:
+                    break
+                
+                description = request.POST.get(desc_key, '').strip()
+                amount_str = request.POST.get(amount_key, '').strip()
+                
+                if description and amount_str:
+                    try:
+                        amount = Decimal(amount_str)
+                        if amount > 0:
+                            VehicleExtraCost.objects.create(
+                                vehicle=vehicle,
+                                description=description,
+                                amount=amount,
+                                added_by=request.user
+                            )
+                            print(f"✓ Created extra cost: {description} - {amount}")
+                    except Exception as e:
+                        print(f"✗ Error creating extra cost: {e}")
+                
+                index += 1
+            
             # Log creation
             AuditLog.log_create(
                 user=request.user,
@@ -229,6 +261,37 @@ def vehicle_update_view(request, pk):
         form = VehicleForm(request.POST, request.FILES, instance=vehicle)
         if form.is_valid():
             vehicle = form.save()
+            
+            # Handle extra costs
+            from .models import VehicleExtraCost
+            from decimal import Decimal
+            
+            # Process extra costs from form data
+            index = 0
+            while True:
+                desc_key = f'extra_cost_description_{index}'
+                amount_key = f'extra_cost_amount_{index}'
+                
+                if desc_key not in request.POST or amount_key not in request.POST:
+                    break
+                
+                description = request.POST.get(desc_key, '').strip()
+                amount_str = request.POST.get(amount_key, '').strip()
+                
+                if description and amount_str:
+                    try:
+                        amount = Decimal(amount_str)
+                        if amount > 0:
+                            VehicleExtraCost.objects.create(
+                                vehicle=vehicle,
+                                description=description,
+                                amount=amount,
+                                added_by=request.user
+                            )
+                    except Exception as e:
+                        pass
+                
+                index += 1
             
             # Detect changes
             changes = {}

@@ -353,7 +353,7 @@ class ClientVehicleAdmin(admin.ModelAdmin):
     ]
     
     list_filter = [
-        'is_paid_off', 'purchase_date', 'created_at'
+        'is_paid_off', 'purchase_date', 'payment_type', 'created_at'
     ]
     
     search_fields = [
@@ -380,11 +380,22 @@ class ClientVehicleAdmin(admin.ModelAdmin):
                 'purchase_price',
                 ('deposit_paid', 'total_paid'),
                 'balance',
-                ('monthly_installment', 'installment_months'),
                 'interest_rate',
                 'payment_progress_display',
                 'is_paid_off',
             )
+        }),
+        ('Payment Configuration', {
+            'fields': (
+                'payment_type',
+                'remainder_payment_type',
+                'monthly_payment_date',
+                'weekly_payment_day',
+                ('monthly_installment', 'installment_months'),
+                'allow_flexible_payments',
+            ),
+            'description': 'Configure how the customer will pay: Full payment, monthly installments, or flexible (anytime) payments. '
+                          'For installments, specify if payments are monthly (on specific day) or weekly (on specific weekday).'
         }),
         ('Additional Information', {
             'fields': (

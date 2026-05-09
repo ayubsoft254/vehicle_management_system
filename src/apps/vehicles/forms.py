@@ -14,10 +14,11 @@ class VehicleForm(forms.ModelForm):
     class Meta:
         model = Vehicle
         fields = [
-            'make', 'model', 'year', 'vin', 'registration_number',
+            'make', 'model', 'year', 'vin', 'registration_number', 'chassis_number',
             'color', 'mileage', 'fuel_type', 'transmission',
             'engine_size', 'body_type', 'seats', 'doors',
             'condition', 'purchase_price', 'selling_price', 'deposit_required',
+            'duty_cost', 'clearance_cost', 'commission_cost',
             'status', 'is_active', 'is_featured',
             'description', 'features', 'location', 'purchase_date'
         ]
@@ -46,6 +47,10 @@ class VehicleForm(forms.ModelForm):
             'registration_number': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
                 'placeholder': 'KAA 123A'
+            }),
+            'chassis_number': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Chassis number'
             }),
             'color': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
@@ -96,6 +101,21 @@ class VehicleForm(forms.ModelForm):
                 'placeholder': 'Minimum deposit in KES',
                 'step': '0.01'
             }),
+            'duty_cost': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Import duty cost in KES',
+                'step': '0.01'
+            }),
+            'clearance_cost': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Clearance/port cost in KES',
+                'step': '0.01'
+            }),
+            'commission_cost': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Commission/agent fees in KES',
+                'step': '0.01'
+            }),
             'status': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
             }),
@@ -121,8 +141,7 @@ class VehicleForm(forms.ModelForm):
             }),
             'purchase_date': forms.DateInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'type': 'date',
-                'required': 'required'
+                'type': 'date'
             }),
         }
         labels = {
@@ -131,6 +150,24 @@ class VehicleForm(forms.ModelForm):
             'is_active': 'Active in Inventory',
             'is_featured': 'Featured Vehicle',
         }
+    
+    def __init__(self, *args, **kwargs):
+        """Initialize form and set required attribute for fields with defaults"""
+        super().__init__(*args, **kwargs)
+        
+        # Fields with defaults in the model - make optional in form
+        optional_fields = ['seats', 'condition', 'deposit_required', 'purchase_date']
+        for field_name in optional_fields:
+            self.fields[field_name].required = False
+            # Remove HTML5 required attribute from widget if present
+            if 'required' in self.fields[field_name].widget.attrs:
+                del self.fields[field_name].widget.attrs['required']
+        
+        # Set initial values for fields with model defaults (for new instances)
+        if not self.instance.pk:
+            self.fields['seats'].initial = 5
+            self.fields['condition'].initial = 'good'
+            self.fields['deposit_required'].initial = 0.0
     
     def clean_vin(self):
         """Validate VIN is unique (case-insensitive)"""
@@ -148,16 +185,22 @@ class VehicleForm(forms.ModelForm):
     
     def clean_registration_number(self):
         """Validate registration number is unique"""
-        reg_number = self.cleaned_data.get('registration_number', '').upper()
+        reg_number = self.cleaned_data.get('registration_number')
         
-        if reg_number:
-            # Check for duplicate (excluding current instance)
-            existing = Vehicle.objects.filter(registration_number=reg_number)
-            if self.instance.pk:
-                existing = existing.exclude(pk=self.instance.pk)
-            
-            if existing.exists():
-                raise ValidationError('A vehicle with this registration number already exists.')
+        # Handle blank/None values - registration is optional
+        if not reg_number:
+            return reg_number
+        
+        # Convert to uppercase for comparison
+        reg_number = reg_number.upper()
+        
+        # Check for duplicate (excluding current instance)
+        existing = Vehicle.objects.filter(registration_number=reg_number)
+        if self.instance.pk:
+            existing = existing.exclude(pk=self.instance.pk)
+        
+        if existing.exists():
+            raise ValidationError('A vehicle with this registration number already exists.')
         
         return reg_number
     

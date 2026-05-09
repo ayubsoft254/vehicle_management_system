@@ -108,7 +108,9 @@ class Auction(models.Model):
     vehicle = models.ForeignKey(
         Vehicle,
         on_delete=models.PROTECT,
-        related_name='auctions'
+        related_name='auctions',
+        null=True,
+        blank=True
     )
     
     # Pricing
@@ -384,12 +386,16 @@ class AuctionParticipant(models.Model):
     auction = models.ForeignKey(
         Auction,
         on_delete=models.CASCADE,
-        related_name='participants'
+        related_name='participants',
+        null=True,
+        blank=True
     )
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='auction_participations'
+        related_name='auction_participations',
+        null=True,
+        blank=True
     )
     client = models.ForeignKey(
         Client,
@@ -484,12 +490,16 @@ class Bid(models.Model):
     auction = models.ForeignKey(
         Auction,
         on_delete=models.CASCADE,
-        related_name='bids'
+        related_name='bids',
+        null=True,
+        blank=True
     )
     bidder = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='bids'
+        related_name='bids',
+        null=True,
+        blank=True
     )
     
     # Bid Details
@@ -580,12 +590,16 @@ class AuctionWatchlist(models.Model):
     auction = models.ForeignKey(
         Auction,
         on_delete=models.CASCADE,
-        related_name='watchers'
+        related_name='watchers',
+        null=True,
+        blank=True
     )
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='watched_auctions'
+        related_name='watched_auctions',
+        null=True,
+        blank=True
     )
     added_at = models.DateTimeField(auto_now_add=True)
     notify_before_end = models.BooleanField(default=True)
@@ -630,7 +644,9 @@ class AuctionResult(models.Model):
     auction = models.OneToOneField(
         Auction,
         on_delete=models.CASCADE,
-        related_name='result'
+        related_name='result',
+        null=True,
+        blank=True
     )
     
     # Winner Information

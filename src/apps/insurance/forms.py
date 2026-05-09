@@ -119,11 +119,13 @@ class InsurancePolicyForm(forms.ModelForm):
         model = InsurancePolicy
         fields = [
             'vehicle', 'provider', 'client',
-            'policy_number', 'policy_type',
+            'policy_number', 'policy_type', 'status',
             'start_date', 'end_date',
             'premium_amount', 'sum_insured', 'excess_amount',
-            'certificate', 'status',
-            'coverage_details', 'notes'
+            'buying_price', 'selling_price',
+            'agent_name', 'agent_id',
+            'has_payment_plan', 'insurance_deposit', 'insurance_installment_months', 
+            'insurance_interest_rate',
         ]
         
         widgets = {
@@ -143,6 +145,9 @@ class InsurancePolicyForm(forms.ModelForm):
             'policy_type': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
             }),
+            'status': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+            }),
             'start_date': forms.DateInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'type': 'date'
@@ -154,37 +159,53 @@ class InsurancePolicyForm(forms.ModelForm):
             'premium_amount': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '0.00',
-                'step': '0.01',
-                'min': '0.01'
+                'step': '0.01'
             }),
             'sum_insured': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '0.00',
-                'step': '0.01',
-                'min': '0.01'
+                'step': '0.01'
             }),
             'excess_amount': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '0.00',
+                'step': '0.01'
+            }),
+            'buying_price': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': '0.00',
+                'step': '0.01'
+            }),
+            'selling_price': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': '0.00',
+                'step': '0.01'
+            }),
+            'agent_name': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': 'Agent Name'
+            }),
+            'agent_id': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': 'Agent ID/License'
+            }),
+            'has_payment_plan': forms.CheckboxInput(attrs={
+                'class': 'h-4 w-4 border border-gray-300 rounded'
+            }),
+            'insurance_deposit': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': '0.00',
+                'step': '0.01'
+            }),
+            'insurance_installment_months': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': 'Number of months'
+            }),
+            'insurance_interest_rate': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': '0.00',
                 'step': '0.01',
-                'min': '0.00'
-            }),
-            'certificate': forms.FileInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'accept': '.pdf,.jpg,.jpeg,.png'
-            }),
-            'status': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-            }),
-            'coverage_details': forms.Textarea(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Coverage details and terms (Optional)',
-                'rows': 3
-            }),
-            'notes': forms.Textarea(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Additional notes (Optional)',
-                'rows': 3
+                'min': '0'
             }),
         }
     

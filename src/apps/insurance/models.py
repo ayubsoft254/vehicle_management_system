@@ -261,6 +261,14 @@ class InsurancePolicy(models.Model):
         help_text="Type of insurance coverage"
     )
     
+    # Status
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active',
+        help_text="Policy status"
+    )
+    
     # Dates
     start_date = models.DateField(
         help_text="Policy start date"
@@ -292,63 +300,101 @@ class InsurancePolicy(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
         help_text="Excess/deductible amount"
     )
-    
-    # Documents
-    certificate = models.FileField(
-        upload_to='insurance/certificates/%Y/%m/',
+
+    # Dealer pricing
+    buying_price = models.DecimalField(
+        'Buying Price (KES)',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Amount dealer paid the insurance company'
+    )
+
+    selling_price = models.DecimalField(
+        'Selling Price (KES)',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Amount charged to client for insurance'
+    )
+
+    # Agent details
+    agent_name = models.CharField(
+        'Agent Name',
+        max_length=200,
         blank=True,
-        null=True,
-        help_text="Insurance certificate file"
+        help_text='Insurance agent name'
     )
-    
-    # Status
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default='active',
-        help_text="Policy status"
+
+    agent_id = models.CharField(
+        'Agent ID / Number',
+        max_length=100,
+        blank=True,
+        help_text='Agent ID, license number, or phone'
     )
-    
-    # Renewal Information
-    is_renewed = models.BooleanField(
+
+    # Individual payment plan for insurance
+    has_payment_plan = models.BooleanField(
+        'Has Payment Plan',
         default=False,
-        help_text="Whether this policy has been renewed"
+        help_text='Whether client pays insurance in installments'
     )
-    
-    renewed_policy = models.ForeignKey(
-        'self',
-        on_delete=models.SET_NULL,
+
+    insurance_deposit = models.DecimalField(
+        'Insurance Deposit (KES)',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        blank=True,
+    )
+
+    insurance_installment_months = models.PositiveIntegerField(
+        'Insurance Installment Months',
         null=True,
         blank=True,
-        related_name='previous_policy',
-        help_text="Reference to renewed policy"
     )
-    
-    # Reminders
-    reminder_sent = models.BooleanField(
-        default=False,
-        help_text="Whether expiry reminder has been sent"
-    )
-    
-    reminder_sent_date = models.DateField(
-        blank=True,
+
+    insurance_monthly_installment = models.DecimalField(
+        'Monthly Installment (KES)',
+        max_digits=12,
+        decimal_places=2,
         null=True,
-        help_text="Date reminder was sent"
-    )
-    
-    # Additional Information
-    coverage_details = models.TextField(
         blank=True,
-        null=True,
-        help_text="Coverage details and terms"
     )
-    
-    notes = models.TextField(
+
+    insurance_total_paid = models.DecimalField(
+        'Total Paid (KES)',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+    )
+
+    insurance_balance = models.DecimalField(
+        'Insurance Balance (KES)',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+    )
+
+    # Interest & Fees
+    insurance_interest_rate = models.DecimalField(
+        'Insurance Interest Rate (%)',
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Annual interest rate for payment plan (%)'
+    )
+
+    insurance_total_with_interest = models.DecimalField(
+        'Total with Interest (KES)',
+        max_digits=12,
+        decimal_places=2,
+        null=True,
         blank=True,
-        null=True,
-        help_text="Additional notes"
+        help_text='Auto-calculated total including interest'
     )
-    
+
     # System Fields
     created_by = models.ForeignKey(
         User,
@@ -357,7 +403,7 @@ class InsurancePolicy(models.Model):
         related_name='created_insurance_policies',
         help_text="User who created this policy"
     )
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -379,13 +425,46 @@ class InsurancePolicy(models.Model):
         return f"{self.policy_number} - {self.vehicle}"
     
     def save(self, *args, **kwargs):
-        """Auto-update status based on dates"""
+        """
+        Auto-update status based on dates
+        Auto-calculate monthly installment, total with interest, and balance
+        """
         today = timezone.now().date()
         
         if self.end_date < today and self.status == 'active':
             self.status = 'expired'
         
+        # Auto-calculate payment plan fields if has_payment_plan is True
+        if self.has_payment_plan and self.insurance_deposit is not None and \
+           self.insurance_installment_months and self.selling_price:
+            
+            # Calculate balance after deposit
+            balance_after_deposit = self.selling_price - self.insurance_deposit
+            self.insurance_balance = balance_after_deposit
+            
+            # Calculate total with interest
+            if self.insurance_interest_rate > Decimal('0.00'):
+                rate = Decimal(str(self.insurance_interest_rate)) / Decimal('100.00')
+                months = Decimal(str(self.insurance_installment_months))
+                interest = balance_after_deposit * rate * (months / Decimal('12.00'))
+                self.insurance_total_with_interest = balance_after_deposit + interest
+            else:
+                self.insurance_total_with_interest = balance_after_deposit
+            
+            # Calculate monthly installment
+            if self.insurance_installment_months and self.insurance_total_with_interest:
+                self.insurance_monthly_installment = round(
+                    self.insurance_total_with_interest / Decimal(str(self.insurance_installment_months)),
+                    2
+                )
+        
         super().save(*args, **kwargs)
+        
+        # Generate payment schedule if this is a new policy with payment plan
+        if self.has_payment_plan and self.insurance_installment_months:
+            # Check if schedules already exist
+            if not self.insurance_payment_schedules.exists():
+                self.generate_insurance_payment_schedule()
     
     @property
     def is_active(self):
@@ -443,6 +522,69 @@ class InsurancePolicy(models.Model):
             'renewed': 'blue',
         }
         return colors.get(self.status, 'gray')
+    
+    @property
+    def is_schedule_generated(self):
+        """Check if payment schedule has been generated"""
+        return self.insurance_payment_schedules.exists()
+    
+    @property
+    def total_interest(self):
+        """Calculate total interest amount"""
+        if self.has_payment_plan and self.insurance_total_with_interest and self.insurance_balance:
+            return self.insurance_total_with_interest - self.insurance_balance
+        return Decimal('0.00')
+    
+    @property
+    def accumulated_late_fees(self):
+        """Calculate accumulated late fees from overdue schedules"""
+        total_fees = Decimal('0.00')
+        for schedule in self.insurance_payment_schedules.filter(is_paid=False):
+            total_fees += schedule.late_fee_applied
+        return total_fees
+    
+    def get_total_cost_with_fees(self):
+        """Get total cost including deposit, interest, and late fees"""
+        if not self.has_payment_plan:
+            return self.selling_price
+        
+        total = Decimal('0.00')
+        total += self.insurance_deposit  # Deposit
+        total += self.total_interest      # Interest
+        total += self.accumulated_late_fees  # Late fees
+        return total
+    
+    def generate_insurance_payment_schedule(self):
+        """
+        Generate payment schedules for insurance payment plan
+        Creates monthly payment schedule entries
+        """
+        from dateutil.relativedelta import relativedelta
+        
+        # Delete existing schedules
+        self.insurance_payment_schedules.all().delete()
+        
+        # Determine starting date for first payment (month after policy start)
+        current_date = self.start_date + relativedelta(months=1)
+        
+        for i in range(1, self.insurance_installment_months + 1):
+            # Create due date on same day of month as start_date
+            try:
+                due_date = current_date.replace(day=self.start_date.day)
+            except ValueError:
+                # Day doesn't exist in this month (e.g., Feb 31)
+                # Use last day of month
+                due_date = (current_date + relativedelta(day=31))
+            
+            InsurancePaymentSchedule.objects.create(
+                policy=self,
+                installment_number=i,
+                due_date=due_date,
+                amount_due=self.insurance_monthly_installment
+            )
+            
+            # Move to next month
+            current_date = due_date + relativedelta(months=1)
 
 
 # ==================== INSURANCE CLAIM MODEL ====================
@@ -818,3 +960,189 @@ class InsurancePayment(models.Model):
             self.receipt_number = f'INS-{date_str}-{new_num:04d}'
         
         super().save(*args, **kwargs)
+
+
+# ==================== INSURANCE PAYMENT SCHEDULE MODEL ====================
+
+class InsurancePaymentScheduleManager(models.Manager):
+    """Custom manager for InsurancePaymentSchedule model"""
+    
+    def pending(self):
+        """Get pending payment schedules"""
+        return self.filter(is_paid=False)
+    
+    def paid(self):
+        """Get paid schedules"""
+        return self.filter(is_paid=True)
+    
+    def overdue(self):
+        """Get overdue payment schedules"""
+        today = timezone.now().date()
+        return self.filter(
+            is_paid=False,
+            due_date__lt=today
+        )
+    
+    def due_this_month(self):
+        """Get schedules due this month"""
+        now = timezone.now()
+        return self.filter(
+            is_paid=False,
+            due_date__year=now.year,
+            due_date__month=now.month
+        )
+
+
+class InsurancePaymentSchedule(models.Model):
+    """
+    Model for individual insurance payment schedule entries
+    Tracks when each insurance installment is due
+    """
+    
+    # Foreign Keys
+    policy = models.ForeignKey(
+        InsurancePolicy,
+        on_delete=models.CASCADE,
+        related_name='insurance_payment_schedules',
+        help_text="Insurance policy this schedule belongs to"
+    )
+    
+    payment = models.ForeignKey(
+        InsurancePayment,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='payment_schedules',
+        help_text="Insurance payment that fulfilled this schedule"
+    )
+    
+    # Schedule Details
+    installment_number = models.PositiveIntegerField(
+        help_text="Installment number (1, 2, 3, etc.)"
+    )
+    
+    due_date = models.DateField(
+        help_text="Date this installment is due"
+    )
+    
+    amount_due = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        help_text="Amount due for this installment"
+    )
+    
+    amount_paid = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text="Amount paid for this installment"
+    )
+    
+    late_fee_applied = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text="Late fees applied (0.1% per day, max 50% of amount due)"
+    )
+    
+    # Status
+    is_paid = models.BooleanField(
+        default=False,
+        help_text="Whether this installment has been paid"
+    )
+    
+    payment_date = models.DateField(
+        blank=True,
+        null=True,
+        help_text="Date payment was received"
+    )
+    
+    # Additional Information
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Additional notes"
+    )
+    
+    # System Fields
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Custom Manager
+    objects = InsurancePaymentScheduleManager()
+    
+    class Meta:
+        ordering = ['installment_number']
+        verbose_name = 'Insurance Payment Schedule'
+        verbose_name_plural = 'Insurance Payment Schedules'
+        unique_together = ['policy', 'installment_number']
+        indexes = [
+            models.Index(fields=['due_date']),
+            models.Index(fields=['is_paid']),
+            models.Index(fields=['policy', 'due_date']),
+        ]
+    
+    def __str__(self):
+        return f"Installment {self.installment_number} - Due: {self.due_date}"
+    
+    @property
+    def is_overdue(self):
+        """Check if this schedule is overdue"""
+        if not self.is_paid:
+            return timezone.now().date() > self.due_date
+        return False
+    
+    @property
+    def days_overdue(self):
+        """Calculate number of days overdue"""
+        if self.is_overdue:
+            delta = timezone.now().date() - self.due_date
+            return delta.days
+        return 0
+    
+    @property
+    def remaining_amount(self):
+        """Calculate remaining amount to be paid"""
+        return self.amount_due - self.amount_paid
+    
+    @property
+    def is_partial_payment(self):
+        """Check if partial payment has been made"""
+        return self.amount_paid > 0 and self.amount_paid < self.amount_due
+    
+    def calculate_late_fee(self):
+        """
+        Calculate late fee for overdue installment
+        0.1% per day, capped at 50% of amount due
+        """
+        if self.is_overdue and not self.is_paid:
+            days_overdue = self.days_overdue
+            daily_rate = Decimal('0.001')  # 0.1% per day
+            fee = self.amount_due * daily_rate * Decimal(str(days_overdue))
+            
+            # Cap at 50% of amount due
+            max_fee = self.amount_due * Decimal('0.50')
+            return min(fee, max_fee)
+        return Decimal('0.00')
+    
+    def update_late_fees(self):
+        """Update late fees and save"""
+        self.late_fee_applied = self.calculate_late_fee()
+        self.save(update_fields=['late_fee_applied'])
+    
+    def mark_as_paid(self, payment, amount=None):
+        """Mark this schedule as paid"""
+        if amount is None:
+            amount = self.remaining_amount
+        
+        self.payment = payment
+        self.amount_paid += amount
+        self.payment_date = payment.payment_date
+        
+        if self.amount_paid >= self.amount_due:
+            self.is_paid = True
+        
+        self.save()

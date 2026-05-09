@@ -17,28 +17,21 @@ class ClientForm(forms.ModelForm):
     """
     Form for creating and updating client information
     """
-    # Phone number validator
-    phone_regex = RegexValidator(
-        regex=r'^(\+?254|0)[17]\d{8}$',
-        message="Phone number must be in format: '0712345678' or '+254712345678'"
-    )
-    
+    # Phone fields — no format validation, accept any international number
     phone_primary = forms.CharField(
-        validators=[phone_regex],
-        max_length=15,
+        max_length=20,
         widget=forms.TextInput(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-            'placeholder': '0712345678'
+            'placeholder': 'e.g. 0712345678 or +254712345678'
         })
     )
     
     phone_secondary = forms.CharField(
-        validators=[phone_regex],
-        max_length=15,
+        max_length=20,
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-            'placeholder': '0723456789 (Optional)'
+            'placeholder': 'Alternative phone (Optional)'
         })
     )
     
@@ -46,7 +39,7 @@ class ClientForm(forms.ModelForm):
         model = Client
         fields = [
             'first_name', 'other_names', 'last_name',
-            'id_type', 'id_number',
+            'id_type', 'id_number', 'kra_pin',
             'phone_primary', 'phone_secondary', 'email',
             'physical_address', 'postal_address',
             'city', 'county',
@@ -77,6 +70,10 @@ class ClientForm(forms.ModelForm):
             'id_number': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': 'ID/Passport Number'
+            }),
+            'kra_pin': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': 'e.g. A012345678Z (Optional)'
             }),
             'email': forms.EmailInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
@@ -187,7 +184,10 @@ class ClientVehicleForm(forms.ModelForm):
         fields = [
             'vehicle',
             'purchase_date', 'purchase_price',
-            'deposit_paid', 'monthly_installment', 'installment_months',
+            'deposit_paid', 'payment_type',
+            'remainder_payment_type', 'monthly_payment_date', 'weekly_payment_day',
+            'allow_flexible_payments',
+            'monthly_installment', 'installment_months',
             'interest_rate',
             'notes'
         ]
@@ -209,6 +209,24 @@ class ClientVehicleForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '0.00',
                 'step': '0.01'
+            }),
+            'payment_type': forms.RadioSelect(attrs={
+                'class': 'flex gap-6'
+            }),
+            'remainder_payment_type': forms.RadioSelect(attrs={
+                'class': 'flex gap-4'
+            }),
+            'monthly_payment_date': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': '12',
+                'min': '1',
+                'max': '31'
+            }),
+            'weekly_payment_day': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+            }),
+            'allow_flexible_payments': forms.CheckboxInput(attrs={
+                'class': 'h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded'
             }),
             'monthly_installment': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
@@ -246,17 +264,30 @@ class ClientVehicleForm(forms.ModelForm):
             )
         else:
             self.fields['vehicle'].queryset = Vehicle.objects.filter(status='available')
+        
+        # Customize vehicle field to display chassis number
+        self.fields['vehicle'].label_from_instance = lambda obj: f"{obj.year} {obj.make} {obj.model} - {obj.chassis_number}" if obj.chassis_number else f"{obj.year} {obj.make} {obj.model}"
             
-        # Make interest rate optional and default to 0
-        self.fields['interest_rate'].required = False
+        # Make optional fields non-required
+        optional_fields = [
+            'interest_rate', 'remainder_payment_type', 'monthly_payment_date',
+            'weekly_payment_day', 'monthly_installment', 'installment_months'
+        ]
+        for field_name in optional_fields:
+            self.fields[field_name].required = False
     
     def clean(self):
-        """Validate vehicle assignment"""
+        """Validate vehicle assignment and payment plan"""
         cleaned_data = super().clean()
         client = self.client
         vehicle = cleaned_data.get('vehicle')
         deposit_paid = cleaned_data.get('deposit_paid')
         purchase_price = cleaned_data.get('purchase_price')
+        payment_type = cleaned_data.get('payment_type')
+        remainder_payment_type = cleaned_data.get('remainder_payment_type')
+        monthly_payment_date = cleaned_data.get('monthly_payment_date')
+        weekly_payment_day = cleaned_data.get('weekly_payment_day')
+        installment_months = cleaned_data.get('installment_months')
         
         # Default interest rate to 0 if left blank
         if cleaned_data.get('interest_rate') is None:
@@ -274,6 +305,27 @@ class ClientVehicleForm(forms.ModelForm):
                 raise ValidationError("Deposit cannot exceed purchase price.")
             if deposit_paid < 0:
                 raise ValidationError("Deposit cannot be negative.")
+        
+        # Validate payment type-specific requirements
+        if payment_type == 'installment':
+            if not installment_months or installment_months < 1:
+                raise ValidationError("Please specify the number of months for installment payments.")
+            if remainder_payment_type not in ['monthly', 'weekly']:
+                raise ValidationError("Please select whether payments are monthly or weekly.")
+            if remainder_payment_type == 'monthly' and not monthly_payment_date:
+                raise ValidationError("Please specify the day of month for monthly payments.")
+            if remainder_payment_type == 'weekly' and weekly_payment_day is None:
+                raise ValidationError("Please select the day of week for weekly payments.")
+        
+        elif payment_type == 'flexible':
+            if not installment_months or installment_months < 1:
+                raise ValidationError("Please specify the maximum number of months for flexible payments.")
+            if remainder_payment_type not in ['monthly', 'weekly']:
+                raise ValidationError("Please select whether payments are monthly or weekly.")
+            if remainder_payment_type == 'monthly' and not monthly_payment_date:
+                raise ValidationError("Please specify the day of month for monthly payments.")
+            if remainder_payment_type == 'weekly' and weekly_payment_day is None:
+                raise ValidationError("Please select the day of week for weekly payments.")
         
         # Check client credit limit (only if a limit is set > 0)
         if client and purchase_price and client.credit_limit > 0:

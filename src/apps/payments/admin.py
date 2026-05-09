@@ -402,7 +402,7 @@ class InstallmentPlanAdmin(admin.ModelAdmin):
     
     def progress_bar(self, obj):
         """Display payment progress as progress bar"""
-        progress = obj.payment_progress
+        progress = float(obj.payment_progress) if obj.payment_progress else 0.0
         if progress >= 100:
             color = '#28a745'
             text = 'COMPLETED'

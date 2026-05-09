@@ -103,20 +103,26 @@ class Client(models.Model):
         help_text='National ID or Passport number'
     )
     
+    kra_pin = models.CharField(
+        'KRA PIN',
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text='Kenya Revenue Authority Personal Identification Number'
+    )
+    
     # Contact Information
     phone_primary = models.CharField(
         'Primary Phone',
         max_length=20,
-        validators=[validate_phone_number],
-        help_text='Format: +254712345678 or 0712345678'
+        help_text='International or local format accepted'
     )
     
     phone_secondary = models.CharField(
         'Secondary Phone',
         max_length=20,
-        validators=[validate_phone_number],
         blank=True,
-        help_text='Alternative phone number'
+        help_text='Alternative phone number (optional)'
     )
     
     email = models.EmailField(
@@ -433,6 +439,68 @@ class ClientVehicle(models.Model):
         help_text='Annual interest rate'
     )
     
+    # Payment Type & Flexibility
+    PAYMENT_TYPE_CHOICES = [
+        ('full', 'Pay in Full'),
+        ('installment', 'Monthly Installments'),
+        ('flexible', 'Flexible (Monthly or Weekly)'),
+    ]
+    
+    payment_type = models.CharField(
+        'Payment Type',
+        max_length=20,
+        choices=PAYMENT_TYPE_CHOICES,
+        default='installment',
+        help_text='How the client will pay for the vehicle'
+    )
+    
+    remainder_payment_type = models.CharField(
+        'Remainder Payment Type',
+        max_length=20,
+        choices=[
+            ('monthly', 'Monthly'),
+            ('weekly', 'Weekly'),
+        ],
+        default='monthly',
+        blank=True,
+        null=True,
+        help_text='Whether remainder is paid monthly or weekly'
+    )
+    
+    monthly_payment_date = models.IntegerField(
+        'Monthly Payment Date',
+        default=12,
+        validators=[MinValueValidator(1)],
+        blank=True,
+        null=True,
+        help_text='Day of month for monthly payments (1-31, e.g., 12 for 12th of month)'
+    )
+    
+    WEEKDAY_CHOICES = [
+        (0, 'Monday'),
+        (1, 'Tuesday'),
+        (2, 'Wednesday'),
+        (3, 'Thursday'),
+        (4, 'Friday'),
+        (5, 'Saturday'),
+        (6, 'Sunday'),
+    ]
+    
+    weekly_payment_day = models.IntegerField(
+        'Weekly Payment Day',
+        choices=WEEKDAY_CHOICES,
+        default=2,
+        blank=True,
+        null=True,
+        help_text='Day of week for weekly payments (0=Monday, 6=Sunday)'
+    )
+    
+    allow_flexible_payments = models.BooleanField(
+        'Allow Flexible Payments',
+        default=False,
+        help_text='Allow client to make payments at any time, with flexible scheduling'
+    )
+    
     # Status
     is_active = models.BooleanField(
         'Active',
@@ -588,3 +656,231 @@ class ClientDocument(models.Model):
         if self.file:
             return os.path.splitext(self.file.name)[1].lower()
         return ""
+
+
+# ==================== VEHICLE TRACKER MODEL ====================
+
+class VehicleTracker(models.Model):
+    """
+    Track one or more GPS/vehicle trackers installed on a client's vehicle.
+    Each tracker has its own buying & selling price and optional payment plan.
+    """
+
+    client_vehicle = models.ForeignKey(
+        ClientVehicle,
+        on_delete=models.CASCADE,
+        related_name='trackers',
+        help_text='Vehicle purchase this tracker is linked to'
+    )
+
+    tracker_name = models.CharField(
+        'Tracker Name / Model',
+        max_length=200,
+        help_text='e.g. Teltonika FMB920'
+    )
+
+    serial_number = models.CharField(
+        'Serial Number / IMEI',
+        max_length=100,
+        blank=True,
+        help_text='Device serial number or IMEI'
+    )
+
+    provider = models.CharField(
+        'Provider / Vendor',
+        max_length=200,
+        blank=True,
+        help_text='Company or person supplying the tracker'
+    )
+
+    buying_price = models.DecimalField(
+        'Buying Price (KES)',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Amount dealer paid for this tracker'
+    )
+
+    selling_price = models.DecimalField(
+        'Selling Price (KES)',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Amount client is charged for this tracker'
+    )
+
+    # Payment plan fields
+    has_payment_plan = models.BooleanField(
+        'Has Payment Plan',
+        default=False,
+        help_text='Whether client pays for this tracker in installments'
+    )
+
+    deposit = models.DecimalField(
+        'Deposit (KES)',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        blank=True,
+    )
+
+    installment_months = models.PositiveIntegerField(
+        'Installment Months',
+        null=True,
+        blank=True,
+    )
+
+    interest_rate = models.DecimalField(
+        'Interest Rate (%)',
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Annual interest rate for payment plan (%)',
+        blank=True,
+    )
+
+    monthly_installment = models.DecimalField(
+        'Monthly Installment (KES)',
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    total_paid = models.DecimalField(
+        'Total Paid (KES)',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+    )
+
+    balance = models.DecimalField(
+        'Balance (KES)',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+    )
+
+    installed_date = models.DateField(
+        'Installation Date',
+        null=True,
+        blank=True,
+    )
+
+    notes = models.TextField(
+        'Notes',
+        blank=True,
+    )
+
+    created_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='trackers_added',
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'vehicle_trackers'
+        verbose_name = 'Vehicle Tracker'
+        verbose_name_plural = 'Vehicle Trackers'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.tracker_name} — {self.client_vehicle}"
+
+    def save(self, *args, **kwargs):
+        # Auto-compute balance
+        self.balance = self.selling_price - self.total_paid
+        
+        # Auto-calculate monthly installment if payment plan is enabled
+        if self.has_payment_plan and self.deposit is not None and \
+           self.installment_months and self.selling_price:
+            
+            balance_after_deposit = self.selling_price - self.deposit
+            
+            # Calculate total with interest
+            if self.interest_rate and self.interest_rate > Decimal('0.00'):
+                rate = Decimal(str(self.interest_rate)) / Decimal('100.00')
+                months = Decimal(str(self.installment_months))
+                interest = balance_after_deposit * rate * (months / Decimal('12.00'))
+                total_with_interest = balance_after_deposit + interest
+            else:
+                total_with_interest = balance_after_deposit
+            
+            # Calculate monthly installment
+            if self.installment_months and total_with_interest:
+                self.monthly_installment = round(
+                    total_with_interest / Decimal(str(self.installment_months)),
+                    2
+                )
+        
+        super().save(*args, **kwargs)
+
+    @property
+    def profit(self):
+        return self.selling_price - self.buying_price
+
+
+# ==================== VEHICLE SALE WITNESS MODEL ====================
+
+class VehicleSaleWitness(models.Model):
+    """
+    Broker / witness present at the time of vehicle sale.
+    A sale can have 1 or 2 witnesses.
+    """
+
+    ROLE_CHOICES = [
+        ('broker', 'Broker'),
+        ('witness', 'Witness'),
+        ('other', 'Other'),
+    ]
+
+    client_vehicle = models.ForeignKey(
+        ClientVehicle,
+        on_delete=models.CASCADE,
+        related_name='witnesses',
+        help_text='Vehicle sale this witness is linked to'
+    )
+
+    role = models.CharField(
+        'Role',
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default='witness',
+    )
+
+    full_name = models.CharField(
+        'Full Name',
+        max_length=200,
+    )
+
+    id_number = models.CharField(
+        'ID / Passport Number',
+        max_length=50,
+        blank=True,
+    )
+
+    phone = models.CharField(
+        'Phone Number',
+        max_length=30,
+        blank=True,
+    )
+
+    notes = models.TextField(
+        'Notes',
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'vehicle_sale_witnesses'
+        verbose_name = 'Sale Witness / Broker'
+        verbose_name_plural = 'Sale Witnesses / Brokers'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.get_role_display()}: {self.full_name}"
