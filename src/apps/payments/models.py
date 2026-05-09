@@ -322,14 +322,6 @@ class InstallmentPlan(models.Model):
         help_text="Number of monthly installments"
     )
     
-    interest_rate = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=Decimal('0.00'),
-        validators=[MinValueValidator(Decimal('0.00'))],
-        help_text="Annual interest rate (%)"
-    )
-    
     # Dates
     start_date = models.DateField(
         help_text="Date when payment plan starts"
@@ -393,14 +385,8 @@ class InstallmentPlan(models.Model):
             
         if not self.monthly_installment and self.total_amount is not None and self.deposit is not None and self.number_of_installments:
             principal = self.total_amount - self.deposit
-            if self.interest_rate > 0:
-                rate = Decimal(str(self.interest_rate)) / Decimal('100.00')
-                months = Decimal(str(self.number_of_installments))
-                interest = principal * rate * (months / Decimal('12.00'))
-                total_with_interest = principal + interest
-            else:
-                total_with_interest = principal
-            self.monthly_installment = round(total_with_interest / Decimal(str(self.number_of_installments)), 2)
+            # No interest - balance is simply selling price - deposit
+            self.monthly_installment = round(principal / Decimal(str(self.number_of_installments)), 2)
             
         super().save(*args, **kwargs)
     
