@@ -317,16 +317,14 @@ class Command(BaseCommand):
             
             purchase_date = datetime.now().date() - timedelta(days=random.randint(30, 730))
             
-            # Generate unique VIN and Chassis Number
+            # Generate unique VIN
             vin = f'VIN{year}{random.randint(1000000, 9999999)}'
-            chassis = f'CH{year}{random.randint(100000, 999999)}'
             
             vehicle = Vehicle.objects.create(
                 make=make,
                 model=model,
                 year=year,
                 vin=vin,
-                chassis_number=chassis,
                 registration_number=f'K{random.choice("ABCDEFGH")}{random.randint(100, 999)}{random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")}',
                 color=random.choice(['White', 'Black', 'Silver', 'Blue', 'Red', 'Gray', 'Pearl']),
                 mileage=random.randint(10000, 150000),
