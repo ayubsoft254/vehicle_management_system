@@ -195,7 +195,8 @@ class ClientVehicleForm(forms.ModelForm):
         
         widgets = {
             'vehicle': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent vehicle-select',
+                'data-placeholder': 'Search by Make, Model, VIN or Registration...'
             }),
             'broker_name': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
