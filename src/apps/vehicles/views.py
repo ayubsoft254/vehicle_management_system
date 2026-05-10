@@ -18,6 +18,39 @@ from utils.constants import UserRole, VehicleStatus, AccessLevel
 from apps.audit.models import AuditLog
 import csv
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
+
+
+def _extract_extra_cost_entries(post_data):
+    """Extract extra costs from submitted form data and return (entries, total)."""
+    entries = []
+    total = Decimal('0.00')
+
+    for key in sorted(post_data.keys()):
+        if not key.startswith('extra_cost_description_'):
+            continue
+
+        index = key.replace('extra_cost_description_', '')
+        amount_key = f'extra_cost_amount_{index}'
+
+        description = (post_data.get(key) or '').strip()
+        amount_str = (post_data.get(amount_key) or '').strip()
+
+        if not description or not amount_str:
+            continue
+
+        try:
+            amount = Decimal(amount_str)
+        except (InvalidOperation, TypeError):
+            continue
+
+        if amount <= 0:
+            continue
+
+        entries.append((description, amount))
+        total += amount
+
+    return entries, total
 
 
 def vehicle_list_view(request):
@@ -148,10 +181,22 @@ def vehicle_detail_view(request, pk):
         except Exception as e:
             # Silently fail if audit logging fails
             pass
+
+    extra_cost_total = vehicle.extra_costs.aggregate(total=Sum('amount'))['total'] or 0
+    total_additional_cost = (
+        vehicle.duty_cost +
+        vehicle.clearance_cost +
+        vehicle.commission_cost +
+        extra_cost_total
+    )
+    total_cost = vehicle.purchase_price + total_additional_cost
     
     context = {
         'vehicle': vehicle,
         'history': history,
+        'extra_cost_total': extra_cost_total,
+        'total_additional_cost': total_additional_cost,
+        'total_cost': total_cost,
     }
     return render(request, 'vehicles/vehicle_detail.html', context)
 
@@ -173,41 +218,30 @@ def vehicle_create_view(request):
         
         if form.is_valid():
             print("✓ Form is VALID!")
+            extra_cost_entries, extra_cost_total = _extract_extra_cost_entries(request.POST)
+
             vehicle = form.save(commit=False)
+            vehicle.selling_price = (
+                vehicle.purchase_price +
+                vehicle.duty_cost +
+                vehicle.clearance_cost +
+                vehicle.commission_cost +
+                extra_cost_total
+            )
             vehicle.added_by = request.user
             vehicle.save()
             
             # Handle extra costs
             from .models import VehicleExtraCost
-            from decimal import Decimal
-            
-            # Process extra costs from form data
-            index = 0
-            while True:
-                desc_key = f'extra_cost_description_{index}'
-                amount_key = f'extra_cost_amount_{index}'
-                
-                if desc_key not in request.POST or amount_key not in request.POST:
-                    break
-                
-                description = request.POST.get(desc_key, '').strip()
-                amount_str = request.POST.get(amount_key, '').strip()
-                
-                if description and amount_str:
-                    try:
-                        amount = Decimal(amount_str)
-                        if amount > 0:
-                            VehicleExtraCost.objects.create(
-                                vehicle=vehicle,
-                                description=description,
-                                amount=amount,
-                                added_by=request.user
-                            )
-                            print(f"✓ Created extra cost: {description} - {amount}")
-                    except Exception as e:
-                        print(f"✗ Error creating extra cost: {e}")
-                
-                index += 1
+
+            for description, amount in extra_cost_entries:
+                VehicleExtraCost.objects.create(
+                    vehicle=vehicle,
+                    description=description,
+                    amount=amount,
+                    added_by=request.user
+                )
+                print(f"✓ Created extra cost: {description} - {amount}")
             
             # Log creation
             AuditLog.log_create(
@@ -236,9 +270,18 @@ def vehicle_create_view(request):
     else:
         form = VehicleForm()
     
+    extra_cost_entries = []
+    if request.method == 'POST':
+        parsed_entries, _ = _extract_extra_cost_entries(request.POST)
+        extra_cost_entries = [
+            {'description': description, 'amount': amount}
+            for description, amount in parsed_entries
+        ]
+
     context = {
         'form': form,
         'title': 'Add New Vehicle',
+        'extra_cost_entries': extra_cost_entries,
     }
     return render(request, 'vehicles/vehicle_form.html', context)
 
@@ -260,38 +303,29 @@ def vehicle_update_view(request, pk):
     if request.method == 'POST':
         form = VehicleForm(request.POST, request.FILES, instance=vehicle)
         if form.is_valid():
-            vehicle = form.save()
+            extra_cost_entries, extra_cost_total = _extract_extra_cost_entries(request.POST)
+
+            vehicle = form.save(commit=False)
+            vehicle.selling_price = (
+                vehicle.purchase_price +
+                vehicle.duty_cost +
+                vehicle.clearance_cost +
+                vehicle.commission_cost +
+                extra_cost_total
+            )
+            vehicle.save()
             
             # Handle extra costs
             from .models import VehicleExtraCost
-            from decimal import Decimal
-            
-            # Process extra costs from form data
-            index = 0
-            while True:
-                desc_key = f'extra_cost_description_{index}'
-                amount_key = f'extra_cost_amount_{index}'
-                
-                if desc_key not in request.POST or amount_key not in request.POST:
-                    break
-                
-                description = request.POST.get(desc_key, '').strip()
-                amount_str = request.POST.get(amount_key, '').strip()
-                
-                if description and amount_str:
-                    try:
-                        amount = Decimal(amount_str)
-                        if amount > 0:
-                            VehicleExtraCost.objects.create(
-                                vehicle=vehicle,
-                                description=description,
-                                amount=amount,
-                                added_by=request.user
-                            )
-                    except Exception as e:
-                        pass
-                
-                index += 1
+
+            vehicle.extra_costs.all().delete()
+            for description, amount in extra_cost_entries:
+                VehicleExtraCost.objects.create(
+                    vehicle=vehicle,
+                    description=description,
+                    amount=amount,
+                    added_by=request.user
+                )
             
             # Detect changes
             changes = {}
@@ -312,11 +346,21 @@ def vehicle_update_view(request, pk):
             return redirect('vehicles:detail', pk=vehicle.pk)
     else:
         form = VehicleForm(instance=vehicle)
+
+    if request.method == 'POST':
+        parsed_entries, _ = _extract_extra_cost_entries(request.POST)
+        extra_cost_entries = [
+            {'description': description, 'amount': amount}
+            for description, amount in parsed_entries
+        ]
+    else:
+        extra_cost_entries = list(vehicle.extra_costs.values('description', 'amount'))
     
     context = {
         'form': form,
         'vehicle': vehicle,
         'title': f'Edit Vehicle: {vehicle.full_name}',
+        'extra_cost_entries': extra_cost_entries,
     }
     return render(request, 'vehicles/vehicle_form.html', context)
 
