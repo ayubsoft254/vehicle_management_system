@@ -847,6 +847,37 @@ def client_vehicle_update(request, pk):
     return render(request, 'clients/assign_vehicle.html', context)
 
 
+@login_required
+def download_sales_agreement(request, client_vehicle_pk):
+    """
+    Download sales agreement PDF for a vehicle purchase
+    """
+    client_vehicle = get_object_or_404(ClientVehicle, pk=client_vehicle_pk)
+    
+    # Check permission
+    if request.user.client and request.user.client != client_vehicle.client:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    try:
+        from apps.documents.sales_agreement_pdf import generate_sales_agreement_pdf
+        
+        pdf_buffer = generate_sales_agreement_pdf(client_vehicle)
+        
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        filename = f"Sales_Agreement_{client_vehicle.vehicle.registration_number}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        log_audit(
+            request.user, 'download', 'ClientVehicle',
+            f'Downloaded sales agreement for {client_vehicle.client.get_full_name()}'
+        )
+        
+        return response
+    except Exception as e:
+        messages.error(request, f'Error generating PDF: {str(e)}')
+        return redirect('clients:client_vehicle_detail', pk=client_vehicle_pk)
+
+
 # ==================== PAYMENT VIEWS ====================
 
 @login_required
