@@ -93,6 +93,14 @@
                     </svg>
                     Change Status
                 </a>
+
+                <a href="{% url 'vehicles:move' vehicle.pk %}"
+                   class="inline-flex items-center px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white font-medium rounded-lg transition duration-150">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5h6v14H5z"/>
+                    </svg>
+                    Move Vehicle
+                </a>
                 
                 <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" 
                    class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition duration-150">
@@ -101,12 +109,19 @@
                     </svg>
                     Add Photos
                 </a>
-
-                <form action="{% url 'vehicles:toggle_featured' vehicle.pk %}" method="post" class="inline">
+                            {% if vehicle.location_driver_name %}
+                                {{ vehicle.location_driver_name }}
                     {% csrf_token %}
-                    <button type="submit" 
+                                Not recorded
                             class="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition duration-150">
                         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        {% if vehicle.location_driver_phone or vehicle.location_driver_id_number %}
+                            <p class="mt-1 text-xs text-gray-500">
+                                {% if vehicle.location_driver_phone %}Phone: {{ vehicle.location_driver_phone }}{% endif %}
+                                {% if vehicle.location_driver_phone and vehicle.location_driver_id_number %} | {% endif %}
+                                {% if vehicle.location_driver_id_number %}ID: {{ vehicle.location_driver_id_number }}{% endif %}
+                            </p>
+                        {% endif %}
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                         </svg>
                         {% if vehicle.is_featured %}Remove Featured{% else %}Mark Featured{% endif %}
@@ -534,6 +549,40 @@
                             {% endif %}
                         </span>
                     </div>
+
+                    <div class="pt-4 border-t border-gray-200">
+                        <p class="text-sm font-medium text-gray-500 mb-1">Current Location</p>
+                        <p class="text-sm text-gray-900">{{ vehicle.get_location_display|default:'Not set' }}</p>
+                    </div>
+
+                    <div class="pt-2 border-t border-gray-200">
+                        <p class="text-sm font-medium text-gray-500 mb-1">Moved To Current Location On</p>
+                        <p class="text-sm text-gray-900">
+                            {% if vehicle.location_moved_date %}
+                                {{ vehicle.location_moved_date|date:"M d, Y" }}
+                            {% else %}
+                                Not recorded
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <div class="pt-2 border-t border-gray-200">
+                        <p class="text-sm font-medium text-gray-500 mb-1">Moved By</p>
+                        <p class="text-sm text-gray-900">
+                            {% if vehicle.location_driver_name %}
+                                {{ vehicle.location_driver_name }}
+                            {% else %}
+                                Not recorded
+                            {% endif %}
+                        </p>
+                        {% if vehicle.location_driver_phone or vehicle.location_driver_id_number %}
+                        <p class="mt-1 text-xs text-gray-500">
+                            {% if vehicle.location_driver_phone %}Phone: {{ vehicle.location_driver_phone }}{% endif %}
+                            {% if vehicle.location_driver_phone and vehicle.location_driver_id_number %} | {% endif %}
+                            {% if vehicle.location_driver_id_number %}ID: {{ vehicle.location_driver_id_number }}{% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
                     
                     <div class="pt-4 border-t border-gray-200">
                         <p class="text-sm font-medium text-gray-500 mb-1">Added By</p>
@@ -555,6 +604,54 @@
             <!-- Quick Actions Card -->
             {% can_edit user 'vehicles' as can_edit_vehicles %}
             {% can_delete user 'vehicles' as can_delete_vehicles %}
+
+            {% if location_history %}
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-bold text-gray-900">Location History</h2>
+                </div>
+                <div class="p-6 space-y-3">
+                    {% for move in location_history %}
+                    <div class="rounded-lg border border-gray-200 p-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900">
+                                    {% if move.from_location %}
+                                        {{ move.get_from_location_display }} to {{ move.get_to_location_display }}
+                                    {% else %}
+                                        Set to {{ move.get_to_location_display }}
+                                    {% endif %}
+                                </p>
+                                <p class="text-sm text-gray-500">
+                                    {% if move.driver_name %}
+                                        Driver: {{ move.driver_name }}
+                                    {% else %}
+                                        Driver details not recorded
+                                    {% endif %}
+                                </p>
+                                {% if move.driver_phone or move.driver_id_number %}
+                                <p class="text-xs text-gray-500 mt-1">
+                                    {% if move.driver_phone %}Phone: {{ move.driver_phone }}{% endif %}
+                                    {% if move.driver_phone and move.driver_id_number %} | {% endif %}
+                                    {% if move.driver_id_number %}ID: {{ move.driver_id_number }}{% endif %}
+                                </p>
+                                {% endif %}
+                                {% if move.notes %}
+                                <p class="text-sm text-gray-600 mt-2">{{ move.notes }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="text-right text-sm text-gray-500">
+                                {% if move.moved_date %}
+                                    <p>{{ move.moved_date|date:"M d, Y" }}</p>
+                                {% endif %}
+                                <p>Logged {{ move.recorded_at|date:"M d, Y g:i A" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
             
             <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
