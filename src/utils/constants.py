@@ -40,6 +40,20 @@ class VehicleStatus:
         (MAINTENANCE, 'Under Maintenance'),
     ]
 
+
+class VehicleLocation:
+    YARD_1 = 'yard_1'
+    YARD_2 = 'yard_2'
+    YARD_3 = 'yard_3'
+    SHOWROOM = 'showroom'
+
+    CHOICES = [
+        (YARD_1, 'Yard 1'),
+        (YARD_2, 'Yard 2'),
+        (YARD_3, 'Yard 3'),
+        (SHOWROOM, 'Showroom'),
+    ]
+
 # Payment Status
 class PaymentStatus:
     PENDING = 'pending'
