@@ -227,8 +227,10 @@ ACCOUNT_SESSION_REMEMBER = True  # Remember user session
 ACCOUNT_SIGNUP_PASSWORD_ENTER_TWICE = True
 
 # Rate limiting (Updated for allauth v65+)
+# Format: 'N/S' where N = max attempts, S = window in seconds
+# e.g. '5/300' = 5 attempts per 300 seconds (5 minutes)
 ACCOUNT_RATE_LIMITS = {
-    'login_failed': '5/5m',  # 5 attempts per 5 minutes
+    'login_failed': '5/300',  # 5 attempts per 5 minutes
 }
 
 # Email confirmation settings
