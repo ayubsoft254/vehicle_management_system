@@ -189,6 +189,55 @@
                         {% if form.deposit_paid.errors %}<p class="mt-1 text-sm text-red-600">{{ form.deposit_paid.errors.0 }}</p>{% endif %}
                     </div>
                 </div>
+
+                <!-- Deposit Payment Methods (shown when deposit > 0) -->
+                <div id="deposit-payment-methods-section" class="hidden mt-6 pt-4 border-t border-gray-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-wallet mr-2 text-green-600"></i>How is the deposit being paid?</h3>
+                        <div class="flex items-center gap-3">
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="radio" name="deposit_payment_mode" value="single" class="h-4 w-4 text-primary-600" checked onchange="toggleDepositPaymentMode(this.value)">
+                                <span class="text-sm text-gray-700">Single method</span>
+                            </label>
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="radio" name="deposit_payment_mode" value="split" class="h-4 w-4 text-primary-600" onchange="toggleDepositPaymentMode(this.value)">
+                                <span class="text-sm text-gray-700">Split methods</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Single method -->
+                    <div id="deposit-single-method" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                            <select name="deposit_payment_method" class="form-input">
+                                <option value="cash">Cash</option>
+                                <option value="mpesa">M-Pesa</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="cheque">Cheque</option>
+                                <option value="card">Card</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Reference (optional)</label>
+                            <input type="text" name="deposit_transaction_reference" class="form-input" placeholder="e.g. MPesa code, cheque no.">
+                        </div>
+                    </div>
+
+                    <!-- Split methods -->
+                    <div id="deposit-split-methods" class="hidden">
+                        <div id="deposit-splits-container" class="space-y-3 mb-3">
+                            <!-- rows added dynamically -->
+                        </div>
+                        <button type="button" onclick="addDepositSplitRow()"
+                            class="px-4 py-2 bg-green-50 hover:bg-green-100 text-green-700 text-sm font-medium rounded-lg border border-green-200 transition duration-150">
+                            <i class="fas fa-plus mr-1"></i>Add Method
+                        </button>
+                        <p id="deposit-split-summary" class="text-sm text-gray-600 mt-2"></p>
+                        <p id="deposit-split-warning" class="text-sm text-red-500 hidden mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>Split total must equal the deposit amount.</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1185,6 +1234,88 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
         
         return null;
     }
+
+    // Deposit payment methods section
+    const depositInput = document.getElementById('{{ form.deposit_paid.id_for_label }}');
+    const depositSection = document.getElementById('deposit-payment-methods-section');
+
+    function checkDepositSection() {
+        const val = parseFloat(depositInput?.value || '0');
+        if (val > 0) {
+            depositSection?.classList.remove('hidden');
+        } else {
+            depositSection?.classList.add('hidden');
+        }
+        updateDepositSplitSummary();
+    }
+    depositInput?.addEventListener('input', checkDepositSection);
+    checkDepositSection();
 });
+
+// ==================== Deposit split methods ====================
+function toggleDepositPaymentMode(mode) {
+    document.getElementById('deposit-single-method').classList.toggle('hidden', mode === 'split');
+    document.getElementById('deposit-split-methods').classList.toggle('hidden', mode !== 'split');
+    if (mode === 'split' && document.querySelectorAll('.deposit-split-row').length === 0) {
+        addDepositSplitRow();
+        addDepositSplitRow();
+    }
+    updateDepositSplitSummary();
+}
+
+function addDepositSplitRow() {
+    const container = document.getElementById('deposit-splits-container');
+    const idx = container.querySelectorAll('.deposit-split-row').length + 1;
+    const row = document.createElement('div');
+    row.className = 'deposit-split-row grid grid-cols-1 md:grid-cols-12 gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg';
+    row.innerHTML = `
+        <div class="md:col-span-4">
+            <label class="block text-xs text-gray-600 mb-1">Method</label>
+            <select name="deposit_split_method[]" class="form-input deposit-split-method">
+                <option value="cash">Cash</option>
+                <option value="mpesa">M-Pesa</option>
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="cheque">Cheque</option>
+                <option value="card">Card</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+        <div class="md:col-span-4">
+            <label class="block text-xs text-gray-600 mb-1">Amount (KES)</label>
+            <input type="number" name="deposit_split_amount[]" class="form-input deposit-split-amount" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="md:col-span-3">
+            <label class="block text-xs text-gray-600 mb-1">Reference (optional)</label>
+            <input type="text" name="deposit_split_reference[]" class="form-input" placeholder="e.g. MPesa code">
+        </div>
+        <div class="md:col-span-1 flex items-end">
+            <button type="button" onclick="this.closest('.deposit-split-row').remove(); updateDepositSplitSummary();"
+                class="w-full h-10 rounded-md border border-red-200 text-red-600 hover:bg-red-50 transition">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updateDepositSplitSummary));
+    container.appendChild(row);
+    updateDepositSplitSummary();
+}
+
+function updateDepositSplitSummary() {
+    const mode = document.querySelector('input[name="deposit_payment_mode"]:checked')?.value;
+    if (mode !== 'split') return;
+    const depositVal = parseFloat(document.getElementById('{{ form.deposit_paid.id_for_label }}')?.value || '0');
+    const amounts = Array.from(document.querySelectorAll('.deposit-split-amount'))
+        .map(inp => parseFloat(inp.value || '0') || 0);
+    const total = amounts.reduce((a, b) => a + b, 0);
+    const diff = Math.abs(total - depositVal);
+    const summary = document.getElementById('deposit-split-summary');
+    const warning = document.getElementById('deposit-split-warning');
+    if (summary) {
+        summary.textContent = `Split total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2})} / Deposit: KES ${depositVal.toLocaleString('en-KE', {minimumFractionDigits:2})}`;
+    }
+    if (warning) {
+        warning.classList.toggle('hidden', diff <= 0.01);
+    }
+}
 </script>
 {% endblock %}
