@@ -199,6 +199,8 @@ def portal_vehicle_detail(request, vehicle_id):
         client=client,
         vehicle=vehicle.vehicle
     ).order_by('-start_date').first()
+
+    can_view_vin = True
     
     context = {
         'client': client,
@@ -209,6 +211,7 @@ def portal_vehicle_detail(request, vehicle_id):
         'upcoming_schedules': upcoming_schedules,
         'insurance': insurance,
         'today': timezone.now().date(),
+        'can_view_vin': can_view_vin,
     }
     
     return render(request, 'clients/portal/vehicle_detail.html', context)
