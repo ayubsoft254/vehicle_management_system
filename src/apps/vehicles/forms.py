@@ -18,7 +18,7 @@ class VehicleForm(forms.ModelForm):
             'color', 'mileage', 'fuel_type', 'transmission',
             'engine_size', 'body_type', 'seats', 'doors',
             'condition', 'purchase_price', 'selling_price', 'deposit_required',
-            'duty_cost', 'clearance_cost',
+            'duty_cost', 'clearance_cost', 'commission_cost',
             'status', 'is_active', 'is_featured',
             'description', 'features', 'location', 'ship_name', 'vessel_number',
             'purchase_date'
@@ -109,6 +109,11 @@ class VehicleForm(forms.ModelForm):
                 'placeholder': 'Clearance/port cost in KES',
                 'step': '0.01'
             }),
+            'commission_cost': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Commission/agent fee in KES',
+                'step': '0.01'
+            }),
             'status': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
             }),
@@ -158,12 +163,15 @@ class VehicleForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         # Fields with defaults in the model - make optional in form
-        optional_fields = ['seats', 'condition', 'deposit_required']
+        optional_fields = ['seats', 'condition', 'deposit_required', 'duty_cost', 'clearance_cost', 'commission_cost']
         for field_name in optional_fields:
             self.fields[field_name].required = False
             # Remove HTML5 required attribute from widget if present
             if 'required' in self.fields[field_name].widget.attrs:
                 del self.fields[field_name].widget.attrs['required']
+
+        # Selling price is derived from total cost on the form and server side.
+        self.fields['selling_price'].widget.attrs['readonly'] = 'readonly'
         
         # Set initial values for fields with model defaults (for new instances)
         if not self.instance.pk:
@@ -208,16 +216,17 @@ class VehicleForm(forms.ModelForm):
     
     def clean(self):
         cleaned_data = super().clean()
-        selling_price = cleaned_data.get('selling_price')
         purchase_price = cleaned_data.get('purchase_price')
         deposit_required = cleaned_data.get('deposit_required')
-        
-        # Validate selling price is not less than purchase price (warning, not error)
-        if selling_price and purchase_price and selling_price < purchase_price:
-            self.add_error('selling_price', 
-                'Warning: Selling price is less than purchase price. This will result in a loss.')
+        duty_cost = cleaned_data.get('duty_cost') or Decimal('0.00')
+        clearance_cost = cleaned_data.get('clearance_cost') or Decimal('0.00')
+        commission_cost = cleaned_data.get('commission_cost') or Decimal('0.00')
+
+        if purchase_price is not None:
+            cleaned_data['selling_price'] = purchase_price + duty_cost + clearance_cost + commission_cost
         
         # Validate deposit is not more than selling price
+        selling_price = cleaned_data.get('selling_price')
         if deposit_required and selling_price and deposit_required > selling_price:
             raise ValidationError('Deposit cannot be more than selling price.')
         
