@@ -206,7 +206,13 @@
                             {% if form.payment_type.value == value %}checked{% endif %}
                             class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
                             onchange="updatePaymentFields()">
-                        <label for="payment_type_{{ value }}" class="ml-3 text-sm font-medium text-gray-700">{{ label }}</label>
+                        <label for="payment_type_{{ value }}" class="ml-3 text-sm font-medium text-gray-700">
+                            {% if value == 'flexible' %}
+                                Flexible Installments (Custom Dates & Amounts)
+                            {% else %}
+                                {{ label }}
+                            {% endif %}
+                        </label>
                     </div>
                     {% endfor %}
                 </div>
@@ -254,14 +260,29 @@
                     </div>
                 </div>
                 <div id="flexible-payment-section" class="hidden">
-                    <div class="flex items-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <input type="checkbox" id="{{ form.allow_flexible_payments.id_for_label }}" name="{{ form.allow_flexible_payments.name }}"
-                            {% if form.allow_flexible_payments.value %}checked{% endif %}
-                            class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded">
-                        <label for="{{ form.allow_flexible_payments.id_for_label }}" class="ml-3">
-                            <span class="text-sm font-medium text-gray-900">Allow Flexible Payments</span>
-                            <p class="text-xs text-gray-600 mt-0.5">Customer can make payments at any time</p>
-                        </label>
+                    <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900">Flexible Installments</p>
+                                <p class="text-xs text-gray-600 mt-0.5">
+                                    Define installment dates and amounts manually (Installment 1, 2, 3...).
+                                    Total installments must match remaining balance.
+                                </p>
+                            </div>
+                            <button type="button" id="add-flex-installment-btn" class="inline-flex items-center px-3 py-2 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700">
+                                <i class="fas fa-plus mr-1"></i>Add Installment
+                            </button>
+                        </div>
+
+                        <input type="hidden" id="id_flexible_installments_json" name="flexible_installments_json" value="[]">
+                        <input type="hidden" id="{{ form.allow_flexible_payments.id_for_label }}" name="{{ form.allow_flexible_payments.name }}" value="on">
+
+                        <div id="flexible-installments-container" class="space-y-3"></div>
+
+                        <div class="text-xs space-y-1">
+                            <p id="flex-installment-summary" class="text-gray-700">No installments configured yet.</p>
+                            <p id="flex-installment-warning" class="text-red-600 hidden">Installment total must equal remaining balance.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -297,10 +318,7 @@
                             <option value="third_party_fire_theft">Third Party Fire &amp; Theft</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Premium Amount (KES)</label>
-                        <input type="number" name="insurance_premium" id="id_insurance_premium" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="updateProfitLoss()">
-                    </div>
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
                         <input type="date" name="insurance_start_date" id="id_insurance_start_date" class="form-input">
@@ -334,31 +352,38 @@
                     </div>
                 </div>
 
-                <!-- Insurance Payment Plan -->
+                <!-- Insurance Payment Type -->
                 <div class="border-t border-gray-200 pt-6">
-                    <div class="flex items-center mb-4">
-                        <input type="checkbox" id="id_insurance_has_payment_plan" name="insurance_has_payment_plan" class="h-4 w-4 text-primary-600" onchange="toggleInsurancePaymentPlan();updateProfitLoss()">
-                        <label for="id_insurance_has_payment_plan" class="ml-2 text-sm font-medium text-gray-900">Insurance has payment plan</label>
+                    <h3 class="text-sm font-semibold text-gray-900 mb-3">Payment Type</h3>
+                    <div class="flex flex-wrap gap-6 mb-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="insurance_payment_type" value="full" checked onchange="updateInsurancePaymentUI()">
+                            <span class="text-sm font-medium text-gray-700">Full Payment</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="insurance_payment_type" value="flexible" onchange="updateInsurancePaymentUI()">
+                            <span class="text-sm font-medium text-gray-700">Flexible Installments</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="insurance_payment_type" value="deduct_from_deposit" onchange="updateInsurancePaymentUI()">
+                            <span class="text-sm font-medium text-gray-700">Deduct from Deposit</span>
+                        </label>
                     </div>
-                    <div id="insurance-payment-plan-section" class="hidden grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">First Payment Date</label>
-                            <input type="date" name="insurance_first_payment_date" id="id_insurance_first_payment_date" class="form-input" oninput="calculateInsuranceInstallment();updateProfitLoss()">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Last Payment Date</label>
-                            <input type="date" name="insurance_last_payment_date" id="id_insurance_last_payment_date" class="form-input" oninput="calculateInsuranceInstallment();updateProfitLoss()">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Deposit (KES)</label>
-                            <input type="number" name="insurance_deposit" id="id_insurance_deposit" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="calculateInsuranceInstallment();updateProfitLoss()">
-                        </div>
-                        <div class="md:col-span-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Monthly Installment (KES) — Auto-calculated</label>
-                            <input type="number" name="insurance_monthly_installment" id="id_insurance_monthly_installment" placeholder="0.00" step="0.01" min="0" class="form-input bg-gray-100" readonly>
-                            <p class="mt-2 text-xs text-gray-500">
-                                <span id="insurance-calc-summary"></span>
-                            </p>
+                    <!-- Flexible installment rows -->
+                    <div id="insurance-flexible-section" class="hidden">
+                        <input type="hidden" name="insurance_flexible_installments_json" id="id_insurance_flexible_installments_json" value="[]">
+                        <div id="insurance-installments-container" class="space-y-3 mb-3"></div>
+                        <button type="button" onclick="addInsuranceInstallmentRow()" class="mt-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg border border-blue-200 transition duration-150">
+                            <i class="fas fa-plus mr-1"></i>Add Installment
+                        </button>
+                        <p id="insurance-flex-summary" class="text-sm text-gray-600 mt-2"></p>
+                        <p id="insurance-flex-warning" class="text-sm text-red-500 hidden mt-1">Total installments should match the selling price.</p>
+                    </div>
+                    <!-- Deduct from deposit note -->
+                    <div id="insurance-deduct-section" class="hidden">
+                        <div class="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <i class="fas fa-info-circle text-yellow-600"></i>
+                            <p class="text-sm text-yellow-800">The insurance cost will be deducted from the client&#39;s vehicle deposit.</p>
                         </div>
                     </div>
                 </div>
@@ -418,28 +443,37 @@
                             </div>
                         </div>
 
-                        <!-- Payment Plan -->
+                        <!-- Payment Type -->
                         <div class="border-t border-orange-200 pt-4">
-                            <div class="flex items-center mb-3">
-                                <input type="checkbox" name="tracker_has_plan[]" class="h-4 w-4 text-primary-600 tracker-has-plan" onchange="toggleTrackerPaymentPlan(this);updateTrackerExpense()">
-                                <label class="ml-2 text-sm font-medium text-gray-900">Tracker has payment plan</label>
+                            <h4 class="text-xs font-semibold text-gray-900 mb-3 uppercase">Payment Type</h4>
+                            <div class="flex flex-wrap gap-4 mb-3">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="tracker_payment_type[]" value="full" checked onchange="updateTrackerPaymentUI(this)">
+                                    <span class="text-sm font-medium text-gray-700">Full Payment</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="tracker_payment_type[]" value="flexible" onchange="updateTrackerPaymentUI(this)">
+                                    <span class="text-sm font-medium text-gray-700">Flexible Installments</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="tracker_payment_type[]" value="deduct_from_deposit" onchange="updateTrackerPaymentUI(this)">
+                                    <span class="text-sm font-medium text-gray-700">Deduct from Deposit</span>
+                                </label>
                             </div>
-                            <div class="tracker-payment-plan hidden grid grid-cols-1 md:grid-cols-5 gap-3">
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">First Payment Date</label>
-                                    <input type="date" name="tracker_first_payment_date[]" class="form-input text-sm" oninput="updateTrackerExpense()">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">Last Payment Date</label>
-                                    <input type="date" name="tracker_last_payment_date[]" class="form-input text-sm" oninput="updateTrackerExpense()">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">Deposit (KES)</label>
-                                    <input type="number" name="tracker_deposit[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm" oninput="updateTrackerExpense()">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">Monthly (KES)</label>
-                                    <input type="number" name="tracker_monthly[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm bg-gray-100" readonly>
+                            <!-- Flexible installment section -->
+                            <div class="tracker-flexible-section hidden">
+                                <input type="hidden" name="tracker_flexible_installments_json[]" value="[]">
+                                <div class="tracker-installments-container space-y-2 mb-2"></div>
+                                <button type="button" onclick="addTrackerInstallmentRow(this)" class="mt-1 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm font-medium rounded-lg border border-orange-200 transition duration-150">
+                                    <i class="fas fa-plus mr-1"></i>Add Installment
+                                </button>
+                                <p class="tracker-flex-summary text-sm text-gray-600 mt-1"></p>
+                            </div>
+                            <!-- Deduct from deposit note -->
+                            <div class="tracker-deduct-section hidden">
+                                <div class="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <i class="fas fa-info-circle text-yellow-600"></i>
+                                    <p class="text-sm text-yellow-800">The tracker cost will be deducted from the client&#39;s vehicle deposit.</p>
                                 </div>
                             </div>
                         </div>
@@ -542,30 +576,158 @@ const vehicleCostPrices = {{ vehicle_cost_prices_json|safe|default:"{}" }};
 
 function fmt(n) { return 'KES ' + n.toLocaleString('en-KE', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
-function toggleInsurancePaymentPlan() {
-    const checkbox = document.getElementById('id_insurance_has_payment_plan');
-    const section = document.getElementById('insurance-payment-plan-section');
-    if (checkbox && section) {
-        if (checkbox.checked) {
-            section.classList.remove('hidden');
-        } else {
-            section.classList.add('hidden');
-        }
+function updateInsurancePaymentUI() {
+    const val = document.querySelector('input[name="insurance_payment_type"]:checked')?.value;
+    document.getElementById('insurance-flexible-section')?.classList.toggle('hidden', val !== 'flexible');
+    document.getElementById('insurance-deduct-section')?.classList.toggle('hidden', val !== 'deduct_from_deposit');
+    if (val === 'flexible') {
+        ensureInsuranceInstallmentRows();
+        updateInsuranceInstallmentSummary();
     }
 }
 
-function toggleTrackerPaymentPlan(checkbox) {
-    const item = checkbox.closest('.tracker-item');
-    if (item) {
-        const section = item.querySelector('.tracker-payment-plan');
-        if (section) {
-            if (checkbox.checked) {
-                section.classList.remove('hidden');
-            } else {
-                section.classList.add('hidden');
-            }
-        }
+function updateTrackerPaymentUI(radioEl) {
+    const trackerItem = radioEl.closest('.tracker-item');
+    if (!trackerItem) return;
+    const val = radioEl.value;
+    trackerItem.querySelector('.tracker-flexible-section')?.classList.toggle('hidden', val !== 'flexible');
+    trackerItem.querySelector('.tracker-deduct-section')?.classList.toggle('hidden', val !== 'deduct_from_deposit');
+    if (val === 'flexible') {
+        ensureTrackerInstallmentRows(trackerItem);
+        updateTrackerInstallmentSummary(trackerItem);
     }
+}
+
+// --- Insurance flexible installments ---
+function getInsuranceInstallmentRows() {
+    return Array.from(document.querySelectorAll('#insurance-installments-container .ins-installment-row'));
+}
+
+function ensureInsuranceInstallmentRows() {
+    if (getInsuranceInstallmentRows().length === 0) addInsuranceInstallmentRow();
+}
+
+function syncInsuranceInstallmentsPayload() {
+    const payloadInput = document.getElementById('id_insurance_flexible_installments_json');
+    if (!payloadInput) return;
+    const data = getInsuranceInstallmentRows().map(row => ({
+        due_date: row.querySelector('input[name="ins_installment_due_date[]"]')?.value.trim() || '',
+        amount:   row.querySelector('input[name="ins_installment_amount[]"]')?.value.trim() || '',
+    })).filter(i => i.due_date || i.amount);
+    payloadInput.value = JSON.stringify(data);
+}
+
+function updateInsuranceInstallmentSummary() {
+    const summaryEl = document.getElementById('insurance-flex-summary');
+    const warningEl = document.getElementById('insurance-flex-warning');
+    if (!summaryEl) return;
+    const rows = getInsuranceInstallmentRows();
+    const total = rows.reduce((sum, row) => {
+        return sum + (parseFloat(row.querySelector('input[name="ins_installment_amount[]"]')?.value || 0) || 0);
+    }, 0);
+    const sellingPrice = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0);
+    const remaining = sellingPrice - total;
+    summaryEl.textContent = `Installments: ${rows.length} | Total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2,maximumFractionDigits:2})} | Remaining: KES ${remaining.toLocaleString('en-KE', {minimumFractionDigits:2,maximumFractionDigits:2})}`;
+    if (warningEl) warningEl.classList.toggle('hidden', Math.abs(total - sellingPrice) <= 0.01 || sellingPrice === 0);
+    syncInsuranceInstallmentsPayload();
+}
+
+function addInsuranceInstallmentRow() {
+    const container = document.getElementById('insurance-installments-container');
+    if (!container) return;
+    const count = getInsuranceInstallmentRows().length + 1;
+    const row = document.createElement('div');
+    row.className = 'ins-installment-row grid grid-cols-1 md:grid-cols-12 gap-3 p-3 bg-white border border-blue-100 rounded-lg';
+    row.innerHTML = `
+        <div class="md:col-span-3 flex items-center text-sm font-medium text-gray-700">Installment ${count}</div>
+        <div class="md:col-span-4">
+            <label class="block text-xs text-gray-600 mb-1">Payment Date</label>
+            <input type="date" name="ins_installment_due_date[]" class="form-input">
+        </div>
+        <div class="md:col-span-4">
+            <label class="block text-xs text-gray-600 mb-1">Amount (KES)</label>
+            <input type="number" name="ins_installment_amount[]" class="form-input" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="md:col-span-1 flex items-end">
+            <button type="button" class="remove-ins-row w-full h-10 rounded-md border border-red-200 text-red-600 hover:bg-red-50" title="Remove">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updateInsuranceInstallmentSummary));
+    row.querySelector('.remove-ins-row')?.addEventListener('click', () => {
+        row.remove();
+        if (getInsuranceInstallmentRows().length === 0) addInsuranceInstallmentRow();
+        updateInsuranceInstallmentSummary();
+    });
+    container.appendChild(row);
+    updateInsuranceInstallmentSummary();
+}
+
+// --- Tracker flexible installments ---
+function getTrackerInstallmentRows(trackerItem) {
+    return Array.from(trackerItem.querySelectorAll('.trk-installment-row'));
+}
+
+function ensureTrackerInstallmentRows(trackerItem) {
+    if (getTrackerInstallmentRows(trackerItem).length === 0) addTrackerInstallmentRow(null, trackerItem);
+}
+
+function syncTrackerInstallmentsPayload(trackerItem) {
+    const payloadInput = trackerItem.querySelector('input[name="tracker_flexible_installments_json[]"]');
+    if (!payloadInput) return;
+    const data = getTrackerInstallmentRows(trackerItem).map(row => ({
+        due_date: row.querySelector('input[name="trk_installment_due_date[]"]')?.value.trim() || '',
+        amount:   row.querySelector('input[name="trk_installment_amount[]"]')?.value.trim() || '',
+    })).filter(i => i.due_date || i.amount);
+    payloadInput.value = JSON.stringify(data);
+}
+
+function updateTrackerInstallmentSummary(trackerItem) {
+    const summaryEl = trackerItem.querySelector('.tracker-flex-summary');
+    if (!summaryEl) return;
+    const rows = getTrackerInstallmentRows(trackerItem);
+    const total = rows.reduce((sum, row) => {
+        return sum + (parseFloat(row.querySelector('input[name="trk_installment_amount[]"]')?.value || 0) || 0);
+    }, 0);
+    const sellingPrice = parseFloat(trackerItem.querySelector('input[name="tracker_selling_price[]"]')?.value || 0);
+    const remaining = sellingPrice - total;
+    summaryEl.textContent = `Installments: ${rows.length} | Total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2,maximumFractionDigits:2})} | Remaining: KES ${remaining.toLocaleString('en-KE', {minimumFractionDigits:2,maximumFractionDigits:2})}`;
+    syncTrackerInstallmentsPayload(trackerItem);
+}
+
+function addTrackerInstallmentRow(btnEl, trackerItemArg) {
+    const trackerItem = trackerItemArg || btnEl?.closest('.tracker-item');
+    if (!trackerItem) return;
+    const container = trackerItem.querySelector('.tracker-installments-container');
+    if (!container) return;
+    const count = getTrackerInstallmentRows(trackerItem).length + 1;
+    const row = document.createElement('div');
+    row.className = 'trk-installment-row grid grid-cols-1 md:grid-cols-12 gap-3 p-2 bg-white border border-orange-100 rounded-lg';
+    row.innerHTML = `
+        <div class="md:col-span-3 flex items-center text-sm font-medium text-gray-700">Installment ${count}</div>
+        <div class="md:col-span-4">
+            <label class="block text-xs text-gray-600 mb-1">Payment Date</label>
+            <input type="date" name="trk_installment_due_date[]" class="form-input text-sm">
+        </div>
+        <div class="md:col-span-4">
+            <label class="block text-xs text-gray-600 mb-1">Amount (KES)</label>
+            <input type="number" name="trk_installment_amount[]" class="form-input text-sm" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="md:col-span-1 flex items-end">
+            <button type="button" class="remove-trk-row w-full h-9 rounded-md border border-red-200 text-red-600 hover:bg-red-50 text-xs" title="Remove">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => updateTrackerInstallmentSummary(trackerItem)));
+    row.querySelector('.remove-trk-row')?.addEventListener('click', () => {
+        row.remove();
+        if (getTrackerInstallmentRows(trackerItem).length === 0) addTrackerInstallmentRow(null, trackerItem);
+        updateTrackerInstallmentSummary(trackerItem);
+    });
+    container.appendChild(row);
+    updateTrackerInstallmentSummary(trackerItem);
 }
 
 function addTracker() {
@@ -619,26 +781,33 @@ function addTracker() {
             </div>
 
             <div class="border-t border-orange-200 pt-4">
-                <div class="flex items-center mb-3">
-                    <input type="checkbox" name="tracker_has_plan[]" class="h-4 w-4 text-primary-600 tracker-has-plan" onchange="toggleTrackerPaymentPlan(this); updateTrackerExpense()">
-                    <label class="ml-2 text-sm font-medium text-gray-900">Tracker has payment plan</label>
+                <h4 class="text-xs font-semibold text-gray-900 mb-3 uppercase">Payment Type</h4>
+                <div class="flex flex-wrap gap-4 mb-3">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="tracker_payment_type[]" value="full" checked onchange="updateTrackerPaymentUI(this)">
+                        <span class="text-sm font-medium text-gray-700">Full Payment</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="tracker_payment_type[]" value="flexible" onchange="updateTrackerPaymentUI(this)">
+                        <span class="text-sm font-medium text-gray-700">Flexible Installments</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="tracker_payment_type[]" value="deduct_from_deposit" onchange="updateTrackerPaymentUI(this)">
+                        <span class="text-sm font-medium text-gray-700">Deduct from Deposit</span>
+                    </label>
                 </div>
-                <div class="tracker-payment-plan hidden grid grid-cols-1 md:grid-cols-5 gap-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">First Payment Date</label>
-                        <input type="date" name="tracker_first_payment_date[]" class="form-input text-sm" oninput="calculateTrackerInstallment(this); updateTrackerExpense(); updateProfitLoss()">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Last Payment Date</label>
-                        <input type="date" name="tracker_last_payment_date[]" class="form-input text-sm" oninput="calculateTrackerInstallment(this); updateTrackerExpense(); updateProfitLoss()">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Deposit (KES)</label>
-                        <input type="number" name="tracker_deposit[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm" oninput="calculateTrackerInstallment(this); updateTrackerExpense(); updateProfitLoss()">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Monthly (KES)</label>
-                        <input type="number" name="tracker_monthly[]" placeholder="0.00" step="0.01" min="0" class="form-input text-sm bg-gray-100" readonly>
+                <div class="tracker-flexible-section hidden">
+                    <input type="hidden" name="tracker_flexible_installments_json[]" value="[]">
+                    <div class="tracker-installments-container space-y-2 mb-2"></div>
+                    <button type="button" onclick="addTrackerInstallmentRow(this)" class="mt-1 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm font-medium rounded-lg border border-orange-200 transition duration-150">
+                        <i class="fas fa-plus mr-1"></i>Add Installment
+                    </button>
+                    <p class="tracker-flex-summary text-sm text-gray-600 mt-1"></p>
+                </div>
+                <div class="tracker-deduct-section hidden">
+                    <div class="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <i class="fas fa-info-circle text-yellow-600"></i>
+                        <p class="text-sm text-yellow-800">The tracker cost will be deducted from the client's vehicle deposit.</p>
                     </div>
                 </div>
             </div>
@@ -672,32 +841,13 @@ function updateProfitLoss() {
     const costPrice   = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
     
     // Insurance costs
-    const insuranceHasPlan = document.getElementById('id_insurance_has_payment_plan')?.checked;
-    let insuranceCost = 0;
-    if (insuranceHasPlan) {
-        insuranceCost = parseFloat(document.getElementById('id_insurance_monthly_installment')?.value || 0);
-        const months = Math.max(1, Math.round((new Date(document.getElementById('id_insurance_last_payment_date')?.value) - new Date(document.getElementById('id_insurance_first_payment_date')?.value)) / (1000 * 60 * 60 * 24 * 30.44)));
-        insuranceCost = insuranceCost * months;
-    } else {
-        insuranceCost = parseFloat(document.getElementById('id_insurance_premium')?.value || 0) + 
-                       parseFloat(document.getElementById('id_insurance_buying_price')?.value || 0);
-    }
+    const insurancePaymentType = document.querySelector('input[name="insurance_payment_type"]:checked')?.value || 'full';
+    const insuranceCost = parseFloat(document.getElementById('id_insurance_buying_price')?.value || 0);
     
     // Tracker costs
     let trackerCost = 0;
     document.querySelectorAll('.tracker-item').forEach(tracker => {
-        const hasPlan = tracker.querySelector('.tracker-has-plan')?.checked;
-        if (hasPlan) {
-            const monthly = parseFloat(tracker.querySelector('input[name="tracker_monthly[]"]')?.value || 0);
-            const firstDate = tracker.querySelector('input[name="tracker_first_payment_date[]"]')?.value;
-            const lastDate = tracker.querySelector('input[name="tracker_last_payment_date[]"]')?.value;
-            if (firstDate && lastDate) {
-                const months = Math.max(1, Math.round((new Date(lastDate) - new Date(firstDate)) / (1000 * 60 * 60 * 24 * 30.44)));
-                trackerCost += monthly * months;
-            }
-        } else {
-            trackerCost += parseFloat(tracker.querySelector('.tracker-buying-price')?.value || 0);
-        }
+        trackerCost += parseFloat(tracker.querySelector('.tracker-buying-price')?.value || 0);
     });
     
     const totalExpenses = insuranceCost + trackerCost;
@@ -743,14 +893,131 @@ function updatePaymentFields() {
     const sections = ['remainder-type-section','monthly-date-section','weekly-day-section','installment-period-section','flexible-payment-section'];
     sections.forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
 
-    if (paymentType === 'installment' || paymentType === 'flexible') {
+    if (paymentType === 'installment') {
         document.getElementById('remainder-type-section')?.classList.remove('hidden');
         document.getElementById('installment-period-section')?.classList.remove('hidden');
         const remainderType = document.querySelector('input[name="remainder_payment_type"]:checked')?.value;
         if (remainderType === 'monthly') document.getElementById('monthly-date-section')?.classList.remove('hidden');
         else if (remainderType === 'weekly') document.getElementById('weekly-day-section')?.classList.remove('hidden');
     }
-    if (paymentType === 'flexible') document.getElementById('flexible-payment-section')?.classList.remove('hidden');
+
+    if (paymentType === 'flexible') {
+        document.getElementById('flexible-payment-section')?.classList.remove('hidden');
+        ensureFlexibleInstallmentRows();
+        updateFlexibleInstallmentSummary();
+    }
+}
+
+function getRemainingBalanceForFlexible() {
+    const price = parseFloat(document.getElementById('{{ form.purchase_price.id_for_label }}')?.value || 0);
+    const deposit = parseFloat(document.getElementById('{{ form.deposit_paid.id_for_label }}')?.value || 0);
+    return Math.max(0, price - deposit);
+}
+
+function getFlexibleInstallmentRows() {
+    return Array.from(document.querySelectorAll('.flex-installment-row'));
+}
+
+function renumberFlexibleInstallments() {
+    getFlexibleInstallmentRows().forEach((row, index) => {
+        const label = row.querySelector('.flex-installment-label');
+        if (label) {
+            label.textContent = `Installment ${index + 1}`;
+        }
+    });
+}
+
+function syncFlexibleInstallmentsPayload() {
+    const payloadInput = document.getElementById('id_flexible_installments_json');
+    if (!payloadInput) {
+        return;
+    }
+
+    const data = getFlexibleInstallmentRows().map((row) => {
+        const dateInput = row.querySelector('input[name="flex_installment_due_date[]"]');
+        const amountInput = row.querySelector('input[name="flex_installment_amount[]"]');
+        return {
+            due_date: (dateInput?.value || '').trim(),
+            amount: (amountInput?.value || '').trim(),
+        };
+    }).filter((item) => item.due_date || item.amount);
+
+    payloadInput.value = JSON.stringify(data);
+}
+
+function updateFlexibleInstallmentSummary() {
+    const summaryEl = document.getElementById('flex-installment-summary');
+    const warningEl = document.getElementById('flex-installment-warning');
+    if (!summaryEl || !warningEl) {
+        return;
+    }
+
+    const rows = getFlexibleInstallmentRows();
+    const total = rows.reduce((sum, row) => {
+        const amount = parseFloat(row.querySelector('input[name="flex_installment_amount[]"]')?.value || 0);
+        return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
+    const balance = getRemainingBalanceForFlexible();
+    const remainingAmount = balance - total;
+    const diff = Math.abs(total - balance);
+
+    summaryEl.textContent = `Installments: ${rows.length} | Total: KES ${total.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Remaining amount: KES ${remainingAmount.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    warningEl.classList.toggle('hidden', diff <= 0.01);
+
+    syncFlexibleInstallmentsPayload();
+}
+
+function createFlexibleInstallmentRow(dueDate = '', amount = '') {
+    const row = document.createElement('div');
+    row.className = 'flex-installment-row grid grid-cols-1 md:grid-cols-12 gap-3 p-3 bg-white border border-blue-100 rounded-lg';
+    row.innerHTML = `
+        <div class="md:col-span-3 flex items-center text-sm font-medium text-gray-700 flex-installment-label">Installment</div>
+        <div class="md:col-span-4">
+            <label class="block text-xs text-gray-600 mb-1">Payment Date</label>
+            <input type="date" name="flex_installment_due_date[]" class="form-input" value="${dueDate}">
+        </div>
+        <div class="md:col-span-4">
+            <label class="block text-xs text-gray-600 mb-1">Amount (KES)</label>
+            <input type="number" name="flex_installment_amount[]" class="form-input" min="0" step="0.01" placeholder="0.00" value="${amount}">
+        </div>
+        <div class="md:col-span-1 flex items-end">
+            <button type="button" class="remove-flex-installment w-full h-10 rounded-md border border-red-200 text-red-600 hover:bg-red-50" title="Remove installment">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+
+    row.querySelectorAll('input').forEach((input) => {
+        input.addEventListener('input', updateFlexibleInstallmentSummary);
+        input.addEventListener('change', updateFlexibleInstallmentSummary);
+    });
+
+    row.querySelector('.remove-flex-installment')?.addEventListener('click', () => {
+        row.remove();
+        if (getFlexibleInstallmentRows().length === 0) {
+            addFlexibleInstallmentRow();
+        }
+        renumberFlexibleInstallments();
+        updateFlexibleInstallmentSummary();
+    });
+
+    return row;
+}
+
+function addFlexibleInstallmentRow(dueDate = '', amount = '') {
+    const container = document.getElementById('flexible-installments-container');
+    if (!container) {
+        return;
+    }
+    container.appendChild(createFlexibleInstallmentRow(dueDate, amount));
+    renumberFlexibleInstallments();
+    updateFlexibleInstallmentSummary();
+}
+
+function ensureFlexibleInstallmentRows() {
+    if (getFlexibleInstallmentRows().length === 0) {
+        addFlexibleInstallmentRow();
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -760,86 +1027,32 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize profit/loss
     updateProfitLoss();
 
-// Auto-calculate insurance installment
-function calculateInsuranceInstallment() {
-    const sellingPrice = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0);
-    const deposit = parseFloat(document.getElementById('id_insurance_deposit')?.value || 0);
-    const firstDate = document.getElementById('id_insurance_first_payment_date')?.value;
-    const lastDate = document.getElementById('id_insurance_last_payment_date')?.value;
-    
-    if (sellingPrice > 0 && deposit >= 0 && firstDate && lastDate) {
-        // Calculate months between dates
-        const start = new Date(firstDate);
-        const end = new Date(lastDate);
-        const months = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24 * 30.44)));
-        
-        const balance = sellingPrice - deposit;
-        const monthly = balance / months;
-        document.getElementById('id_insurance_monthly_installment').value = monthly.toFixed(2);
-        
-        // Show summary
-        const summary = `${months} months from ${firstDate} to ${lastDate} | Balance: KES ${balance.toFixed(2)} ÷ ${months} months`;
-        document.getElementById('insurance-calc-summary').textContent = summary;
-    }
-}
+    // Initialize flexible installments UI
+    ensureFlexibleInstallmentRows();
+    updateFlexibleInstallmentSummary();
+    document.getElementById('add-flex-installment-btn')?.addEventListener('click', () => addFlexibleInstallmentRow());
+    document.getElementById('{{ form.purchase_price.id_for_label }}')?.addEventListener('input', updateFlexibleInstallmentSummary);
+    document.getElementById('{{ form.deposit_paid.id_for_label }}')?.addEventListener('input', updateFlexibleInstallmentSummary);
 
-// Auto-calculate tracker installment
-function calculateTrackerInstallment(elem) {
-    const item = elem.closest('.tracker-item');
-    if (!item) return;
-    
-    const sellingPrice = parseFloat(item.querySelector('.tracker-selling-price')?.value || 0);
-    const deposit = parseFloat(item.querySelector('input[name="tracker_deposit[]"]')?.value || 0);
-    const firstDate = item.querySelector('input[name="tracker_first_payment_date[]"]')?.value;
-    const lastDate = item.querySelector('input[name="tracker_last_payment_date[]"]')?.value;
-    const interestRate = parseFloat(item.querySelector('input[name="tracker_interest_rate[]"]')?.value || 0);
-    
-    if (sellingPrice > 0 && deposit >= 0 && firstDate && lastDate) {
-        // Calculate months between dates
-        const start = new Date(firstDate);
-        const end = new Date(lastDate);
-        const months = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24 * 30.44)));
-        
-        const balance = sellingPrice - deposit;
-        let totalWithInterest = balance;
-        
-        if (interestRate > 0) {
-            const interest = balance * (interestRate / 100) * (months / 12);
-            totalWithInterest = balance + interest;
-        }
-        
-        const monthly = totalWithInterest / months;
-        item.querySelector('input[name="tracker_monthly[]"]').value = monthly.toFixed(2);
-    }
-    updateTrackerExpense();
-}
+    // Initialize insurance payment type UI
+    updateInsurancePaymentUI();
+    document.getElementById('id_insurance_selling_price')?.addEventListener('input', updateInsuranceInstallmentSummary);
 
-// Initialize calculations on input change
-document.addEventListener('change', function(e) {
-    if (e.target.name === 'insurance_selling_price') {
-        calculateInsuranceInstallment();
-    }
-});
-
-// Insurance date field listeners
-['id_insurance_first_payment_date', 'id_insurance_last_payment_date', 'id_insurance_deposit', 'id_insurance_interest_rate'].forEach(id => {
-    const elem = document.getElementById(id);
-    if (elem) {
-        elem.addEventListener('change', calculateInsuranceInstallment);
-        elem.addEventListener('input', calculateInsuranceInstallment);
-    }
-});
-
-// Initialize checkboxes
-    const insuranceCheckbox = document.getElementById('id_insurance_has_payment_plan');
-    if (insuranceCheckbox) {
-        toggleInsurancePaymentPlan();
-    }
-    
-    // Initialize tracker checkboxes
-    document.querySelectorAll('.tracker-has-plan').forEach(checkbox => {
-        toggleTrackerPaymentPlan(checkbox);
+    // Initialize tracker payment type UI
+    document.querySelectorAll('.tracker-item').forEach(trackerItem => {
+        const checked = trackerItem.querySelector('input[name="tracker_payment_type[]"]:checked');
+        if (checked) updateTrackerPaymentUI(checked);
     });
+
+    const assignmentForm = document.querySelector('form[method="post"]');
+    assignmentForm?.addEventListener('submit', () => {
+        syncFlexibleInstallmentsPayload();
+        syncInsuranceInstallmentsPayload();
+        document.querySelectorAll('.tracker-item').forEach(ti => syncTrackerInstallmentsPayload(ti));
+    });
+
+// Auto-calculate tracker installment (legacy — kept for compatibility)
+function calculateTrackerInstallment(elem) { /* no-op */ }
 
     // Vehicle selection change
     const vehicleSelect = document.getElementById('{{ form.vehicle.id_for_label }}');
@@ -855,6 +1068,7 @@ document.addEventListener('change', function(e) {
         }
 
         updateProfitLoss();
+        updateFlexibleInstallmentSummary();
     }
 
     if (vehicleSelect && priceInput) {
