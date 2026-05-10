@@ -23,6 +23,7 @@ from .forms import (
 )
 from apps.vehicles.models import Vehicle
 from apps.audit.utils import log_audit
+from utils.constants import UserRole
 
 
 # ==================== CLIENT MANAGEMENT VIEWS ====================
@@ -854,8 +855,9 @@ def download_sales_agreement(request, client_vehicle_pk):
     """
     client_vehicle = get_object_or_404(ClientVehicle, pk=client_vehicle_pk)
     
-    # Check permission
-    if request.user.client and request.user.client != client_vehicle.client:
+    # Only client portal users are restricted to their own vehicles.
+    client_profile = getattr(request.user, 'client_profile', None)
+    if request.user.role == UserRole.CLIENT and client_profile != client_vehicle.client:
         return JsonResponse({'error': 'Unauthorized'}, status=403)
     
     try:
