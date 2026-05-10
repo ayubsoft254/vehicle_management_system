@@ -12,7 +12,7 @@ from .models import Vehicle, VehiclePhoto, VehicleHistory
 from apps.clients.models import ClientVehicle
 from .forms import (
     VehicleForm, VehiclePhotoForm, VehicleSearchForm,
-    VehicleStatusChangeForm, BulkVehicleActionForm
+    VehicleStatusChangeForm, BulkVehicleActionForm, VehicleMoveForm
 )
 from utils.decorators import role_required, module_permission_required
 from utils.constants import UserRole, VehicleStatus, AccessLevel
@@ -209,6 +209,7 @@ def vehicle_detail_view(request, pk):
 
     extra_cost_total = vehicle.extra_costs.aggregate(total=Sum('amount'))['total'] or 0
     extra_costs = vehicle.extra_costs.all().order_by('date_added')
+    location_history = vehicle.location_history.all()[:10]
     total_additional_cost = (
         vehicle.duty_cost +
         vehicle.clearance_cost +
@@ -232,6 +233,7 @@ def vehicle_detail_view(request, pk):
         'vehicle': vehicle,
         'history': history,
         'extra_costs': extra_costs,
+        'location_history': location_history,
         'extra_cost_total': extra_cost_total,
         'total_additional_cost': total_additional_cost,
         'total_cost': total_cost,
@@ -386,6 +388,60 @@ def vehicle_update_view(request, pk):
         'extra_cost_entries': extra_cost_entries,
     }
     return render(request, 'vehicles/vehicle_form.html', context)
+
+
+@login_required
+@module_permission_required('vehicles', AccessLevel.READ_WRITE)
+def vehicle_move_view(request, pk):
+    """Move a vehicle to a new location using a dedicated movement form."""
+    vehicle = get_object_or_404(Vehicle, pk=pk)
+
+    old_values = {
+        'location': vehicle.location,
+        'location_moved_date': vehicle.location_moved_date.isoformat() if vehicle.location_moved_date else '',
+        'location_driver_name': vehicle.location_driver_name,
+        'location_driver_phone': vehicle.location_driver_phone,
+        'location_driver_id_number': vehicle.location_driver_id_number,
+    }
+
+    if request.method == 'POST':
+        form = VehicleMoveForm(request.POST, vehicle=vehicle)
+        if form.is_valid():
+            vehicle.location = form.cleaned_data['location']
+            vehicle.location_moved_date = form.cleaned_data['location_moved_date']
+            vehicle.location_driver_name = form.cleaned_data['location_driver_name']
+            vehicle.location_driver_phone = form.cleaned_data['location_driver_phone']
+            vehicle.location_driver_id_number = form.cleaned_data['location_driver_id_number']
+            vehicle._location_move_notes = form.cleaned_data['notes']
+            vehicle.save()
+
+            changes = {
+                'location': {'old': old_values['location'], 'new': vehicle.location},
+                'location_moved_date': {'old': old_values['location_moved_date'], 'new': vehicle.location_moved_date.isoformat() if vehicle.location_moved_date else ''},
+                'location_driver_name': {'old': old_values['location_driver_name'], 'new': vehicle.location_driver_name},
+                'location_driver_phone': {'old': old_values['location_driver_phone'], 'new': vehicle.location_driver_phone},
+                'location_driver_id_number': {'old': old_values['location_driver_id_number'], 'new': vehicle.location_driver_id_number},
+                'location_move_notes': {'old': '', 'new': form.cleaned_data['notes']},
+            }
+
+            AuditLog.log_update(
+                user=request.user,
+                obj=vehicle,
+                changes=changes,
+                description='Vehicle moved using dedicated move form',
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+
+            messages.success(request, f'Location updated for {vehicle.full_name}.')
+            return redirect('vehicles:detail', pk=vehicle.pk)
+    else:
+        form = VehicleMoveForm(vehicle=vehicle)
+
+    context = {
+        'form': form,
+        'vehicle': vehicle,
+    }
+    return render(request, 'vehicles/move_vehicle_form.html', context)
 
 
 @login_required
