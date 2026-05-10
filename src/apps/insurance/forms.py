@@ -119,7 +119,7 @@ class InsurancePolicyForm(forms.ModelForm):
         model = InsurancePolicy
         fields = [
             'vehicle', 'provider', 'client',
-            'policy_number', 'policy_type', 'status',
+            'policy_number', 'policy_type', 'vehicle_usage', 'status',
             'start_date', 'end_date',
             'premium_amount', 'sum_insured', 'excess_amount',
             'buying_price', 'selling_price',
@@ -143,6 +143,9 @@ class InsurancePolicyForm(forms.ModelForm):
                 'placeholder': 'Policy Number'
             }),
             'policy_type': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+            }),
+            'vehicle_usage': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
             }),
             'status': forms.Select(attrs={
