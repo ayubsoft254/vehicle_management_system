@@ -318,6 +318,13 @@
                             <option value="third_party_fire_theft">Third Party Fire &amp; Theft</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle Usage</label>
+                        <select name="insurance_vehicle_usage" id="id_insurance_vehicle_usage" class="form-input">
+                            <option value="private" selected>Private</option>
+                            <option value="psv">PSV</option>
+                        </select>
+                    </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
@@ -417,6 +424,10 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Serial Number / IMEI</label>
                                 <input type="text" name="tracker_serial[]" placeholder="Serial / IMEI number" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Certificate No</label>
+                                <input type="text" name="tracker_certificate_number[]" placeholder="Certificate number" class="form-input">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Provider / Vendor</label>
@@ -755,6 +766,10 @@ function addTracker() {
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Serial Number / IMEI</label>
                     <input type="text" name="tracker_serial[]" placeholder="Serial / IMEI number" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Certificate No</label>
+                    <input type="text" name="tracker_certificate_number[]" placeholder="Certificate number" class="form-input">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Provider / Vendor</label>
