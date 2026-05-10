@@ -759,10 +759,16 @@ def payment_tracker(request, client_vehicle_pk):
     """
     Display payment tracker for a specific client vehicle
     """
+    from django.utils import timezone
+    from django.db.models import Sum, Count
+    
     client_vehicle = get_object_or_404(
         ClientVehicle.objects.select_related('client', 'vehicle'),
         pk=client_vehicle_pk
     )
+    
+    now = timezone.now()
+    today = now.date()
     
     # Get all payments
     payments = Payment.objects.filter(
@@ -777,6 +783,47 @@ def payment_tracker(request, client_vehicle_pk):
         plan = None
         schedules = None
     
+    # Calculate statistics for this client vehicle
+    today_payments = payments.filter(payment_date=today)
+    today_collections = today_payments.aggregate(Sum('amount'))['amount__sum'] or 0
+    today_payment_count = today_payments.count()
+    
+    # This week (last 7 days)
+    week_start = today - timezone.timedelta(days=7)
+    week_payments = payments.filter(payment_date__gte=week_start)
+    week_collections = week_payments.aggregate(Sum('amount'))['amount__sum'] or 0
+    week_payment_count = week_payments.count()
+    
+    # This month
+    month_payments = payments.filter(
+        payment_date__year=now.year,
+        payment_date__month=now.month
+    )
+    month_collections = month_payments.aggregate(Sum('amount'))['amount__sum'] or 0
+    month_payment_count = month_payments.count()
+    
+    # Expected today (due payments today - past/current due dates only)
+    if schedules:
+        due_today_schedules = schedules.filter(
+            is_paid=False,
+            due_date=today
+        )
+        expected_today = due_today_schedules.aggregate(Sum('amount_due'))['amount_due__sum'] or 0
+        due_today_count = due_today_schedules.count()
+        
+        # Due this week (due dates from today to end of week)
+        week_end = today + timezone.timedelta(days=7)
+        due_week_schedules = schedules.filter(
+            is_paid=False,
+            due_date__gte=today,
+            due_date__lte=week_end
+        )
+        due_week_count = due_week_schedules.count()
+    else:
+        expected_today = 0
+        due_today_count = 0
+        due_week_count = 0
+    
     context = {
         'client_vehicle': client_vehicle,
         'client': client_vehicle.client,
@@ -784,6 +831,16 @@ def payment_tracker(request, client_vehicle_pk):
         'payments': payments,
         'plan': plan,
         'schedules': schedules,
+        # Statistics
+        'today_collections': today_collections,
+        'today_payment_count': today_payment_count,
+        'week_collections': week_collections,
+        'week_payment_count': week_payment_count,
+        'month_collections': month_collections,
+        'month_payment_count': month_payment_count,
+        'expected_today': expected_today,
+        'due_today_count': due_today_count,
+        'due_week_count': due_week_count,
     }
     
     log_audit(
