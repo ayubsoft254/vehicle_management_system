@@ -282,7 +282,8 @@ class InsurancePolicy(models.Model):
     premium_amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.01'))],
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
         help_text="Insurance premium amount"
     )
     
@@ -331,6 +332,21 @@ class InsurancePolicy(models.Model):
         max_length=100,
         blank=True,
         help_text='Agent ID, license number, or phone'
+    )
+
+    # Payment type for insurance
+    INSURANCE_PAYMENT_TYPE_CHOICES = [
+        ('full', 'Full Payment'),
+        ('flexible', 'Flexible Installments'),
+        ('deduct_from_deposit', 'Deduct from Deposit'),
+    ]
+
+    payment_type = models.CharField(
+        'Payment Type',
+        max_length=30,
+        choices=INSURANCE_PAYMENT_TYPE_CHOICES,
+        default='full',
+        help_text='How the client pays for insurance',
     )
 
     # Individual payment plan for insurance
