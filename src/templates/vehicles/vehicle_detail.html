@@ -444,6 +444,20 @@
                             </div>
                         </div>
 
+                        {% if extra_costs %}
+                        <div class="pt-4 border-t border-gray-200">
+                            <h3 class="text-sm font-bold text-gray-900 mb-3">Saved Additional Cost Records</h3>
+                            <div class="space-y-2">
+                                {% for cost in extra_costs %}
+                                <div class="flex justify-between items-center text-sm rounded bg-gray-50 px-3 py-2">
+                                    <span class="text-gray-700">{{ cost.description }}</span>
+                                    <span class="font-semibold text-gray-900">${{ cost.amount }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
                         <div class="pt-4 border-t border-gray-200">
                             <p class="text-sm font-medium text-gray-500 mb-1">Selling Price</p>
                             <p class="text-3xl font-bold text-blue-600">${{ vehicle.selling_price }}</p>
