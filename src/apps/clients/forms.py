@@ -191,7 +191,7 @@ class ClientVehicleForm(forms.ModelForm):
             'remainder_payment_type', 'monthly_payment_date', 'weekly_payment_day',
             'allow_flexible_payments',
             'monthly_installment', 'installment_months',
-            'commission_percentage',
+            'commission_amount',
             'notes'
         ]
         
@@ -254,7 +254,7 @@ class ClientVehicleForm(forms.ModelForm):
                 'placeholder': '12',
                 'min': '1'
             }),
-            'commission_percentage': forms.NumberInput(attrs={
+            'commission_amount': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '0.00',
                 'step': '0.01',
@@ -288,7 +288,7 @@ class ClientVehicleForm(forms.ModelForm):
         optional_fields = [
             'remainder_payment_type', 'monthly_payment_date',
             'weekly_payment_day', 'monthly_installment', 'installment_months', 
-            'broker_name', 'broker_id_no', 'broker_phone_no', 'commission_percentage'
+            'broker_name', 'broker_id_no', 'broker_phone_no', 'commission_amount'
         ]
         for field_name in optional_fields:
             self.fields[field_name].required = False

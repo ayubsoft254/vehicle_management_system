@@ -528,10 +528,10 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="{{ form.commission_percentage.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Commission Percentage (%)</label>
-                        {{ form.commission_percentage }}
-                        {% if form.commission_percentage.errors %}<p class="mt-1 text-sm text-red-600">{{ form.commission_percentage.errors.0 }}</p>{% endif %}
-                        <p class="mt-1 text-xs text-gray-500">Commission percentage on the purchase price (e.g., 5.00 for 5%).</p>
+                        <label for="{{ form.commission_amount.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Commission Amount (KES)</label>
+                        {{ form.commission_amount }}
+                        {% if form.commission_amount.errors %}<p class="mt-1 text-sm text-red-600">{{ form.commission_amount.errors.0 }}</p>{% endif %}
+                        <p class="mt-1 text-xs text-gray-500">Flat commission amount paid to the broker for this transaction.</p>
                     </div>
                 </div>
             </div>
