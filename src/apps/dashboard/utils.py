@@ -23,102 +23,251 @@ User = get_user_model()
 
 def get_dashboard_overview_data(user=None):
     """
-    Get overview data for main dashboard
-    
+    Get overview data for main dashboard — expanded with financial analytics,
+    defaulters, most-sold makes, outstanding balances and recent sales.
+
     Returns:
         dict: Dashboard overview metrics
     """
-    
+
     from apps.vehicles.models import Vehicle
-    from apps.clients.models import Client
+    from apps.clients.models import Client, ClientVehicle
     from apps.payments.models import Payment, PaymentSchedule
     from apps.auctions.models import Auction
     from utils.constants import VehicleStatus
-    
+
     today = timezone.now().date()
     first_day_of_month = today.replace(day=1)
-    
-    # Vehicle statistics
-    total_vehicles = Vehicle.objects.count()
-    available_vehicles = Vehicle.objects.filter(status=VehicleStatus.AVAILABLE).count()
-    reserved_vehicles = Vehicle.objects.filter(status=VehicleStatus.RESERVED).count()
-    sold_vehicles = Vehicle.objects.filter(status=VehicleStatus.SOLD).count()
+
+    # ── Vehicle statistics ────────────────────────────────────────────
+    total_vehicles       = Vehicle.objects.count()
+    available_vehicles   = Vehicle.objects.filter(status=VehicleStatus.AVAILABLE).count()
+    reserved_vehicles    = Vehicle.objects.filter(status=VehicleStatus.RESERVED).count()
+    sold_vehicles        = Vehicle.objects.filter(status=VehicleStatus.SOLD).count()
     repossessed_vehicles = Vehicle.objects.filter(status=VehicleStatus.REPOSSESSED).count()
     maintenance_vehicles = Vehicle.objects.filter(status=VehicleStatus.MAINTENANCE).count()
-    
-    # Client statistics
-    total_clients = Client.objects.count()
-    active_clients = Client.objects.filter(is_active=True).count()
+
+    # ── Client statistics ─────────────────────────────────────────────
+    total_clients     = Client.objects.count()
+    active_clients    = Client.objects.filter(is_active=True).count()
     new_clients_today = Client.objects.filter(date_registered__date=today).count()
-    
-    # Payment statistics
-    payments_today = Payment.objects.filter(payment_date=today)
-    total_payments_today = payments_today.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-    payments_count_today = payments_today.count()
-    
-    # Monthly revenue
+
+    # ── Payment statistics ────────────────────────────────────────────
+    payments_today        = Payment.objects.filter(payment_date=today)
+    total_payments_today  = payments_today.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    payments_count_today  = payments_today.count()
+
     monthly_revenue = Payment.objects.filter(
         payment_date__gte=first_day_of_month,
         payment_date__lte=today
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-    
-    # Pending payments/schedules
+
+    total_revenue_all_time = Payment.objects.aggregate(
+        total=Sum('amount')
+    )['total'] or Decimal('0.00')
+
     pending_payments = PaymentSchedule.objects.pending().count()
-    
-    # Auction statistics
-    active_auctions = Auction.objects.filter(status='active').count()
-    scheduled_auctions = Auction.objects.filter(status='scheduled').count()
-    completed_auctions_today = Auction.objects.filter(
-        status='completed',
-        completed_at__date=today
+
+    # ── TOTAL MONEY OUTSIDE (outstanding balances) ────────────────────
+    total_outstanding = ClientVehicle.objects.filter(
+        is_paid_off=False
+    ).aggregate(total=Sum('balance'))['total'] or Decimal('0.00')
+
+    active_accounts = ClientVehicle.objects.filter(
+        is_paid_off=False,
+        payment_type='installment'
     ).count()
-    
-    # Compile flat data structure for template
-    data = {
-        # Main stats (for stat cards)
-        'total_vehicles': total_vehicles,
-        'total_clients': total_clients,
+
+    # ── TOTAL SALES ───────────────────────────────────────────────────
+    sold_cv = ClientVehicle.objects.select_related('vehicle', 'client')
+    total_sales_revenue   = sold_cv.aggregate(total=Sum('purchase_price'))['total'] or Decimal('0.00')
+    total_sales_count     = sold_cv.count()
+    monthly_sales_count   = sold_cv.filter(purchase_date__gte=first_day_of_month).count()
+    monthly_sales_revenue = sold_cv.filter(
+        purchase_date__gte=first_day_of_month
+    ).aggregate(total=Sum('purchase_price'))['total'] or Decimal('0.00')
+
+    # ── PROFIT / LOSS ─────────────────────────────────────────────────
+    sold_profit_qs = ClientVehicle.objects.select_related('vehicle')
+    profit_data = sold_profit_qs.aggregate(
+        total_sales=Sum('purchase_price'),
+        total_purchase=Sum('vehicle__purchase_price'),
+        total_duty=Sum('vehicle__duty_cost'),
+        total_clearance=Sum('vehicle__clearance_cost'),
+        total_commission_cost=Sum('vehicle__commission_cost'),
+    )
+    total_sales_value = profit_data['total_sales'] or Decimal('0.00')
+    total_purchase = profit_data['total_purchase'] or Decimal('0.00')
+    total_duty = profit_data['total_duty'] or Decimal('0.00')
+    total_clearance = profit_data['total_clearance'] or Decimal('0.00')
+    total_comm_cost = profit_data['total_commission_cost'] or Decimal('0.00')
+    total_cost_base = total_purchase + total_duty + total_clearance + total_comm_cost
+    total_profit_loss = total_sales_value - total_cost_base
+
+    monthly_profit_data = sold_profit_qs.filter(
+        purchase_date__gte=first_day_of_month
+    ).aggregate(
+        total_sales=Sum('purchase_price'),
+        total_purchase=Sum('vehicle__purchase_price'),
+        total_duty=Sum('vehicle__duty_cost'),
+        total_clearance=Sum('vehicle__clearance_cost'),
+        total_commission_cost=Sum('vehicle__commission_cost'),
+    )
+    m_sales = monthly_profit_data['total_sales'] or Decimal('0.00')
+    m_purchase = monthly_profit_data['total_purchase'] or Decimal('0.00')
+    m_duty = monthly_profit_data['total_duty'] or Decimal('0.00')
+    m_clearance = monthly_profit_data['total_clearance'] or Decimal('0.00')
+    m_comm = monthly_profit_data['total_commission_cost'] or Decimal('0.00')
+    monthly_profit = m_sales - (m_purchase + m_duty + m_clearance + m_comm)
+
+    # ── MOST SOLD CARS (by make) ──────────────────────────────────────
+    most_sold_makes = list(
+        ClientVehicle.objects.values('vehicle__make')
+        .annotate(count=Count('id'), revenue=Sum('purchase_price'))
+        .order_by('-count')[:5]
+    )
+    for item in most_sold_makes:
+        item['make']    = item.pop('vehicle__make', '')
+        item['revenue'] = float(item['revenue'] or 0)
+
+    # ── MOST SOLD CARS (model breakdown) ──────────────────────────────
+    most_sold_models = list(
+        ClientVehicle.objects.values('vehicle__make', 'vehicle__model', 'vehicle__year')
+        .annotate(count=Count('id'), revenue=Sum('purchase_price'))
+        .order_by('-count', '-revenue')[:8]
+    )
+    for item in most_sold_models:
+        year = item.get('vehicle__year')
+        make = item.get('vehicle__make') or ''
+        model = item.get('vehicle__model') or ''
+        item['vehicle_name'] = f"{year} {make} {model}".strip()
+        item['revenue'] = float(item.get('revenue') or 0)
+
+    # ── DEFAULTERS LIST ───────────────────────────────────────────────
+    try:
+        overdue_schedules = PaymentSchedule.objects.filter(
+            is_paid=False,
+            due_date__lt=today,
+        ).select_related(
+            'client_vehicle__client', 'client_vehicle__vehicle'
+        ).order_by('due_date')[:30]
+
+        seen_clients = {}
+        for sched in overdue_schedules:
+            cv     = sched.client_vehicle
+            client = cv.client
+            cid    = client.pk
+            days_od = (today - sched.due_date).days
+            remaining_due = (sched.amount_due or Decimal('0.00')) - (sched.amount_paid or Decimal('0.00'))
+            if remaining_due < 0:
+                remaining_due = Decimal('0.00')
+            if cid not in seen_clients:
+                seen_clients[cid] = {
+                    'client_id':         cid,
+                    'client_name':       client.get_full_name(),
+                    'phone':             client.phone_primary or '',
+                    'vehicle':           str(cv.vehicle),
+                    'client_vehicle_id': cv.pk,
+                    'balance':           float(cv.balance),
+                    'overdue_amount':    float(remaining_due),
+                    'overdue_since':     sched.due_date.isoformat(),
+                    'days_overdue':      days_od,
+                }
+            else:
+                seen_clients[cid]['overdue_amount'] += float(remaining_due)
+                if days_od > seen_clients[cid]['days_overdue']:
+                    seen_clients[cid]['days_overdue'] = days_od
+
+        defaulters = sorted(seen_clients.values(), key=lambda x: x['days_overdue'], reverse=True)[:10]
+    except Exception:
+        defaulters = []
+
+    total_overdue_schedules = PaymentSchedule.objects.filter(
+        is_paid=False,
+        due_date__lt=today,
+    )
+    overdue_total_amount = total_overdue_schedules.aggregate(
+        total=Sum('amount_due')
+    )['total'] or Decimal('0.00')
+    overdue_total_paid_portion = total_overdue_schedules.aggregate(
+        total=Sum('amount_paid')
+    )['total'] or Decimal('0.00')
+    total_overdue_amount = overdue_total_amount - overdue_total_paid_portion
+    if total_overdue_amount < 0:
+        total_overdue_amount = Decimal('0.00')
+
+    collection_rate = Decimal('0.00')
+    if total_sales_revenue > 0:
+        collection_rate = ((total_revenue_all_time / total_sales_revenue) * Decimal('100')).quantize(Decimal('0.01'))
+
+    # ── RECENT SALES ──────────────────────────────────────────────────
+    recent_sales = list(
+        ClientVehicle.objects.select_related('client', 'vehicle')
+        .order_by('-purchase_date')[:5]
+        .values(
+            'client__first_name', 'client__last_name',
+            'vehicle__make', 'vehicle__model', 'vehicle__year',
+            'purchase_price', 'deposit_paid', 'balance',
+            'purchase_date', 'pk',
+        )
+    )
+    for s in recent_sales:
+        s['client_name']  = f"{s.pop('client__first_name','')} {s.pop('client__last_name','')}".strip()
+        s['vehicle_name'] = f"{s.pop('vehicle__year','')} {s.pop('vehicle__make','')} {s.pop('vehicle__model','')}".strip()
+        s['purchase_price'] = float(s['purchase_price'] or 0)
+        s['deposit_paid']   = float(s['deposit_paid'] or 0)
+        s['balance']        = float(s['balance'] or 0)
+
+    # ── AUCTION statistics ────────────────────────────────────────────
+    active_auctions          = Auction.objects.filter(status='active').count()
+    scheduled_auctions       = Auction.objects.filter(status='scheduled').count()
+    completed_auctions_today = Auction.objects.filter(status='completed', completed_at__date=today).count()
+
+    return {
+        'total_vehicles':  total_vehicles,
+        'total_clients':   total_clients,
         'monthly_revenue': float(monthly_revenue),
-        'pending_sales': reserved_vehicles,  # Vehicles reserved/pending sale
-        
-        # Detailed vehicles stats
+        'pending_sales':   reserved_vehicles,
+
         'vehicles': {
-            'total': total_vehicles,
-            'available': available_vehicles,
-            'reserved': reserved_vehicles,
-            'sold': sold_vehicles,
-            'repossessed': repossessed_vehicles,
-            'maintenance': maintenance_vehicles,
+            'total': total_vehicles, 'available': available_vehicles,
+            'reserved': reserved_vehicles, 'sold': sold_vehicles,
+            'repossessed': repossessed_vehicles, 'maintenance': maintenance_vehicles,
         },
-        
-        # Detailed clients stats
         'clients': {
-            'total': total_clients,
-            'active': active_clients,
-            'new_today': new_clients_today,
+            'total': total_clients, 'active': active_clients, 'new_today': new_clients_today,
         },
-        
-        # Detailed payments stats
         'payments': {
-            'total_today': float(total_payments_today),
-            'count_today': payments_count_today,
-            'pending': pending_payments,
-            'monthly_revenue': float(monthly_revenue),
+            'total_today': float(total_payments_today), 'count_today': payments_count_today,
+            'pending': pending_payments, 'monthly_revenue': float(monthly_revenue),
+            'all_time': float(total_revenue_all_time),
         },
-        
-        # Detailed auctions stats
+        'outstanding': {
+            'total': float(total_outstanding), 'active_accounts': active_accounts,
+            'overdue_total': float(total_overdue_amount),
+            'overdue_schedules': total_overdue_schedules.count(),
+        },
+        'sales': {
+            'total_count': total_sales_count, 'total_revenue': float(total_sales_revenue),
+            'monthly_count': monthly_sales_count, 'monthly_revenue': float(monthly_sales_revenue),
+            'collection_rate_percent': float(collection_rate),
+        },
+        'profit': {
+            'total': float(total_profit_loss), 'monthly': float(monthly_profit),
+            'is_profitable': total_profit_loss >= 0,
+            'monthly_is_profitable': monthly_profit >= 0,
+        },
+        'most_sold_makes': most_sold_makes,
+        'most_sold_models': most_sold_models,
+        'defaulters':      defaulters,
+        'recent_sales':    recent_sales,
         'auctions': {
-            'active': active_auctions,
-            'scheduled': scheduled_auctions,
+            'active': active_auctions, 'scheduled': scheduled_auctions,
             'completed_today': completed_auctions_today,
         },
-        
-        # Date references for debugging
         'today': today.isoformat(),
         'first_day_of_month': first_day_of_month.isoformat(),
     }
-    
-    return data
 
 
 def get_financial_summary(date_from=None, date_to=None):
