@@ -720,6 +720,13 @@ class VehicleTracker(models.Model):
         help_text='Device serial number or IMEI'
     )
 
+    certificate_number = models.CharField(
+        'Certificate Number',
+        max_length=100,
+        blank=True,
+        help_text='Tracker certificate number (if available)'
+    )
+
     provider = models.CharField(
         'Provider / Vendor',
         max_length=200,
