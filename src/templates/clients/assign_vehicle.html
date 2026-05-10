@@ -3,6 +3,63 @@
 
 {% block title %}Assign Vehicle - {{ client.get_full_name }}{% endblock %}
 
+{% block top_search %}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    /* Hide the original select element - Select2 will handle the UI */
+    .select2-hidden-accessible {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        visibility: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+    
+    .select2-container--default .select2-selection--single {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        height: auto;
+        padding: 0.5rem;
+    }
+    
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        padding: 0.375rem 0 0.375rem 0;
+        line-height: 1.5;
+    }
+    
+    .select2-dropdown {
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .select2-results__option {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .select2-results__option--highlighted {
+        background-color: #3b82f6;
+    }
+    
+    .select2-search__field {
+        border: 1px solid #e5e7eb !important;
+        border-radius: 0.375rem !important;
+        padding: 0.5rem !important;
+        font-size: 0.875rem !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 py-6 max-w-4xl">
     <nav class="flex mb-6" aria-label="Breadcrumb">
@@ -63,10 +120,13 @@
                 <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-car mr-2"></i>Vehicle Selection</h2>
             </div>
             <div class="p-6">
-                <label for="{{ form.vehicle.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Select Vehicle <span class="text-red-500">*</span></label>
+                <label for="{{ form.vehicle.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Select Vehicle <span class="text-red-500">*</span></label>
                 {{ form.vehicle }}
                 {% if form.vehicle.errors %}<p class="mt-1 text-sm text-red-600">{{ form.vehicle.errors.0 }}</p>{% endif %}
-                <p class="mt-1 text-xs text-gray-500">Select a vehicle from available inventory.</p>
+                <p class="mt-2 text-xs text-gray-500">
+                    <i class="fas fa-search mr-1"></i>
+                    Search by vehicle make, model, VIN number or registration. If the list is long, type to filter vehicles quickly.
+                </p>
             </div>
         </div>
 
@@ -474,6 +534,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6
 textarea { min-height: 100px; resize: vertical; }
 </style>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 const vehiclePrices     = {{ vehicle_prices_json|safe|default:"{}" }};
 const vehicleCostPrices = {{ vehicle_cost_prices_json|safe|default:"{}" }};
@@ -783,13 +845,21 @@ document.addEventListener('change', function(e) {
     const vehicleSelect = document.getElementById('{{ form.vehicle.id_for_label }}');
     const priceInput    = document.getElementById('{{ form.purchase_price.id_for_label }}');
 
+    function applyVehicleSelection(vehicleId) {
+        if (!priceInput) {
+            return;
+        }
+
+        if (vehicleId && vehiclePrices[vehicleId] !== undefined) {
+            priceInput.value = Number(vehiclePrices[vehicleId]).toFixed(2);
+        }
+
+        updateProfitLoss();
+    }
+
     if (vehicleSelect && priceInput) {
         vehicleSelect.addEventListener('change', function() {
-            const vid = this.value;
-            if (vid && vehiclePrices[vid] !== undefined) {
-                priceInput.value = vehiclePrices[vid].toFixed(2);
-            }
-            updateProfitLoss();
+            applyVehicleSelection(this.value);
         });
         priceInput.addEventListener('input', updateProfitLoss);
     }
@@ -800,6 +870,57 @@ document.addEventListener('change', function(e) {
             updateProfitLoss();
         }
     });
+
+    // Initialize Select2 for vehicle dropdown
+    $(document).ready(function() {
+        $('#id_vehicle').select2({
+            width: '100%',
+            placeholder: 'Search by Make, Model, VIN or Registration...',
+            allowClear: true,
+            minimumInputLength: 0,
+            templateResult: formatVehicleOption,
+            templateSelection: formatVehicleSelection,
+            matcher: matchVehicleOption
+        });
+
+        // Ensure Select2 selections always run vehicle auto-population logic
+        $('#id_vehicle').on('select2:select select2:clear', function() {
+            applyVehicleSelection(this.value);
+        });
+    });
+    
+    // Format vehicle option display
+    function formatVehicleOption(option) {
+        if (!option.id) {
+            return option.text;
+        }
+        return $('<span>' + option.text + '</span>');
+    }
+    
+    // Format vehicle selection display
+    function formatVehicleSelection(option) {
+        if (!option.id) {
+            return option.text;
+        }
+        return option.text;
+    }
+    
+    // Custom matcher for vehicle search
+    function matchVehicleOption(params, data) {
+        if (!params.term) {
+            return data;
+        }
+        
+        const searchTerm = params.term.toUpperCase();
+        const text = (data.text || '').toUpperCase();
+        
+        // Search in the full text (make, model, year, VIN, registration)
+        if (text.indexOf(searchTerm) > -1) {
+            return data;
+        }
+        
+        return null;
+    }
 });
 </script>
 {% endblock %}
