@@ -1,8 +1,8 @@
-# 🚗 Vehicle Management System
+# Vehicle Management System
 
 A comprehensive vehicle sales management system built with Django 5.1, featuring role-based access control, payment tracking, inventory management, background task processing with Celery, and production-ready Docker deployment.
 
-## ✨ Features
+## Features
 
 - **Role-Based Access Control**: Admin, Sales, Accountant, Auctioneer, Manager, Staff
 - **Vehicle Inventory Management**: Track vehicles with detailed specifications
@@ -19,7 +19,7 @@ A comprehensive vehicle sales management system built with Django 5.1, featuring
 - **Scheduled Tasks**: Automated reminders, notifications, and reports
 - **Docker Ready**: Production deployment with Gunicorn and Nginx
 
-## 🚀 Quick Start with Docker (Recommended)
+## Quick Start with Docker (Recommended)
 
 ### Prerequisites
 - **Windows**: Docker Desktop installed and running
@@ -56,7 +56,7 @@ make createsuperuser
 
 **Access at:** http://localhost:3333
 
-**📖 For Ubuntu Server deployment:** See [UBUNTU_DEPLOYMENT.md](UBUNTU_DEPLOYMENT.md) for complete production setup with Nginx and SSL.
+**For Ubuntu Server deployment:** See [UBUNTU_DEPLOYMENT.md](UBUNTU_DEPLOYMENT.md) for complete production setup with Nginx and SSL.
 
 ### Docker Commands Quick Reference
 
@@ -71,9 +71,9 @@ make backup-db         # Backup database
 make ps                # Show container status
 ```
 
-**📖 Full Docker documentation:** [DOCKER_QUICKSTART.md](DOCKER_QUICKSTART.md) | [DEPLOYMENT.md](DEPLOYMENT.md)
+** Full Docker documentation:** [DOCKER_QUICKSTART.md](DOCKER_QUICKSTART.md) | [DEPLOYMENT.md](DEPLOYMENT.md)
 
-## 🛠️ Manual Installation (Without Docker)
+## Manual Installation (Without Docker)
 
 ### Prerequisites
 - Python 3.12+ (or 3.11+)
@@ -105,7 +105,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-## 🏗️ Architecture
+## Architecture
 
 ### Docker Services
 
@@ -191,7 +191,7 @@ TWILIO_AUTH_TOKEN=your-token
 TWILIO_PHONE_NUMBER=+1234567890
 ```
 
-## 🔄 Common Tasks
+## Common Tasks
 
 ### Docker Operations
 
@@ -225,7 +225,7 @@ make rebuild-web          # Rebuild web (DB safe)
 make rebuild-celery       # Rebuild Celery (DB safe)
 ```
 
-## 🌐 Production Deployment
+## Production Deployment
 
 ### 1. Configure Nginx
 
@@ -295,7 +295,7 @@ crontab -e
 # Add: 0 2 * * * cd /path/to/project && make backup-db
 ```
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # With Docker
@@ -305,7 +305,7 @@ make test
 python manage.py test
 ```
 
-## 📊 Performance Tuning
+## Performance Tuning
 
 ### Gunicorn Workers
 
@@ -323,7 +323,7 @@ docker stats              # Real-time container stats
 make ps                   # Container status
 ```
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Container won't start
 ```bash
@@ -354,7 +354,7 @@ make clean-containers
 make up
 ```
 
-## 🔄 Updating Application
+## Updating Application
 
 ```bash
 # Pull latest code
@@ -372,14 +372,14 @@ Or use single command:
 make update
 ```
 
-## 📚 Documentation
+## Documentation
 
 - **[DOCKER_QUICKSTART.md](DOCKER_QUICKSTART.md)** - Quick Docker reference
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide
 - **[SETUP_COMPLETE.md](SETUP_COMPLETE.md)** - Setup overview
 - **[nginx.conf.example](nginx.conf.example)** - Nginx configuration
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create feature branch (`git checkout -b feature/AmazingFeature`)
@@ -387,18 +387,18 @@ make update
 4. Push to branch (`git push origin feature/AmazingFeature`)
 5. Open Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License.
 
-## 🐛 Issues & Support
+## Issues & Support
 
 For issues, questions, or feature requests:
 - Open an issue on GitHub
 - Check existing documentation
 - Review logs: `make logs-web`
 
-## ✨ Roadmap
+## Roadmap
 
 - [ ] REST API implementation
 - [ ] Mobile application
@@ -409,7 +409,7 @@ For issues, questions, or feature requests:
 - [ ] Payment gateway integration
 - [ ] Multi-language support
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Django Framework
 - Tailwind CSS
@@ -419,5 +419,3 @@ For issues, questions, or feature requests:
 - All open-source contributors
 
 ---
-
-**Built with ❤️ using Django 5.1 | Ready for production with Docker 🐳**
