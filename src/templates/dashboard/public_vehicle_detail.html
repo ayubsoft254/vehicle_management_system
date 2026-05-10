@@ -77,7 +77,9 @@
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ vehicle.full_name }}</h1>
                     <div class="flex items-center space-x-4 text-gray-600">
+                        {% if can_view_vin %}
                         <span><i class="fas fa-tag mr-1"></i>{{ vehicle.vin }}</span>
+                        {% endif %}
                         <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
                             <i class="fas fa-check-circle mr-1"></i>Available
                         </span>
