@@ -692,6 +692,10 @@ class PaymentSchedule(models.Model):
     
     def mark_as_paid(self, payment, amount=None):
         """Mark this schedule as paid"""
+        if payment.payment_date and payment.payment_date > timezone.now().date():
+            # A future-dated payment is scheduled, not yet received.
+            return
+
         if amount is None:
             amount = self.remaining_amount
         
