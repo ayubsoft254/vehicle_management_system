@@ -16,7 +16,7 @@ import json
 from decimal import Decimal
 
 from .models import Client, ClientVehicle, ClientDocument
-from apps.payments.models import Payment, InstallmentPlan
+from apps.payments.models import Payment, PaymentSplit, InstallmentPlan
 from .forms import (
     ClientForm, ClientVehicleForm, PaymentForm, 
     ClientDocumentForm, ClientSearchForm, InstallmentPlanForm
@@ -328,7 +328,66 @@ def assign_vehicle(request, client_pk):
                 client_vehicle.total_paid = client_vehicle.deposit_paid
                 
                 client_vehicle.save()
-                
+
+                # Record deposit payment with optional split methods
+                if client_vehicle.deposit_paid > 0:
+                    deposit_date = client_vehicle.purchase_date or timezone.now().date()
+                    deposit_split_methods = request.POST.getlist('deposit_split_method[]')
+                    deposit_split_amounts = request.POST.getlist('deposit_split_amount[]')
+                    deposit_split_references = request.POST.getlist('deposit_split_reference[]')
+
+                    # Build valid splits (method + positive amount required)
+                    valid_splits = []
+                    for m, a, r in zip(deposit_split_methods, deposit_split_amounts, deposit_split_references):
+                        if m and a:
+                            try:
+                                amt = Decimal(str(a).replace(',', ''))
+                                if amt > 0:
+                                    valid_splits.append((m, amt, r.strip() if r else None))
+                            except Exception:
+                                pass
+
+                    if len(valid_splits) > 1:
+                        deposit_payment = Payment.objects.create(
+                            client_vehicle=client_vehicle,
+                            amount=client_vehicle.deposit_paid,
+                            payment_date=deposit_date,
+                            payment_method='mixed',
+                            notes='Initial deposit — vehicle assignment',
+                            recorded_by=request.user,
+                        )
+                        for method, amt, ref in valid_splits:
+                            PaymentSplit.objects.create(
+                                payment=deposit_payment,
+                                payment_method=method,
+                                amount=amt,
+                                transaction_reference=ref,
+                            )
+                    elif len(valid_splits) == 1:
+                        method, amt, ref = valid_splits[0]
+                        Payment.objects.create(
+                            client_vehicle=client_vehicle,
+                            amount=client_vehicle.deposit_paid,
+                            payment_date=deposit_date,
+                            payment_method=method,
+                            transaction_reference=ref,
+                            notes='Initial deposit — vehicle assignment',
+                            recorded_by=request.user,
+                        )
+                    else:
+                        # No split info — use single method fallback
+                        single_method = request.POST.get('deposit_payment_method', 'cash') or 'cash'
+                        single_ref = request.POST.get('deposit_transaction_reference', '').strip() or None
+                        Payment.objects.create(
+                            client_vehicle=client_vehicle,
+                            amount=client_vehicle.deposit_paid,
+                            payment_date=deposit_date,
+                            payment_method=single_method,
+                            transaction_reference=single_ref,
+                            notes='Initial deposit — vehicle assignment',
+                            recorded_by=request.user,
+                        )
+
                 # Update vehicle status
                 vehicle = client_vehicle.vehicle
                 vehicle.status = 'sold'
@@ -581,10 +640,12 @@ def client_vehicle_detail(request, pk):
     next_payment = None
     total_paid_schedule = Decimal('0.00')
     total_remaining_schedule = Decimal('0.00')
+    currently_due_schedule = Decimal('0.00')
     
     monthly_installment_display = client_vehicle.monthly_installment or Decimal('0.00')
     next_installment_date_display = None
     interest_rate_display = Decimal('0.00')
+    today = timezone.now().date()
 
     if installment_plan:
         # Get next unpaid installment
@@ -602,6 +663,14 @@ def client_vehicle_detail(request, pk):
         
         total_remaining_schedule = all_schedules.filter(
             is_paid=False
+        ).aggregate(
+            total=models.Sum('amount_due')
+        )['total'] or Decimal('0.00')
+        
+        # Calculate currently due (past and present due dates only, excluding future dates)
+        currently_due_schedule = all_schedules.filter(
+            is_paid=False,
+            due_date__lte=today
         ).aggregate(
             total=models.Sum('amount_due')
         )['total'] or Decimal('0.00')
@@ -691,6 +760,7 @@ def client_vehicle_detail(request, pk):
         'next_payment': next_payment,
         'total_paid_schedule': total_paid_schedule,
         'total_remaining_schedule': total_remaining_schedule,
+        'currently_due_schedule': currently_due_schedule,
         'monthly_installment_display': monthly_installment_display,
         'next_installment_date_display': next_installment_date_display,
         'interest_rate_display': interest_rate_display,
@@ -782,7 +852,7 @@ def client_vehicle_update(request, pk):
 @login_required
 def record_payment(request, client_vehicle_pk):
     """
-    Record a payment for a client's vehicle
+    Record a payment for a client's vehicle (supports split payment methods)
     """
     client_vehicle = get_object_or_404(ClientVehicle, pk=client_vehicle_pk)
     
@@ -790,11 +860,49 @@ def record_payment(request, client_vehicle_pk):
         form = PaymentForm(request.POST, client_vehicle=client_vehicle)
         if form.is_valid():
             with transaction.atomic():
+                # Collect split method data
+                split_methods = request.POST.getlist('split_method[]')
+                split_amounts = request.POST.getlist('split_amount[]')
+                split_references = request.POST.getlist('split_reference[]')
+
+                valid_splits = []
+                for m, a, r in zip(split_methods, split_amounts, split_references):
+                    if m and a:
+                        try:
+                            amt = Decimal(str(a).replace(',', ''))
+                            if amt > 0:
+                                valid_splits.append((m, amt, r.strip() if r else None))
+                        except Exception:
+                            pass
+
                 payment = form.save(commit=False)
                 payment.client_vehicle = client_vehicle
                 payment.recorded_by = request.user
+
+                if len(valid_splits) > 1:
+                    payment.payment_method = 'mixed'
+                elif len(valid_splits) == 1:
+                    payment.payment_method = valid_splits[0][0]
+
                 payment.save()
-                # Check if fully paid
+
+                # Create PaymentSplit records for multi-method payments
+                if len(valid_splits) > 1:
+                    for method, amt, ref in valid_splits:
+                        PaymentSplit.objects.create(
+                            payment=payment,
+                            payment_method=method,
+                            amount=amt,
+                            transaction_reference=ref,
+                        )
+
+                # Update payment schedules if an installment plan exists
+                try:
+                    from apps.payments.views import update_payment_schedules
+                    update_payment_schedules(payment, client_vehicle)
+                except Exception:
+                    pass
+
                 client_vehicle.refresh_from_db()
                 if client_vehicle.is_paid_off:
                     messages.success(
