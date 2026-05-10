@@ -271,6 +271,55 @@ def assign_vehicle(request, client_pk):
                 client_vehicle = form.save(commit=False)
                 client_vehicle.client = client
                 client_vehicle.created_by = request.user
+
+                def parse_money(value):
+                    try:
+                        return Decimal(str(value).strip() or '0')
+                    except Exception:
+                        return Decimal('0')
+
+                # Parse insurance and tracker inputs early so totals affect the purchase price,
+                # balance, and installment plan calculations.
+                insurance_provider_id = request.POST.get('insurance_provider_id')
+                insurance_policy_number = request.POST.get('insurance_policy_number', '').strip()
+                insurance_policy_type = request.POST.get('insurance_policy_type', 'comprehensive')
+                insurance_vehicle_usage = request.POST.get('insurance_vehicle_usage', 'private').strip() or 'private'
+                insurance_start_date = request.POST.get('insurance_start_date', '').strip()
+                insurance_end_date = request.POST.get('insurance_end_date', '').strip()
+                insurance_buying_price = request.POST.get('insurance_buying_price', '').strip()
+                insurance_selling_price = request.POST.get('insurance_selling_price', '').strip()
+                insurance_agent_name = request.POST.get('insurance_agent_name', '').strip()
+                insurance_agent_id = request.POST.get('insurance_agent_id', '').strip()
+                insurance_payment_type = request.POST.get('insurance_payment_type', 'full').strip()
+                insurance_has_plan = (insurance_payment_type == 'flexible')
+                insurance_flexible_json = request.POST.get('insurance_flexible_installments_json', '[]')
+                insurance_interest_rate = request.POST.get('insurance_interest_rate', '0').strip()
+
+                tracker_names = request.POST.getlist('tracker_name[]')
+                tracker_serials = request.POST.getlist('tracker_serial[]')
+                tracker_certificate_numbers = request.POST.getlist('tracker_certificate_number[]')
+                tracker_providers = request.POST.getlist('tracker_provider[]')
+                tracker_install_dates = request.POST.getlist('tracker_install_date[]')
+                tracker_buying_prices = request.POST.getlist('tracker_buying_price[]')
+                tracker_selling_prices = request.POST.getlist('tracker_selling_price[]')
+                tracker_payment_types = request.POST.getlist('tracker_payment_type[]')
+                tracker_flex_jsons = request.POST.getlist('tracker_flexible_installments_json[]')
+                tracker_interest_rates = request.POST.getlist('tracker_interest_rate[]')
+
+                commission_addon = parse_money(client_vehicle.commission_amount)
+
+                insurance_addon = Decimal('0')
+                if insurance_provider_id and insurance_policy_number and insurance_start_date and insurance_end_date:
+                    insurance_addon = parse_money(insurance_selling_price)
+
+                tracker_addon = Decimal('0')
+                for i, name in enumerate(tracker_names):
+                    if name.strip():
+                        tracker_addon += parse_money(tracker_selling_prices[i] if i < len(tracker_selling_prices) else '0')
+
+                client_vehicle.purchase_price = (
+                    client_vehicle.purchase_price + insurance_addon + tracker_addon + commission_addon
+                ).quantize(Decimal('0.01'))
                 
                 # Calculate balance
                 client_vehicle.balance = (
@@ -339,24 +388,9 @@ def assign_vehicle(request, client_pk):
                             )
                 
                 # --- Handle Insurance ---
-                insurance_provider_id = request.POST.get('insurance_provider_id')
-                insurance_policy_number = request.POST.get('insurance_policy_number', '').strip()
-                insurance_policy_type = request.POST.get('insurance_policy_type', 'comprehensive')
-                insurance_vehicle_usage = request.POST.get('insurance_vehicle_usage', 'private').strip() or 'private'
-                insurance_start_date = request.POST.get('insurance_start_date', '').strip()
-                insurance_end_date = request.POST.get('insurance_end_date', '').strip()
-                insurance_buying_price = request.POST.get('insurance_buying_price', '').strip()
-                insurance_selling_price = request.POST.get('insurance_selling_price', '').strip()
-                insurance_agent_name = request.POST.get('insurance_agent_name', '').strip()
-                insurance_agent_id = request.POST.get('insurance_agent_id', '').strip()
-                insurance_payment_type = request.POST.get('insurance_payment_type', 'full').strip()
-                insurance_has_plan = (insurance_payment_type == 'flexible')
-                insurance_flexible_json = request.POST.get('insurance_flexible_installments_json', '[]')
-                insurance_interest_rate = request.POST.get('insurance_interest_rate', '0').strip()
-                
                 if insurance_provider_id and insurance_policy_number and insurance_start_date and insurance_end_date:
                     try:
-                        from apps.insurance.models import InsuranceProvider, InsurancePolicy
+                        from apps.insurance.models import InsuranceProvider, InsurancePolicy, InsurancePaymentSchedule
                         from datetime import datetime as dt
                         
                         provider = InsuranceProvider.objects.get(pk=insurance_provider_id)
@@ -365,20 +399,29 @@ def assign_vehicle(request, client_pk):
                         import json as _json
                         insurance_months = None
                         insurance_monthly = None
-                        if insurance_has_plan:
-                            try:
-                                ins_installments = _json.loads(insurance_flexible_json or '[]')
-                            except Exception:
-                                ins_installments = []
-                            if ins_installments:
-                                insurance_months = len(ins_installments)
-                                total_ins = sum(
-                                    Decimal(str(row.get('amount', '0') or '0'))
-                                    for row in ins_installments
-                                )
-                                insurance_monthly = total_ins / insurance_months if insurance_months else None
-                        
-                        InsurancePolicy.objects.create(
+                        insurance_deposit = Decimal('0.00')
+                        insurance_total_paid = Decimal('0.00')
+                        insurance_balance = Decimal(insurance_selling_price or '0')
+
+                        try:
+                            ins_installments = _json.loads(insurance_flexible_json or '[]')
+                        except Exception:
+                            ins_installments = []
+
+                        if insurance_payment_type == 'deduct_from_deposit':
+                            insurance_deposit = min(client_vehicle.deposit_paid, Decimal(insurance_selling_price or '0'))
+                            insurance_total_paid = insurance_deposit
+                            insurance_balance = max(Decimal('0.00'), Decimal(insurance_selling_price or '0') - insurance_deposit)
+                            insurance_has_plan = False
+                        elif insurance_has_plan and ins_installments:
+                            insurance_months = len(ins_installments)
+                            total_ins = sum(
+                                Decimal(str(row.get('amount', '0') or '0'))
+                                for row in ins_installments
+                            )
+                            insurance_monthly = (total_ins / insurance_months) if insurance_months else None
+
+                        policy = InsurancePolicy.objects.create(
                             vehicle=vehicle,
                             provider=provider,
                             client=client,
@@ -395,28 +438,31 @@ def assign_vehicle(request, client_pk):
                             agent_id=insurance_agent_id,
                             payment_type=insurance_payment_type,
                             has_payment_plan=insurance_has_plan,
-                            insurance_deposit=Decimal('0'),
+                            insurance_deposit=insurance_deposit,
                             insurance_installment_months=insurance_months if insurance_has_plan else None,
                             insurance_monthly_installment=insurance_monthly if insurance_has_plan else None,
+                            insurance_total_paid=insurance_total_paid,
+                            insurance_balance=insurance_balance,
                             insurance_interest_rate=Decimal('0'),
                             status='active',
                             created_by=request.user,
                         )
+
+                        if insurance_has_plan and ins_installments:
+                            policy.insurance_payment_schedules.all().delete()
+                            for idx, installment in enumerate(ins_installments, start=1):
+                                due_date = dt.strptime(str(installment.get('due_date')).strip(), '%Y-%m-%d').date()
+                                amount_due = Decimal(str(installment.get('amount')).strip())
+                                InsurancePaymentSchedule.objects.create(
+                                    policy=policy,
+                                    installment_number=idx,
+                                    due_date=due_date,
+                                    amount_due=amount_due,
+                                )
                     except Exception as e:
                         messages.warning(request, f'Vehicle assigned but insurance could not be saved: {e}')
                 
                 # --- Handle Multiple Trackers ---
-                tracker_names = request.POST.getlist('tracker_name[]')
-                tracker_serials = request.POST.getlist('tracker_serial[]')
-                tracker_certificate_numbers = request.POST.getlist('tracker_certificate_number[]')
-                tracker_providers = request.POST.getlist('tracker_provider[]')
-                tracker_install_dates = request.POST.getlist('tracker_install_date[]')
-                tracker_buying_prices = request.POST.getlist('tracker_buying_price[]')
-                tracker_selling_prices = request.POST.getlist('tracker_selling_price[]')
-                tracker_payment_types = request.POST.getlist('tracker_payment_type[]')
-                tracker_flex_jsons = request.POST.getlist('tracker_flexible_installments_json[]')
-                tracker_interest_rates = request.POST.getlist('tracker_interest_rate[]')
-                
                 for i, name in enumerate(tracker_names):
                     if name.strip():
                         try:
@@ -455,10 +501,11 @@ def assign_vehicle(request, client_pk):
                                 selling_price=Decimal(tracker_selling_prices[i]) if i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0'),
                                 payment_type=payment_type,
                                 has_payment_plan=has_plan,
-                                deposit=Decimal('0'),
+                                deposit=(Decimal(tracker_selling_prices[i]) if payment_type == 'deduct_from_deposit' and i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0')),
                                 installment_months=tracker_months if has_plan else None,
                                 monthly_installment=tracker_monthly if has_plan else None,
                                 interest_rate=Decimal('0'),
+                                total_paid=(Decimal(tracker_selling_prices[i]) if payment_type == 'deduct_from_deposit' and i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0')),
                                 installed_date=install_date,
                                 created_by=request.user,
                             )
@@ -510,7 +557,9 @@ def client_vehicle_detail(request, pk):
     Display details of a client's vehicle purchase
     """
     from apps.payments.models import PaymentSchedule
+    from apps.insurance.models import InsurancePolicy
     from django.utils import timezone
+    from dateutil.relativedelta import relativedelta
     
     client_vehicle = get_object_or_404(
         ClientVehicle.objects.select_related('client', 'vehicle'), 
@@ -533,12 +582,17 @@ def client_vehicle_detail(request, pk):
     total_paid_schedule = Decimal('0.00')
     total_remaining_schedule = Decimal('0.00')
     
+    monthly_installment_display = client_vehicle.monthly_installment or Decimal('0.00')
+    next_installment_date_display = None
+    interest_rate_display = Decimal('0.00')
+
     if installment_plan:
         # Get next unpaid installment
         next_payment = PaymentSchedule.objects.filter(
             installment_plan=installment_plan,
             is_paid=False
         ).order_by('due_date').first()
+        next_installment_date_display = next_payment.due_date if next_payment else None
         
         # Calculate totals from payment schedule
         all_schedules = PaymentSchedule.objects.filter(installment_plan=installment_plan)
@@ -551,6 +605,83 @@ def client_vehicle_detail(request, pk):
         ).aggregate(
             total=models.Sum('amount_due')
         )['total'] or Decimal('0.00')
+
+        unpaid_count = all_schedules.filter(is_paid=False).count()
+        if unpaid_count > 0 and total_remaining_schedule > 0:
+            monthly_installment_display = (total_remaining_schedule / Decimal(str(unpaid_count))).quantize(Decimal('0.01'))
+        elif installment_plan.monthly_installment:
+            monthly_installment_display = installment_plan.monthly_installment
+    elif client_vehicle.payment_type == 'installment' and client_vehicle.installment_months and client_vehicle.balance > 0:
+        monthly_installment_display = (client_vehicle.balance / Decimal(str(client_vehicle.installment_months))).quantize(Decimal('0.01'))
+
+        if client_vehicle.monthly_payment_date:
+            candidate = today.replace(day=1)
+            day = min(max(client_vehicle.monthly_payment_date, 1), 28)
+            candidate = candidate.replace(day=day)
+            if candidate <= today:
+                candidate = (candidate + relativedelta(months=1)).replace(day=day)
+            next_installment_date_display = candidate
+
+    today = timezone.now().date()
+
+    # Insurance payment summary (latest policy for this client vehicle)
+    insurance_policy = InsurancePolicy.objects.filter(
+        vehicle=client_vehicle.vehicle,
+        client=client_vehicle.client,
+    ).order_by('-created_at').first()
+
+    insurance_summary = None
+    if insurance_policy:
+        insurance_schedules = insurance_policy.insurance_payment_schedules.all()
+        insurance_total_paid = insurance_schedules.aggregate(total=models.Sum('amount_paid'))['total'] or Decimal('0.00')
+
+        if insurance_policy.has_payment_plan and insurance_schedules.exists():
+            insurance_total_due = insurance_schedules.aggregate(total=models.Sum('amount_due'))['total'] or Decimal('0.00')
+            insurance_balance = max(Decimal('0.00'), insurance_total_due - insurance_total_paid)
+            insurance_next_payment = insurance_schedules.filter(is_paid=False).order_by('due_date').first()
+            insurance_monthly = insurance_policy.insurance_monthly_installment or (
+                insurance_next_payment.amount_due if insurance_next_payment else Decimal('0.00')
+            )
+            insurance_is_defaulted = insurance_schedules.filter(is_paid=False, due_date__lt=today).exists()
+        else:
+            insurance_balance = max(Decimal('0.00'), (insurance_policy.selling_price or Decimal('0.00')) - insurance_total_paid)
+            insurance_next_payment = None
+            insurance_monthly = Decimal('0.00')
+            insurance_is_defaulted = False
+
+        insurance_summary = {
+            'policy': insurance_policy,
+            'monthly_installment': insurance_monthly,
+            'next_payment': insurance_next_payment,
+            'total_paid': insurance_total_paid,
+            'balance': insurance_balance,
+            'is_defaulted': insurance_is_defaulted,
+            'is_fully_paid': insurance_balance <= Decimal('0.00'),
+        }
+
+    # Tracker payment summary
+    tracker_payment_rows = []
+    for tracker in client_vehicle.trackers.all():
+        next_due_date = None
+        is_defaulted = False
+
+        if tracker.has_payment_plan and tracker.monthly_installment and tracker.monthly_installment > 0 and tracker.installment_months:
+            paid_installments = int((tracker.total_paid or Decimal('0.00')) / tracker.monthly_installment)
+            next_installment_number = paid_installments + 1
+
+            if tracker.balance > 0 and next_installment_number <= tracker.installment_months and tracker.installed_date:
+                next_due_date = tracker.installed_date + relativedelta(months=next_installment_number)
+                is_defaulted = next_due_date < today
+
+        tracker_payment_rows.append({
+            'tracker': tracker,
+            'monthly_installment': tracker.monthly_installment if tracker.has_payment_plan else Decimal('0.00'),
+            'next_due_date': next_due_date,
+            'total_paid': tracker.total_paid,
+            'balance': tracker.balance,
+            'is_defaulted': is_defaulted,
+            'is_fully_paid': tracker.balance <= Decimal('0.00'),
+        })
     
     context = {
         'client_vehicle': client_vehicle,
@@ -560,6 +691,11 @@ def client_vehicle_detail(request, pk):
         'next_payment': next_payment,
         'total_paid_schedule': total_paid_schedule,
         'total_remaining_schedule': total_remaining_schedule,
+        'monthly_installment_display': monthly_installment_display,
+        'next_installment_date_display': next_installment_date_display,
+        'interest_rate_display': interest_rate_display,
+        'insurance_summary': insurance_summary,
+        'tracker_payment_rows': tracker_payment_rows,
     }
     
     log_audit(
