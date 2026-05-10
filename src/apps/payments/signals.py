@@ -22,10 +22,12 @@ def update_client_vehicle_after_payment(sender, instance, created, **kwargs):
     """
     if created:
         client_vehicle = instance.client_vehicle
+        today = timezone.now().date()
         
-        # Update total paid and balance
+        # Future-dated entries are scheduled payments and do not count as paid yet.
         client_vehicle.total_paid = Payment.objects.filter(
-            client_vehicle=client_vehicle
+            client_vehicle=client_vehicle,
+            payment_date__lte=today,
         ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
         
         client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
@@ -58,6 +60,9 @@ def update_payment_schedules_after_payment(sender, instance, created, **kwargs):
     Automatically update payment schedules when a payment is recorded
     """
     if created:
+        if instance.payment_date and instance.payment_date > timezone.now().date():
+            return
+
         client_vehicle = instance.client_vehicle
         
         try:
@@ -102,9 +107,11 @@ def revert_payment_on_delete(sender, instance, **kwargs):
     """
     client_vehicle = instance.client_vehicle
     
-    # Recalculate total paid
+    # Recalculate total paid (future-dated entries are not yet paid)
+    today = timezone.now().date()
     client_vehicle.total_paid = Payment.objects.filter(
-        client_vehicle=client_vehicle
+        client_vehicle=client_vehicle,
+        payment_date__lte=today,
     ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
     
     client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
