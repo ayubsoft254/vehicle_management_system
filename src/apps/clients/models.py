@@ -744,6 +744,20 @@ class VehicleTracker(models.Model):
     )
 
     # Payment plan fields
+    TRACKER_PAYMENT_TYPE_CHOICES = [
+        ('full', 'Full Payment'),
+        ('flexible', 'Flexible Installments'),
+        ('deduct_from_deposit', 'Deduct from Deposit'),
+    ]
+
+    payment_type = models.CharField(
+        'Payment Type',
+        max_length=30,
+        choices=TRACKER_PAYMENT_TYPE_CHOICES,
+        default='full',
+        help_text='How the client pays for this tracker',
+    )
+
     has_payment_plan = models.BooleanField(
         'Has Payment Plan',
         default=False,
