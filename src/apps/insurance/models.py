@@ -215,6 +215,11 @@ class InsurancePolicy(models.Model):
         ('third_party', 'Third Party'),
         ('third_party_fire_theft', 'Third Party Fire & Theft'),
     ]
+
+    VEHICLE_USAGE_CHOICES = [
+        ('private', 'Private'),
+        ('psv', 'PSV'),
+    ]
     
     STATUS_CHOICES = [
         ('active', 'Active'),
@@ -259,6 +264,13 @@ class InsurancePolicy(models.Model):
         choices=POLICY_TYPE_CHOICES,
         default='comprehensive',
         help_text="Type of insurance coverage"
+    )
+
+    vehicle_usage = models.CharField(
+        max_length=20,
+        choices=VEHICLE_USAGE_CHOICES,
+        default='private',
+        help_text='Vehicle usage category for the policy'
     )
     
     # Status
@@ -1151,6 +1163,10 @@ class InsurancePaymentSchedule(models.Model):
     
     def mark_as_paid(self, payment, amount=None):
         """Mark this schedule as paid"""
+        if payment.payment_date and payment.payment_date > timezone.now().date():
+            # A future-dated payment is scheduled, not yet received.
+            return
+
         if amount is None:
             amount = self.remaining_amount
         
