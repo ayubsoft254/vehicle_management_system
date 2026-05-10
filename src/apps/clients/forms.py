@@ -6,6 +6,8 @@ from django import forms
 from django.core.validators import RegexValidator, MinValueValidator
 from django.core.exceptions import ValidationError
 from decimal import Decimal
+from datetime import datetime
+import json
 from .models import Client, ClientVehicle, ClientDocument
 from apps.payments.models import Payment, InstallmentPlan
 from apps.vehicles.models import Vehicle
@@ -329,14 +331,57 @@ class ClientVehicleForm(forms.ModelForm):
                 raise ValidationError("Please select the day of week for weekly payments.")
         
         elif payment_type == 'flexible':
-            if not installment_months or installment_months < 1:
-                raise ValidationError("Please specify the maximum number of months for flexible payments.")
-            if remainder_payment_type not in ['monthly', 'weekly']:
-                raise ValidationError("Please select whether payments are monthly or weekly.")
-            if remainder_payment_type == 'monthly' and not monthly_payment_date:
-                raise ValidationError("Please specify the day of month for monthly payments.")
-            if remainder_payment_type == 'weekly' and weekly_payment_day is None:
-                raise ValidationError("Please select the day of week for weekly payments.")
+            raw_schedule = self.data.get('flexible_installments_json', '[]')
+            try:
+                installments = json.loads(raw_schedule)
+            except json.JSONDecodeError:
+                raise ValidationError("Flexible installments are invalid. Please re-enter installment dates and amounts.")
+
+            if not isinstance(installments, list) or len(installments) == 0:
+                raise ValidationError("Add at least one installment for flexible payment.")
+
+            balance = (purchase_price or Decimal('0.00')) - (deposit_paid or Decimal('0.00'))
+            if balance <= 0:
+                raise ValidationError("Flexible installments require a remaining balance after deposit.")
+
+            total_installments = Decimal('0.00')
+            for idx, item in enumerate(installments, start=1):
+                if not isinstance(item, dict):
+                    raise ValidationError(f"Installment {idx} is invalid.")
+
+                due_date = str(item.get('due_date', '')).strip()
+                amount_raw = str(item.get('amount', '')).strip()
+
+                if not due_date:
+                    raise ValidationError(f"Installment {idx} requires a payment date.")
+                try:
+                    datetime.strptime(due_date, '%Y-%m-%d')
+                except ValueError:
+                    raise ValidationError(f"Installment {idx} has an invalid payment date.")
+
+                try:
+                    amount = Decimal(amount_raw)
+                except Exception:
+                    raise ValidationError(f"Installment {idx} has an invalid amount.")
+
+                if amount <= 0:
+                    raise ValidationError(f"Installment {idx} amount must be greater than zero.")
+
+                total_installments += amount
+
+            if (total_installments - balance).copy_abs() > Decimal('0.01'):
+                raise ValidationError(
+                    f"Flexible installment total must equal remaining balance (KES {balance:,.2f}). "
+                    f"Current total is KES {total_installments:,.2f}."
+                )
+
+            # Flexible schedule is custom, so derive normalized values for persistence.
+            cleaned_data['allow_flexible_payments'] = True
+            cleaned_data['remainder_payment_type'] = None
+            cleaned_data['monthly_payment_date'] = None
+            cleaned_data['weekly_payment_day'] = None
+            cleaned_data['installment_months'] = len(installments)
+            cleaned_data['monthly_installment'] = (balance / Decimal(str(len(installments)))).quantize(Decimal('0.01'))
         
         # Check client credit limit (only if a limit is set > 0)
         if client and purchase_price and client.credit_limit > 0:
