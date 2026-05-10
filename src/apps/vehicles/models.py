@@ -6,7 +6,7 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from decimal import Decimal
-from utils.constants import VehicleStatus
+from utils.constants import VehicleStatus, VehicleLocation
 from utils.validators import validate_vin, validate_license_plate
 import os
 
@@ -262,7 +262,36 @@ class Vehicle(models.Model):
         'Location',
         max_length=200,
         blank=True,
-        help_text='Where vehicle is currently located'
+        choices=VehicleLocation.CHOICES,
+        help_text='Current location of the vehicle'
+    )
+
+    location_moved_date = models.DateField(
+        'Location Move Date',
+        blank=True,
+        null=True,
+        help_text='Date the vehicle was moved to its current location'
+    )
+
+    location_driver_name = models.CharField(
+        'Driver Name',
+        max_length=200,
+        blank=True,
+        help_text='Name of the driver who moved the vehicle'
+    )
+
+    location_driver_phone = models.CharField(
+        'Driver Phone Number',
+        max_length=50,
+        blank=True,
+        help_text='Phone number of the driver who moved the vehicle'
+    )
+
+    location_driver_id_number = models.CharField(
+        'Driver ID Number',
+        max_length=100,
+        blank=True,
+        help_text='National ID or identification number of the driver'
     )
     
     # Shipping Information
@@ -331,11 +360,66 @@ class Vehicle(models.Model):
     def __str__(self):
         reg_or_vin = self.registration_number or self.vin[:8]
         return f"{self.year} {self.make} {self.model} - {reg_or_vin}"
+
+    def save(self, *args, **kwargs):
+        """Persist vehicle and append a location history row when movement details change."""
+        previous_vehicle = None
+        should_log_location = False
+        move_notes = getattr(self, '_location_move_notes', '') or ''
+
+        if self.pk:
+            previous_vehicle = type(self).objects.filter(pk=self.pk).first()
+            if previous_vehicle:
+                should_log_location = any([
+                    previous_vehicle.location != self.location,
+                    previous_vehicle.location_moved_date != self.location_moved_date,
+                    previous_vehicle.location_driver_name != self.location_driver_name,
+                    previous_vehicle.location_driver_phone != self.location_driver_phone,
+                    previous_vehicle.location_driver_id_number != self.location_driver_id_number,
+                ])
+        else:
+            should_log_location = bool(
+                self.location and
+                self.location_moved_date and
+                self.location_driver_name and
+                self.location_driver_phone and
+                self.location_driver_id_number
+            )
+
+        super().save(*args, **kwargs)
+
+        if should_log_location and self.location:
+            VehicleLocationHistory.objects.create(
+                vehicle=self,
+                from_location=previous_vehicle.location if previous_vehicle else '',
+                to_location=self.location,
+                moved_date=self.location_moved_date,
+                driver_name=self.location_driver_name,
+                driver_phone=self.location_driver_phone,
+                driver_id_number=self.location_driver_id_number,
+                notes=move_notes,
+            )
+
+        if hasattr(self, '_location_move_notes'):
+            delattr(self, '_location_move_notes')
+
+    @property
+    def location_driver_summary(self):
+        """Return a compact driver summary for the current location record."""
+        parts = [self.location_driver_name, self.location_driver_phone, self.location_driver_id_number]
+        return ' | '.join([part for part in parts if part])
     
     @property
     def full_name(self):
         """Get full vehicle name"""
         return f"{self.year} {self.make} {self.model}"
+
+    @property
+    def showroom_date(self):
+        """Return the move date only when the vehicle is in the showroom."""
+        if self.location == VehicleLocation.SHOWROOM:
+            return self.location_moved_date
+        return None
     
     @property
     def profit(self):
@@ -437,6 +521,79 @@ class VehicleExtraCost(models.Model):
     
     def __str__(self):
         return f"{self.vehicle} - {self.description}: {self.amount}"
+
+
+class VehicleLocationHistory(models.Model):
+    """Historical log of vehicle location movements."""
+
+    vehicle = models.ForeignKey(
+        Vehicle,
+        on_delete=models.CASCADE,
+        related_name='location_history'
+    )
+
+    from_location = models.CharField(
+        'From Location',
+        max_length=200,
+        blank=True,
+        choices=VehicleLocation.CHOICES,
+    )
+
+    to_location = models.CharField(
+        'To Location',
+        max_length=200,
+        choices=VehicleLocation.CHOICES,
+    )
+
+    moved_date = models.DateField(
+        'Moved Date',
+        blank=True,
+        null=True,
+    )
+
+    driver_name = models.CharField(
+        'Driver Name',
+        max_length=200,
+        blank=True,
+    )
+
+    driver_phone = models.CharField(
+        'Driver Phone Number',
+        max_length=50,
+        blank=True,
+    )
+
+    driver_id_number = models.CharField(
+        'Driver ID Number',
+        max_length=100,
+        blank=True,
+    )
+
+    notes = models.TextField(
+        'Move Notes',
+        blank=True,
+        help_text='Optional reason or context for the move'
+    )
+
+    recorded_at = models.DateTimeField(
+        'Recorded At',
+        auto_now_add=True,
+    )
+
+    class Meta:
+        db_table = 'vehicle_location_history'
+        verbose_name = 'Vehicle Location History'
+        verbose_name_plural = 'Vehicle Location History'
+        ordering = ['-moved_date', '-recorded_at']
+
+    def __str__(self):
+        return f"{self.vehicle} moved to {self.get_to_location_display()}"
+
+    @property
+    def driver_summary(self):
+        """Return a compact driver summary for this move record."""
+        parts = [self.driver_name, self.driver_phone, self.driver_id_number]
+        return ' | '.join([part for part in parts if part])
 
 
 class VehiclePhoto(models.Model):
