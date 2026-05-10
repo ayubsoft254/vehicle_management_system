@@ -9,6 +9,7 @@ from django.db.models import Q, Count, Sum, Avg
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from .models import Vehicle, VehiclePhoto, VehicleHistory
+from apps.clients.models import ClientVehicle
 from .forms import (
     VehicleForm, VehiclePhotoForm, VehicleSearchForm,
     VehicleStatusChangeForm, BulkVehicleActionForm
@@ -215,6 +216,17 @@ def vehicle_detail_view(request, pk):
         extra_cost_total
     )
     total_cost = vehicle.purchase_price + total_additional_cost
+
+    can_view_vin = False
+    if request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser):
+        can_view_vin = True
+    elif request.user.is_authenticated:
+        client_profile = getattr(request.user, 'client_profile', None)
+        if client_profile:
+            can_view_vin = ClientVehicle.objects.filter(
+                client=client_profile,
+                vehicle=vehicle,
+            ).exists()
     
     context = {
         'vehicle': vehicle,
@@ -223,6 +235,7 @@ def vehicle_detail_view(request, pk):
         'extra_cost_total': extra_cost_total,
         'total_additional_cost': total_additional_cost,
         'total_cost': total_cost,
+        'can_view_vin': can_view_vin,
     }
     return render(request, 'vehicles/vehicle_detail.html', context)
 
