@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db.models import Sum, Count
-from .models import Vehicle, VehiclePhoto, VehicleHistory
+from .models import Vehicle, VehiclePhoto, VehicleHistory, VehicleLocationHistory
 
 
 class VehiclePhotoInline(admin.TabularInline):
@@ -28,11 +28,23 @@ class VehicleHistoryInline(admin.TabularInline):
         return False
 
 
+class VehicleLocationHistoryInline(admin.TabularInline):
+    """Inline admin for vehicle location history"""
+    model = VehicleLocationHistory
+    extra = 0
+    fields = ['recorded_at', 'from_location', 'to_location', 'moved_date', 'driver_name', 'driver_phone', 'driver_id_number', 'notes']
+    readonly_fields = ['recorded_at', 'from_location', 'to_location', 'moved_date', 'driver_name', 'driver_phone', 'driver_id_number', 'notes']
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Vehicle)
 class VehicleAdmin(admin.ModelAdmin):
     """Admin interface for Vehicles"""
     
-    inlines = [VehiclePhotoInline, VehicleHistoryInline]
+    inlines = [VehiclePhotoInline, VehicleHistoryInline, VehicleLocationHistoryInline]
     
     list_display = [
         'vehicle_thumbnail', 'vehicle_info', 'year', 
@@ -88,7 +100,9 @@ class VehicleAdmin(admin.ModelAdmin):
             'fields': (
                 'description',
                 'features',
-                'location',
+                ('location', 'location_moved_date'),
+                ('location_driver_name', 'location_driver_phone'),
+                'location_driver_id_number',
             ),
             'classes': ('collapse',)
         }),
@@ -327,3 +341,17 @@ class VehicleHistoryAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """Only superusers can delete history"""
         return request.user.is_superuser
+
+
+@admin.register(VehicleLocationHistory)
+class VehicleLocationHistoryAdmin(admin.ModelAdmin):
+    """Admin interface for vehicle location history"""
+
+    list_display = ['vehicle', 'from_location', 'to_location', 'moved_date', 'driver_name', 'driver_phone', 'recorded_at']
+    list_filter = ['to_location', 'moved_date', 'recorded_at']
+    search_fields = ['vehicle__make', 'vehicle__model', 'vehicle__vin', 'driver_name', 'driver_phone', 'driver_id_number']
+    readonly_fields = ['vehicle', 'from_location', 'to_location', 'moved_date', 'driver_name', 'driver_phone', 'driver_id_number', 'notes', 'recorded_at']
+    date_hierarchy = 'moved_date'
+
+    def has_add_permission(self, request):
+        return False
