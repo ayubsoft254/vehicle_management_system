@@ -309,6 +309,7 @@
                         </button>
                         
                         <!-- Search Bar (Desktop) -->
+                        {% block top_search %}
                         <div class="hidden md:flex flex-1 max-w-2xl mx-4">
                             <div class="w-full">
                                 <label for="search" class="sr-only">Search</label>
@@ -328,6 +329,7 @@
                                 </div>
                             </div>
                         </div>
+                        {% endblock %}
                         
                         <!-- Right Side Actions -->
                         <div class="flex items-center space-x-4">
