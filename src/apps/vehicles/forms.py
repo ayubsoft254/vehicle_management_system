@@ -4,7 +4,7 @@ Vehicles Forms
 from django import forms
 from django.core.exceptions import ValidationError
 from .models import Vehicle, VehiclePhoto, VehicleHistory
-from utils.constants import VehicleStatus
+from utils.constants import VehicleStatus, VehicleLocation
 from decimal import Decimal
 
 
@@ -20,7 +20,9 @@ class VehicleForm(forms.ModelForm):
             'condition', 'purchase_price', 'selling_price', 'deposit_required',
             'duty_cost', 'clearance_cost', 'commission_cost',
             'status', 'is_active', 'is_featured',
-            'description', 'features', 'location', 'ship_name', 'vessel_number',
+            'description', 'features', 'location', 'location_moved_date',
+            'location_driver_name', 'location_driver_phone', 'location_driver_id_number',
+            'ship_name', 'vessel_number',
             'purchase_date'
         ]
         widgets = {
@@ -133,9 +135,24 @@ class VehicleForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': 'AC, Power Steering, Sunroof, etc.'
             }),
-            'location': forms.TextInput(attrs={
+            'location': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'Current location of vehicle'
+            }),
+            'location_moved_date': forms.DateInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'type': 'date'
+            }),
+            'location_driver_name': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Driver full name'
+            }),
+            'location_driver_phone': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Driver phone number'
+            }),
+            'location_driver_id_number': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Driver ID number'
             }),
             'ship_name': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
@@ -161,14 +178,21 @@ class VehicleForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         """Initialize form and set required attribute for fields with defaults"""
         super().__init__(*args, **kwargs)
-        
+
         # Fields with defaults in the model - make optional in form
-        optional_fields = ['seats', 'condition', 'deposit_required', 'duty_cost', 'clearance_cost', 'commission_cost']
+        optional_fields = [
+            'seats', 'condition', 'deposit_required', 'duty_cost',
+            'clearance_cost', 'commission_cost', 'location',
+            'location_moved_date', 'location_driver_name',
+            'location_driver_phone', 'location_driver_id_number'
+        ]
         for field_name in optional_fields:
             self.fields[field_name].required = False
             # Remove HTML5 required attribute from widget if present
             if 'required' in self.fields[field_name].widget.attrs:
                 del self.fields[field_name].widget.attrs['required']
+
+        self.fields['location'].choices = [('', 'Select vehicle location')] + list(VehicleLocation.CHOICES)
 
         # Selling price is derived from total cost on the form and server side.
         self.fields['selling_price'].widget.attrs['readonly'] = 'readonly'
@@ -221,16 +245,97 @@ class VehicleForm(forms.ModelForm):
         duty_cost = cleaned_data.get('duty_cost') or Decimal('0.00')
         clearance_cost = cleaned_data.get('clearance_cost') or Decimal('0.00')
         commission_cost = cleaned_data.get('commission_cost') or Decimal('0.00')
+        location = cleaned_data.get('location')
+        location_moved_date = cleaned_data.get('location_moved_date')
+        location_driver_name = (cleaned_data.get('location_driver_name') or '').strip()
+        location_driver_phone = (cleaned_data.get('location_driver_phone') or '').strip()
+        location_driver_id_number = (cleaned_data.get('location_driver_id_number') or '').strip()
 
         if purchase_price is not None:
             cleaned_data['selling_price'] = purchase_price + duty_cost + clearance_cost + commission_cost
+
+        if location and not location_moved_date:
+            self.add_error('location_moved_date', 'Please provide the date the vehicle was moved to this location.')
+
+        if location and not location_driver_name:
+            self.add_error('location_driver_name', 'Please enter the driver name for this move.')
+
+        if location and not location_driver_phone:
+            self.add_error('location_driver_phone', 'Please enter the driver phone number for this move.')
+
+        if location and not location_driver_id_number:
+            self.add_error('location_driver_id_number', 'Please enter the driver ID number for this move.')
+
+        cleaned_data['location_driver_name'] = location_driver_name
+        cleaned_data['location_driver_phone'] = location_driver_phone
+        cleaned_data['location_driver_id_number'] = location_driver_id_number
         
         # Validate deposit is not more than selling price
         selling_price = cleaned_data.get('selling_price')
         if deposit_required and selling_price and deposit_required > selling_price:
             raise ValidationError('Deposit cannot be more than selling price.')
-        
+
         return cleaned_data
+
+
+class VehicleMoveForm(forms.Form):
+    """Dedicated form for moving a vehicle between tracked locations."""
+
+    location = forms.ChoiceField(
+        choices=[('', 'Select vehicle location')] + list(VehicleLocation.CHOICES),
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+        })
+    )
+    location_moved_date = forms.DateField(
+        widget=forms.DateInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+            'type': 'date'
+        })
+    )
+    location_driver_name = forms.CharField(
+        max_length=200,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+            'placeholder': 'Driver full name'
+        })
+    )
+    location_driver_phone = forms.CharField(
+        max_length=50,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+            'placeholder': 'Driver phone number'
+        })
+    )
+    location_driver_id_number = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+            'placeholder': 'Driver ID number'
+        })
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+            'rows': 3,
+            'placeholder': 'Optional move notes, for example transfer to showroom or yard rearrangement'
+        })
+    )
+
+    def __init__(self, *args, **kwargs):
+        vehicle = kwargs.pop('vehicle', None)
+        super().__init__(*args, **kwargs)
+
+        if vehicle:
+            self.fields['location'].initial = vehicle.location
+            self.fields['location_moved_date'].initial = vehicle.location_moved_date
+            self.fields['location_driver_name'].initial = vehicle.location_driver_name
+            self.fields['location_driver_phone'].initial = vehicle.location_driver_phone
+            self.fields['location_driver_id_number'].initial = vehicle.location_driver_id_number
+
+    def clean_notes(self):
+        return (self.cleaned_data.get('notes') or '').strip()
 
 
 class VehiclePhotoForm(forms.ModelForm):
