@@ -361,6 +361,36 @@
                             </div>
                         </div>
 
+                        {% if vehicle_info.client_vehicle.trackers.all %}
+                        <div class="mt-4 mb-4 bg-orange-50 border border-orange-100 rounded-lg p-4">
+                            <h4 class="text-sm font-semibold text-orange-900 mb-3">
+                                <i class="fas fa-map-marker-alt mr-2"></i> Tracker Details
+                            </h4>
+                            <div class="overflow-x-auto rounded-lg border border-orange-200 bg-white">
+                                <table class="min-w-full text-xs">
+                                    <thead>
+                                        <tr class="bg-orange-100 text-orange-800 uppercase tracking-wide">
+                                            <th class="px-3 py-2 text-left font-semibold">Tracker</th>
+                                            <th class="px-3 py-2 text-left font-semibold">Serial / IMEI</th>
+                                            <th class="px-3 py-2 text-left font-semibold">Certificate No</th>
+                                            <th class="px-3 py-2 text-left font-semibold">Provider</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-orange-100">
+                                        {% for tracker in vehicle_info.client_vehicle.trackers.all %}
+                                        <tr>
+                                            <td class="px-3 py-2 font-medium text-gray-900">{{ tracker.tracker_name }}</td>
+                                            <td class="px-3 py-2 text-gray-700">{{ tracker.serial_number|default:"N/A" }}</td>
+                                            <td class="px-3 py-2 text-gray-700">{{ tracker.certificate_number|default:"N/A" }}</td>
+                                            <td class="px-3 py-2 text-gray-700">{{ tracker.provider|default:"N/A" }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         <!-- Payment Plan Information (if applicable) -->
                         {% if vehicle_info.installment_plan %}
                         <div class="bg-gray-50 rounded-lg p-4 mt-4 mb-4 border border-gray-200">
