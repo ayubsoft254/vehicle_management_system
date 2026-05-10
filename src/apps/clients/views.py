@@ -342,6 +342,7 @@ def assign_vehicle(request, client_pk):
                 insurance_provider_id = request.POST.get('insurance_provider_id')
                 insurance_policy_number = request.POST.get('insurance_policy_number', '').strip()
                 insurance_policy_type = request.POST.get('insurance_policy_type', 'comprehensive')
+                insurance_vehicle_usage = request.POST.get('insurance_vehicle_usage', 'private').strip() or 'private'
                 insurance_start_date = request.POST.get('insurance_start_date', '').strip()
                 insurance_end_date = request.POST.get('insurance_end_date', '').strip()
                 insurance_buying_price = request.POST.get('insurance_buying_price', '').strip()
@@ -383,6 +384,7 @@ def assign_vehicle(request, client_pk):
                             client=client,
                             policy_number=insurance_policy_number,
                             policy_type=insurance_policy_type,
+                            vehicle_usage=insurance_vehicle_usage,
                             start_date=insurance_start_date,
                             end_date=insurance_end_date,
                             premium_amount=Decimal(insurance_selling_price or '0'),
@@ -406,6 +408,7 @@ def assign_vehicle(request, client_pk):
                 # --- Handle Multiple Trackers ---
                 tracker_names = request.POST.getlist('tracker_name[]')
                 tracker_serials = request.POST.getlist('tracker_serial[]')
+                tracker_certificate_numbers = request.POST.getlist('tracker_certificate_number[]')
                 tracker_providers = request.POST.getlist('tracker_provider[]')
                 tracker_install_dates = request.POST.getlist('tracker_install_date[]')
                 tracker_buying_prices = request.POST.getlist('tracker_buying_price[]')
@@ -446,6 +449,7 @@ def assign_vehicle(request, client_pk):
                                 client_vehicle=client_vehicle,
                                 tracker_name=name,
                                 serial_number=tracker_serials[i] if i < len(tracker_serials) else '',
+                                certificate_number=tracker_certificate_numbers[i] if i < len(tracker_certificate_numbers) else '',
                                 provider=tracker_providers[i] if i < len(tracker_providers) else '',
                                 buying_price=Decimal(tracker_buying_prices[i]) if i < len(tracker_buying_prices) and tracker_buying_prices[i] else Decimal('0'),
                                 selling_price=Decimal(tracker_selling_prices[i]) if i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0'),
