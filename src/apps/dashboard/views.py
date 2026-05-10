@@ -170,6 +170,7 @@ def public_vehicle_detail(request, pk):
     - Non-authenticated users can only see available vehicles
     """
     from apps.vehicles.models import Vehicle
+    from apps.clients.models import ClientVehicle
     from apps.permissions.models import RolePermission
     from utils.constants import AccessLevel, ModuleName
     
@@ -209,11 +210,23 @@ def public_vehicle_detail(request, pk):
     similar_vehicles = Vehicle.objects.available().filter(
         Q(make=vehicle.make) | Q(body_type=vehicle.body_type)
     ).exclude(pk=vehicle.pk).select_related('added_by').prefetch_related('photos')[:4]
+
+    can_view_vin = False
+    if request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser):
+        can_view_vin = True
+    elif request.user.is_authenticated:
+        client_profile = getattr(request.user, 'client_profile', None)
+        if client_profile:
+            can_view_vin = ClientVehicle.objects.filter(
+                client=client_profile,
+                vehicle=vehicle,
+            ).exists()
     
     context = {
         'vehicle': vehicle,
         'similar_vehicles': similar_vehicles,
         'is_authenticated': request.user.is_authenticated,
+        'can_view_vin': can_view_vin,
     }
     
     return render(request, 'dashboard/public_vehicle_detail.html', context)
