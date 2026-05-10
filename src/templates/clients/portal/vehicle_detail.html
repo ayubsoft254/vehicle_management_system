@@ -62,10 +62,12 @@
                                 <dt class="text-gray-600">Reg. Number:</dt>
                                 <dd class="font-semibold text-gray-900">{{ vehicle.vehicle.registration_number }}</dd>
                             </div>
+                            {% if can_view_vin %}
                             <div class="flex justify-between">
                                 <dt class="text-gray-600">VIN:</dt>
                                 <dd class="font-semibold text-gray-900 text-sm">{{ vehicle.vehicle.vin }}</dd>
                             </div>
+                            {% endif %}
                             <div class="flex justify-between">
                                 <dt class="text-gray-600">Purchase Date:</dt>
                                 <dd class="font-semibold text-gray-900">{{ vehicle.purchase_date|date:"d M Y" }}</dd>
