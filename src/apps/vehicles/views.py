@@ -53,6 +53,30 @@ def _extract_extra_cost_entries(post_data):
     return entries, total
 
 
+def _sync_vehicle_extra_costs(vehicle, entries, user):
+    """Sync a vehicle's extra-cost rows to match submitted entries."""
+    existing_costs = list(vehicle.extra_costs.order_by('date_added'))
+
+    # Update existing rows in order or create new ones.
+    for index, (description, amount) in enumerate(entries):
+        if index < len(existing_costs):
+            cost = existing_costs[index]
+            cost.description = description
+            cost.amount = amount
+            cost.added_by = user
+            cost.save(update_fields=['description', 'amount', 'added_by'])
+        else:
+            vehicle.extra_costs.create(
+                description=description,
+                amount=amount,
+                added_by=user,
+            )
+
+    # Remove any leftover rows not present in the submitted form.
+    for cost in existing_costs[len(entries):]:
+        cost.delete()
+
+
 def vehicle_list_view(request):
     """List all vehicles with search and filter - Public and authenticated users"""
     vehicles = Vehicle.objects.all().prefetch_related('photos')
@@ -183,6 +207,7 @@ def vehicle_detail_view(request, pk):
             pass
 
     extra_cost_total = vehicle.extra_costs.aggregate(total=Sum('amount'))['total'] or 0
+    extra_costs = vehicle.extra_costs.all().order_by('date_added')
     total_additional_cost = (
         vehicle.duty_cost +
         vehicle.clearance_cost +
@@ -194,6 +219,7 @@ def vehicle_detail_view(request, pk):
     context = {
         'vehicle': vehicle,
         'history': history,
+        'extra_costs': extra_costs,
         'extra_cost_total': extra_cost_total,
         'total_additional_cost': total_additional_cost,
         'total_cost': total_cost,
@@ -232,15 +258,8 @@ def vehicle_create_view(request):
             vehicle.save()
             
             # Handle extra costs
-            from .models import VehicleExtraCost
-
+            _sync_vehicle_extra_costs(vehicle, extra_cost_entries, request.user)
             for description, amount in extra_cost_entries:
-                VehicleExtraCost.objects.create(
-                    vehicle=vehicle,
-                    description=description,
-                    amount=amount,
-                    added_by=request.user
-                )
                 print(f"✓ Created extra cost: {description} - {amount}")
             
             # Log creation
@@ -316,16 +335,7 @@ def vehicle_update_view(request, pk):
             vehicle.save()
             
             # Handle extra costs
-            from .models import VehicleExtraCost
-
-            vehicle.extra_costs.all().delete()
-            for description, amount in extra_cost_entries:
-                VehicleExtraCost.objects.create(
-                    vehicle=vehicle,
-                    description=description,
-                    amount=amount,
-                    added_by=request.user
-                )
+            _sync_vehicle_extra_costs(vehicle, extra_cost_entries, request.user)
             
             # Detect changes
             changes = {}
