@@ -143,7 +143,7 @@
                         <p class="text-xs text-gray-400 mt-0.5">Vehicle sale price</p>
                     </div>
                     <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p class="text-xs text-gray-500 uppercase font-medium">Insurance + Tracker</p>
+                        <p class="text-xs text-gray-500 uppercase font-medium">Insurance + Tracker + Commission</p>
                         <p class="text-lg font-bold text-orange-500 mt-1" id="pl-expenses">KES 0.00</p>
                         <p class="text-xs text-gray-400 mt-0.5">Additional costs</p>
                     </div>
@@ -584,6 +584,7 @@ textarea { min-height: 100px; resize: vertical; }
 <script>
 const vehiclePrices     = {{ vehicle_prices_json|safe|default:"{}" }};
 const vehicleCostPrices = {{ vehicle_cost_prices_json|safe|default:"{}" }};
+let selectedVehicleBasePrice = 0;
 
 function fmt(n) { return 'KES ' + n.toLocaleString('en-KE', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
@@ -841,31 +842,53 @@ function removeTracker(button) {
 }
 
 function updateTrackerExpense() {
-    const trackers = document.querySelectorAll('.tracker-item');
-    let totalTrackerCost = 0;
-    trackers.forEach(tracker => {
-        const buyingPrice = parseFloat(tracker.querySelector('input[name="tracker_buying_price[]"]')?.value) || 0;
-        totalTrackerCost += buyingPrice;
-    });
     updateProfitLoss();
+    updateFlexibleInstallmentSummary();
+}
+
+function calculateTrackerSellingTotal() {
+    let total = 0;
+    document.querySelectorAll('.tracker-item').forEach(tracker => {
+        total += parseFloat(tracker.querySelector('.tracker-selling-price')?.value || 0);
+    });
+    return total || 0;
+}
+
+function calculateEffectivePurchasePrice() {
+    const insuranceSelling = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0) || 0;
+    const trackerSelling = calculateTrackerSellingTotal();
+    const commissionValue = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
+    return Math.max(0, selectedVehicleBasePrice + insuranceSelling + trackerSelling + commissionValue);
 }
 
 function updateProfitLoss() {
-    const vehicleId   = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
-    const priceInput  = parseFloat(document.getElementById('{{ form.purchase_price.id_for_label }}')?.value) || 0;
+    const vehicleId = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
+    const priceField = document.getElementById('{{ form.purchase_price.id_for_label }}');
+    if (!priceField) {
+        return;
+    }
+
+    const effectivePurchasePrice = calculateEffectivePurchasePrice();
+    if (vehicleId) {
+        priceField.value = Number(effectivePurchasePrice).toFixed(2);
+    }
+
+    const priceInput  = vehicleId ? effectivePurchasePrice : (parseFloat(priceField.value) || 0);
     const costPrice   = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
     
     // Insurance costs
     const insurancePaymentType = document.querySelector('input[name="insurance_payment_type"]:checked')?.value || 'full';
-    const insuranceCost = parseFloat(document.getElementById('id_insurance_buying_price')?.value || 0);
+    const insuranceCost = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0);
     
     // Tracker costs
     let trackerCost = 0;
     document.querySelectorAll('.tracker-item').forEach(tracker => {
-        trackerCost += parseFloat(tracker.querySelector('.tracker-buying-price')?.value || 0);
+        trackerCost += parseFloat(tracker.querySelector('.tracker-selling-price')?.value || 0);
     });
+
+    const commissionCost = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
     
-    const totalExpenses = insuranceCost + trackerCost;
+    const totalExpenses = insuranceCost + trackerCost + commissionCost;
     const totalCost = priceInput + totalExpenses;
     const netProfit = totalCost - costPrice;
 
@@ -1036,6 +1059,11 @@ function ensureFlexibleInstallmentRows() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    const initialVehicleId = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
+    if (initialVehicleId && vehiclePrices[initialVehicleId] !== undefined) {
+        selectedVehicleBasePrice = Number(vehiclePrices[initialVehicleId]) || 0;
+    }
+
     // Initialize payment fields
     updatePaymentFields();
     
@@ -1052,6 +1080,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize insurance payment type UI
     updateInsurancePaymentUI();
     document.getElementById('id_insurance_selling_price')?.addEventListener('input', updateInsuranceInstallmentSummary);
+    document.getElementById('{{ form.commission_amount.id_for_label }}')?.addEventListener('input', () => {
+        updateProfitLoss();
+        updateFlexibleInstallmentSummary();
+    });
 
     // Initialize tracker payment type UI
     document.querySelectorAll('.tracker-item').forEach(trackerItem => {
@@ -1079,7 +1111,9 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
         }
 
         if (vehicleId && vehiclePrices[vehicleId] !== undefined) {
-            priceInput.value = Number(vehiclePrices[vehicleId]).toFixed(2);
+            selectedVehicleBasePrice = Number(vehiclePrices[vehicleId]) || 0;
+        } else {
+            selectedVehicleBasePrice = 0;
         }
 
         updateProfitLoss();
@@ -1095,8 +1129,9 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
 
     // Insurance field changes
     document.addEventListener('change', function(e) {
-        if (e.target.name === 'insurance_premium' || e.target.name === 'insurance_buying_price') {
+        if (e.target.name === 'insurance_premium' || e.target.name === 'insurance_buying_price' || e.target.name === 'insurance_selling_price') {
             updateProfitLoss();
+            updateFlexibleInstallmentSummary();
         }
     });
 
