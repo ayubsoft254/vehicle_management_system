@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load l10n %}
 
 {% block title %}{% if vehicle %}Edit{{ else }}Add New{% endif %} Vehicle - Vehicle Management System{% endblock %}
 
@@ -423,12 +424,14 @@
                                             <td class="px-4 py-2">
                                                 <input type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
                                                        placeholder="e.g., Vehicle Inspection, Repairs"
+                                                       name="extra_cost_description_{{ forloop.counter0 }}"
                                                        value="{{ extra_cost.description }}" data-extra-cost-description>
                                             </td>
                                             <td class="px-4 py-2">
                                                 <input type="number" class="w-full px-2 py-1 border border-gray-300 rounded text-sm text-right"
                                                        placeholder="0.00" step="0.01"
-                                                       value="{{ extra_cost.amount }}" data-extra-cost-amount>
+                                                       name="extra_cost_amount_{{ forloop.counter0 }}"
+                                                          value="{{ extra_cost.amount|unlocalize }}" data-extra-cost-amount>
                                             </td>
                                             <td class="px-4 py-2 text-center">
                                                 <button type="button" class="text-red-600 hover:text-red-900 text-sm font-medium remove-extra-cost-btn">Remove</button>
@@ -694,13 +697,20 @@ document.addEventListener('DOMContentLoaded', function() {
         checkbox.classList.add('h-4', 'w-4', 'text-blue-600', 'focus:ring-blue-500', 'border-gray-300', 'rounded');
     });
 
-    // Add pl-10 to price inputs (for KES symbol)
+    // Add left padding to price inputs so the KES prefix does not overlap values
     const purchasePrice = document.querySelector('input[name="purchase_price"]');
     const sellingPrice = document.querySelector('input[name="selling_price"]');
     const depositRequired = document.querySelector('input[name="deposit_required"]');
+    const dutyCost = document.querySelector('input[name="duty_cost"]');
+    const clearanceCost = document.querySelector('input[name="clearance_cost"]');
+    const commissionCost = document.querySelector('input[name="commission_cost"]');
     if (purchasePrice) purchasePrice.classList.add('pl-10');
     if (sellingPrice) sellingPrice.classList.add('pl-10');
     if (depositRequired) depositRequired.classList.add('pl-10');
+    if (dutyCost) dutyCost.classList.add('pl-10');
+    if (clearanceCost) clearanceCost.classList.add('pl-10');
+    if (commissionCost) commissionCost.classList.add('pl-10');
+    document.querySelectorAll('input[data-extra-cost-amount]').forEach(input => input.classList.add('pl-10'));
 
     // Form validation
     const form = document.getElementById('vehicleForm');
@@ -806,7 +816,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Extra costs management
-    let extraCostRowCount = 0;
+    let extraCostRowCount = document.querySelectorAll('#extraCostsBody tr').length;
     
     function addExtraCostRow(description = '', amount = '') {
         const tbody = document.getElementById('extraCostsBody');
@@ -820,12 +830,12 @@ document.addEventListener('DOMContentLoaded', function() {
             <td class="px-4 py-2">
                 <input type="text" class="w-full px-2 py-1 border border-gray-300 rounded text-sm" 
                        placeholder="e.g., Vehicle Inspection, Repairs" 
-                       value="${description}" data-extra-cost-description>
+                       name="extra_cost_description_${extraCostRowCount}" value="${description}" data-extra-cost-description>
             </td>
             <td class="px-4 py-2">
                 <input type="number" class="w-full px-2 py-1 border border-gray-300 rounded text-sm text-right" 
                        placeholder="0.00" step="0.01" 
-                       value="${amount}" data-extra-cost-amount>
+                       name="extra_cost_amount_${extraCostRowCount}" value="${String(amount).replace(/,/g, '')}" data-extra-cost-amount>
             </td>
             <td class="px-4 py-2 text-center">
                 <button type="button" class="text-red-600 hover:text-red-900 text-sm font-medium" 
@@ -881,38 +891,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addExtraCostBtn').addEventListener('click', function(e) {
         e.preventDefault();
         addExtraCostRow();
-    });
-
-    // Submit handler to append extra costs to form
-    form.addEventListener('submit', function(e) {
-        // Create hidden inputs for extra costs
-        const tbody = document.getElementById('extraCostsBody');
-        const rows = tbody.querySelectorAll('tr');
-        
-        // Remove old extra cost inputs if any
-        document.querySelectorAll('input[data-extra-cost-form]').forEach(el => el.remove());
-        
-        // Add new extra cost inputs
-        rows.forEach((row, index) => {
-            const description = row.querySelector('[data-extra-cost-description]').value;
-            const amount = row.querySelector('[data-extra-cost-amount]').value;
-            
-            if (description && amount) {
-                const descInput = document.createElement('input');
-                descInput.type = 'hidden';
-                descInput.name = 'extra_cost_description_' + index;
-                descInput.value = description;
-                descInput.setAttribute('data-extra-cost-form', 'true');
-                form.appendChild(descInput);
-                
-                const amountInput = document.createElement('input');
-                amountInput.type = 'hidden';
-                amountInput.name = 'extra_cost_amount_' + index;
-                amountInput.value = amount;
-                amountInput.setAttribute('data-extra-cost-form', 'true');
-                form.appendChild(amountInput);
-            }
-        });
     });
 
     // Initial calculation
