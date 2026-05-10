@@ -288,21 +288,55 @@ def assign_vehicle(request, client_pk):
                 # Update client status
                 client.status = 'active'
                 client.save()
+
+                flexible_installments = []
+                if client_vehicle.payment_type == 'flexible':
+                    try:
+                        flexible_installments = json.loads(request.POST.get('flexible_installments_json', '[]'))
+                    except json.JSONDecodeError:
+                        flexible_installments = []
                 
                 # Create Installment Plan based on payment type
                 # Only create plan if payment_type is 'installment' or 'flexible' (not 'full')
                 if client_vehicle.balance > 0 and client_vehicle.payment_type in ['installment', 'flexible']:
                     from apps.payments.models import InstallmentPlan
+
+                    installment_count = client_vehicle.installment_months or 1
+                    plan_start_date = timezone.now().date()
+                    monthly_amount = client_vehicle.monthly_installment
+
+                    if client_vehicle.payment_type == 'flexible' and flexible_installments:
+                        installment_count = len(flexible_installments)
+                        first_due_date = str(flexible_installments[0].get('due_date', '')).strip()
+                        if first_due_date:
+                            plan_start_date = datetime.strptime(first_due_date, '%Y-%m-%d').date()
+                        monthly_amount = (client_vehicle.balance / Decimal(str(installment_count))).quantize(Decimal('0.01'))
+
                     plan = InstallmentPlan.objects.create(
                         client_vehicle=client_vehicle,
                         total_amount=client_vehicle.purchase_price,
                         deposit=client_vehicle.deposit_paid,
-                        monthly_installment=client_vehicle.monthly_installment,
-                        number_of_installments=client_vehicle.installment_months,
-                        start_date=timezone.now().date(),
+                        monthly_installment=monthly_amount,
+                        number_of_installments=installment_count,
+                        start_date=plan_start_date,
                         is_active=True,
                         created_by=request.user
                     )
+
+                    # For flexible mode, replace auto-generated schedule with custom dates/amounts.
+                    if client_vehicle.payment_type == 'flexible' and flexible_installments:
+                        from apps.payments.models import PaymentSchedule
+
+                        plan.payment_schedules.all().delete()
+                        for idx, installment in enumerate(flexible_installments, start=1):
+                            due_date = datetime.strptime(str(installment.get('due_date')).strip(), '%Y-%m-%d').date()
+                            amount_due = Decimal(str(installment.get('amount')).strip())
+                            PaymentSchedule.objects.create(
+                                installment_plan=plan,
+                                installment_number=idx,
+                                due_date=due_date,
+                                amount_due=amount_due
+                            )
                 
                 # --- Handle Insurance ---
                 insurance_provider_id = request.POST.get('insurance_provider_id')
@@ -310,15 +344,13 @@ def assign_vehicle(request, client_pk):
                 insurance_policy_type = request.POST.get('insurance_policy_type', 'comprehensive')
                 insurance_start_date = request.POST.get('insurance_start_date', '').strip()
                 insurance_end_date = request.POST.get('insurance_end_date', '').strip()
-                insurance_premium = request.POST.get('insurance_premium', '').strip()
                 insurance_buying_price = request.POST.get('insurance_buying_price', '').strip()
                 insurance_selling_price = request.POST.get('insurance_selling_price', '').strip()
                 insurance_agent_name = request.POST.get('insurance_agent_name', '').strip()
                 insurance_agent_id = request.POST.get('insurance_agent_id', '').strip()
-                insurance_has_plan = request.POST.get('insurance_has_payment_plan') == 'on'
-                insurance_deposit = request.POST.get('insurance_deposit', '').strip()
-                insurance_first_date = request.POST.get('insurance_first_payment_date', '').strip()
-                insurance_last_date = request.POST.get('insurance_last_payment_date', '').strip()
+                insurance_payment_type = request.POST.get('insurance_payment_type', 'full').strip()
+                insurance_has_plan = (insurance_payment_type == 'flexible')
+                insurance_flexible_json = request.POST.get('insurance_flexible_installments_json', '[]')
                 insurance_interest_rate = request.POST.get('insurance_interest_rate', '0').strip()
                 
                 if insurance_provider_id and insurance_policy_number and insurance_start_date and insurance_end_date:
@@ -328,29 +360,22 @@ def assign_vehicle(request, client_pk):
                         
                         provider = InsuranceProvider.objects.get(pk=insurance_provider_id)
                         
-                        # Calculate insurance installment months from date range
+                        # Parse flexible installments from JSON
+                        import json as _json
                         insurance_months = None
-                        if insurance_has_plan and insurance_first_date and insurance_last_date:
-                            first = dt.strptime(insurance_first_date, '%Y-%m-%d').date()
-                            last = dt.strptime(insurance_last_date, '%Y-%m-%d').date()
-                            # Calculate months between dates
-                            months_diff = (last.year - first.year) * 12 + (last.month - first.month)
-                            insurance_months = max(1, months_diff)
-                        
-                        # Calculate monthly installment
                         insurance_monthly = None
-                        if insurance_has_plan and insurance_selling_price:
-                            selling = Decimal(insurance_selling_price or '0')
-                            deposit = Decimal(insurance_deposit or '0')
-                            balance = selling - deposit
-                            rate = Decimal(insurance_interest_rate or '0')
-                            
-                            if insurance_months and insurance_months > 0:
-                                total_with_interest = balance
-                                if rate > 0:
-                                    interest = balance * (rate / 100) * (insurance_months / 12)
-                                    total_with_interest = balance + interest
-                                insurance_monthly = total_with_interest / insurance_months
+                        if insurance_has_plan:
+                            try:
+                                ins_installments = _json.loads(insurance_flexible_json or '[]')
+                            except Exception:
+                                ins_installments = []
+                            if ins_installments:
+                                insurance_months = len(ins_installments)
+                                total_ins = sum(
+                                    Decimal(str(row.get('amount', '0') or '0'))
+                                    for row in ins_installments
+                                )
+                                insurance_monthly = total_ins / insurance_months if insurance_months else None
                         
                         InsurancePolicy.objects.create(
                             vehicle=vehicle,
@@ -360,17 +385,18 @@ def assign_vehicle(request, client_pk):
                             policy_type=insurance_policy_type,
                             start_date=insurance_start_date,
                             end_date=insurance_end_date,
-                            premium_amount=Decimal(insurance_premium or '0'),
+                            premium_amount=Decimal(insurance_selling_price or '0'),
                             sum_insured=client_vehicle.purchase_price,
                             buying_price=Decimal(insurance_buying_price or '0'),
                             selling_price=Decimal(insurance_selling_price or '0'),
                             agent_name=insurance_agent_name,
                             agent_id=insurance_agent_id,
+                            payment_type=insurance_payment_type,
                             has_payment_plan=insurance_has_plan,
-                            insurance_deposit=Decimal(insurance_deposit or '0') if insurance_has_plan else Decimal('0'),
+                            insurance_deposit=Decimal('0'),
                             insurance_installment_months=insurance_months if insurance_has_plan else None,
                             insurance_monthly_installment=insurance_monthly if insurance_has_plan else None,
-                            insurance_interest_rate=Decimal(insurance_interest_rate or '0') if insurance_has_plan else Decimal('0'),
+                            insurance_interest_rate=Decimal('0'),
                             status='active',
                             created_by=request.user,
                         )
@@ -384,10 +410,8 @@ def assign_vehicle(request, client_pk):
                 tracker_install_dates = request.POST.getlist('tracker_install_date[]')
                 tracker_buying_prices = request.POST.getlist('tracker_buying_price[]')
                 tracker_selling_prices = request.POST.getlist('tracker_selling_price[]')
-                tracker_has_plans = request.POST.getlist('tracker_has_plan[]')
-                tracker_deposits = request.POST.getlist('tracker_deposit[]')
-                tracker_first_dates = request.POST.getlist('tracker_first_payment_date[]')
-                tracker_last_dates = request.POST.getlist('tracker_last_payment_date[]')
+                tracker_payment_types = request.POST.getlist('tracker_payment_type[]')
+                tracker_flex_jsons = request.POST.getlist('tracker_flexible_installments_json[]')
                 tracker_interest_rates = request.POST.getlist('tracker_interest_rate[]')
                 
                 for i, name in enumerate(tracker_names):
@@ -396,35 +420,27 @@ def assign_vehicle(request, client_pk):
                             from apps.clients.models import VehicleTracker
                             from datetime import datetime as dt
                             
-                            has_plan = tracker_has_plans[i] == 'on' if i < len(tracker_has_plans) else False
+                            payment_type = tracker_payment_types[i] if i < len(tracker_payment_types) else 'full'
+                            has_plan = (payment_type == 'flexible')
                             install_date = tracker_install_dates[i] if i < len(tracker_install_dates) and tracker_install_dates[i] else timezone.now().date()
-                            
-                            # Calculate tracker installment months from date range
+
+                            # Parse flexible installments from JSON
+                            import json as _json
                             tracker_months = None
-                            if has_plan and i < len(tracker_first_dates) and i < len(tracker_last_dates):
-                                first_date_str = tracker_first_dates[i] if tracker_first_dates[i] else None
-                                last_date_str = tracker_last_dates[i] if tracker_last_dates[i] else None
-                                if first_date_str and last_date_str:
-                                    first = dt.strptime(first_date_str, '%Y-%m-%d').date()
-                                    last = dt.strptime(last_date_str, '%Y-%m-%d').date()
-                                    # Calculate months between dates
-                                    months_diff = (last.year - first.year) * 12 + (last.month - first.month)
-                                    tracker_months = max(1, months_diff)
-                            
-                            # Calculate monthly installment
                             tracker_monthly = None
-                            if has_plan and i < len(tracker_selling_prices) and tracker_selling_prices[i]:
-                                selling = Decimal(tracker_selling_prices[i] or '0')
-                                deposit = Decimal(tracker_deposits[i] if i < len(tracker_deposits) else '0')
-                                balance = selling - deposit
-                                rate = Decimal(tracker_interest_rates[i] if i < len(tracker_interest_rates) else '0')
-                                
-                                if tracker_months and tracker_months > 0:
-                                    total_with_interest = balance
-                                    if rate > 0:
-                                        interest = balance * (rate / 100) * (tracker_months / 12)
-                                        total_with_interest = balance + interest
-                                    tracker_monthly = total_with_interest / tracker_months
+                            if has_plan:
+                                flex_json = tracker_flex_jsons[i] if i < len(tracker_flex_jsons) else '[]'
+                                try:
+                                    trk_installments = _json.loads(flex_json or '[]')
+                                except Exception:
+                                    trk_installments = []
+                                if trk_installments:
+                                    tracker_months = len(trk_installments)
+                                    total_trk = sum(
+                                        Decimal(str(row.get('amount', '0') or '0'))
+                                        for row in trk_installments
+                                    )
+                                    tracker_monthly = total_trk / tracker_months if tracker_months else None
                             
                             VehicleTracker.objects.create(
                                 client_vehicle=client_vehicle,
@@ -433,11 +449,12 @@ def assign_vehicle(request, client_pk):
                                 provider=tracker_providers[i] if i < len(tracker_providers) else '',
                                 buying_price=Decimal(tracker_buying_prices[i]) if i < len(tracker_buying_prices) and tracker_buying_prices[i] else Decimal('0'),
                                 selling_price=Decimal(tracker_selling_prices[i]) if i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0'),
+                                payment_type=payment_type,
                                 has_payment_plan=has_plan,
-                                deposit=Decimal(tracker_deposits[i]) if i < len(tracker_deposits) and tracker_deposits[i] and has_plan else Decimal('0'),
+                                deposit=Decimal('0'),
                                 installment_months=tracker_months if has_plan else None,
                                 monthly_installment=tracker_monthly if has_plan else None,
-                                interest_rate=Decimal(tracker_interest_rates[i]) if i < len(tracker_interest_rates) and tracker_interest_rates[i] and has_plan else Decimal('0'),
+                                interest_rate=Decimal('0'),
                                 installed_date=install_date,
                                 created_by=request.user,
                             )
