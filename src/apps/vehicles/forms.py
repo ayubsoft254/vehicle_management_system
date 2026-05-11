@@ -496,10 +496,15 @@ class VehicleSearchForm(forms.Form):
 
 class VehicleStatusChangeForm(forms.Form):
     """Form for changing vehicle status"""
+
+    ALLOWED_STATUS_CHOICES = [
+        choice for choice in VehicleStatus.CHOICES
+        if choice[0] != VehicleStatus.REPOSSESSED
+    ]
     
     new_status = forms.ChoiceField(
         label='New Status',
-        choices=VehicleStatus.CHOICES,
+        choices=ALLOWED_STATUS_CHOICES,
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
         })
@@ -536,7 +541,9 @@ class BulkVehicleActionForm(forms.Form):
     
     new_status = forms.ChoiceField(
         label='New Status (if changing status)',
-        choices=[('', 'Select Status')] + VehicleStatus.CHOICES,
+        choices=[('', 'Select Status')] + [
+            choice for choice in VehicleStatus.CHOICES if choice[0] != VehicleStatus.REPOSSESSED
+        ],
         required=False,
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
