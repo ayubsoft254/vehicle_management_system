@@ -262,15 +262,6 @@ class VehicleForm(forms.ModelForm):
         if location and not location_moved_date:
             self.add_error('location_moved_date', 'Please provide the date the vehicle was moved to this location.')
 
-        if location and not location_driver_name:
-            self.add_error('location_driver_name', 'Please enter the driver name for this move.')
-
-        if location and not location_driver_phone:
-            self.add_error('location_driver_phone', 'Please enter the driver phone number for this move.')
-
-        if location and not location_driver_id_number:
-            self.add_error('location_driver_id_number', 'Please enter the driver ID number for this move.')
-
         cleaned_data['location_driver_name'] = location_driver_name
         cleaned_data['location_driver_phone'] = location_driver_phone
         cleaned_data['location_driver_id_number'] = location_driver_id_number
