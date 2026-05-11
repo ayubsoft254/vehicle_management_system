@@ -97,7 +97,11 @@
                             <p class="text-sm text-gray-600 mb-1">Assigned To</p>
                             <p class="text-gray-800 font-medium">
                                 {% if repossession.assigned_to %}
-                                    {{ repossession.assigned_to.get_full_name|default:repossession.assigned_to.username }}
+                                    {% if repossession.assigned_to.get_full_name %}
+                                        {{ repossession.assigned_to.get_full_name }}
+                                    {% else %}
+                                        {{ repossession.assigned_to.username }}
+                                    {% endif %}
                                 {% else %}
                                     <span class="text-gray-400">Unassigned</span>
                                 {% endif %}
@@ -423,7 +427,16 @@
                                             <p class="text-sm text-gray-800 whitespace-pre-line">{{ note.note }}</p>
                                             <p class="text-xs text-gray-500 mt-2">
                                                 {% if note.note_type %}{{ note.get_note_type_display }} - {% endif %}
-                                                {{ note.created_by.get_full_name|default:note.created_by.username }} on {{ note.created_at|date:"M d, Y H:i" }}
+                                                {% if note.created_by %}
+                                                    {% if note.created_by.get_full_name %}
+                                                        {{ note.created_by.get_full_name }}
+                                                    {% else %}
+                                                        {{ note.created_by.username }}
+                                                    {% endif %}
+                                                {% else %}
+                                                    System
+                                                {% endif %}
+                                                on {{ note.created_at|date:"M d, Y H:i" }}
                                             </p>
                                         </div>
                                         {% if note.is_important %}
@@ -519,7 +532,15 @@
                     <div>
                         <p class="text-gray-600">Created By</p>
                         <p class="text-gray-800 font-medium">
-                            {{ repossession.created_by.get_full_name|default:repossession.created_by.username|default:"System" }}
+                            {% if repossession.created_by %}
+                                {% if repossession.created_by.get_full_name %}
+                                    {{ repossession.created_by.get_full_name }}
+                                {% else %}
+                                    {{ repossession.created_by.username }}
+                                {% endif %}
+                            {% else %}
+                                System
+                            {% endif %}
                         </p>
                     </div>
                     <div>
