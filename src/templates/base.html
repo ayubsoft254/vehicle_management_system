@@ -203,6 +203,7 @@
                             </a>
                             {% endif %}
                             
+                            {% comment %}
                             <!-- Expenses -->
                             {% if user.is_superuser or user|can_access:'expenses' %}
                             <a href="{% url 'expenses:expense_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
@@ -210,7 +211,9 @@
                                 <span class="ml-3 font-medium">Expenses</span>
                             </a>
                             {% endif %}
+                            {% endcomment %}
                             
+                            {% comment %}
                             <!-- Payroll -->
                             {% if user.is_superuser or user|can_access:'payroll' %}
                             <a href="{% url 'payroll:payroll_dashboard' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
@@ -218,6 +221,7 @@
                                 <span class="ml-3 font-medium">Payroll</span>
                             </a>
                             {% endif %}
+                            {% endcomment %}
                             
                             <!-- Divider -->
                             {% if user.is_superuser or user|can_access:'auctions' or user|can_access:'insurance' or user|can_access:'repossessions' %}
@@ -226,6 +230,7 @@
                             </div>
                             {% endif %}
                             
+                            {% comment %}
                             <!-- Auctions -->
                             {% if user.is_superuser or user|can_access:'auctions' %}
                             <a href="{% url 'auctions:auction_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
@@ -233,6 +238,7 @@
                                 <span class="ml-3 font-medium">Auctions</span>
                             </a>
                             {% endif %}
+                            {% endcomment %}
                             
                             <!-- Insurance -->
                             {% if user.is_superuser or user|can_access:'insurance' %}
@@ -251,12 +257,13 @@
                             {% endif %}
                             
                             <!-- Divider -->
-                            {% if user.is_superuser or user|can_access:'reports' or user|can_access:'documents' or user|can_access:'audit' %}
+                            {% if user.is_superuser or user|can_access:'documents' or user|can_access:'audit' %}
                             <div class="pt-4 pb-2">
                                 <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Management</p>
                             </div>
                             {% endif %}
                             
+                            {% comment %}
                             <!-- Reports -->
                             {% if user.is_superuser or user|can_access:'reports' %}
                             <a href="{% url 'reports:dashboard' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
@@ -264,6 +271,7 @@
                                 <span class="ml-3 font-medium">Reports</span>
                             </a>
                             {% endif %}
+                            {% endcomment %}
                             
                             <!-- Documents -->
                             {% if user.is_superuser or user|can_access:'documents' %}
