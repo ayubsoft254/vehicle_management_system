@@ -4,11 +4,16 @@ Handles repossession creation, status updates, and tracking.
 """
 
 from django import forms
+from django.db.models import Q
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from decimal import Decimal
 from datetime import date, timedelta
+
+from apps.clients.models import ClientVehicle
+from apps.vehicles.models import Vehicle
+from utils.constants import VehicleStatus
 
 from .models import (
     Repossession, RepossessionDocument, RepossessionNote,
@@ -26,6 +31,7 @@ class RepossessionForm(forms.ModelForm):
         model = Repossession
         fields = [
             'vehicle', 'client', 'reason', 'outstanding_amount',
+            'additional_costs',
             'payments_missed', 'last_payment_date', 'initiated_date',
             'assigned_to', 'last_known_location', 'notes'
         ]
@@ -40,6 +46,11 @@ class RepossessionForm(forms.ModelForm):
             }),
             'reason': forms.Select(attrs={'class': 'form-control'}),
             'outstanding_amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0'
+            }),
+            'additional_costs': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'step': '0.01',
                 'min': '0'
@@ -80,9 +91,38 @@ class RepossessionForm(forms.ModelForm):
         self.fields['last_payment_date'].required = False
         self.fields['last_known_location'].required = False
         self.fields['notes'].required = False
+
+        sold_vehicle_qs = Vehicle.objects.filter(status=VehicleStatus.SOLD)
+        if self.instance and self.instance.pk and self.instance.vehicle_id:
+            sold_vehicle_qs = Vehicle.objects.filter(
+                Q(status=VehicleStatus.SOLD) | Q(pk=self.instance.vehicle_id)
+            )
+        self.fields['vehicle'].queryset = sold_vehicle_qs.order_by('-date_added')
+        self.fields['vehicle'].label_from_instance = (
+            lambda vehicle: f"{vehicle.vin} - {vehicle.full_name}"
+        )
         
         # Filter active users only
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True)
+
+        self.vehicle_client_map = {}
+        purchase_qs = ClientVehicle.objects.filter(
+            vehicle__in=self.fields['vehicle'].queryset
+        ).select_related('client').order_by('vehicle_id', '-is_active', '-purchase_date', '-created_at')
+        seen_vehicles = set()
+        client_ids = set()
+        for purchase in purchase_qs:
+            if purchase.vehicle_id in seen_vehicles:
+                continue
+            seen_vehicles.add(purchase.vehicle_id)
+            client_ids.add(purchase.client_id)
+            self.vehicle_client_map[str(purchase.vehicle_id)] = {
+                'client_id': purchase.client_id,
+                'client_name': purchase.client.get_full_name(),
+            }
+
+        if client_ids:
+            self.fields['client'].queryset = self.fields['client'].queryset.filter(pk__in=client_ids)
     
     def clean_outstanding_amount(self):
         """Validate outstanding amount."""
@@ -105,8 +145,27 @@ class RepossessionForm(forms.ModelForm):
     def clean(self):
         """Additional validation."""
         cleaned_data = super().clean()
+        vehicle = cleaned_data.get('vehicle')
+        client = cleaned_data.get('client')
         last_payment_date = cleaned_data.get('last_payment_date')
         initiated_date = cleaned_data.get('initiated_date')
+
+        if vehicle and vehicle.status != VehicleStatus.SOLD and not (self.instance and self.instance.pk and vehicle.pk == self.instance.vehicle_id):
+            self.add_error('vehicle', 'Only sold vehicles can be repossessed.')
+
+        if vehicle:
+            latest_purchase = ClientVehicle.objects.filter(
+                vehicle=vehicle
+            ).select_related('client').order_by('-is_active', '-purchase_date', '-created_at').first()
+
+            if not latest_purchase:
+                self.add_error('vehicle', 'This vehicle has no sold client record to repossess against.')
+            else:
+                expected_client = latest_purchase.client
+                if client and client.pk != expected_client.pk:
+                    self.add_error('client', 'Selected client does not match the client this vehicle was sold to.')
+                elif not client:
+                    cleaned_data['client'] = expected_client
         
         if last_payment_date and initiated_date:
             if last_payment_date > initiated_date:
@@ -665,3 +724,4 @@ class RepossessionCompletionForm(forms.Form):
         }),
         initial=date.today
     )
+
