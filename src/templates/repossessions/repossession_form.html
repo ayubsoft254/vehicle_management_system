@@ -43,7 +43,9 @@
                             <label for="id_vehicle" class="block text-sm font-medium text-gray-700 mb-2">
                                 Vehicle <span class="text-red-500">*</span>
                             </label>
+                            <input type="text" id="vehicleSearchInput" class="w-full px-4 py-2 mb-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Search vehicle by VIN or name...">
                             {{ form.vehicle }}
+                            <p id="vehicleSearchMeta" class="text-xs text-gray-500 mt-1"></p>
                             {% if form.vehicle.errors %}
                                 <p class="text-red-500 text-sm mt-1">{{ form.vehicle.errors.0 }}</p>
                             {% endif %}
@@ -54,6 +56,7 @@
                                 Client <span class="text-red-500">*</span>
                             </label>
                             {{ form.client }}
+                            <p id="autoClientHint" class="text-xs text-gray-500 mt-1">Selecting a sold vehicle auto-fills this client.</p>
                             {% if form.client.errors %}
                                 <p class="text-red-500 text-sm mt-1">{{ form.client.errors.0 }}</p>
                             {% endif %}
@@ -153,6 +156,81 @@
                             {% endif %}
                         </div>
                     </div>
+
+                    <div class="mt-6 border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-semibold text-gray-800">New Additional Costs (Categorized)</h3>
+                            <button type="button" id="addAdditionalCostRow" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">
+                                Add Cost Row
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                                <thead>
+                                    <tr class="text-left text-gray-600 border-b border-gray-200">
+                                        <th class="py-2 pr-2">Category</th>
+                                        <th class="py-2 pr-2">Description</th>
+                                        <th class="py-2 pr-2">Amount (KES)</th>
+                                        <th class="py-2">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="additionalCostRows">
+                                    {% for item in additional_cost_entries %}
+                                        <tr class="border-b border-gray-100 additional-cost-row">
+                                            <td class="py-2 pr-2">
+                                                <select name="additional_cost_category[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                                    <option value="">Select</option>
+                                                    <option value="FUEL" {% if item.category == 'FUEL' %}selected{% endif %}>Fuel</option>
+                                                    <option value="TOWING" {% if item.category == 'TOWING' %}selected{% endif %}>Towing</option>
+                                                    <option value="STORAGE" {% if item.category == 'STORAGE' %}selected{% endif %}>Storage</option>
+                                                    <option value="TRANSPORT" {% if item.category == 'TRANSPORT' %}selected{% endif %}>Transport</option>
+                                                    <option value="LEGAL" {% if item.category == 'LEGAL' %}selected{% endif %}>Legal</option>
+                                                    <option value="AUCTION" {% if item.category == 'AUCTION' %}selected{% endif %}>Auction Preparation</option>
+                                                    <option value="REPAIR" {% if item.category == 'REPAIR' %}selected{% endif %}>Repair/Maintenance</option>
+                                                    <option value="OTHER" {% if item.category == 'OTHER' %}selected{% endif %}>Other</option>
+                                                </select>
+                                            </td>
+                                            <td class="py-2 pr-2">
+                                                <input type="text" name="additional_cost_description[]" value="{{ item.description }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g. fuel to recover from Mombasa">
+                                            </td>
+                                            <td class="py-2 pr-2">
+                                                <input type="number" step="0.01" min="0" name="additional_cost_amount[]" value="{{ item.amount|default:'' }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="0.00">
+                                            </td>
+                                            <td class="py-2">
+                                                <button type="button" class="remove-additional-cost-row text-red-600 hover:text-red-800 text-xs">Remove</button>
+                                            </td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr class="border-b border-gray-100 additional-cost-row">
+                                            <td class="py-2 pr-2">
+                                                <select name="additional_cost_category[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                                    <option value="">Select</option>
+                                                    <option value="FUEL">Fuel</option>
+                                                    <option value="TOWING">Towing</option>
+                                                    <option value="STORAGE">Storage</option>
+                                                    <option value="TRANSPORT">Transport</option>
+                                                    <option value="LEGAL">Legal</option>
+                                                    <option value="AUCTION">Auction Preparation</option>
+                                                    <option value="REPAIR">Repair/Maintenance</option>
+                                                    <option value="OTHER">Other</option>
+                                                </select>
+                                            </td>
+                                            <td class="py-2 pr-2">
+                                                <input type="text" name="additional_cost_description[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Describe this cost">
+                                            </td>
+                                            <td class="py-2 pr-2">
+                                                <input type="number" step="0.01" min="0" name="additional_cost_amount[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="0.00">
+                                            </td>
+                                            <td class="py-2">
+                                                <button type="button" class="remove-additional-cost-row text-red-600 hover:text-red-800 text-xs">Remove</button>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">These costs are tracked by category and used in repossession pricing and return/auction calculations.</p>
+                    </div>
                 </div>
 
                 <!-- Location Information -->
@@ -230,12 +308,147 @@
     </div>
 </div>
 
+{{ vehicle_client_map|json_script:"vehicle-client-map" }}
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Set today's date as default for initiated_date if empty
     const initiatedDate = document.getElementById('id_initiated_date');
     if (initiatedDate && !initiatedDate.value) {
         initiatedDate.valueAsDate = new Date();
+    }
+
+    const vehicleSelect = document.getElementById('id_vehicle');
+    const vehicleSearchInput = document.getElementById('vehicleSearchInput');
+    const vehicleSearchMeta = document.getElementById('vehicleSearchMeta');
+    const clientSelect = document.getElementById('id_client');
+    const autoClientHint = document.getElementById('autoClientHint');
+    const mapElement = document.getElementById('vehicle-client-map');
+    const vehicleClientMap = mapElement ? JSON.parse(mapElement.textContent) : {};
+
+    function syncClientFromVehicle() {
+        if (!vehicleSelect || !clientSelect) return;
+
+        const selectedVehicleId = vehicleSelect.value;
+        const mapping = vehicleClientMap[selectedVehicleId];
+
+        if (mapping && mapping.client_id) {
+            clientSelect.value = String(mapping.client_id);
+            if (autoClientHint) {
+                autoClientHint.textContent = `Auto-selected client: ${mapping.client_name}`;
+            }
+        } else if (autoClientHint) {
+            autoClientHint.textContent = 'No sold-client mapping found for selected vehicle.';
+        }
+    }
+
+    if (vehicleSelect) {
+        const allVehicleOptions = Array.from(vehicleSelect.options).map(opt => ({
+            value: opt.value,
+            text: opt.text,
+            selected: opt.selected,
+        }));
+
+        function rebuildVehicleOptions(query) {
+            const normalized = (query || '').trim().toLowerCase();
+            const selectedBefore = vehicleSelect.value;
+
+            const filtered = allVehicleOptions.filter(option => {
+                if (!option.value) {
+                    return true;
+                }
+                if (!normalized) {
+                    return true;
+                }
+                return option.text.toLowerCase().includes(normalized);
+            });
+
+            vehicleSelect.innerHTML = '';
+            filtered.forEach(option => {
+                const el = document.createElement('option');
+                el.value = option.value;
+                el.textContent = option.text;
+                vehicleSelect.appendChild(el);
+            });
+
+            const stillExists = filtered.some(option => option.value === selectedBefore);
+            if (stillExists) {
+                vehicleSelect.value = selectedBefore;
+            }
+
+            if (vehicleSearchMeta) {
+                const total = Math.max(allVehicleOptions.length - 1, 0);
+                const shown = Math.max(filtered.length - 1, 0);
+                vehicleSearchMeta.textContent = `Showing ${shown} of ${total} sold vehicles`;
+            }
+
+            syncClientFromVehicle();
+        }
+
+        if (vehicleSearchInput) {
+            vehicleSearchInput.addEventListener('input', function () {
+                rebuildVehicleOptions(this.value);
+            });
+        }
+
+        vehicleSelect.addEventListener('change', syncClientFromVehicle);
+        rebuildVehicleOptions('');
+    }
+
+    const rowsContainer = document.getElementById('additionalCostRows');
+    const addRowButton = document.getElementById('addAdditionalCostRow');
+
+    function buildRow() {
+        const row = document.createElement('tr');
+        row.className = 'border-b border-gray-100 additional-cost-row';
+        row.innerHTML = `
+            <td class="py-2 pr-2">
+                <select name="additional_cost_category[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    <option value="">Select</option>
+                    <option value="FUEL">Fuel</option>
+                    <option value="TOWING">Towing</option>
+                    <option value="STORAGE">Storage</option>
+                    <option value="TRANSPORT">Transport</option>
+                    <option value="LEGAL">Legal</option>
+                    <option value="AUCTION">Auction Preparation</option>
+                    <option value="REPAIR">Repair/Maintenance</option>
+                    <option value="OTHER">Other</option>
+                </select>
+            </td>
+            <td class="py-2 pr-2">
+                <input type="text" name="additional_cost_description[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Describe this cost">
+            </td>
+            <td class="py-2 pr-2">
+                <input type="number" step="0.01" min="0" name="additional_cost_amount[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="0.00">
+            </td>
+            <td class="py-2">
+                <button type="button" class="remove-additional-cost-row text-red-600 hover:text-red-800 text-xs">Remove</button>
+            </td>
+        `;
+        return row;
+    }
+
+    function bindRemoveButtons() {
+        document.querySelectorAll('.remove-additional-cost-row').forEach(button => {
+            button.onclick = function () {
+                const allRows = rowsContainer.querySelectorAll('.additional-cost-row');
+                if (allRows.length <= 1) {
+                    allRows[0].querySelectorAll('input').forEach(input => input.value = '');
+                    const select = allRows[0].querySelector('select');
+                    if (select) select.value = '';
+                    return;
+                }
+                this.closest('tr').remove();
+            };
+        });
+    }
+
+    if (rowsContainer && addRowButton) {
+        addRowButton.addEventListener('click', function () {
+            rowsContainer.appendChild(buildRow());
+            bindRemoveButtons();
+        });
+        bindRemoveButtons();
     }
 });
 </script>
