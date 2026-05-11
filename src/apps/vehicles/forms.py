@@ -237,11 +237,16 @@ class VehicleForm(forms.ModelForm):
             raise ValidationError('A vehicle with this registration number already exists.')
         
         return reg_number
+
+    def clean_deposit_required(self):
+        """Treat blank deposit as 0.00 so deposit stays optional."""
+        deposit_required = self.cleaned_data.get('deposit_required')
+        return deposit_required if deposit_required is not None else Decimal('0.00')
     
     def clean(self):
         cleaned_data = super().clean()
         purchase_price = cleaned_data.get('purchase_price')
-        deposit_required = cleaned_data.get('deposit_required')
+        deposit_required = cleaned_data.get('deposit_required') or Decimal('0.00')
         duty_cost = cleaned_data.get('duty_cost') or Decimal('0.00')
         clearance_cost = cleaned_data.get('clearance_cost') or Decimal('0.00')
         commission_cost = cleaned_data.get('commission_cost') or Decimal('0.00')
