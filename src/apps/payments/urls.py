@@ -19,6 +19,7 @@ urlpatterns = [
     path('installment-plans/<int:pk>/', views.installment_plan_detail, name='installment_plan_detail'),
     path('installment-plans/create/<int:client_vehicle_pk>/', views.create_installment_plan, name='create_installment_plan'),
     path('installment-plans/<int:pk>/update/', views.update_installment_plan, name='update_installment_plan'),
+    path('installment-plans/<int:pk>/extend/', views.extend_installment_plan, name='extend_installment_plan'),
     path('installment-plans/<int:pk>/regenerate/', views.regenerate_payment_schedule, name='regenerate_payment_schedule'),
     
     # Payment schedules
