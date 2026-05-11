@@ -798,3 +798,95 @@ class PaymentReminder(models.Model):
     
     def __str__(self):
         return f"{self.get_reminder_type_display()} - {self.payment_schedule}"
+
+
+# ==================== DARAJA PAYBILL TRACKING MODELS ====================
+
+class PaybillTransaction(models.Model):
+    """Stores incoming M-Pesa C2B confirmation transactions for the paybill."""
+
+    trans_id = models.CharField(max_length=40, unique=True, db_index=True)
+    trans_time = models.DateTimeField(blank=True, null=True)
+    trans_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+
+    business_short_code = models.CharField(max_length=20, blank=True, default='')
+    bill_ref_number = models.CharField(max_length=120, blank=True, default='')
+    invoice_number = models.CharField(max_length=120, blank=True, default='')
+
+    org_account_balance = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text='Organization account balance as shared in C2B callback, if available.'
+    )
+
+    msisdn = models.CharField(max_length=20, blank=True, default='')
+    first_name = models.CharField(max_length=80, blank=True, default='')
+    middle_name = models.CharField(max_length=80, blank=True, default='')
+    last_name = models.CharField(max_length=80, blank=True, default='')
+
+    raw_payload = models.JSONField(default=dict, blank=True)
+    is_linked_to_payment = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-trans_time', '-created_at']
+        verbose_name = 'Paybill Transaction'
+        verbose_name_plural = 'Paybill Transactions'
+        indexes = [
+            models.Index(fields=['msisdn']),
+            models.Index(fields=['bill_ref_number']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.trans_id} - KES {self.trans_amount:,.2f}"
+
+    @property
+    def payer_name(self):
+        parts = [self.first_name, self.middle_name, self.last_name]
+        return ' '.join(part for part in parts if part).strip() or 'Unknown'
+
+
+class PaybillBalanceSnapshot(models.Model):
+    """Stores results from Daraja account balance API callbacks."""
+
+    STATUS_PENDING = 'pending'
+    STATUS_SUCCESS = 'success'
+    STATUS_FAILED = 'failed'
+    STATUS_TIMEOUT = 'timeout'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_SUCCESS, 'Success'),
+        (STATUS_FAILED, 'Failed'),
+        (STATUS_TIMEOUT, 'Timeout'),
+    ]
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    available_balance = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True)
+
+    request_reference = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    conversation_id = models.CharField(max_length=120, blank=True, default='')
+    originator_conversation_id = models.CharField(max_length=120, blank=True, default='')
+    result_code = models.IntegerField(blank=True, null=True)
+    result_desc = models.TextField(blank=True, default='')
+
+    raw_payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Paybill Balance Snapshot'
+        verbose_name_plural = 'Paybill Balance Snapshots'
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"Paybill balance ({self.get_status_display()}) @ {self.created_at:%Y-%m-%d %H:%M}"
