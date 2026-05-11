@@ -13,6 +13,70 @@ from .models import Payment, InstallmentPlan, PaymentSchedule, PaymentReminder
 from apps.clients.models import ClientVehicle, Client
 
 
+def _invalidate_dashboard_metric_cache():
+    """Clear cached widget metrics so dashboard analytics reflect latest payments."""
+    try:
+        from apps.dashboard.models import MetricCache
+        MetricCache.objects.filter(metric_key__startswith='widget_data_').delete()
+    except Exception:
+        # Dashboard cache should never block payment processing.
+        pass
+
+
+def _recalculate_client_vehicle_state(client_vehicle):
+    """Recompute totals/balance/is_paid_off for a client vehicle after payment changes."""
+    today = timezone.now().date()
+
+    total_paid = Payment.objects.filter(
+        client_vehicle=client_vehicle,
+        payment_date__lte=today,
+    ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+
+    client_vehicle.total_paid = total_paid
+    client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
+
+    if client_vehicle.balance <= 0:
+        client_vehicle.is_paid_off = True
+        client_vehicle.balance = Decimal('0.00')
+
+        if not client_vehicle.date_paid_off:
+            client_vehicle.date_paid_off = today
+
+        client = client_vehicle.client
+        if client.status != 'completed':
+            client.status = 'completed'
+            client.save(update_fields=['status'])
+
+        try:
+            plan = client_vehicle.installment_plan
+            if not plan.is_completed or plan.is_active:
+                plan.is_completed = True
+                plan.is_active = False
+                plan.save(update_fields=['is_completed', 'is_active'])
+        except InstallmentPlan.DoesNotExist:
+            pass
+    else:
+        client_vehicle.is_paid_off = False
+        client_vehicle.date_paid_off = None
+
+        client = client_vehicle.client
+        if client.status == 'completed':
+            client.status = 'active'
+            client.save(update_fields=['status'])
+
+        try:
+            plan = client_vehicle.installment_plan
+            if plan.is_completed:
+                plan.is_completed = False
+            if not plan.is_active:
+                plan.is_active = True
+            plan.save(update_fields=['is_completed', 'is_active'])
+        except InstallmentPlan.DoesNotExist:
+            pass
+
+    client_vehicle.save(update_fields=['total_paid', 'balance', 'is_paid_off', 'date_paid_off'])
+
+
 # ==================== PAYMENT SIGNALS ====================
 
 @receiver(post_save, sender=Payment)
@@ -20,38 +84,8 @@ def update_client_vehicle_after_payment(sender, instance, created, **kwargs):
     """
     Update ClientVehicle balance and status after payment is recorded
     """
-    if created:
-        client_vehicle = instance.client_vehicle
-        today = timezone.now().date()
-        
-        # Future-dated entries are scheduled payments and do not count as paid yet.
-        client_vehicle.total_paid = Payment.objects.filter(
-            client_vehicle=client_vehicle,
-            payment_date__lte=today,
-        ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
-        
-        client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
-        
-        # Check if fully paid
-        if client_vehicle.balance <= 0:
-            client_vehicle.is_paid_off = True
-            client_vehicle.balance = Decimal('0.00')  # Ensure no negative balance
-            
-            # Update client status to completed
-            client = client_vehicle.client
-            client.status = 'completed'
-            client.save()
-            
-            # Mark installment plan as completed if exists
-            try:
-                plan = client_vehicle.installment_plan
-                plan.is_completed = True
-                plan.is_active = False
-                plan.save()
-            except InstallmentPlan.DoesNotExist:
-                pass
-        
-        client_vehicle.save()
+    _recalculate_client_vehicle_state(instance.client_vehicle)
+    _invalidate_dashboard_metric_cache()
 
 
 @receiver(post_save, sender=Payment)
@@ -106,27 +140,7 @@ def revert_payment_on_delete(sender, instance, **kwargs):
     Revert balance changes when a payment is deleted
     """
     client_vehicle = instance.client_vehicle
-    
-    # Recalculate total paid (future-dated entries are not yet paid)
-    today = timezone.now().date()
-    client_vehicle.total_paid = Payment.objects.filter(
-        client_vehicle=client_vehicle,
-        payment_date__lte=today,
-    ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
-    
-    client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
-    
-    # Update is_paid_off status
-    if client_vehicle.balance > 0:
-        client_vehicle.is_paid_off = False
-        
-        # Revert client status if needed
-        client = client_vehicle.client
-        if client.status == 'completed':
-            client.status = 'active'
-            client.save()
-    
-    client_vehicle.save()
+    _recalculate_client_vehicle_state(client_vehicle)
     
     # Clear payment schedules linked to this payment
     PaymentSchedule.objects.filter(payment=instance).update(
@@ -135,6 +149,8 @@ def revert_payment_on_delete(sender, instance, **kwargs):
         is_paid=False,
         payment_date=None
     )
+
+    _invalidate_dashboard_metric_cache()
 
 
 # ==================== INSTALLMENT PLAN SIGNALS ====================
