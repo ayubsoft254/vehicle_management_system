@@ -253,7 +253,7 @@ def repossession_detail(request, pk):
     
     # Get related data
     documents = repossession.documents.select_related('uploaded_by').order_by('-uploaded_at')
-    notes = repossession.notes.select_related('created_by').order_by('-created_at')
+    notes = repossession.activity_notes.select_related('created_by').order_by('-created_at')
     expenses = repossession.expenses.select_related('created_by').order_by('-expense_date')
     status_history = repossession.status_history.select_related('changed_by').order_by('-changed_at')
     notices = repossession.notices.select_related('sent_by').order_by('-notice_date')
