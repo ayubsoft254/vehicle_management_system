@@ -212,7 +212,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-600">Total Value</p>
-                    <p class="text-2xl font-bold text-indigo-600">${{ total_inventory_value|floatformat:0|intcomma }}</p>
+                    <p class="text-2xl font-bold text-indigo-600">KES {{ total_inventory_value|floatformat:0|intcomma }}</p>
                 </div>
             </div>
         </div>
@@ -439,7 +439,7 @@
                                     <!-- Price -->
                                     <div class="mb-4">
                                         <span class="price-tag text-2xl font-bold text-blue-600 inline-block pb-1">
-                                            ${{ vehicle.selling_price|floatformat:0|intcomma }}
+                                            KES {{ vehicle.selling_price|floatformat:0|intcomma }}
                                         </span>
                                     </div>
 
