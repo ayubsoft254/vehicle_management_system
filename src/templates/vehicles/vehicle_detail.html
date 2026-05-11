@@ -511,6 +511,20 @@
                             {{ vehicle.get_status_display }}
                         </span>
                     </div>
+
+                    {% if vehicle.status == 'sold' and latest_sale %}
+                    <div class="pt-4 border-t border-gray-200">
+                        <p class="text-sm font-medium text-gray-500 mb-1">Sold To</p>
+                        {% if user.is_authenticated and user|can_access:'clients' %}
+                        <a href="{% url 'clients:client_detail' latest_sale.client.pk %}" class="text-sm font-semibold text-blue-600 hover:text-blue-700">
+                            {{ latest_sale.client.get_full_name }}
+                        </a>
+                        {% else %}
+                        <p class="text-sm font-semibold text-gray-900">{{ latest_sale.client.get_full_name }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-xs text-gray-500">Sale Date: {{ latest_sale.purchase_date|date:"M d, Y" }}</p>
+                    </div>
+                    {% endif %}
                     
                     <div class="flex items-center justify-between pt-2 border-t border-gray-200">
                         <span class="text-sm font-medium text-gray-500">Active</span>
