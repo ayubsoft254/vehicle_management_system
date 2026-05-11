@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Extend Installment Plan{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <nav class="flex mb-4" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li>
+                <a href="{% url 'payments:installment_plan_list' %}" class="text-gray-700 hover:text-primary-600">Installment Plans</a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <a href="{% url 'payments:installment_plan_detail' plan.pk %}" class="text-gray-700 hover:text-primary-600">Plan #{{ plan.pk }}</a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">Extend</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h1 class="text-2xl font-bold text-gray-900 mb-2">Extend Installment Plan</h1>
+            <p class="text-sm text-gray-600 mb-6">
+                Add extra months and apply an extension fee. Remaining unpaid installments will be re-amortized.
+            </p>
+
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+
+                <div>
+                    <label for="{{ form.extension_months.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">{{ form.extension_months.label }}</label>
+                    {{ form.extension_months }}
+                    {% if form.extension_months.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.extension_months.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.extension_fee.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">{{ form.extension_fee.label }}</label>
+                    {{ form.extension_fee }}
+                    {% if form.extension_fee.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.extension_fee.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.reason.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">{{ form.reason.label }}</label>
+                    {{ form.reason }}
+                    {% if form.reason.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.reason.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="flex items-center gap-3 pt-2">
+                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg transition duration-150">
+                        <i class="fas fa-check mr-2"></i>
+                        Apply Extension
+                    </button>
+                    <a href="{% url 'payments:installment_plan_detail' plan.pk %}" class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-fit">
+            <h2 class="text-lg font-bold text-gray-900 mb-4">Current Plan Snapshot</h2>
+            <div class="space-y-3 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Client</span>
+                    <span class="font-semibold text-gray-900">{{ client.get_full_name }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Vehicle</span>
+                    <span class="font-semibold text-gray-900">{{ vehicle.registration_number }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Unpaid Installments</span>
+                    <span class="font-semibold text-gray-900">{{ unpaid_count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Unpaid Amount</span>
+                    <span class="font-semibold text-red-600">KES {{ unpaid_total|floatformat:2 }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Current Monthly</span>
+                    <span class="font-semibold text-gray-900">KES {{ plan.monthly_installment|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
