@@ -15,6 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from datetime import datetime, timedelta
 from decimal import Decimal
+from dateutil.relativedelta import relativedelta
 import csv
 import json
 import re
@@ -674,6 +675,148 @@ def regenerate_payment_schedule(request, pk):
     return render(request, 'payments/confirm_regenerate_schedule.html', context)
 
 
+@login_required
+def extend_installment_plan(request, pk):
+    """
+    Extend an installment plan by adding months and applying an extension fee.
+    The remaining unpaid schedules are re-amortized across the new duration.
+    """
+    from .forms import InstallmentExtensionForm
+
+    plan = get_object_or_404(
+        InstallmentPlan.objects.select_related('client_vehicle__client', 'client_vehicle__vehicle'),
+        pk=pk,
+    )
+
+    if plan.is_completed:
+        messages.error(request, 'Completed plans cannot be extended.')
+        return redirect('payments:installment_plan_detail', pk=plan.pk)
+
+    unpaid_schedules = plan.payment_schedules.filter(is_paid=False).order_by('due_date', 'installment_number')
+
+    if not unpaid_schedules.exists():
+        messages.error(request, 'No unpaid installments found to extend.')
+        return redirect('payments:installment_plan_detail', pk=plan.pk)
+
+    if unpaid_schedules.filter(amount_paid__gt=Decimal('0.00')).exists():
+        messages.error(
+            request,
+            'This plan has partially-paid installments. Clear or settle them before extending the plan.'
+        )
+        return redirect('payments:installment_plan_detail', pk=plan.pk)
+
+    if request.method == 'POST':
+        form = InstallmentExtensionForm(request.POST)
+        if form.is_valid():
+            extension_months = form.cleaned_data['extension_months']
+            extension_fee = form.cleaned_data['extension_fee']
+            reason = (form.cleaned_data.get('reason') or '').strip()
+
+            with transaction.atomic():
+                unpaid_list = list(unpaid_schedules)
+                existing_unpaid_count = len(unpaid_list)
+                new_unpaid_count = existing_unpaid_count + extension_months
+
+                existing_unpaid_total = sum((s.amount_due for s in unpaid_list), Decimal('0.00'))
+                new_unpaid_total = existing_unpaid_total + extension_fee
+
+                base_due_date = unpaid_list[0].due_date
+
+                # Update plan financials
+                plan.number_of_installments = plan.number_of_installments + extension_months
+                plan.total_amount = plan.total_amount + extension_fee
+
+                base_monthly = (new_unpaid_total / Decimal(str(new_unpaid_count))).quantize(Decimal('0.01'))
+                plan.monthly_installment = base_monthly
+
+                # Remove old unpaid schedules and rebuild them with extended horizon.
+                first_new_installment_number = min(s.installment_number for s in unpaid_list)
+                unpaid_schedules.delete()
+
+                remainder_type = getattr(plan.client_vehicle, 'remainder_payment_type', 'monthly')
+                monthly_date = getattr(plan.client_vehicle, 'monthly_payment_date', None) or base_due_date.day
+                weekly_day = getattr(plan.client_vehicle, 'weekly_payment_day', None)
+
+                # Split any rounding remainder into the first installment.
+                total_by_equal = base_monthly * new_unpaid_count
+                rounding_diff = (new_unpaid_total - total_by_equal).quantize(Decimal('0.01'))
+
+                current_date = base_due_date
+                for idx in range(new_unpaid_count):
+                    if remainder_type == 'weekly' and weekly_day is not None:
+                        if idx == 0:
+                            due_date = current_date
+                        else:
+                            due_date = current_date + timedelta(weeks=1)
+                            current_date = due_date
+                    else:
+                        if idx == 0:
+                            due_date = current_date
+                        else:
+                            candidate = current_date + relativedelta(months=1)
+                            try:
+                                due_date = candidate.replace(day=int(monthly_date))
+                            except ValueError:
+                                due_date = candidate + relativedelta(day=31)
+                            current_date = due_date
+
+                    amount_due = base_monthly
+                    if idx == 0:
+                        amount_due = (amount_due + rounding_diff).quantize(Decimal('0.01'))
+
+                    PaymentSchedule.objects.create(
+                        installment_plan=plan,
+                        installment_number=first_new_installment_number + idx,
+                        due_date=due_date,
+                        amount_due=amount_due,
+                        amount_paid=Decimal('0.00'),
+                        is_paid=False,
+                    )
+
+                # Keep end_date aligned with rebuilt schedule.
+                last_schedule = plan.payment_schedules.order_by('-installment_number').first()
+                if last_schedule:
+                    plan.end_date = last_schedule.due_date
+
+                note_line = (
+                    f"[{timezone.now().strftime('%Y-%m-%d %H:%M')}] Extended by {extension_months} months; "
+                    f"fee KES {extension_fee:,.2f}."
+                )
+                if reason:
+                    note_line += f" Reason: {reason}"
+                existing_notes = (plan.notes or '').strip()
+                plan.notes = f"{existing_notes}\n{note_line}".strip()
+                plan.save(update_fields=['number_of_installments', 'total_amount', 'monthly_installment', 'end_date', 'notes', 'updated_at'])
+
+                log_audit(
+                    request.user,
+                    'update',
+                    'InstallmentPlan',
+                    f'Extended installment plan {plan.pk} by {extension_months} months with fee KES {extension_fee:,.2f}'
+                )
+
+                messages.success(
+                    request,
+                    f'Installment plan extended by {extension_months} month(s). Extension fee KES {extension_fee:,.2f} applied.'
+                )
+                return redirect('payments:installment_plan_detail', pk=plan.pk)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = InstallmentExtensionForm()
+
+    context = {
+        'plan': plan,
+        'form': form,
+        'client': plan.client_vehicle.client,
+        'vehicle': plan.client_vehicle.vehicle,
+        'unpaid_count': unpaid_schedules.count(),
+        'unpaid_total': unpaid_schedules.aggregate(total=Sum('amount_due'))['total'] or Decimal('0.00'),
+    }
+
+    return render(request, 'payments/extend_installment_plan.html', context)
+
+
 # ==================== PAYMENT SCHEDULE VIEWS ====================
 
 @login_required
@@ -1146,7 +1289,7 @@ def defaulters_report(request):
     Generate report of clients with overdue payments
     """
     today = timezone.now().date()
-    
+
     # Get all overdue payment schedules
     overdue_schedules = PaymentSchedule.objects.filter(
         is_paid=False,
@@ -1155,25 +1298,67 @@ def defaulters_report(request):
         'installment_plan__client_vehicle__client',
         'installment_plan__client_vehicle__vehicle'
     ).order_by('due_date')
-    
-    # Group by client
+
+    # Group overdue schedules by client and calculate dynamic metrics used by template.
     defaulters = {}
     for schedule in overdue_schedules:
-        client = schedule.installment_plan.client_vehicle.client
-        if client not in defaulters:
-            defaulters[client] = {
+        client_vehicle = schedule.installment_plan.client_vehicle
+        client = client_vehicle.client
+
+        if client.id not in defaulters:
+            last_payment = Payment.objects.filter(client_vehicle=client_vehicle).order_by('-payment_date', '-created_at').first()
+            payment_percentage = Decimal('0.00')
+            if client_vehicle.purchase_price and client_vehicle.purchase_price > 0:
+                payment_percentage = (client_vehicle.total_paid / client_vehicle.purchase_price) * Decimal('100')
+
+            defaulters[client.id] = {
                 'client': client,
-                'overdue_schedules': [],
-                'total_overdue': 0,
-                'oldest_due_date': schedule.due_date,
+                'vehicle': client_vehicle.vehicle,
+                'client_vehicle_id': client_vehicle.id,
+                'days_overdue': schedule.days_overdue,
+                'overdue_installments': 0,
+                'total_outstanding': Decimal('0.00'),
+                'payment_percentage': payment_percentage,
+                'last_payment_date': last_payment.payment_date if last_payment else None,
+                'last_payment_amount': last_payment.amount if last_payment else None,
             }
-        defaulters[client]['overdue_schedules'].append(schedule)
-        defaulters[client]['total_overdue'] += schedule.remaining_amount
-    
+
+        defaulters[client.id]['overdue_installments'] += 1
+        defaulters[client.id]['total_outstanding'] += schedule.remaining_amount
+
+        if schedule.days_overdue > defaulters[client.id]['days_overdue']:
+            defaulters[client.id]['days_overdue'] = schedule.days_overdue
+
+    defaulters_list = list(defaulters.values())
+    total_outstanding = sum((d['total_outstanding'] for d in defaulters_list), Decimal('0.00'))
+
+    critical_defaulters = [d for d in defaulters_list if d['days_overdue'] >= 90]
+    severe_defaulters = [d for d in defaulters_list if 60 <= d['days_overdue'] < 90]
+    moderate_defaulters = [d for d in defaulters_list if 30 <= d['days_overdue'] < 60]
+
+    critical_amount = sum((d['total_outstanding'] for d in critical_defaulters), Decimal('0.00'))
+    severe_amount = sum((d['total_outstanding'] for d in severe_defaulters), Decimal('0.00'))
+    moderate_amount = sum((d['total_outstanding'] for d in moderate_defaulters), Decimal('0.00'))
+
+    average_days_overdue = Decimal('0.00')
+    if defaulters_list:
+        average_days_overdue = sum((Decimal(str(d['days_overdue'])) for d in defaulters_list), Decimal('0.00')) / Decimal(str(len(defaulters_list)))
+
     context = {
-        'defaulters': defaulters.values(),
-        'total_defaulters': len(defaulters),
-        'total_overdue_amount': sum(d['total_overdue'] for d in defaulters.values()),
+        'defaulters': defaulters_list,
+        'total_defaulters': len(defaulters_list),
+        'total_outstanding': total_outstanding,
+        'total_overdue_amount': total_outstanding,
+        'at_risk_vehicles': len(defaulters_list),
+        'average_days_overdue': average_days_overdue,
+        'critical_defaulters': critical_defaulters,
+        'critical_total': critical_amount,
+        'critical_count': len(critical_defaulters),
+        'critical_amount': critical_amount,
+        'severe_count': len(severe_defaulters),
+        'severe_amount': severe_amount,
+        'moderate_count': len(moderate_defaulters),
+        'moderate_amount': moderate_amount,
     }
     
     log_audit(request.user, 'view', 'Payment', 'Viewed defaulters report')
