@@ -276,21 +276,36 @@
             <i class="fas fa-link text-primary-600 mr-2"></i>
             Quick Actions
         </h3>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <a href="{% url 'payments:overdue_payments' %}" 
                class="flex items-center p-3 bg-white rounded-lg hover:shadow-md transition-shadow duration-150">
                 <i class="fas fa-exclamation-triangle text-red-500 text-xl mr-3"></i>
                 <span class="text-sm font-medium text-gray-900">View Overdue</span>
             </a>
-            <a href="{% url 'payments:payment_tracker' %}" 
-               class="flex items-center p-3 bg-white rounded-lg hover:shadow-md transition-shadow duration-150">
+            {% if recent_payments %}
+            <a href="{% url 'payments:payment_tracker' recent_payments.0.client_vehicle.pk %}" 
+               class="flex items-center p-3 bg-white rounded-lg hover:shadow-md transition-shadow duration-150"
+               title="Open tracker for most recent payment client">
                 <i class="fas fa-chart-line text-green-500 text-xl mr-3"></i>
                 <span class="text-sm font-medium text-gray-900">Payment Tracker</span>
             </a>
+            {% else %}
+            <a href="#"
+               class="flex items-center p-3 bg-white rounded-lg opacity-60 cursor-not-allowed"
+               title="No recent payments available to open tracker">
+                <i class="fas fa-chart-line text-green-500 text-xl mr-3"></i>
+                <span class="text-sm font-medium text-gray-900">Payment Tracker</span>
+            </a>
+            {% endif %}
             <a href="{% url 'payments:defaulters_report' %}" 
                class="flex items-center p-3 bg-white rounded-lg hover:shadow-md transition-shadow duration-150">
                 <i class="fas fa-file-pdf text-red-500 text-xl mr-3"></i>
                 <span class="text-sm font-medium text-gray-900">Defaulters Report</span>
+            </a>
+            <a href="{% url 'payments:paybill_tracker' %}" 
+               class="flex items-center p-3 bg-white rounded-lg hover:shadow-md transition-shadow duration-150">
+                <i class="fas fa-mobile-alt text-indigo-500 text-xl mr-3"></i>
+                <span class="text-sm font-medium text-gray-900">Paybill Tracker</span>
             </a>
             <a href="{% url 'payments:installment_plan_list' %}" 
                class="flex items-center p-3 bg-white rounded-lg hover:shadow-md transition-shadow duration-150">
