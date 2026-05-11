@@ -36,7 +36,7 @@
     </div>
 
     <!-- Financial Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-md p-6 text-white">
             <p class="text-sm opacity-90 mb-1">Outstanding Amount</p>
             <p class="text-2xl font-bold">KES {{ repossession.outstanding_amount|floatformat:0 }}</p>
@@ -49,6 +49,12 @@
             <p class="text-xs opacity-75 mt-2">Recovery & legal fees</p>
         </div>
 
+        <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl shadow-md p-6 text-white">
+            <p class="text-sm opacity-90 mb-1">New Additional Costs</p>
+            <p class="text-2xl font-bold">KES {{ repossession.additional_costs|floatformat:0 }}</p>
+            <p class="text-xs opacity-75 mt-2">Applied during repossession</p>
+        </div>
+
         <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-md p-6 text-white">
             <p class="text-sm opacity-90 mb-1">Total Amount Due</p>
             <p class="text-2xl font-bold">KES {{ repossession.get_total_amount_due|floatformat:0 }}</p>
@@ -56,9 +62,9 @@
         </div>
 
         <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md p-6 text-white">
-            <p class="text-sm opacity-90 mb-1">Total Expenses</p>
-            <p class="text-2xl font-bold">KES {{ total_expenses|floatformat:0 }}</p>
-            <p class="text-xs opacity-75 mt-2">Paid: KES {{ paid_expenses|floatformat:0 }}</p>
+            <p class="text-sm opacity-90 mb-1">Auction/Return Target</p>
+            <p class="text-2xl font-bold">KES {{ recovery_target_amount|floatformat:0 }}</p>
+            <p class="text-xs opacity-75 mt-2">Balance + all accumulated costs</p>
         </div>
     </div>
 
@@ -103,6 +109,10 @@
                                 <p class="text-gray-800 font-medium">{{ repossession.last_payment_date|date:"M d, Y" }}</p>
                             </div>
                         {% endif %}
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Accumulated Additional Costs</p>
+                            <p class="text-gray-800 font-medium">KES {{ total_additional_costs|floatformat:0 }}</p>
+                        </div>
                         <div>
                             <p class="text-sm text-gray-600 mb-1">Last Known Location</p>
                             <p class="text-gray-800">{{ repossession.last_known_location|default:"Not specified" }}</p>
@@ -355,6 +365,38 @@
                                                 </span>
                                             {% endif %}
                                         </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Additional Cost Breakdown -->
+            {% if additional_cost_items %}
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="p-6 border-b border-gray-200">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-layer-group text-indigo-600 mr-2"></i>
+                            Additional Cost Breakdown
+                        </h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for item in additional_cost_items %}
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ item.get_category_display }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">{{ item.description }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">KES {{ item.amount|floatformat:2 }}</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
