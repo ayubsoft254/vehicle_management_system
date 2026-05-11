@@ -28,8 +28,16 @@ urlpatterns = [
     # Reports and analytics
     path('tracker/<int:client_vehicle_pk>/', views.payment_tracker, name='payment_tracker'),
     path('analytics/', views.payment_analytics, name='payment_analytics'),
+    path('paybill/', views.paybill_tracker, name='paybill_tracker'),
+    path('paybill/refresh-balance/', views.refresh_paybill_balance, name='refresh_paybill_balance'),
     path('defaulters/', views.defaulters_report, name='defaulters_report'),
     path('export/csv/', views.export_payments_csv, name='export_payments_csv'),
+
+    # Daraja callbacks
+    path('paybill/callbacks/validation/', views.paybill_validation_callback, name='paybill_validation_callback'),
+    path('paybill/callbacks/confirmation/', views.paybill_confirmation_callback, name='paybill_confirmation_callback'),
+    path('paybill/callbacks/balance-result/', views.paybill_balance_result_callback, name='paybill_balance_result_callback'),
+    path('paybill/callbacks/balance-timeout/', views.paybill_balance_timeout_callback, name='paybill_balance_timeout_callback'),
     
     # API endpoints
     path('api/stats/', views.payment_stats_api, name='payment_stats_api'),
