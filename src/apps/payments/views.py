@@ -5,7 +5,8 @@ Handles payment recording, installment plans, schedules, and reporting
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q, Sum, Count, Avg
+from django.db.models import Q, Sum, Count, Avg, F
+from django.db.models.functions import TruncMonth
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
@@ -890,16 +891,59 @@ def overdue_payments(request):
         'installment_plan__client_vehicle__client',
         'installment_plan__client_vehicle__vehicle'
     ).order_by('due_date')
+
+    # Optional filters from UI
+    search = request.GET.get('search', '').strip()
+    if search:
+        overdue_schedules = overdue_schedules.filter(
+            Q(installment_plan__client_vehicle__client__first_name__icontains=search) |
+            Q(installment_plan__client_vehicle__client__last_name__icontains=search) |
+            Q(installment_plan__client_vehicle__vehicle__registration_number__icontains=search) |
+            Q(installment_plan__client_vehicle__vehicle__vin__icontains=search)
+        )
+
+    days_overdue_filter = request.GET.get('days_overdue', '').strip()
+    if days_overdue_filter.isdigit():
+        min_days = int(days_overdue_filter)
+        cutoff_date = today - timedelta(days=min_days)
+        overdue_schedules = overdue_schedules.filter(due_date__lte=cutoff_date)
     
     # Calculate totals
     total_overdue_amount = overdue_schedules.aggregate(
-        Sum('amount_due')
-    )['amount_due__sum'] or 0
+        total=Sum(F('amount_due') - F('amount_paid'))
+    )['total'] or 0
+    total_late_fees = overdue_schedules.aggregate(
+        total=Sum('late_fee_applied')
+    )['total'] or 0
+    total_overdue_with_fees = total_overdue_amount + total_late_fees
+
+    total_overdue_count = overdue_schedules.count()
+    affected_clients_count = overdue_schedules.values(
+        'installment_plan__client_vehicle__client'
+    ).distinct().count()
+
+    if total_overdue_count:
+        total_days_overdue = sum(schedule.days_overdue for schedule in overdue_schedules)
+        average_days_overdue = total_days_overdue / total_overdue_count
+    else:
+        average_days_overdue = 0
+
+    paginator = Paginator(overdue_schedules, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    for schedule in page_obj:
+        schedule.total_due_with_late_fee = schedule.remaining_amount + (schedule.late_fee_applied or 0)
     
     context = {
-        'overdue_schedules': overdue_schedules,
+        'overdue_schedules': page_obj,
         'total_overdue_amount': total_overdue_amount,
-        'total_count': overdue_schedules.count(),
+        'total_late_fees': total_late_fees,
+        'total_overdue_with_fees': total_overdue_with_fees,
+        'total_overdue_count': total_overdue_count,
+        'total_count': total_overdue_count,
+        'affected_clients_count': affected_clients_count,
+        'average_days_overdue': average_days_overdue,
     }
     
     log_audit(request.user, 'view', 'PaymentSchedule', 'Viewed overdue payments')
@@ -1012,49 +1056,170 @@ def payment_analytics(request):
     Display payment analytics and statistics
     """
     now = timezone.now()
-    
-    # This month statistics
-    this_month_payments = Payment.objects.filter(
-        payment_date__year=now.year,
-        payment_date__month=now.month
-    )
-    this_month_total = this_month_payments.aggregate(Sum('amount'))['amount__sum'] or 0
-    this_month_count = this_month_payments.count()
-    
-    # This year statistics
-    this_year_payments = Payment.objects.filter(payment_date__year=now.year)
-    this_year_total = this_year_payments.aggregate(Sum('amount'))['amount__sum'] or 0
-    this_year_count = this_year_payments.count()
-    
-    # Payment method breakdown
-    payment_methods = Payment.objects.values('payment_method').annotate(
+    today = now.date()
+
+    try:
+        period_days = int(request.GET.get('period', '30'))
+        if period_days <= 0:
+            period_days = 30
+    except (TypeError, ValueError):
+        period_days = 30
+
+    start_date = today - timedelta(days=period_days - 1)
+    previous_start = start_date - timedelta(days=period_days)
+    previous_end = start_date - timedelta(days=1)
+
+    period_payments = Payment.objects.filter(payment_date__gte=start_date, payment_date__lte=today)
+    previous_period_payments = Payment.objects.filter(payment_date__gte=previous_start, payment_date__lte=previous_end)
+
+    total_revenue = period_payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    total_transactions = period_payments.count()
+    average_payment = period_payments.aggregate(avg=Avg('amount'))['avg'] or Decimal('0.00')
+
+    previous_revenue = previous_period_payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    previous_transactions = previous_period_payments.count()
+
+    if previous_revenue > 0:
+        revenue_growth = ((total_revenue - previous_revenue) / previous_revenue) * 100
+    elif total_revenue > 0:
+        revenue_growth = Decimal('100.00')
+    else:
+        revenue_growth = Decimal('0.00')
+
+    if previous_transactions > 0:
+        transaction_growth = ((total_transactions - previous_transactions) / previous_transactions) * 100
+    elif total_transactions > 0:
+        transaction_growth = Decimal('100.00')
+    else:
+        transaction_growth = Decimal('0.00')
+
+    expected_schedules = PaymentSchedule.objects.filter(due_date__gte=start_date, due_date__lte=today)
+    expected_total = expected_schedules.aggregate(total=Sum('amount_due'))['total'] or Decimal('0.00')
+    collection_rate = ((total_revenue / expected_total) * 100) if expected_total > 0 else Decimal('0.00')
+
+    method_rows = period_payments.values('payment_method').annotate(
         total=Sum('amount'),
         count=Count('id')
     ).order_by('-total')
-    
-    # Recent payments
+    method_map = dict(Payment.PAYMENT_METHOD_CHOICES)
+    payment_methods_stats = []
+    for row in method_rows:
+        method_total = row['total'] or Decimal('0.00')
+        pct = ((method_total / total_revenue) * 100) if total_revenue > 0 else Decimal('0.00')
+        payment_methods_stats.append({
+            'name': method_map.get(row['payment_method'], row['payment_method'] or 'Unknown').title(),
+            'total': method_total,
+            'count': row['count'],
+            'percentage': pct,
+        })
+
+    top_clients_rows = period_payments.values(
+        'client_vehicle__client__first_name',
+        'client_vehicle__client__last_name'
+    ).annotate(
+        total_paid=Sum('amount'),
+        transaction_count=Count('id')
+    ).order_by('-total_paid')[:5]
+    top_clients = []
+    for row in top_clients_rows:
+        first_name = row.get('client_vehicle__client__first_name') or ''
+        last_name = row.get('client_vehicle__client__last_name') or ''
+        full_name = (f"{first_name} {last_name}").strip() or 'Unknown Client'
+        top_clients.append({
+            'name': full_name,
+            'total_paid': row['total_paid'] or Decimal('0.00'),
+            'transaction_count': row['transaction_count'],
+        })
+
+    on_time_count = PaymentSchedule.objects.filter(
+        is_paid=True,
+        due_date__gte=start_date,
+        due_date__lte=today,
+        payment_date__isnull=False,
+        payment_date__lte=F('due_date')
+    ).count()
+    late_count = PaymentSchedule.objects.filter(
+        is_paid=True,
+        due_date__gte=start_date,
+        due_date__lte=today,
+        payment_date__isnull=False,
+        payment_date__gt=F('due_date')
+    ).count()
+    overdue_count = PaymentSchedule.objects.filter(
+        is_paid=False,
+        due_date__gte=start_date,
+        due_date__lte=today,
+        due_date__lt=today
+    ).count()
+
+    status_total = on_time_count + late_count + overdue_count
+    on_time_percentage = (on_time_count / status_total * 100) if status_total else 0
+    late_percentage = (late_count / status_total * 100) if status_total else 0
+    overdue_percentage = (overdue_count / status_total * 100) if status_total else 0
+
+    monthly_rows = Payment.objects.filter(
+        payment_date__gte=(today - timedelta(days=180))
+    ).annotate(
+        month=TruncMonth('payment_date')
+    ).values('month').annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('month')
+    max_month_total = max((row['total'] or Decimal('0.00') for row in monthly_rows), default=Decimal('0.00'))
+    monthly_comparison = []
+    for row in monthly_rows:
+        total = row['total'] or Decimal('0.00')
+        pct = ((total / max_month_total) * 100) if max_month_total > 0 else Decimal('0.00')
+        month_date = row['month']
+        monthly_comparison.append({
+            'month_name': month_date.strftime('%b %Y') if month_date else 'Unknown',
+            'total': total,
+            'count': row['count'],
+            'percentage': pct,
+        })
+
+    daily_rows = period_payments.values('payment_date').annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('payment_date')
+    daily_map = {row['payment_date']: row for row in daily_rows}
+    trend_data = []
+    max_daily_total = max((row['total'] or Decimal('0.00') for row in daily_rows), default=Decimal('0.00'))
+    for i in range(period_days):
+        day = start_date + timedelta(days=i)
+        row = daily_map.get(day)
+        day_total = (row['total'] if row else Decimal('0.00')) or Decimal('0.00')
+        bar_width = ((day_total / max_daily_total) * 100) if max_daily_total > 0 else Decimal('0.00')
+        trend_data.append({
+            'label': day.strftime('%d %b'),
+            'total': day_total,
+            'count': row['count'] if row else 0,
+            'bar_width': bar_width,
+        })
+
     recent_payments = Payment.objects.select_related(
         'client_vehicle__client',
         'client_vehicle__vehicle'
-    ).order_by('-payment_date')[:10]
-    
-    # Overdue statistics
-    overdue_schedules = PaymentSchedule.objects.filter(
-        is_paid=False,
-        due_date__lt=now.date()
-    )
-    overdue_count = overdue_schedules.count()
-    overdue_amount = overdue_schedules.aggregate(Sum('amount_due'))['amount_due__sum'] or 0
-    
+    ).order_by('-payment_date', '-created_at')[:10]
+
     context = {
-        'this_month_total': this_month_total,
-        'this_month_count': this_month_count,
-        'this_year_total': this_year_total,
-        'this_year_count': this_year_count,
-        'payment_methods': payment_methods,
-        'recent_payments': recent_payments,
+        'total_revenue': total_revenue,
+        'total_transactions': total_transactions,
+        'average_payment': average_payment,
+        'collection_rate': collection_rate,
+        'revenue_growth': revenue_growth,
+        'transaction_growth': transaction_growth,
+        'payment_methods_stats': payment_methods_stats,
+        'top_clients': top_clients,
+        'on_time_count': on_time_count,
+        'late_count': late_count,
         'overdue_count': overdue_count,
-        'overdue_amount': overdue_amount,
+        'on_time_percentage': on_time_percentage,
+        'late_percentage': late_percentage,
+        'overdue_percentage': overdue_percentage,
+        'monthly_comparison': monthly_comparison,
+        'trend_data': trend_data,
+        'recent_payments': recent_payments,
     }
     
     log_audit(request.user, 'view', 'Payment', 'Viewed payment analytics')
