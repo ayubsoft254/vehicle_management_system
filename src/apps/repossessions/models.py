@@ -122,6 +122,13 @@ class Repossession(models.Model):
         decimal_places=2,
         default=Decimal('0.00')
     )
+    additional_costs = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Additional repossession-related costs to carry into repricing'
+    )
     total_cost = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -192,7 +199,8 @@ class Repossession(models.Model):
             self.recovery_cost +
             self.storage_cost +
             self.legal_cost +
-            self.other_costs
+            self.other_costs +
+            self.additional_costs
         )
         
         super().save(*args, **kwargs)
@@ -207,8 +215,20 @@ class Repossession(models.Model):
         return (end_date - self.initiated_date).days
     
     def get_total_amount_due(self):
-        """Calculate total amount including costs."""
-        return self.outstanding_amount + self.total_cost
+        """Calculate total amount including all repossession-related costs."""
+        return self.outstanding_amount + self.get_total_additional_costs()
+
+    def get_expense_total(self):
+        """Calculate sum of variable expenses logged against this repossession."""
+        return self.expenses.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+
+    def get_additional_cost_items_total(self):
+        """Calculate sum of categorized additional cost line items."""
+        return self.additional_cost_items.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+
+    def get_total_additional_costs(self):
+        """Calculate all costs added on top of the outstanding amount."""
+        return self.total_cost + self.get_expense_total()
     
     def can_cancel(self):
         """Check if repossession can be cancelled."""
@@ -278,6 +298,44 @@ class RepossessionDocument(models.Model):
                 return f"{size:.2f} {unit}"
             size /= 1024.0
         return f"{size:.2f} TB"
+
+
+class RepossessionAdditionalCost(models.Model):
+    """Categorized line-item costs added when a vehicle is repossessed."""
+
+    CATEGORY_CHOICES = [
+        ('FUEL', 'Fuel'),
+        ('TOWING', 'Towing'),
+        ('STORAGE', 'Storage'),
+        ('TRANSPORT', 'Transport'),
+        ('LEGAL', 'Legal'),
+        ('AUCTION', 'Auction Preparation'),
+        ('REPAIR', 'Repair/Maintenance'),
+        ('OTHER', 'Other'),
+    ]
+
+    repossession = models.ForeignKey(
+        Repossession,
+        on_delete=models.CASCADE,
+        related_name='additional_cost_items'
+    )
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    description = models.CharField(max_length=255)
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Repossession Additional Cost'
+        verbose_name_plural = 'Repossession Additional Costs'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.get_category_display()} - {self.amount}"
 
 
 class RepossessionNote(models.Model):
