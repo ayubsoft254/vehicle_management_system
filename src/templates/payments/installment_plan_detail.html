@@ -36,7 +36,7 @@
             <p class="mt-1 text-sm text-gray-600">{{ plan.client_vehicle.client.get_full_name }} - {{ plan.client_vehicle.vehicle.registration_number }}</p>
         </div>
         <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
-            <a href="{% url 'payments:payment_schedule_list' plan.pk %}" 
+            <a href="{% url 'payments:payment_schedule_list' %}" 
                class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-calendar-alt mr-2"></i>
                 View Schedule
@@ -45,6 +45,11 @@
                class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-plus mr-2"></i>
                 Record Payment
+            </a>
+            <a href="{% url 'payments:extend_installment_plan' plan.pk %}" 
+               class="inline-flex items-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-hourglass-half mr-2"></i>
+                Extend Plan
             </a>
             <a href="{% url 'payments:installment_plan_list' %}" 
                class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
