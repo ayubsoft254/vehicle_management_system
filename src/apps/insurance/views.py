@@ -198,6 +198,8 @@ def policy_list(request):
     
     # Apply filters from search form
     search_form = InsurancePolicySearchForm(request.GET)
+    payment_status = request.GET.get('payment_status', '').strip()
+
     if search_form.is_valid():
         search = search_form.cleaned_data.get('search')
         policy_type = search_form.cleaned_data.get('policy_type')
@@ -227,6 +229,13 @@ def policy_list(request):
                 status='active',
                 end_date__lte=timezone.now().date() + timedelta(days=30)
             )
+
+    if payment_status == 'fully_paid':
+        policies = policies.filter(insurance_balance__lte=0)
+    elif payment_status == 'partial':
+        policies = policies.filter(insurance_total_paid__gt=0, insurance_balance__gt=0)
+    elif payment_status == 'unpaid':
+        policies = policies.filter(insurance_total_paid__lte=0, insurance_balance__gt=0)
     
     # Statistics
     total_policies = policies.count()
@@ -236,11 +245,43 @@ def policy_list(request):
         end_date__lte=timezone.now().date() + timedelta(days=30)
     ).count()
     expired_policies = policies.filter(status='expired').count()
+
+    sold_policies = InsurancePolicy.objects.filter(client__isnull=False)
+    total_sold = sold_policies.count()
+    fully_paid_count = sold_policies.filter(insurance_balance__lte=0).count()
+    partially_paid_count = sold_policies.filter(insurance_total_paid__gt=0, insurance_balance__gt=0).count()
+    unpaid_count = sold_policies.filter(insurance_total_paid__lte=0, insurance_balance__gt=0).count()
+
+    sold_totals = sold_policies.aggregate(
+        sold_value=Sum('selling_price'),
+        paid_value=Sum('insurance_total_paid'),
+        balance_value=Sum('insurance_balance')
+    )
     
     # Pagination
     paginator = Paginator(policies, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+
+    for policy in page_obj:
+        selling_price = policy.selling_price or 0
+        total_paid = policy.insurance_total_paid or 0
+        balance = policy.insurance_balance or 0
+
+        if selling_price and selling_price > 0:
+            policy.payment_progress = min((total_paid / selling_price) * 100, 100)
+        else:
+            policy.payment_progress = 0
+
+        if balance <= 0:
+            policy.payment_status_label = 'Fully Paid'
+            policy.payment_status_color = 'green'
+        elif total_paid > 0:
+            policy.payment_status_label = 'Partially Paid'
+            policy.payment_status_color = 'yellow'
+        else:
+            policy.payment_status_label = 'Unpaid'
+            policy.payment_status_color = 'red'
     
     context = {
         'policies': page_obj,
@@ -249,6 +290,14 @@ def policy_list(request):
         'active_policies': active_policies,
         'expiring_policies': expiring_policies,
         'expired_policies': expired_policies,
+        'payment_status': payment_status,
+        'total_sold': total_sold,
+        'fully_paid_count': fully_paid_count,
+        'partially_paid_count': partially_paid_count,
+        'unpaid_count': unpaid_count,
+        'total_sold_value': sold_totals.get('sold_value') or 0,
+        'total_paid_value': sold_totals.get('paid_value') or 0,
+        'total_balance_value': sold_totals.get('balance_value') or 0,
     }
     
     log_audit(request.user, 'view', 'InsurancePolicy', 'Viewed policy list')
