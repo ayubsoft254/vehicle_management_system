@@ -20,9 +20,11 @@ except ImportError:
     Vehicle = None
 
 try:
-    from apps.clients.models import Client
+    from apps.clients.models import Client, ClientVehicle, VehicleTracker
 except ImportError:
     Client = None
+    ClientVehicle = None
+    VehicleTracker = None
 
 try:
     from apps.payments.models import Payment, PaymentSplit, InstallmentPlan
@@ -128,7 +130,7 @@ class Command(BaseCommand):
                 self.create_expenses(categories, vehicles)
                 
                 self.stdout.write('Creating insurance policies...')
-                policies = self.create_insurance_policies(vehicles)
+                policies = self.create_insurance_policies(vehicles, clients)
                 
                 self.stdout.write('Creating insurance claims...')
                 self.create_claims(policies)
@@ -177,6 +179,10 @@ class Command(BaseCommand):
             SalaryStructure.objects.all().delete()
         if Employee:
             Employee.objects.all().delete()
+        if ClientVehicle:
+            ClientVehicle.objects.all().delete()
+        if VehicleTracker:
+            VehicleTracker.objects.all().delete()
         if Repossession:
             Repossession.objects.all().delete()
         if Bid:
@@ -418,10 +424,18 @@ class Command(BaseCommand):
             return []
         
         payments = []
+        today = timezone.now().date()
         
         for plan in installment_plans:
             # Get the client_vehicle from the plan
             client_vehicle = plan.client_vehicle
+
+            months_elapsed = (today - plan.start_date).days // 30
+            payments_to_create = min(months_elapsed, plan.number_of_installments)
+            missed_months = set()
+            if payments_to_create > 2 and random.random() > 0.55:
+                missed_count = random.randint(1, min(3, max(1, payments_to_create // 2)))
+                missed_months = set(random.sample(range(payments_to_create), missed_count))
             
             # Create deposit payment (can be split between multiple methods)
             try:
@@ -471,11 +485,16 @@ class Command(BaseCommand):
                 self.stdout.write(f'    Warning: Could not create payment: {e}')
             
             # Create monthly payments
-            months_elapsed = (datetime.now().date() - plan.start_date).days // 30
-            payments_to_create = min(months_elapsed, plan.number_of_installments)
-            
             for i in range(payments_to_create):
+                if i in missed_months:
+                    continue
+
                 payment_date = plan.start_date + timedelta(days=(i + 1) * 30)
+                payment_amount = plan.monthly_installment
+
+                # Seed some partial payments so overdue balances are visible.
+                if random.random() > 0.82:
+                    payment_amount = round(plan.monthly_installment / Decimal('2'), 2)
                 
                 try:
                     # 30% chance of split monthly payment
@@ -483,12 +502,12 @@ class Command(BaseCommand):
                     
                     if is_split_monthly and PaymentSplit:
                         # Split between MPesa and cash
-                        split_amount_1 = plan.monthly_installment * Decimal('0.6')
-                        split_amount_2 = plan.monthly_installment - split_amount_1
+                        split_amount_1 = payment_amount * Decimal('0.6')
+                        split_amount_2 = payment_amount - split_amount_1
                         
                         payment = Payment.objects.create(
                             client_vehicle=client_vehicle,
-                            amount=plan.monthly_installment,
+                            amount=payment_amount,
                             payment_date=payment_date,
                             payment_method='mixed',
                             transaction_reference=f'INST{random.randint(100000, 999999)}',
@@ -510,7 +529,7 @@ class Command(BaseCommand):
                     else:
                         payment = Payment.objects.create(
                             client_vehicle=client_vehicle,
-                            amount=plan.monthly_installment,
+                            amount=payment_amount,
                             payment_date=payment_date,
                             payment_method=random.choice(['bank_transfer', 'mpesa', 'mpesa', 'cash']),
                             transaction_reference=f'INST{random.randint(100000, 999999)}',
@@ -520,6 +539,13 @@ class Command(BaseCommand):
                     payments.append(payment)
                 except Exception as e:
                     self.stdout.write(f'    Warning: Could not create payment: {e}')
+
+            # Refresh overdue fees for unpaid schedules so overdue pages show penalties.
+            try:
+                for schedule in plan.payment_schedules.filter(is_paid=False, due_date__lt=today):
+                    schedule.update_late_fees()
+            except Exception as e:
+                self.stdout.write(f'    Warning: Could not update late fees: {e}')
         
         self.stdout.write(f'  Created {len(payments)} payments (with splits)')
         return payments
@@ -613,7 +639,7 @@ class Command(BaseCommand):
         self.stdout.write(f'  Created {len(expenses)} expenses')
         return expenses
 
-    def create_insurance_policies(self, vehicles):
+    def create_insurance_policies(self, vehicles, clients=None):
         """Create insurance policies with pricing and payment plan support"""
         if not InsurancePolicy or not InsuranceProvider or not vehicles:
             return []
@@ -642,11 +668,31 @@ class Command(BaseCommand):
         
         for vehicle in random.sample(vehicles, min(len(vehicles), 40)):
             start_date = datetime.now().date() - timedelta(days=random.randint(0, 365))
+            linked_client_vehicle = None
+            if ClientVehicle:
+                linked_client_vehicle = ClientVehicle.objects.select_related('client').filter(vehicle=vehicle).order_by('-purchase_date').first()
+
+            sold_policy = linked_client_vehicle is not None and random.random() > 0.2
+            policy_client = linked_client_vehicle.client if sold_policy else None
             
             # New fields: pricing and agent details
             buying_price = vehicle.purchase_price if hasattr(vehicle, 'purchase_price') else vehicle.selling_price * Decimal('0.8')
-            selling_price = vehicle.selling_price
-            has_plan = random.random() > 0.6  # 40% have payment plans
+            selling_price = Decimal(random.randint(15000, 90000))
+
+            if sold_policy:
+                payment_state = random.choice(['full', 'partial', 'unpaid'])
+                if payment_state == 'full':
+                    paid_amount = selling_price
+                elif payment_state == 'partial':
+                    paid_amount = round(selling_price * Decimal(random.choice(['0.25', '0.5', '0.75'])), 2)
+                else:
+                    paid_amount = Decimal('0.00')
+                balance_amount = selling_price - paid_amount
+                has_plan = balance_amount > 0 and random.random() > 0.4
+            else:
+                paid_amount = Decimal('0.00')
+                balance_amount = Decimal('0.00')
+                has_plan = False
             
             policy_data = {
                 'vehicle': vehicle,
@@ -660,23 +706,27 @@ class Command(BaseCommand):
                 'status': random.choice(['active', 'active', 'expired']),
                 'buying_price': buying_price,
                 'selling_price': selling_price,
+                'client': policy_client,
                 'agent_name': random.choice(agent_names),
                 'agent_id': f'AG{random.randint(10000, 99999)}',
                 'has_payment_plan': has_plan,
+                'insurance_deposit': paid_amount,
+                'insurance_total_paid': paid_amount,
+                'insurance_balance': balance_amount,
             }
             
             # Add payment plan fields if applicable
             if has_plan:
                 policy_data.update({
-                    'insurance_deposit': Decimal(random.randint(10000, 30000)),
                     'insurance_installment_months': random.choice([6, 12, 24]),
-                    'insurance_monthly_installment': Decimal(random.randint(5000, 20000)),
-                    'insurance_total_paid': Decimal(0),
-                    'insurance_balance': Decimal(random.randint(50000, 150000))
+                    'insurance_interest_rate': Decimal(random.choice([0, 5, 10])),
                 })
             
             try:
                 policy = InsurancePolicy.objects.create(**policy_data)
+                if not policy.client and sold_policy:
+                    policy.client = policy_client
+                    policy.save(update_fields=['client'])
                 policies.append(policy)
             except Exception as e:
                 self.stdout.write(f'    Warning: Could not create policy: {e}')
@@ -736,6 +786,15 @@ class Command(BaseCommand):
                 
                 for i in range(num_trackers):
                     has_plan = random.random() > 0.6  # 40% have payment plans
+                    selling_price = Decimal(random.randint(8000, 20000))
+                    payment_state = random.choice(['full', 'partial', 'unpaid'])
+
+                    if payment_state == 'full':
+                        total_paid = selling_price
+                    elif payment_state == 'partial':
+                        total_paid = round(selling_price * Decimal(random.choice(['0.3', '0.5', '0.7'])), 2)
+                    else:
+                        total_paid = Decimal('0.00')
                     
                     tracker_data = {
                         'client_vehicle': cv,
@@ -743,21 +802,20 @@ class Command(BaseCommand):
                         'serial_number': f'TRK{random.randint(100000, 999999)}',
                         'provider': random.choice(tracker_providers),
                         'buying_price': Decimal(random.randint(5000, 15000)),
-                        'selling_price': Decimal(random.randint(8000, 20000)),
+                        'selling_price': selling_price,
                         'has_payment_plan': has_plan,
                         'installed_date': datetime.now().date() - timedelta(days=random.randint(30, 365)),
                         'created_by_id': User.objects.first().id if User.objects.exists() else None,
-                        'notes': f'Tracker installed for {cv.vehicle.registration_number}'
+                        'notes': f'Tracker installed for {cv.vehicle.registration_number}',
+                        'total_paid': total_paid,
                     }
                     
                     # Add payment plan fields if applicable
                     if has_plan:
                         tracker_data.update({
-                            'deposit': Decimal(random.randint(2000, 5000)),
+                            'deposit': total_paid,
                             'installment_months': random.choice([6, 12]),
                             'monthly_installment': Decimal(random.randint(500, 2000)),
-                            'total_paid': Decimal(0),
-                            'balance': Decimal(random.randint(5000, 15000))
                         })
                     
                     try:
@@ -844,26 +902,78 @@ class Command(BaseCommand):
             return []
         
         repossessions = []
-        sold_vehicles = [v for v in vehicles if v.status == 'sold']
-        
-        if not sold_vehicles:
-            self.stdout.write('  No sold vehicles for repossession')
-            return []
-        
-        for vehicle in random.sample(sold_vehicles, min(len(sold_vehicles), 5)):
-            client = random.choice(clients)
+        try:
+            from apps.clients.models import ClientVehicle
+        except ImportError:
+            ClientVehicle = None
+
+        defaulted_sales = []
+        if ClientVehicle:
+            defaulted_sales = list(
+                ClientVehicle.objects.select_related('client', 'vehicle')
+                .filter(is_paid_off=False)
+                .order_by('-purchase_date')[:20]
+            )
+
+        if not defaulted_sales:
+            sold_vehicles = [v for v in vehicles if v.status == 'sold']
+            if not sold_vehicles:
+                self.stdout.write('  No sold vehicles for repossession')
+                return []
+
+            defaulted_sales = [
+                type('FallbackSale', (), {
+                    'vehicle': vehicle,
+                    'client': random.choice(clients),
+                    'balance': vehicle.selling_price * Decimal('0.35')
+                })()
+                for vehicle in random.sample(sold_vehicles, min(len(sold_vehicles), 5))
+            ]
+
+        for sale in random.sample(defaulted_sales, min(len(defaulted_sales), 5)):
+            vehicle = sale.vehicle
+            client = sale.client
+            outstanding_amount = getattr(sale, 'balance', None) or vehicle.selling_price * Decimal('0.35')
+            additional_costs = Decimal(random.randint(10000, 40000))
+            status = random.choice(['PENDING', 'NOTICE_SENT', 'IN_PROGRESS', 'VEHICLE_RECOVERED', 'COMPLETED'])
+            recovery_date = None
+            completion_date = None
+            current_location = ''
+            recovery_method = ''
+            resolution_type = ''
+
+            if status in ['VEHICLE_RECOVERED', 'COMPLETED']:
+                recovery_date = datetime.now().date() - timedelta(days=random.randint(1, 30))
+                completion_date = recovery_date + timedelta(days=random.randint(1, 10)) if status == 'COMPLETED' else None
+                current_location = f'{random.randint(1, 999)} {random.choice(["Industrial", "Mombasa", "Ngong"])} Area, {random.choice(["Nairobi", "Mombasa", "Kisumu"])}'
+                recovery_method = random.choice(['Tow truck recovery', 'Voluntary surrender', 'Police-assisted recovery'])
+                resolution_type = random.choice(['AUCTIONED', 'RETURNED', 'PAID_IN_FULL'])
+
+            assigned_user = User.objects.filter(is_superuser=True).first() or User.objects.first()
             
             try:
                 repossession = Repossession.objects.create(
                     vehicle=vehicle,
                     client=client,
                     reason=random.choice(['PAYMENT_DEFAULT', 'BREACH_OF_CONTRACT', 'INSURANCE_LAPSE']),
-                    status=random.choice(['PENDING', 'NOTICE_SENT', 'IN_PROGRESS']),
-                    outstanding_amount=Decimal(random.randint(100000, 500000)),
-                    payments_missed=random.randint(2, 6),
+                    status=status,
+                    outstanding_amount=Decimal(outstanding_amount),
+                    payments_missed=random.randint(2, 8),
+                    last_payment_date=datetime.now().date() - timedelta(days=random.randint(30, 180)),
                     initiated_date=datetime.now().date() - timedelta(days=random.randint(1, 90)),
+                    notice_sent_date=datetime.now().date() - timedelta(days=random.randint(1, 60)) if status in ['NOTICE_SENT', 'IN_PROGRESS', 'VEHICLE_RECOVERED', 'COMPLETED'] else None,
+                    recovery_date=recovery_date,
+                    completion_date=completion_date,
+                    assigned_to=assigned_user,
                     recovery_cost=Decimal(random.randint(10000, 50000)),
-                    last_known_location=f'{random.randint(1, 999)} {random.choice(["Mombasa", "Thika", "Ngong"])} Road, {random.choice(["Nairobi", "Mombasa", "Kisumu"])}'
+                    last_known_location=f'{random.randint(1, 999)} {random.choice(["Mombasa", "Thika", "Ngong"])} Road, {random.choice(["Nairobi", "Mombasa", "Kisumu"])}',
+                    current_location=current_location,
+                    recovery_method=recovery_method,
+                    legal_notice_sent=status != 'PENDING',
+                    court_order_obtained=status in ['VEHICLE_RECOVERED', 'COMPLETED'] and random.random() > 0.6,
+                    additional_costs=additional_costs,
+                    resolution_type=resolution_type,
+                    notes='Seeded repossession record for dashboard testing'
                 )
                 repossessions.append(repossession)
             except Exception as e:
