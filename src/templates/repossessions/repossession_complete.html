@@ -48,6 +48,10 @@
                             <p class="text-gray-800 font-medium">KES {{ repossession.total_cost|floatformat:0 }}</p>
                         </div>
                         <div>
+                            <p class="text-gray-600">New Additional Costs</p>
+                            <p class="text-gray-800 font-medium">KES {{ repossession.additional_costs|floatformat:0 }}</p>
+                        </div>
+                        <div>
                             <p class="text-gray-600">Days in Process</p>
                             <p class="text-gray-800 font-medium">{{ repossession.get_days_in_process }} days</p>
                         </div>
@@ -105,6 +109,8 @@
                                     <li>Record today's date as completion date</li>
                                     <li>Lock the case from further modification</li>
                                     <li>Save the resolution type and notes</li>
+                                    <li>If Auctioned: vehicle moves to auction with price = balance + accumulated costs</li>
+                                    <li>If Returned: accumulated costs are added to the client's vehicle debt</li>
                                 </ul>
                             </div>
                         </div>
