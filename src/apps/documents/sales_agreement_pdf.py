@@ -141,14 +141,14 @@ def generate_sales_agreement_pdf(client_vehicle):
             Paragraph(f'<b>REG NO:</b> {vehicle.registration_number or ""}', normal_small)
         ],
         [
-            Paragraph(f'<b>CHASSIS NO:</b> {vehicle.chassis_number or ""}', normal_small),
+            Paragraph(f'<b>VIN NO:</b> {vehicle.vin or ""}', normal_small),
             Paragraph(f'<b>ENGINE NO:</b> {vehicle.engine_number or ""}', normal_small),
             Paragraph(f'<b>FUEL:</b> {vehicle.fuel_type or ""}', normal_small)
         ],
         [
-            Paragraph(f'<b>COLOUR:</b> {vehicle.colour or ""}', normal_small),
-            Paragraph(f'<b>YEAR:</b> {vehicle.year_of_manufacture or ""}', normal_small),
-            Paragraph(f'<b>ENGINE CC:</b> {vehicle.engine_cc or ""}', normal_small)
+            Paragraph(f'<b>COLOR:</b> {vehicle.color or ""}', normal_small),
+            Paragraph(f'<b>YEAR:</b> {vehicle.year or ""}', normal_small),
+            Paragraph(f'<b>ENGINE CC:</b> {vehicle.engine_size or ""}', normal_small)
         ],
     ]
     vehicle_table = Table(vehicle_data, colWidths=[6.5*cm, 6.5*cm, 5*cm])
@@ -174,15 +174,15 @@ def generate_sales_agreement_pdf(client_vehicle):
             ''
         ],
         [
-            Paragraph(f'<b>CELL PHONE:</b> {client.phone_number or ""}', normal_small),
+            Paragraph(f'<b>CELL PHONE:</b> {client.phone_primary or ""}', normal_small),
             Paragraph(f'<b>ID NO:</b> {client.id_number or ""}', normal_small)
         ],
         [
-            Paragraph(f'<b>PIN NO:</b> {client.pin_number or ""}', normal_small),
+            Paragraph(f'<b>PIN NO:</b> {client.kra_pin or ""}', normal_small),
             Paragraph(f'<b>EMAIL ADDRESS:</b> {client.email or ""}', normal_small)
         ],
         [
-            Paragraph(f'<b>P.O BOX:</b> {client.po_box or ""}', normal_small),
+            Paragraph(f'<b>P.O BOX:</b> {client.physical_address or ""}', normal_small),
             Paragraph(f'<b>PHYSICAL ADDRESS:</b> {client.physical_address or ""}', normal_small)
         ],
         [
