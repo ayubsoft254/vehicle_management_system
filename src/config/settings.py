@@ -283,6 +283,20 @@ TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN', default='')
 TWILIO_PHONE_NUMBER = config('TWILIO_PHONE_NUMBER', default='')
 
 # ==============================================================================
+# M-PESA DARAJA CONFIGURATION
+# ==============================================================================
+
+MPESA_ENV = config('MPESA_ENV', default='sandbox')
+MPESA_CONSUMER_KEY = config('MPESA_CONSUMER_KEY', default='')
+MPESA_CONSUMER_SECRET = config('MPESA_CONSUMER_SECRET', default='')
+MPESA_SHORTCODE = config('MPESA_SHORTCODE', default=config('MPESA_PAYBILL_NUMBER', default=''))
+MPESA_PASSKEY = config('MPESA_PASSKEY', default='')
+MPESA_INITIATOR_NAME = config('MPESA_INITIATOR_NAME', default='')
+MPESA_SECURITY_CREDENTIAL = config('MPESA_SECURITY_CREDENTIAL', default='')
+MPESA_RESULT_URL_BASE = config('MPESA_RESULT_URL_BASE', default='')
+MPESA_CALLBACK_SECRET = config('MPESA_CALLBACK_SECRET', default='')
+
+# ==============================================================================
 # CELERY CONFIGURATION (Background Tasks)
 # ==============================================================================
 
