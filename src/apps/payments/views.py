@@ -10,12 +10,24 @@ from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.db import transaction
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from datetime import datetime, timedelta
 from decimal import Decimal
 import csv
 import json
+import re
 
-from .models import Payment, InstallmentPlan, PaymentSchedule, PaymentReminder
+from .models import (
+    Payment,
+    InstallmentPlan,
+    PaymentSchedule,
+    PaymentReminder,
+    PaybillTransaction,
+    PaybillBalanceSnapshot,
+)
+from .daraja import request_account_balance, mpesa_is_configured, get_missing_mpesa_vars
 from apps.clients.models import Client, ClientVehicle
 from apps.audit.utils import log_audit
 
@@ -905,6 +917,227 @@ def payment_analytics(request):
     log_audit(request.user, 'view', 'Payment', 'Viewed payment analytics')
     
     return render(request, 'payments/payment_analytics.html', context)
+
+
+@login_required
+def paybill_tracker(request):
+    """Display paybill account balance and incoming transaction history."""
+    transactions = PaybillTransaction.objects.all().order_by('-trans_time', '-created_at')
+    latest_snapshot = PaybillBalanceSnapshot.objects.first()
+    latest_successful_snapshot = PaybillBalanceSnapshot.objects.filter(
+        status=PaybillBalanceSnapshot.STATUS_SUCCESS
+    ).first()
+
+    total_received = transactions.aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00')
+    this_month = timezone.now()
+    month_received = transactions.filter(
+        trans_time__year=this_month.year,
+        trans_time__month=this_month.month,
+    ).aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00')
+
+    context = {
+        'transactions': transactions[:100],
+        'transactions_count': transactions.count(),
+        'total_received': total_received,
+        'month_received': month_received,
+        'latest_snapshot': latest_snapshot,
+        'latest_successful_snapshot': latest_successful_snapshot,
+        'daraja_configured': mpesa_is_configured(),
+        'missing_mpesa_vars': get_missing_mpesa_vars(),
+    }
+
+    log_audit(request.user, 'view', 'Payment', 'Viewed paybill tracker')
+    return render(request, 'payments/paybill_tracker.html', context)
+
+
+@login_required
+@require_POST
+def refresh_paybill_balance(request):
+    """Initiate an asynchronous Daraja account balance request."""
+    result = request_account_balance()
+
+    if result.get('ok'):
+        response_payload = result.get('response', {})
+        PaybillBalanceSnapshot.objects.create(
+            status=PaybillBalanceSnapshot.STATUS_PENDING,
+            request_reference=result.get('request_reference', ''),
+            conversation_id=response_payload.get('ConversationID', ''),
+            originator_conversation_id=response_payload.get('OriginatorConversationID', ''),
+            result_code=response_payload.get('ResponseCode') if str(response_payload.get('ResponseCode', '')).isdigit() else None,
+            result_desc=response_payload.get('ResponseDescription', ''),
+            raw_payload=response_payload,
+        )
+        messages.success(request, 'Balance request sent to Daraja. Awaiting callback result.')
+    else:
+        missing_vars = result.get('missing_vars', [])
+        if missing_vars:
+            messages.error(request, f"Missing M-Pesa settings in .env: {', '.join(missing_vars)}")
+        else:
+            messages.error(request, f"Unable to request paybill balance: {result.get('error', 'Unknown error')}")
+
+    return redirect('payments:paybill_tracker')
+
+
+def _safe_decimal(value):
+    if value is None:
+        return None
+    text = str(value).strip().replace(',', '')
+    if not text:
+        return None
+    try:
+        return Decimal(text)
+    except Exception:
+        return None
+
+
+def _parse_mpesa_datetime(value):
+    if not value:
+        return None
+    value = str(value).strip()
+    for fmt in ('%Y%m%d%H%M%S', '%Y-%m-%d %H:%M:%S'):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _extract_account_balance(raw_value):
+    """Extract a numeric balance from Daraja AccountBalance string payload."""
+    if raw_value is None:
+        return None
+    if isinstance(raw_value, (int, float, Decimal)):
+        return Decimal(str(raw_value))
+
+    text = str(raw_value)
+    match = re.search(r'(\d+[\d,]*\.?\d*)', text)
+    if not match:
+        return None
+    return _safe_decimal(match.group(1))
+
+
+def _callback_secret_is_valid(request):
+    expected_secret = str(getattr(settings, 'MPESA_CALLBACK_SECRET', '') or '').strip()
+    if not expected_secret:
+        return True
+
+    provided_secret = (
+        request.headers.get('X-Callback-Secret')
+        or request.META.get('HTTP_X_CALLBACK_SECRET', '')
+    ).strip()
+    return provided_secret == expected_secret
+
+
+@csrf_exempt
+@require_POST
+def paybill_validation_callback(request):
+    """Daraja C2B validation callback endpoint."""
+    if not _callback_secret_is_valid(request):
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
+    return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
+
+
+@csrf_exempt
+@require_POST
+def paybill_confirmation_callback(request):
+    """Daraja C2B confirmation callback endpoint."""
+    if not _callback_secret_is_valid(request):
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Invalid JSON'}, status=400)
+
+    trans_id = (payload.get('TransID') or '').strip()
+    if not trans_id:
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Missing TransID'}, status=400)
+
+    PaybillTransaction.objects.update_or_create(
+        trans_id=trans_id,
+        defaults={
+            'trans_time': _parse_mpesa_datetime(payload.get('TransTime')),
+            'trans_amount': _safe_decimal(payload.get('TransAmount')) or Decimal('0.00'),
+            'business_short_code': str(payload.get('BusinessShortCode', '')).strip(),
+            'bill_ref_number': str(payload.get('BillRefNumber', '')).strip(),
+            'invoice_number': str(payload.get('InvoiceNumber', '')).strip(),
+            'org_account_balance': _safe_decimal(payload.get('OrgAccountBalance')),
+            'msisdn': str(payload.get('MSISDN', '')).strip(),
+            'first_name': str(payload.get('FirstName', '')).strip(),
+            'middle_name': str(payload.get('MiddleName', '')).strip(),
+            'last_name': str(payload.get('LastName', '')).strip(),
+            'raw_payload': payload,
+        },
+    )
+
+    return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
+
+
+@csrf_exempt
+@require_POST
+def paybill_balance_result_callback(request):
+    """Daraja account-balance result callback endpoint."""
+    if not _callback_secret_is_valid(request):
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Invalid JSON'}, status=400)
+
+    result = payload.get('Result', {})
+    result_code = result.get('ResultCode')
+    status = (
+        PaybillBalanceSnapshot.STATUS_SUCCESS
+        if str(result_code) == '0'
+        else PaybillBalanceSnapshot.STATUS_FAILED
+    )
+
+    balance = None
+    parameters = result.get('ResultParameters', {}).get('ResultParameter', [])
+    if isinstance(parameters, list):
+        for item in parameters:
+            if str(item.get('Key', '')).lower() in {'accountbalance', 'availablebalance'}:
+                balance = _extract_account_balance(item.get('Value'))
+                if balance is not None:
+                    break
+
+    PaybillBalanceSnapshot.objects.create(
+        status=status,
+        available_balance=balance,
+        conversation_id=str(result.get('ConversationID', '')).strip(),
+        originator_conversation_id=str(result.get('OriginatorConversationID', '')).strip(),
+        result_code=int(result_code) if str(result_code).lstrip('-').isdigit() else None,
+        result_desc=str(result.get('ResultDesc', '')).strip(),
+        raw_payload=payload,
+    )
+
+    return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
+
+
+@csrf_exempt
+@require_POST
+def paybill_balance_timeout_callback(request):
+    """Daraja account-balance timeout callback endpoint."""
+    if not _callback_secret_is_valid(request):
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        payload = {'raw': request.body.decode('utf-8', errors='ignore')}
+
+    result = payload.get('Result', {}) if isinstance(payload, dict) else {}
+
+    PaybillBalanceSnapshot.objects.create(
+        status=PaybillBalanceSnapshot.STATUS_TIMEOUT,
+        conversation_id=str(result.get('ConversationID', '')).strip(),
+        originator_conversation_id=str(result.get('OriginatorConversationID', '')).strip(),
+        result_desc='Daraja callback timeout',
+        raw_payload=payload if isinstance(payload, dict) else {'payload': str(payload)},
+    )
+
+    return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
 @login_required
