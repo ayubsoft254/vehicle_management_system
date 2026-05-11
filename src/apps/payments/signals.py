@@ -345,12 +345,12 @@ def notify_on_payment_completion(sender, instance, **kwargs):
     """
     Send notification when payment schedule is completed
     """
-    if instance.is_paid:
-        # Check if this was just marked as paid
-        if instance.tracker.has_changed('is_paid'):
-            # Create notification for payment completion
-            # This would integrate with your notifications app
-            pass
+    if not instance.is_paid:
+        return
+
+    # Placeholder hook: keep this signal side-effect free until a proper
+    # notification integration is implemented.
+    return
 
 
 # ==================== AUTOMATIC STATUS UPDATES ====================
