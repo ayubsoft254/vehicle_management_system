@@ -181,7 +181,7 @@
                             {% endif %}
                             
                             <!-- Divider -->
-                            {% if user.is_superuser or user|can_access:'payments' or user|can_access:'expenses' or user|can_access:'payroll' %}
+                            {% if user.is_superuser or user|can_access:'payments' or user|can_access:'expenses' or user|can_access:'payroll' or user|can_access:'clients' %}
                             <div class="pt-4 pb-2">
                                 <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Financial</p>
                             </div>
@@ -192,6 +192,14 @@
                             <a href="{% url 'payments:payment_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-credit-card w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Payments</span>
+                            </a>
+                            {% endif %}
+
+                            <!-- Tracker Management -->
+                            {% if user.is_superuser or user|can_access:'clients' %}
+                            <a href="{% url 'clients:tracker_management' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-map-marker-alt w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Tracker Management</span>
                             </a>
                             {% endif %}
                             
