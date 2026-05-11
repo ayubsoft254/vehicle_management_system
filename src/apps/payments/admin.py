@@ -8,7 +8,14 @@ from django.urls import reverse
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.http import HttpResponse
-from .models import Payment, InstallmentPlan, PaymentSchedule, PaymentReminder
+from .models import (
+    Payment,
+    InstallmentPlan,
+    PaymentSchedule,
+    PaymentReminder,
+    PaybillTransaction,
+    PaybillBalanceSnapshot,
+)
 import csv
 
 
@@ -791,3 +798,40 @@ class PaymentReminderAdmin(admin.ModelAdmin):
         if not change:  # New object
             obj.sent_by = request.user
         super().save_model(request, obj, form, change)
+
+
+@admin.register(PaybillTransaction)
+class PaybillTransactionAdmin(admin.ModelAdmin):
+    list_display = [
+        'trans_id',
+        'trans_time',
+        'trans_amount',
+        'bill_ref_number',
+        'msisdn',
+        'payer_name_display',
+        'is_linked_to_payment',
+    ]
+    list_filter = ['is_linked_to_payment', 'created_at']
+    search_fields = ['trans_id', 'bill_ref_number', 'invoice_number', 'msisdn', 'first_name', 'last_name']
+    readonly_fields = ['created_at', 'updated_at', 'raw_payload']
+    list_per_page = 50
+
+    def payer_name_display(self, obj):
+        return obj.payer_name
+    payer_name_display.short_description = 'Payer'
+
+
+@admin.register(PaybillBalanceSnapshot)
+class PaybillBalanceSnapshotAdmin(admin.ModelAdmin):
+    list_display = [
+        'created_at',
+        'status',
+        'available_balance',
+        'request_reference',
+        'conversation_id',
+        'result_code',
+    ]
+    list_filter = ['status', 'created_at']
+    search_fields = ['request_reference', 'conversation_id', 'originator_conversation_id']
+    readonly_fields = ['created_at', 'updated_at', 'raw_payload']
+    list_per_page = 50
