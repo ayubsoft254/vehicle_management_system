@@ -187,7 +187,7 @@
                             Status
                         </th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Credit Info
+                            Debt Info
                         </th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Registered
@@ -255,8 +255,10 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <div>Limit: KES {{ client.credit_limit|floatformat:2|default:"0.00" }}</div>
-                            <div class="text-xs text-gray-500">Available: KES {{ client.available_credit|floatformat:2|default:"0.00" }}</div>
+                            <div class="font-semibold {% if client.outstanding_debt > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                                Debt Owed: KES {{ client.outstanding_debt|floatformat:2|default:"0.00" }}
+                            </div>
+                            <div class="text-xs text-gray-500">Credit Limit: KES {{ client.credit_limit|floatformat:2|default:"0.00" }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ client.date_registered|date:"M d, Y" }}
