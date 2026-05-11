@@ -229,6 +229,8 @@ def vehicle_detail_view(request, pk):
                 vehicle=vehicle,
             ).exists()
     
+    latest_sale = vehicle.client_purchases.select_related('client').order_by('-purchase_date', '-created_at').first()
+
     context = {
         'vehicle': vehicle,
         'history': history,
@@ -238,6 +240,7 @@ def vehicle_detail_view(request, pk):
         'total_additional_cost': total_additional_cost,
         'total_cost': total_cost,
         'can_view_vin': can_view_vin,
+        'latest_sale': latest_sale,
     }
     return render(request, 'vehicles/vehicle_detail.html', context)
 
