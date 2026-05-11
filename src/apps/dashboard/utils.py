@@ -31,9 +31,10 @@ def get_dashboard_overview_data(user=None):
     """
 
     from apps.vehicles.models import Vehicle
-    from apps.clients.models import Client, ClientVehicle
+    from apps.clients.models import Client, ClientVehicle, VehicleTracker
     from apps.payments.models import Payment, PaymentSchedule
     from apps.auctions.models import Auction
+    from apps.insurance.models import InsurancePolicy
     from utils.constants import VehicleStatus
 
     today = timezone.now().date()
@@ -223,6 +224,30 @@ def get_dashboard_overview_data(user=None):
     scheduled_auctions       = Auction.objects.filter(status='scheduled').count()
     completed_auctions_today = Auction.objects.filter(status='completed', completed_at__date=today).count()
 
+    # ── Tracker statistics ────────────────────────────────────────────
+    tracker_qs = VehicleTracker.objects.all()
+    tracker_total = tracker_qs.count()
+    tracker_fully_paid = tracker_qs.filter(balance__lte=0).count()
+    tracker_partially_paid = tracker_qs.filter(total_paid__gt=0, balance__gt=0).count()
+    tracker_unpaid = tracker_qs.filter(total_paid__lte=0, balance__gt=0).count()
+    tracker_totals = tracker_qs.aggregate(
+        sold=Sum('selling_price'),
+        paid=Sum('total_paid'),
+        balance=Sum('balance'),
+    )
+
+    # ── Insurance statistics ──────────────────────────────────────────
+    insurance_qs = InsurancePolicy.objects.filter(client__isnull=False)
+    insurance_total = insurance_qs.count()
+    insurance_fully_paid = insurance_qs.filter(insurance_balance__lte=0).count()
+    insurance_partially_paid = insurance_qs.filter(insurance_total_paid__gt=0, insurance_balance__gt=0).count()
+    insurance_unpaid = insurance_qs.filter(insurance_total_paid__lte=0, insurance_balance__gt=0).count()
+    insurance_totals = insurance_qs.aggregate(
+        sold=Sum('selling_price'),
+        paid=Sum('insurance_total_paid'),
+        balance=Sum('insurance_balance'),
+    )
+
     return {
         'total_vehicles':  total_vehicles,
         'total_clients':   total_clients,
@@ -264,6 +289,24 @@ def get_dashboard_overview_data(user=None):
         'auctions': {
             'active': active_auctions, 'scheduled': scheduled_auctions,
             'completed_today': completed_auctions_today,
+        },
+        'trackers': {
+            'total': tracker_total,
+            'fully_paid': tracker_fully_paid,
+            'partially_paid': tracker_partially_paid,
+            'unpaid': tracker_unpaid,
+            'sold_value': float(tracker_totals['sold'] or 0),
+            'paid_value': float(tracker_totals['paid'] or 0),
+            'balance_value': float(tracker_totals['balance'] or 0),
+        },
+        'insurance': {
+            'total': insurance_total,
+            'fully_paid': insurance_fully_paid,
+            'partially_paid': insurance_partially_paid,
+            'unpaid': insurance_unpaid,
+            'sold_value': float(insurance_totals['sold'] or 0),
+            'paid_value': float(insurance_totals['paid'] or 0),
+            'balance_value': float(insurance_totals['balance'] or 0),
         },
         'today': today.isoformat(),
         'first_day_of_month': first_day_of_month.isoformat(),
