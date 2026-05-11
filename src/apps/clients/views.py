@@ -15,7 +15,7 @@ import csv
 import json
 from decimal import Decimal
 
-from .models import Client, ClientVehicle, ClientDocument
+from .models import Client, ClientVehicle, ClientDocument, VehicleTracker
 from apps.payments.models import Payment, PaymentSplit, InstallmentPlan
 from .forms import (
     ClientForm, ClientVehicleForm, PaymentForm, 
@@ -89,6 +89,89 @@ def client_list(request):
     log_audit(request.user, 'view', 'Client', 'Viewed client list')
     
     return render(request, 'clients/client_list.html', context)
+
+
+@login_required
+def tracker_management(request):
+    """
+    Manage vehicle trackers and monitor payment completion.
+    """
+    trackers = VehicleTracker.objects.select_related(
+        'client_vehicle__client',
+        'client_vehicle__vehicle'
+    ).order_by('-created_at')
+
+    search = request.GET.get('search', '').strip()
+    payment_status = request.GET.get('payment_status', '').strip()
+
+    if search:
+        trackers = trackers.filter(
+            Q(tracker_name__icontains=search)
+            | Q(serial_number__icontains=search)
+            | Q(certificate_number__icontains=search)
+            | Q(provider__icontains=search)
+            | Q(client_vehicle__client__first_name__icontains=search)
+            | Q(client_vehicle__client__middle_name__icontains=search)
+            | Q(client_vehicle__client__last_name__icontains=search)
+            | Q(client_vehicle__vehicle__registration_number__icontains=search)
+        )
+
+    if payment_status == 'fully_paid':
+        trackers = trackers.filter(balance__lte=Decimal('0.00'))
+    elif payment_status == 'partial':
+        trackers = trackers.filter(total_paid__gt=Decimal('0.00'), balance__gt=Decimal('0.00'))
+    elif payment_status == 'unpaid':
+        trackers = trackers.filter(total_paid__lte=Decimal('0.00'), balance__gt=Decimal('0.00'))
+
+    all_trackers = VehicleTracker.objects.all()
+    total_sold = all_trackers.count()
+    fully_paid_count = all_trackers.filter(balance__lte=Decimal('0.00')).count()
+    partially_paid_count = all_trackers.filter(total_paid__gt=Decimal('0.00'), balance__gt=Decimal('0.00')).count()
+    unpaid_count = all_trackers.filter(total_paid__lte=Decimal('0.00'), balance__gt=Decimal('0.00')).count()
+
+    totals = all_trackers.aggregate(
+        sold_value=Sum('selling_price'),
+        paid_value=Sum('total_paid'),
+        balance_value=Sum('balance')
+    )
+
+    paginator = Paginator(trackers, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    for tracker in page_obj:
+        if tracker.selling_price and tracker.selling_price > 0:
+            progress = (tracker.total_paid / tracker.selling_price) * Decimal('100')
+            tracker.payment_progress = min(Decimal('100.00'), progress)
+        else:
+            tracker.payment_progress = Decimal('0.00')
+
+        if tracker.balance <= 0:
+            tracker.payment_status_label = 'Fully Paid'
+            tracker.payment_status_color = 'green'
+        elif tracker.total_paid > 0:
+            tracker.payment_status_label = 'Partially Paid'
+            tracker.payment_status_color = 'yellow'
+        else:
+            tracker.payment_status_label = 'Unpaid'
+            tracker.payment_status_color = 'red'
+
+    context = {
+        'trackers': page_obj,
+        'search': search,
+        'payment_status': payment_status,
+        'total_sold': total_sold,
+        'fully_paid_count': fully_paid_count,
+        'partially_paid_count': partially_paid_count,
+        'unpaid_count': unpaid_count,
+        'total_sold_value': totals.get('sold_value') or Decimal('0.00'),
+        'total_paid_value': totals.get('paid_value') or Decimal('0.00'),
+        'total_balance_value': totals.get('balance_value') or Decimal('0.00'),
+    }
+
+    log_audit(request.user, 'view', 'VehicleTracker', 'Viewed tracker management dashboard')
+
+    return render(request, 'clients/tracker_management.html', context)
 
 
 @login_required
@@ -1240,19 +1323,10 @@ def export_clients_csv(request):
 @login_required
 def defaulters_report(request):
     """
-    Generate report of clients with overdue payments
+    Redirect to the canonical defaulters report in payments.
     """
-    # Get clients with overdue payments (simplified logic)
-    defaulted_clients = Client.objects.filter(status='defaulted')
-    
-    context = {
-        'defaulted_clients': defaulted_clients,
-        'total_defaulters': defaulted_clients.count(),
-    }
-    
-    log_audit(request.user, 'view', 'Client', 'Viewed defaulters report')
-    
-    return render(request, 'clients/defaulters_report.html', context)
+    log_audit(request.user, 'view', 'Client', 'Redirected defaulters report to payments module')
+    return redirect('payments:defaulters_report')
 
 
 # ==================== AJAX/API VIEWS ====================
