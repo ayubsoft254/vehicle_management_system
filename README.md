@@ -189,6 +189,16 @@ EMAIL_HOST_PASSWORD=your-app-password
 TWILIO_ACCOUNT_SID=your-sid
 TWILIO_AUTH_TOKEN=your-token
 TWILIO_PHONE_NUMBER=+1234567890
+
+# M-Pesa Daraja (Paybill tracking)
+MPESA_ENV=sandbox
+MPESA_CONSUMER_KEY=your-daraja-consumer-key
+MPESA_CONSUMER_SECRET=your-daraja-consumer-secret
+MPESA_SHORTCODE=your-paybill-number
+MPESA_PASSKEY=your-daraja-passkey
+MPESA_INITIATOR_NAME=your-api-initiator-name
+MPESA_SECURITY_CREDENTIAL=your-encrypted-security-credential
+MPESA_RESULT_URL_BASE=https://your-public-domain
 ```
 
 ## Common Tasks
