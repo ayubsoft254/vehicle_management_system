@@ -5,7 +5,8 @@ Handles client management, vehicle assignments, payments, and documents
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q, Sum, Count, F
+from django.db.models import Q, Sum, Count, F, Value, DecimalField
+from django.db.models.functions import Coalesce
 from django.db import models, transaction
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
@@ -33,7 +34,13 @@ def client_list(request):
     """
     Display list of all clients with search and filtering
     """
-    clients = Client.objects.all().order_by('-date_registered')
+    clients = Client.objects.annotate(
+        outstanding_debt=Coalesce(
+            Sum('vehicles__balance', filter=Q(vehicles__is_paid_off=False)),
+            Value(Decimal('0.00')),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    ).order_by('-date_registered')
     
     # Search and filtering
     search_form = ClientSearchForm(request.GET)
