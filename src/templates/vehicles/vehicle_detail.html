@@ -431,7 +431,7 @@
                     {% if user.is_authenticated and user.is_staff %}
                         <div>
                             <p class="text-sm font-medium text-gray-500 mb-1">Purchase Price</p>
-                            <p class="text-2xl font-bold text-gray-900">${{ vehicle.purchase_price }}</p>
+                            <p class="text-2xl font-bold text-gray-900">KES {{ vehicle.purchase_price }}</p>
                         </div>
 
                         <div class="pt-4 border-t border-gray-200">
@@ -439,19 +439,19 @@
                             <div class="space-y-2">
                                 <div class="flex justify-between items-center text-sm">
                                     <span class="text-gray-600">Duty Cost</span>
-                                    <span class="font-semibold text-gray-900">${{ vehicle.duty_cost }}</span>
+                                    <span class="font-semibold text-gray-900">KES {{ vehicle.duty_cost }}</span>
                                 </div>
                                 <div class="flex justify-between items-center text-sm">
                                     <span class="text-gray-600">Clearance Cost</span>
-                                    <span class="font-semibold text-gray-900">${{ vehicle.clearance_cost }}</span>
+                                    <span class="font-semibold text-gray-900">KES {{ vehicle.clearance_cost }}</span>
                                 </div>
                                 <div class="flex justify-between items-center text-sm">
                                     <span class="text-gray-600">Commission Cost</span>
-                                    <span class="font-semibold text-gray-900">${{ vehicle.commission_cost }}</span>
+                                    <span class="font-semibold text-gray-900">KES {{ vehicle.commission_cost }}</span>
                                 </div>
                                 <div class="flex justify-between items-center text-sm">
                                     <span class="text-gray-600">Extra Costs</span>
-                                    <span class="font-semibold text-gray-900">${{ extra_cost_total }}</span>
+                                    <span class="font-semibold text-gray-900">KES {{ extra_cost_total }}</span>
                                 </div>
                             </div>
                         </div>
@@ -459,7 +459,7 @@
                         <div class="pt-4 border-t border-gray-200 bg-blue-50 rounded p-3">
                             <div class="flex justify-between items-center">
                                 <span class="text-sm font-semibold text-gray-700">Total Cost (Client Price)</span>
-                                <span class="text-xl font-bold text-blue-700">${{ total_cost }}</span>
+                                <span class="text-xl font-bold text-blue-700">KES {{ total_cost }}</span>
                             </div>
                         </div>
 
@@ -470,7 +470,7 @@
                                 {% for cost in extra_costs %}
                                 <div class="flex justify-between items-center text-sm rounded bg-gray-50 px-3 py-2">
                                     <span class="text-gray-700">{{ cost.description }}</span>
-                                    <span class="font-semibold text-gray-900">${{ cost.amount }}</span>
+                                    <span class="font-semibold text-gray-900">KES {{ cost.amount }}</span>
                                 </div>
                                 {% endfor %}
                             </div>
@@ -479,26 +479,26 @@
 
                         <div class="pt-4 border-t border-gray-200">
                             <p class="text-sm font-medium text-gray-500 mb-1">Selling Price</p>
-                            <p class="text-3xl font-bold text-blue-600">${{ vehicle.selling_price }}</p>
+                            <p class="text-3xl font-bold text-blue-600">KES {{ vehicle.selling_price }}</p>
                         </div>
 
                         <div class="pt-4 border-t border-gray-200">
                             <p class="text-sm font-medium text-gray-500 mb-1">Potential Profit</p>
                             <p class="text-2xl font-bold {% if vehicle.profit >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
-                                ${{ vehicle.profit }}
+                                KES {{ vehicle.profit }}
                             </p>
                         </div>
                     {% else %}
                         <div>
                             <p class="text-sm font-medium text-gray-500 mb-1">Vehicle Price</p>
-                            <p class="text-3xl font-bold text-blue-600">${{ total_cost }}</p>
+                            <p class="text-3xl font-bold text-blue-600">KES {{ total_cost }}</p>
                         </div>
                     {% endif %}
 
                     {% if vehicle.deposit_required %}
                     <div class="pt-4 border-t border-gray-200">
                         <p class="text-sm font-medium text-gray-500 mb-1">Deposit Required</p>
-                        <p class="text-lg font-bold text-orange-600">${{ vehicle.deposit_required }}</p>
+                        <p class="text-lg font-bold text-orange-600">KES {{ vehicle.deposit_required }}</p>
                     </div>
                     {% endif %}
                 </div>
