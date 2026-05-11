@@ -12,6 +12,7 @@ from django.db.models import Sum, Count
 from .models import (
     Repossession, RepossessionDocument, RepossessionNote,
     RepossessionExpense, RepossessionStatusHistory, RepossessionNotice,
+    RepossessionAdditionalCost,
     RepossessionContact, RepossessionRecoveryAttempt
 )
 
@@ -41,6 +42,14 @@ class RepossessionExpenseInline(admin.TabularInline):
     extra = 0
     readonly_fields = ('created_by', 'created_at')
     fields = ('expense_type', 'description', 'amount', 'expense_date', 'paid')
+
+
+class RepossessionAdditionalCostInline(admin.TabularInline):
+    """Inline admin for categorized additional cost entries."""
+    model = RepossessionAdditionalCost
+    extra = 0
+    readonly_fields = ('created_by', 'created_at')
+    fields = ('category', 'description', 'amount', 'created_by', 'created_at')
 
 
 class RepossessionStatusHistoryInline(admin.TabularInline):
@@ -93,7 +102,7 @@ class RepossessionAdmin(admin.ModelAdmin):
         }),
         ('Financial Details', {
             'fields': (
-                'outstanding_amount', 'payments_missed',
+                'outstanding_amount', 'additional_costs', 'payments_missed',
                 'last_payment_date', 'total_amount_due_display'
             )
         }),
@@ -147,7 +156,8 @@ class RepossessionAdmin(admin.ModelAdmin):
         RepossessionStatusHistoryInline,
         RepossessionDocumentInline,
         RepossessionNoteInline,
-        RepossessionExpenseInline
+        RepossessionExpenseInline,
+        RepossessionAdditionalCostInline,
     ]
     
     date_hierarchy = 'initiated_date'
