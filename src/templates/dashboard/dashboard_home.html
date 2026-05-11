@@ -356,37 +356,41 @@
                     </div>
                 </div>
 
-                <!-- Auctions & Clients -->
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                        <i class="fas fa-gavel text-purple-600 mr-2"></i>
-                        Auctions & Clients
+                        <i class="fas fa-satellite-dish text-indigo-600 mr-2"></i>
+                        Trackers & Insurance
                     </h3>
                     <div class="space-y-3">
-                        <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                            <span class="text-sm font-medium text-gray-700">Active Auctions</span>
-                            <span class="text-lg font-bold text-green-600">{{ overview_data.auctions.active|default:0 }}</span>
-                        </div>
-                        <div class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                            <span class="text-sm font-medium text-gray-700">Scheduled</span>
-                            <span class="text-lg font-bold text-yellow-600">{{ overview_data.auctions.scheduled|default:0 }}</span>
+                        <div class="flex items-center justify-between p-3 bg-indigo-50 rounded-lg">
+                            <span class="text-sm font-medium text-gray-700">Trackers Sold</span>
+                            <span class="text-lg font-bold text-indigo-600">{{ overview_data.trackers.total|default:0 }}</span>
                         </div>
                         <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                            <span class="text-sm font-medium text-gray-700">Active Clients</span>
-                            <span class="text-lg font-bold text-blue-600">{{ overview_data.clients.active|default:0 }}</span>
+                            <span class="text-sm font-medium text-gray-700">Tracker Outstanding</span>
+                            <span class="text-lg font-bold text-blue-600">KES {{ overview_data.trackers.balance_value|floatformat:0|default:"0" }}</span>
                         </div>
-                        <div class="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-                            <span class="text-sm font-medium text-gray-700">New Today</span>
-                            <span class="text-lg font-bold text-purple-600">{{ overview_data.clients.new_today|default:0 }}</span>
+                        <div class="flex items-center justify-between p-3 bg-emerald-50 rounded-lg">
+                            <span class="text-sm font-medium text-gray-700">Insurance Sold</span>
+                            <span class="text-lg font-bold text-emerald-600">{{ overview_data.insurance.total|default:0 }}</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                            <span class="text-sm font-medium text-gray-700">Insurance Outstanding</span>
+                            <span class="text-lg font-bold text-red-600">KES {{ overview_data.insurance.balance_value|floatformat:0|default:"0" }}</span>
                         </div>
                     </div>
-                    <div class="mt-4 pt-4 border-t border-gray-200">
-                        <a href="{% url 'auctions:auction_list' %}" class="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center justify-between">
-                            View Auctions
+                    <div class="mt-4 pt-4 border-t border-gray-200 grid grid-cols-2 gap-3">
+                        <a href="{% url 'clients:tracker_management' %}" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium flex items-center justify-between">
+                            View Trackers
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                        <a href="{% url 'insurance:policy_list' %}" class="text-emerald-600 hover:text-emerald-700 text-sm font-medium flex items-center justify-between">
+                            View Insurance
                             <i class="fas fa-arrow-right"></i>
                         </a>
                     </div>
                 </div>
+
             </div>
 
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
