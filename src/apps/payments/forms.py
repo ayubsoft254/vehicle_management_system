@@ -318,6 +318,45 @@ class PaymentReminderForm(forms.ModelForm):
         fields = [
             'payment_schedule', 'reminder_type', 'message', 'status'
         ]
+
+
+# ==================== INSTALLMENT EXTENSION FORM ====================
+
+class InstallmentExtensionForm(forms.Form):
+    """Extend an active installment plan by adding months and charging an extension fee."""
+
+    extension_months = forms.IntegerField(
+        min_value=1,
+        max_value=60,
+        label='Additional Months',
+        widget=forms.NumberInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+            'placeholder': 'e.g. 3'
+        })
+    )
+
+    extension_fee = forms.DecimalField(
+        min_value=Decimal('0.00'),
+        max_digits=12,
+        decimal_places=2,
+        initial=Decimal('0.00'),
+        label='Extension Fee (KES)',
+        widget=forms.NumberInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+            'placeholder': '0.00',
+            'step': '0.01'
+        })
+    )
+
+    reason = forms.CharField(
+        required=False,
+        label='Reason',
+        widget=forms.Textarea(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+            'rows': 3,
+            'placeholder': 'Optional reason for extension'
+        })
+    )
         
         widgets = {
             'payment_schedule': forms.Select(attrs={
