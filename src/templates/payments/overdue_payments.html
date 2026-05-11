@@ -13,11 +13,6 @@
             <p class="mt-1 text-sm text-gray-600">Track and manage overdue installments</p>
         </div>
         <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
-            <a href="#" 
-               class="inline-flex items-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
-                <i class="fas fa-bell mr-2"></i>
-                Send Reminders
-            </a>
             <a href="{% url 'payments:defaulters_report' %}" 
                class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-file-pdf mr-2"></i>
@@ -35,7 +30,7 @@
             </div>
             <div class="ml-3">
                 <p class="text-sm text-red-700">
-                    <strong>{{ total_overdue_count }} overdue installments</strong> with a total value of <strong>KES {{ total_overdue_amount|floatformat:2 }}</strong>
+                    <strong>{{ total_overdue_count }} overdue installments</strong> with principal overdue of <strong>KES {{ total_overdue_amount|floatformat:2 }}</strong>, penalties of <strong>KES {{ total_late_fees|floatformat:2 }}</strong>, and total due of <strong>KES {{ total_overdue_with_fees|floatformat:2 }}</strong>
                 </p>
             </div>
         </div>
@@ -94,6 +89,21 @@
                     <p class="text-2xl font-bold text-gray-900">{{ average_days_overdue|floatformat:0|default:0 }}</p>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <p class="text-sm font-medium text-gray-600">Principal Overdue</p>
+            <p class="text-xl font-bold text-gray-900">KES {{ total_overdue_amount|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <p class="text-sm font-medium text-gray-600">Late Fees</p>
+            <p class="text-xl font-bold text-orange-600">KES {{ total_late_fees|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <p class="text-sm font-medium text-gray-600">Total Due (With Fees)</p>
+            <p class="text-xl font-bold text-red-600">KES {{ total_overdue_with_fees|floatformat:2 }}</p>
         </div>
     </div>
 
@@ -173,6 +183,12 @@
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Balance
                         </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Late Fee
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Total Due
+                        </th>
                         <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
                         </th>
@@ -220,13 +236,19 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-semibold text-gray-900">KES {{ schedule.expected_amount|floatformat:2 }}</div>
+                            <div class="text-sm font-semibold text-gray-900">KES {{ schedule.amount_due|floatformat:2 }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-semibold text-green-600">KES {{ schedule.amount_paid|floatformat:2|default:"0.00" }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-bold text-red-600">KES {{ schedule.balance|floatformat:2 }}</div>
+                            <div class="text-sm font-bold text-red-600">KES {{ schedule.remaining_amount|floatformat:2 }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-semibold text-orange-600">KES {{ schedule.late_fee_applied|floatformat:2 }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-bold text-red-700">KES {{ schedule.total_due_with_late_fee|floatformat:2 }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex items-center justify-end space-x-2">
@@ -250,7 +272,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="px-6 py-12 text-center">
+                        <td colspan="10" class="px-6 py-12 text-center">
                             <div class="flex flex-col items-center justify-center">
                                 <i class="fas fa-check-circle text-6xl text-green-300 mb-4"></i>
                                 <p class="text-gray-500 text-lg font-medium">No overdue payments found</p>
