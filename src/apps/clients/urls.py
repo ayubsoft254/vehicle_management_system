@@ -63,6 +63,7 @@ urlpatterns = [
     # Client List & Search
     path('', views.client_list, name='client_list'),
     path('list/', views.client_list, name='list'),
+    path('trackers/', views.tracker_management, name='tracker_management'),
     
     # Client CRUD Operations
     path('create/', views.client_create, name='client_create'),
