@@ -15,10 +15,13 @@ from django.db import transaction
 from datetime import datetime, timedelta, date
 from decimal import Decimal
 
+from apps.clients.models import ClientVehicle
+from utils.constants import VehicleStatus
+
 from .models import (
     Repossession, RepossessionDocument, RepossessionNote,
     RepossessionExpense, RepossessionStatusHistory, RepossessionNotice,
-    RepossessionContact, RepossessionRecoveryAttempt
+    RepossessionContact, RepossessionRecoveryAttempt, RepossessionAdditionalCost
 )
 from .forms import (
     RepossessionForm, RepossessionStatusUpdateForm, RepossessionDocumentForm,
@@ -26,6 +29,93 @@ from .forms import (
     RepossessionContactForm, RepossessionRecoveryAttemptForm,
     RepossessionSearchForm, RepossessionCompletionForm
 )
+
+
+def _recalculate_client_debt(client):
+    """Keep client debt aligned with active unpaid vehicle balances."""
+    current_debt = client.vehicles.filter(is_active=True, is_paid_off=False).aggregate(
+        total=Sum('balance')
+    )['total'] or Decimal('0.00')
+    client.current_debt = current_debt
+    client.save(update_fields=['current_debt'])
+
+
+def _apply_repossessed_vehicle_pricing(repossession):
+    """When repossession starts, reprices the vehicle to debt + newly added additional costs."""
+    vehicle = repossession.vehicle
+    new_price = (repossession.outstanding_amount or Decimal('0.00')) + (repossession.additional_costs or Decimal('0.00'))
+    vehicle.selling_price = new_price
+    vehicle.status = VehicleStatus.REPOSSESSED
+    vehicle.save(update_fields=['selling_price', 'status'])
+
+
+def _extract_additional_cost_entries(post_data):
+    """Extract additional categorized cost entries from submitted arrays."""
+    categories = post_data.getlist('additional_cost_category[]')
+    descriptions = post_data.getlist('additional_cost_description[]')
+    amounts = post_data.getlist('additional_cost_amount[]')
+
+    entries = []
+    total = Decimal('0.00')
+
+    for category, description, amount_str in zip(categories, descriptions, amounts):
+        category = (category or '').strip()
+        description = (description or '').strip()
+        amount_raw = (amount_str or '').strip()
+
+        if not category and not description and not amount_raw:
+            continue
+
+        if not category or not description or not amount_raw:
+            continue
+
+        try:
+            amount = Decimal(amount_raw)
+        except Exception:
+            continue
+
+        if amount <= 0:
+            continue
+
+        entries.append({
+            'category': category,
+            'description': description,
+            'amount': amount,
+        })
+        total += amount
+
+    return entries, total
+
+
+def _sync_additional_cost_items(repossession, entries, user):
+    """Sync additional-cost line items and keep aggregate additional_costs field in sync."""
+    existing_items = list(repossession.additional_cost_items.order_by('created_at'))
+
+    for index, entry in enumerate(entries):
+        category = entry['category']
+        description = entry['description']
+        amount = entry['amount']
+        if index < len(existing_items):
+            item = existing_items[index]
+            item.category = category
+            item.description = description
+            item.amount = amount
+            item.created_by = user
+            item.save(update_fields=['category', 'description', 'amount', 'created_by'])
+        else:
+            RepossessionAdditionalCost.objects.create(
+                repossession=repossession,
+                category=category,
+                description=description,
+                amount=amount,
+                created_by=user,
+            )
+
+    for item in existing_items[len(entries):]:
+        item.delete()
+
+    repossession.additional_costs = sum((entry['amount'] for entry in entries), Decimal('0.00'))
+    repossession.save()
 
 
 # ============================================================================
@@ -169,6 +259,7 @@ def repossession_detail(request, pk):
     notices = repossession.notices.select_related('sent_by').order_by('-notice_date')
     contacts = repossession.contacts.select_related('created_by').order_by('-contact_date')
     recovery_attempts = repossession.recovery_attempts.select_related('created_by').order_by('-attempt_date')
+    additional_cost_items = repossession.additional_cost_items.all()
     
     # Calculate summaries
     total_expenses = expenses.aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
@@ -183,8 +274,11 @@ def repossession_detail(request, pk):
         'notices': notices,
         'contacts': contacts,
         'recovery_attempts': recovery_attempts,
+        'additional_cost_items': additional_cost_items,
         'total_expenses': total_expenses,
         'paid_expenses': paid_expenses,
+        'total_additional_costs': repossession.get_total_additional_costs(),
+        'recovery_target_amount': repossession.outstanding_amount + repossession.get_total_additional_costs(),
         'days_in_process': repossession.get_days_in_process(),
     }
     
@@ -198,17 +292,38 @@ def repossession_create(request):
         form = RepossessionForm(request.POST, user=request.user)
         if form.is_valid():
             repossession = form.save()
+            additional_cost_entries, _ = _extract_additional_cost_entries(request.POST)
+            _sync_additional_cost_items(repossession, additional_cost_entries, request.user)
+            _apply_repossessed_vehicle_pricing(repossession)
             messages.success(
                 request,
                 f'Repossession {repossession.repossession_number} created successfully.'
             )
             return redirect('repossessions:repossession_detail', pk=repossession.pk)
     else:
-        form = RepossessionForm(user=request.user)
+        initial = {}
+        vehicle_id = request.GET.get('vehicle')
+        if vehicle_id:
+            purchase = ClientVehicle.objects.filter(
+                vehicle_id=vehicle_id,
+                vehicle__status=VehicleStatus.SOLD,
+            ).select_related('client').order_by('-is_active', '-purchase_date', '-created_at').first()
+            if purchase:
+                initial['vehicle'] = purchase.vehicle_id
+                initial['client'] = purchase.client_id
+
+        form = RepossessionForm(user=request.user, initial=initial)
     
+    if request.method == 'POST':
+        additional_cost_entries, _ = _extract_additional_cost_entries(request.POST)
+    else:
+        additional_cost_entries = []
+
     context = {
         'form': form,
         'title': 'Initiate Repossession',
+        'vehicle_client_map': form.vehicle_client_map,
+        'additional_cost_entries': additional_cost_entries,
     }
     
     return render(request, 'repossessions/repossession_form.html', context)
@@ -223,15 +338,22 @@ def repossession_update(request, pk):
         form = RepossessionForm(request.POST, instance=repossession, user=request.user)
         if form.is_valid():
             repossession = form.save()
+            additional_cost_entries, _ = _extract_additional_cost_entries(request.POST)
+            _sync_additional_cost_items(repossession, additional_cost_entries, request.user)
+            _apply_repossessed_vehicle_pricing(repossession)
             messages.success(request, 'Repossession updated successfully.')
             return redirect('repossessions:repossession_detail', pk=repossession.pk)
+        additional_cost_entries = _extract_additional_cost_entries(request.POST)[0]
     else:
         form = RepossessionForm(instance=repossession, user=request.user)
+        additional_cost_entries = repossession.additional_cost_items.all().order_by('created_at')
     
     context = {
         'form': form,
         'repossession': repossession,
         'title': 'Edit Repossession',
+        'vehicle_client_map': form.vehicle_client_map,
+        'additional_cost_entries': additional_cost_entries,
     }
     
     return render(request, 'repossessions/repossession_form.html', context)
@@ -309,10 +431,68 @@ def repossession_complete(request, pk):
     if request.method == 'POST':
         form = RepossessionCompletionForm(request.POST)
         if form.is_valid():
-            repossession.mark_as_completed(
-                resolution_type=form.cleaned_data['resolution_type'],
-                notes=form.cleaned_data['resolution_notes']
-            )
+            resolution_type = form.cleaned_data['resolution_type']
+            resolution_notes = form.cleaned_data['resolution_notes']
+            completion_date = form.cleaned_data['completion_date']
+
+            client_vehicle = ClientVehicle.objects.filter(
+                client=repossession.client,
+                vehicle=repossession.vehicle,
+                is_active=True,
+            ).order_by('-purchase_date', '-created_at').first()
+
+            if resolution_type == 'RETURNED' and not client_vehicle:
+                messages.error(
+                    request,
+                    'Cannot return vehicle to client because no active client-vehicle record was found.'
+                )
+                context = {
+                    'form': form,
+                    'repossession': repossession,
+                }
+                return render(request, 'repossessions/repossession_complete.html', context)
+
+            with transaction.atomic():
+                base_balance = repossession.outstanding_amount or Decimal('0.00')
+                accumulated_costs = repossession.get_total_additional_costs()
+                target_price = base_balance + accumulated_costs
+
+                vehicle = repossession.vehicle
+                vehicle.selling_price = target_price
+
+                if resolution_type == 'AUCTIONED':
+                    vehicle.status = VehicleStatus.AUCTIONED
+                    if client_vehicle:
+                        client_vehicle.balance = Decimal('0.00')
+                        client_vehicle.is_paid_off = True
+                        client_vehicle.is_active = False
+                        client_vehicle.date_paid_off = completion_date
+                        client_vehicle.save(update_fields=['balance', 'is_paid_off', 'is_active', 'date_paid_off'])
+                        _recalculate_client_debt(repossession.client)
+                elif resolution_type == 'RETURNED':
+                    vehicle.status = VehicleStatus.SOLD
+                    client_vehicle.purchase_price = (client_vehicle.purchase_price or Decimal('0.00')) + accumulated_costs
+                    client_vehicle.balance = client_vehicle.purchase_price - (client_vehicle.total_paid or Decimal('0.00'))
+                    if client_vehicle.balance <= Decimal('0.00'):
+                        client_vehicle.balance = Decimal('0.00')
+                        client_vehicle.is_paid_off = True
+                        client_vehicle.date_paid_off = completion_date
+                    else:
+                        client_vehicle.is_paid_off = False
+                        client_vehicle.date_paid_off = None
+                    client_vehicle.is_active = True
+                    client_vehicle.save(update_fields=['purchase_price', 'balance', 'is_paid_off', 'date_paid_off', 'is_active'])
+                    _recalculate_client_debt(repossession.client)
+                else:
+                    vehicle.status = VehicleStatus.REPOSSESSED
+
+                vehicle.save(update_fields=['selling_price', 'status'])
+
+                repossession.status = 'COMPLETED'
+                repossession.completion_date = completion_date
+                repossession.resolution_type = resolution_type
+                repossession.resolution_notes = resolution_notes
+                repossession.save(update_fields=['status', 'completion_date', 'resolution_type', 'resolution_notes'])
             
             messages.success(request, 'Repossession marked as completed.')
             return redirect('repossessions:repossession_detail', pk=repossession.pk)
