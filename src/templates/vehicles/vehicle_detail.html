@@ -86,6 +86,7 @@
                     Edit
                 </a>
                 
+                {% if vehicle.status != 'sold' %}
                 <a href="{% url 'vehicles:change_status' vehicle.pk %}" 
                    class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -93,6 +94,7 @@
                     </svg>
                     Change Status
                 </a>
+                {% endif %}
 
                 {% if vehicle.status == 'sold' %}
                 <a href="{% url 'repossessions:repossession_create' %}?vehicle={{ vehicle.pk }}"
@@ -104,6 +106,7 @@
                 </a>
                 {% endif %}
 
+                {% if vehicle.status != 'sold' %}
                 <a href="{% url 'vehicles:move' vehicle.pk %}"
                    class="inline-flex items-center px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white font-medium rounded-lg transition duration-150">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,7 +114,9 @@
                     </svg>
                     Move Vehicle
                 </a>
+                {% endif %}
                 
+                {% if vehicle.status != 'sold' %}
                 <a href="{% url 'vehicles:upload_photo' vehicle.pk %}" 
                    class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition duration-150">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,6 +134,7 @@
                         {% if vehicle.is_featured %}Remove Featured{% else %}Mark Featured{% endif %}
                     </button>
                 </form>
+                {% endif %}
             {% endif %}
             
             {% if can_delete_vehicles %}
@@ -677,6 +683,7 @@
                            class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
                             Edit Vehicle
                         </a>
+                        {% if vehicle.status != 'sold' %}
                         <a href="{% url 'vehicles:change_status' vehicle.pk %}" 
                            class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
                             Change Status
@@ -685,6 +692,7 @@
                            class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
                             Add Photos
                         </a>
+                        {% endif %}
                     {% endif %}
                     <button onclick="window.print()" 
                             class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
