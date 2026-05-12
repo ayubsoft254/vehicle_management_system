@@ -39,6 +39,7 @@ def get_dashboard_overview_data(user=None):
 
     today = timezone.now().date()
     first_day_of_month = today.replace(day=1)
+    overstayed_cutoff = today - timedelta(days=183)
 
     # ── Vehicle statistics ────────────────────────────────────────────
     total_vehicles       = Vehicle.objects.count()
@@ -47,6 +48,28 @@ def get_dashboard_overview_data(user=None):
     sold_vehicles        = Vehicle.objects.filter(status=VehicleStatus.SOLD).count()
     repossessed_vehicles = Vehicle.objects.filter(status=VehicleStatus.REPOSSESSED).count()
     maintenance_vehicles = Vehicle.objects.filter(status=VehicleStatus.MAINTENANCE).count()
+
+    # Vehicles in inventory for more than 6 months (183 days) from purchase date.
+    overstayed_qs = Vehicle.objects.filter(
+        is_active=True,
+        purchase_date__isnull=False,
+        purchase_date__lte=overstayed_cutoff,
+    ).exclude(
+        status__in=[VehicleStatus.SOLD, VehicleStatus.AUCTIONED]
+    ).order_by('purchase_date')
+
+    overstayed_vehicles = []
+    for vehicle in overstayed_qs[:20]:
+        age_days = (today - vehicle.purchase_date).days
+        overstayed_vehicles.append({
+            'id': vehicle.pk,
+            'vehicle_name': vehicle.full_name,
+            'registration_number': vehicle.registration_number or '',
+            'vin': vehicle.vin,
+            'status': vehicle.status,
+            'purchase_date': vehicle.purchase_date.isoformat(),
+            'age_days': age_days,
+        })
 
     # ── Client statistics ─────────────────────────────────────────────
     total_clients     = Client.objects.count()
@@ -259,6 +282,9 @@ def get_dashboard_overview_data(user=None):
             'reserved': reserved_vehicles, 'sold': sold_vehicles,
             'repossessed': repossessed_vehicles, 'maintenance': maintenance_vehicles,
         },
+        'overstayed_vehicles': overstayed_vehicles,
+        'overstayed_vehicles_count': overstayed_qs.count(),
+        'overstayed_cutoff': overstayed_cutoff.isoformat(),
         'clients': {
             'total': total_clients, 'active': active_clients, 'new_today': new_clients_today,
         },
