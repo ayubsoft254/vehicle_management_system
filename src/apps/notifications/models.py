@@ -15,6 +15,21 @@ import uuid
 User = get_user_model()
 
 
+def default_email_digest_time():
+    """Default digest time (09:00 local time)."""
+    return timezone.localtime().replace(hour=9, minute=0, second=0, microsecond=0).time()
+
+
+def default_quiet_hours_start():
+    """Default quiet-hours start time (22:00 local time)."""
+    return timezone.localtime().replace(hour=22, minute=0, second=0, microsecond=0).time()
+
+
+def default_quiet_hours_end():
+    """Default quiet-hours end time (08:00 local time)."""
+    return timezone.localtime().replace(hour=8, minute=0, second=0, microsecond=0).time()
+
+
 # ============================================================================
 # CUSTOM MANAGERS
 # ============================================================================
@@ -301,7 +316,7 @@ class NotificationPreference(models.Model):
         help_text="Receive daily email digest instead of individual emails"
     )
     email_digest_time = models.TimeField(
-        default=timezone.now().replace(hour=9, minute=0, second=0).time(),
+        default=default_email_digest_time,
         help_text="Time to send daily digest"
     )
     
@@ -336,10 +351,10 @@ class NotificationPreference(models.Model):
     # Quiet Hours
     quiet_hours_enabled = models.BooleanField(default=False)
     quiet_hours_start = models.TimeField(
-        default=timezone.now().replace(hour=22, minute=0, second=0).time()
+        default=default_quiet_hours_start
     )
     quiet_hours_end = models.TimeField(
-        default=timezone.now().replace(hour=8, minute=0, second=0).time()
+        default=default_quiet_hours_end
     )
     
     # Metadata

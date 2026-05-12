@@ -149,7 +149,7 @@
                             </a>
                             
                             <!-- Notifications -->
-                            <a href="{% url 'clients:portal_notifications' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                            <a href="{% url 'notifications:notification_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-bell w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Notifications</span>
                             </a>
@@ -350,10 +350,10 @@
                         <!-- Right Side Actions -->
                         <div class="flex items-center space-x-4">
                             <!-- Notifications -->
-                            <button class="relative p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+                            <a href="{% url 'notifications:notification_list' %}" class="relative p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-lg transition-colors duration-200" aria-label="Notifications">
                                 <i class="fas fa-bell text-xl"></i>
-                                <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                            </button>
+                                <span id="notification-badge" class="hidden absolute -top-1 -right-1 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-red-500 text-white text-[10px] leading-[1.1rem] text-center font-semibold"></span>
+                            </a>
                             
                             <!-- User Menu Dropdown -->
                             <div class="relative" x-data="{ open: false }">
@@ -800,17 +800,30 @@
         });
         
         // ============================================================================
-        // NOTIFICATION FUNCTIONALITY
+        // NOTIFICATION BADGE
         // ============================================================================
-        const notificationBtn = document.querySelector('[class*="fa-bell"]')?.parentElement;
-        
-        if (notificationBtn) {
-            notificationBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                // TODO: Implement notification panel
-                console.log('Notifications clicked - to be implemented');
-                alert('Notifications feature coming soon!');
-            });
+        const notificationBadge = document.getElementById('notification-badge');
+
+        if (notificationBadge) {
+            fetch("{% url 'notifications:count_api' %}")
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch notification count');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const unreadCount = Number(data?.unread_count || 0);
+                    if (unreadCount > 0) {
+                        notificationBadge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+                        notificationBadge.classList.remove('hidden');
+                    } else {
+                        notificationBadge.classList.add('hidden');
+                    }
+                })
+                .catch(() => {
+                    notificationBadge.classList.add('hidden');
+                });
         }
         
         // ============================================================================
