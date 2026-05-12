@@ -24,16 +24,16 @@
 {% block content %}
 <div class="min-h-screen bg-gray-50">
     <!-- Dashboard Content -->
-    <div class="px-4 sm:px-6 lg:px-8 py-8">
+    <div class="px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
         {% if dashboard %}
             <!-- Non-Admin Welcome Section -->
             {% if not user.is_staff and not user.is_superuser %}
-            <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
+            <div class="bg-white rounded-xl shadow-lg p-5 sm:p-8 mb-8">
                 <div class="text-center max-w-2xl mx-auto">
                     <div class="bg-blue-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
                         <i class="fas fa-user-circle text-4xl text-blue-600"></i>
                     </div>
-                    <h2 class="text-2xl font-bold text-gray-900 mb-3">Welcome to Your Dashboard!</h2>
+                    <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Welcome to Your Dashboard!</h2>
                     <p class="text-gray-600 mb-6">
                         Access quick actions and manage your tasks efficiently. Use the menu above to navigate to different sections.
                     </p>
@@ -290,7 +290,7 @@
                             <span class="text-lg font-bold text-red-600">KES {{ overview_data.insurance.balance_value|floatformat:0|default:"0" }}</span>
                         </div>
                     </div>
-                    <div class="mt-4 pt-4 border-t border-gray-200 grid grid-cols-2 gap-3">
+                    <div class="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <a href="{% url 'clients:tracker_management' %}" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium flex items-center justify-between">
                             View Trackers
                             <i class="fas fa-arrow-right"></i>
@@ -306,14 +306,14 @@
 
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
                 <div class="bg-white rounded-xl shadow-lg p-6">
-                    <div class="flex items-center justify-between mb-4">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
                         <h3 class="text-lg font-bold text-gray-900 flex items-center">
                             <i class="fas fa-car-side text-indigo-600 mr-2"></i>
                             Most Sold Cars
                         </h3>
                         <a href="{% url 'reports:report_list' %}" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">View reports</a>
                     </div>
-                    <div class="overflow-x-auto">
+                    <div class="-mx-2 sm:mx-0 overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
@@ -340,7 +340,7 @@
                 </div>
 
                 <div class="bg-white rounded-xl shadow-lg p-6">
-                    <div class="flex items-center justify-between mb-4">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
                         <h3 class="text-lg font-bold text-gray-900 flex items-center">
                             <i class="fas fa-triangle-exclamation text-red-600 mr-2"></i>
                             Defaulters (Quick Follow-up)
@@ -374,7 +374,7 @@
             </div>
 
             <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
                     <h3 class="text-lg font-bold text-gray-900 flex items-center">
                         <i class="fas fa-hourglass-half text-amber-600 mr-2"></i>
                         Overstayed Vehicles (6+ Months)
@@ -384,7 +384,7 @@
                         in inventory over 6 months
                     </div>
                 </div>
-                <div class="overflow-x-auto">
+                <div class="-mx-2 sm:mx-0 overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
@@ -599,7 +599,7 @@
     </div>
 
     <!-- Quick Actions Panel -->
-    <div id="quickActionsContainer" class="fixed bottom-6 right-6 z-40">
+    <div id="quickActionsContainer" class="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-6 sm:right-6 z-40">
         <!-- Toggle Button (shown when panel is hidden) -->
         <button id="quickActionsToggleBtn" 
                 class="hidden bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-full w-14 h-14 shadow-2xl flex items-center justify-center transition duration-300 transform hover:scale-110">
@@ -607,7 +607,7 @@
         </button>
 
         <!-- Quick Actions Panel -->
-        <div id="quickActionsPanel" class="bg-white rounded-xl shadow-2xl overflow-hidden transition-all duration-300" style="width: 280px;">
+        <div id="quickActionsPanel" class="bg-white rounded-xl shadow-2xl overflow-hidden transition-all duration-300 w-full sm:w-[280px] max-w-[320px] sm:max-w-none ml-auto">
             <div class="bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 flex items-center justify-between">
                 <h3 class="text-white font-bold text-sm">
                     <i class="fas fa-bolt mr-2"></i>Quick Actions
