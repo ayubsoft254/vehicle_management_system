@@ -12,12 +12,21 @@ A comprehensive vehicle sales management system built with Django 5.1, featuring
 - **Expense Tracking**: Monitor operational costs
 - **Repossession & Auction Management**: Handle repossessed vehicles and auctions
 - **Insurance Management**: Track policies and expiry notifications
+- **Notifications Center**: In-app notifications with unread counts, read/unread actions, filters, and user delivery preferences
 - **Document Management**: Upload and manage contracts, agreements, and documents
 - **Comprehensive Reporting**: PDF/CSV exports for all modules
 - **Audit Logging**: Complete system activity tracking
 - **Background Tasks**: Celery for asynchronous processing
 - **Scheduled Tasks**: Automated reminders, notifications, and reports
 - **Docker Ready**: Production deployment with Gunicorn and Nginx
+
+## Notifications
+
+- Top navigation bell now links to the live Notifications module.
+- Sidebar Notifications link opens the same module for quick access.
+- Navbar badge shows unread notification count for the logged-in user.
+- Users can mark notifications as read/unread, dismiss, or clear items from the Notifications pages.
+- Notification preferences support in-app, email, SMS, and push delivery settings.
 
 ## Quick Start with Docker (Recommended)
 
@@ -147,7 +156,7 @@ vehicle_management_system/
 └── requirements.txt         # Dependencies
 ```
 
-## 👥 User Roles
+## User Roles
 
 | Role | Access Level |
 |------|--------------|
@@ -158,7 +167,7 @@ vehicle_management_system/
 | **Auctioneer** | Repossessions, auctions |
 | **Staff** | View-only basic access |
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables (.env)
 
@@ -275,7 +284,7 @@ sudo certbot --nginx -d yourdomain.com
 - [ ] Configure log rotation
 - [ ] Monitor resources
 
-## 📦 Backup & Restore
+## Backup & Restore
 
 ### Manual Backup
 
@@ -418,14 +427,4 @@ For issues, questions, or feature requests:
 - [ ] GPS vehicle tracking
 - [ ] Payment gateway integration
 - [ ] Multi-language support
-
-## Acknowledgments
-
-- Django Framework
-- Tailwind CSS
-- PostgreSQL
-- Redis & Celery
-- Docker
-- All open-source contributors
-
 ---
