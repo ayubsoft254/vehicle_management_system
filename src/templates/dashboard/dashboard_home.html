@@ -18,6 +18,22 @@
     .sidebar-closed {
         transform: translateX(100%);
     }
+
+    .kpi-card {
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 12px 30px -18px rgba(15, 23, 42, 0.45);
+    }
+
+    .kpi-value {
+        overflow-wrap: anywhere;
+        line-height: 1.08;
+        font-size: clamp(1.45rem, 2vw, 1.9rem);
+    }
+
+    .money-value {
+        overflow-wrap: anywhere;
+        line-height: 1.15;
+    }
 </style>
 {% endblock %}
 
@@ -59,11 +75,11 @@
             {% if user.is_staff or user.is_superuser %}
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <!-- Total Vehicles -->
-                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition duration-300">
+                <div class="kpi-card bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white transform hover:scale-105 transition duration-300">
                     <div class="flex items-center justify-between">
-                        <div>
+                        <div class="min-w-0 pr-3">
                             <p class="text-blue-100 text-sm font-medium mb-1">Total Vehicles</p>
-                            <p class="text-3xl font-bold">
+                            <p class="kpi-value font-bold">
                                 {{ overview_data.total_vehicles|default:0 }}
                             </p>
                             <p class="text-blue-100 text-xs mt-1">
@@ -77,11 +93,11 @@
                 </div>
 
                 <!-- Active Clients -->
-                <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition duration-300">
+                <div class="kpi-card bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white transform hover:scale-105 transition duration-300">
                     <div class="flex items-center justify-between">
-                        <div>
+                        <div class="min-w-0 pr-3">
                             <p class="text-green-100 text-sm font-medium mb-1">Total Clients</p>
-                            <p class="text-3xl font-bold">
+                            <p class="kpi-value font-bold">
                                 {{ overview_data.total_clients|default:0 }}
                             </p>
                             <p class="text-green-100 text-xs mt-1">
@@ -95,11 +111,11 @@
                 </div>
 
                 <!-- Monthly Revenue -->
-                <div class="bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition duration-300">
+                <div class="kpi-card bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl p-6 text-white transform hover:scale-105 transition duration-300">
                     <div class="flex items-center justify-between">
-                        <div>
+                        <div class="min-w-0 pr-3">
                             <p class="text-yellow-100 text-sm font-medium mb-1">Monthly Revenue</p>
-                            <p class="text-3xl font-bold">
+                            <p class="kpi-value money-value font-bold">
                                 KES {{ overview_data.monthly_revenue|floatformat:0|default:"0" }}
                             </p>
                             <p class="text-yellow-100 text-xs mt-1">
@@ -113,11 +129,11 @@
                 </div>
 
                 <!-- Pending Sales -->
-                <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white transform hover:scale-105 transition duration-300">
+                <div class="kpi-card bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white transform hover:scale-105 transition duration-300">
                     <div class="flex items-center justify-between">
-                        <div>
+                        <div class="min-w-0 pr-3">
                             <p class="text-purple-100 text-sm font-medium mb-1">Reserved Vehicles</p>
-                            <p class="text-3xl font-bold">
+                            <p class="kpi-value font-bold">
                                 {{ overview_data.pending_sales|default:0 }}
                             </p>
                             <p class="text-purple-100 text-xs mt-1">
@@ -136,7 +152,7 @@
                     <div class="flex items-start justify-between">
                         <div>
                             <p class="text-sm font-semibold text-red-600">Total Money Outside</p>
-                            <p class="text-2xl font-bold text-gray-900 mt-2">KES {{ overview_data.outstanding.total|floatformat:0|default:"0" }}</p>
+                            <p class="money-value text-2xl font-bold text-gray-900 mt-2">KES {{ overview_data.outstanding.total|floatformat:0|default:"0" }}</p>
                             <p class="text-xs text-gray-500 mt-1">{{ overview_data.outstanding.active_accounts|default:0 }} active installment accounts</p>
                         </div>
                         <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-red-50 text-red-600">
@@ -149,7 +165,7 @@
                     <div class="flex items-start justify-between">
                         <div>
                             <p class="text-sm font-semibold text-emerald-600">Total Sales</p>
-                            <p class="text-2xl font-bold text-gray-900 mt-2">KES {{ overview_data.sales.total_revenue|floatformat:0|default:"0" }}</p>
+                            <p class="money-value text-2xl font-bold text-gray-900 mt-2">KES {{ overview_data.sales.total_revenue|floatformat:0|default:"0" }}</p>
                             <p class="text-xs text-gray-500 mt-1">{{ overview_data.sales.total_count|default:0 }} vehicle sales</p>
                         </div>
                         <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
@@ -175,7 +191,7 @@
                     <div class="flex items-start justify-between">
                         <div>
                             <p class="text-sm font-semibold {% if overview_data.profit.is_profitable %}text-green-600{% else %}text-red-600{% endif %}">Total Profit / Loss</p>
-                            <p class="text-2xl font-bold text-gray-900 mt-2">KES {{ overview_data.profit.total|floatformat:0|default:"0" }}</p>
+                            <p class="money-value text-2xl font-bold text-gray-900 mt-2">KES {{ overview_data.profit.total|floatformat:0|default:"0" }}</p>
                             <p class="text-xs text-gray-500 mt-1">This month: KES {{ overview_data.profit.monthly|floatformat:0|default:"0" }}</p>
                         </div>
                         <span class="inline-flex h-11 w-11 items-center justify-center rounded-full {% if overview_data.profit.is_profitable %}bg-green-50 text-green-600{% else %}bg-red-50 text-red-600{% endif %}">
