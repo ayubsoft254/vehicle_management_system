@@ -88,7 +88,7 @@
                 <!-- Coverage Period -->
                 <div>
                     <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Coverage Period</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label for="id_start_date" class="block text-sm font-medium text-gray-700 mb-2">
                                 Start Date <span class="text-red-500">*</span>
@@ -96,6 +96,21 @@
                             <input type="date" name="start_date" id="id_start_date" value="{{ form.start_date.value|date:'Y-m-d'|default:'' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                             {% if form.start_date.errors %}
                                 <p class="text-red-500 text-sm mt-1">{{ form.start_date.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_coverage_duration" class="block text-sm font-medium text-gray-700 mb-2">
+                                Coverage Duration
+                            </label>
+                            <select name="coverage_duration" id="id_coverage_duration" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                <option value="6_months" {% if form.coverage_duration.value == '6_months' %}selected{% endif %}>6 months</option>
+                                <option value="1_year" {% if not form.coverage_duration.value or form.coverage_duration.value == '1_year' %}selected{% endif %}>1 year</option>
+                                <option value="2_years" {% if form.coverage_duration.value == '2_years' %}selected{% endif %}>2 years</option>
+                                <option value="3_years" {% if form.coverage_duration.value == '3_years' %}selected{% endif %}>3 years</option>
+                            </select>
+                            {% if form.coverage_duration.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.coverage_duration.errors.0 }}</p>
                             {% endif %}
                         </div>
 
@@ -196,17 +211,44 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const startDate = document.getElementById('id_start_date');
+    const coverageDuration = document.getElementById('id_coverage_duration');
     const endDate = document.getElementById('id_end_date');
-    
-    // Auto-calculate end date (1 year from start)
-    if (startDate && endDate && !endDate.value) {
-        startDate.addEventListener('change', function() {
-            if (this.value) {
-                const start = new Date(this.value);
-                start.setFullYear(start.getFullYear() + 1);
-                endDate.value = start.toISOString().split('T')[0];
-            }
-        });
+
+    const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const calculateEndDate = () => {
+        if (!startDate || !coverageDuration || !endDate || !startDate.value) {
+            return;
+        }
+
+        const start = new Date(`${startDate.value}T00:00:00`);
+        const duration = coverageDuration.value || '1_year';
+
+        if (duration === '6_months') {
+            start.setMonth(start.getMonth() + 6);
+        } else if (duration === '2_years') {
+            start.setFullYear(start.getFullYear() + 2);
+        } else if (duration === '3_years') {
+            start.setFullYear(start.getFullYear() + 3);
+        } else {
+            start.setFullYear(start.getFullYear() + 1);
+        }
+
+        endDate.value = formatDate(start);
+    };
+
+    if (startDate && coverageDuration && endDate) {
+        startDate.addEventListener('change', calculateEndDate);
+        coverageDuration.addEventListener('change', calculateEndDate);
+
+        if (!endDate.value && startDate.value) {
+            calculateEndDate();
+        }
     }
 });
 </script>
