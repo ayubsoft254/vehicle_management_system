@@ -265,6 +265,9 @@ def vehicle_create_view(request):
             extra_cost_entries, extra_cost_total = _extract_extra_cost_entries(request.POST)
 
             vehicle = form.save(commit=False)
+            vehicle.duty_cost = vehicle.duty_cost or Decimal('0.00')
+            vehicle.clearance_cost = vehicle.clearance_cost or Decimal('0.00')
+            vehicle.commission_cost = vehicle.commission_cost or Decimal('0.00')
             vehicle.selling_price = (
                 vehicle.purchase_price +
                 vehicle.duty_cost +
@@ -343,6 +346,9 @@ def vehicle_update_view(request, pk):
             extra_cost_entries, extra_cost_total = _extract_extra_cost_entries(request.POST)
 
             vehicle = form.save(commit=False)
+            vehicle.duty_cost = vehicle.duty_cost or Decimal('0.00')
+            vehicle.clearance_cost = vehicle.clearance_cost or Decimal('0.00')
+            vehicle.commission_cost = vehicle.commission_cost or Decimal('0.00')
             vehicle.selling_price = (
                 vehicle.purchase_price +
                 vehicle.duty_cost +
