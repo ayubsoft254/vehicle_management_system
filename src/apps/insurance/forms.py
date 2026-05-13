@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from decimal import Decimal
 from datetime import date, timedelta
+import calendar
 
 from .models import InsuranceProvider, InsurancePolicy, InsuranceClaim, InsurancePayment
 from apps.vehicles.models import Vehicle
@@ -114,6 +115,41 @@ class InsurancePolicyForm(forms.ModelForm):
     """
     Form for creating and updating insurance policies
     """
+
+    COVERAGE_DURATION_CHOICES = [
+        ('6_months', '6 months'),
+        ('1_year', '1 year'),
+        ('2_years', '2 years'),
+        ('3_years', '3 years'),
+    ]
+
+    coverage_duration = forms.ChoiceField(
+        choices=COVERAGE_DURATION_CHOICES,
+        required=False,
+        initial='1_year',
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+        })
+    )
+
+    @staticmethod
+    def _add_months(input_date, months):
+        """Safely add months while handling month-end boundaries."""
+        month_index = input_date.month - 1 + months
+        year = input_date.year + month_index // 12
+        month = month_index % 12 + 1
+        day = min(input_date.day, calendar.monthrange(year, month)[1])
+        return date(year, month, day)
+
+    @staticmethod
+    def _calculate_end_date_from_duration(start_date, duration_choice):
+        if duration_choice == '6_months':
+            return InsurancePolicyForm._add_months(start_date, 6)
+        if duration_choice == '2_years':
+            return InsurancePolicyForm._add_months(start_date, 24)
+        if duration_choice == '3_years':
+            return InsurancePolicyForm._add_months(start_date, 36)
+        return InsurancePolicyForm._add_months(start_date, 12)
     
     class Meta:
         model = InsurancePolicy
@@ -221,6 +257,7 @@ class InsurancePolicyForm(forms.ModelForm):
         if not self.instance.pk:
             self.fields['start_date'].initial = timezone.now().date()
             self.fields['end_date'].initial = timezone.now().date() + timedelta(days=365)
+            self.fields['coverage_duration'].initial = '1_year'
     
     def clean_policy_number(self):
         """Validate policy number uniqueness"""
@@ -236,19 +273,24 @@ class InsurancePolicyForm(forms.ModelForm):
         """Additional validation"""
         cleaned_data = super().clean()
         start_date = cleaned_data.get('start_date')
+        coverage_duration = cleaned_data.get('coverage_duration')
         end_date = cleaned_data.get('end_date')
         sum_insured = cleaned_data.get('sum_insured')
         excess_amount = cleaned_data.get('excess_amount')
+
+        if start_date and coverage_duration:
+            end_date = self._calculate_end_date_from_duration(start_date, coverage_duration)
+            cleaned_data['end_date'] = end_date
         
         # Validate date range
         if start_date and end_date:
             if end_date <= start_date:
                 raise ValidationError("End date must be after start date.")
             
-            # Check if policy duration is reasonable (max 2 years)
+            # Check if policy duration is reasonable (max 3 years)
             duration = (end_date - start_date).days
-            if duration > 730:  # 2 years
-                raise ValidationError("Policy duration cannot exceed 2 years.")
+            if duration > 1096:  # up to 3 years (leap year safe)
+                raise ValidationError("Policy duration cannot exceed 3 years.")
         
         # Validate excess amount
         if excess_amount and sum_insured:
