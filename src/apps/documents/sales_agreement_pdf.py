@@ -222,11 +222,11 @@ def generate_sales_agreement_pdf(client_vehicle):
             Paragraph(f'<b>IN WORDS:</b> {_number_to_words(client_vehicle.purchase_price)} Kenya Shillings Only', normal_small),
         ],
         [
-            Paragraph(f'<b>RECEIVED AMOUNT PAID FOR THE VEHICLE:</b> KES {float(client_vehicle.deposit_paid):,.2f}', normal_small),
-            Paragraph(f'<b>AMOUNT IN WORDS:</b> {_number_to_words(client_vehicle.deposit_paid)} Kenya Shillings Only', normal_small),
+            Paragraph(f'<b>AMOUNT PAID (DEPOSIT):</b> KES {float(client_vehicle.deposit_paid):,.2f}', normal_small),
+            Paragraph(f'<b>IN WORDS:</b> {_number_to_words(client_vehicle.deposit_paid)} Kenya Shillings Only', normal_small),
         ],
         [
-            Paragraph(f'<b>REMAINING BALANCE AMOUNT IN KSHS:</b> KES {float(client_vehicle.balance):,.2f}', normal_small),
+            Paragraph(f'<b>BALANCE:</b> KES {float(client_vehicle.balance):,.2f}', normal_small),
             Paragraph(f'<b>IN WORDS:</b> {_number_to_words(client_vehicle.balance)} Kenya Shillings Only', normal_small),
         ],
     ]
@@ -500,8 +500,8 @@ def generate_sales_agreement_pdf(client_vehicle):
             Paragraph('<b>MOBILE</b> ___________________________', normal_small),
         ],
         [
+            Paragraph('<b>WITNESS ID NO</b> ___________________________', normal_small),
             Paragraph('<b>WITNESS Signature</b> ___________________________', normal_small),
-            Paragraph('<b>ID NO</b> ___________________________', normal_small),
         ],
         [
             Paragraph("<b>SELLER'S SIGNATURE</b> ___________________________", normal_small),
