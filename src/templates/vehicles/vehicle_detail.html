@@ -78,6 +78,16 @@
         
         <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
             {% if can_edit_vehicles %}
+                {% if vehicle.status == 'available' %}
+                <button onclick="openSellVehicleModal()" 
+                   class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition duration-150">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Sell Vehicle
+                </button>
+                {% endif %}
+                
                 <a href="{% url 'vehicles:update' vehicle.pk %}" 
                    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -753,6 +763,139 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.key === 'ArrowLeft') prevBtn.click();
             if (e.key === 'ArrowRight') nextBtn.click();
         });
+    }
+});
+</script>
+
+<!-- Sell Vehicle Modal -->
+<div id="sellVehicleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="text-xl font-bold text-gray-900">Sell Vehicle</h2>
+            <button onclick="closeSellVehicleModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Body -->
+        <form method="POST" class="p-6">
+            {% csrf_token %}
+            
+            <!-- Vehicle Info -->
+            <div class="mb-6">
+                <p class="text-sm text-gray-600 mb-2">Selling Vehicle</p>
+                <p class="text-lg font-semibold text-gray-900">{{ vehicle.full_name }}</p>
+                <p class="text-sm text-gray-500">Price: ৳{{ vehicle.selling_price }}</p>
+            </div>
+            
+            <!-- Client Search -->
+            <div class="mb-4">
+                <label for="clientSearch" class="block text-sm font-medium text-gray-700 mb-2">
+                    Select or Search Client
+                </label>
+                <div class="relative">
+                    <input type="text" id="clientSearch" placeholder="Search by name or ID..." 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                    <div id="clientSearchResults" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Selected Client Display -->
+            <div id="selectedClientDiv" class="hidden mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <p class="text-sm text-gray-600">Selected Client</p>
+                <p id="selectedClientName" class="font-semibold text-gray-900"></p>
+                <p id="selectedClientPhone" class="text-sm text-gray-500"></p>
+                <input type="hidden" id="clientId" name="client_id">
+            </div>
+            
+            <!-- Error Message -->
+            <div id="errorMessage" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"></div>
+            
+            <!-- Buttons -->
+            <div class="flex gap-3">
+                <button type="button" onclick="closeSellVehicleModal()" 
+                        class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium rounded-lg transition">
+                    Cancel
+                </button>
+                <button type="submit" id="proceedBtn" disabled
+                        class="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition">
+                    Proceed to Assign
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Sell Vehicle JavaScript -->
+<script>
+function openSellVehicleModal() {
+    document.getElementById('sellVehicleModal').classList.remove('hidden');
+    document.getElementById('clientSearch').focus();
+}
+
+function closeSellVehicleModal() {
+    document.getElementById('sellVehicleModal').classList.add('hidden');
+    document.getElementById('clientSearch').value = '';
+    document.getElementById('clientSearchResults').classList.add('hidden');
+    document.getElementById('selectedClientDiv').classList.add('hidden');
+    document.getElementById('clientId').value = '';
+    document.getElementById('proceedBtn').disabled = true;
+}
+
+// Client search functionality
+document.getElementById('clientSearch').addEventListener('input', async function(e) {
+    const query = e.target.value.trim();
+    const resultsDiv = document.getElementById('clientSearchResults');
+    
+    if (query.length < 2) {
+        resultsDiv.classList.add('hidden');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`{% url 'vehicles:search_clients_api' %}?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        
+        if (data.results.length === 0) {
+            resultsDiv.innerHTML = '<div class="px-4 py-2 text-sm text-gray-500">No clients found</div>';
+            resultsDiv.classList.remove('hidden');
+            return;
+        }
+        
+        resultsDiv.innerHTML = data.results.map(client => `
+            <button type="button" class="w-full text-left px-4 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-b-0" onclick="selectClient(${client.id}, '${client.full_name}', '${client.phone}')">
+                <div class="font-medium text-gray-900">${client.full_name}</div>
+                <div class="text-sm text-gray-500">${client.id_number} • ${client.phone}</div>
+            </button>
+        `).join('');
+        resultsDiv.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error searching clients:', error);
+        document.getElementById('errorMessage').textContent = 'Error searching for clients';
+        document.getElementById('errorMessage').classList.remove('hidden');
+    }
+});
+
+function selectClient(clientId, clientName, clientPhone) {
+    document.getElementById('clientId').value = clientId;
+    document.getElementById('clientSearch').value = clientName;
+    document.getElementById('selectedClientName').textContent = clientName;
+    document.getElementById('selectedClientPhone').textContent = clientPhone;
+    document.getElementById('selectedClientDiv').classList.remove('hidden');
+    document.getElementById('clientSearchResults').classList.add('hidden');
+    document.getElementById('proceedBtn').disabled = false;
+    document.getElementById('errorMessage').classList.add('hidden');
+}
+
+// Close results when clicking outside
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('sellVehicleModal');
+    if (!modal.classList.contains('hidden') && !e.target.closest('#clientSearch') && !e.target.closest('#clientSearchResults')) {
+        document.getElementById('clientSearchResults').classList.add('hidden');
     }
 });
 </script>

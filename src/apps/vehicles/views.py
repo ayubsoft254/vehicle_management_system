@@ -716,3 +716,63 @@ def vehicle_stats_view(request):
     }
     
     return JsonResponse(stats)
+
+
+@login_required
+@module_permission_required('vehicles')
+def search_clients_api(request):
+    """
+    API endpoint for searching clients
+    Used by vehicle sell feature for quick client lookup
+    """
+    from apps.clients.models import Client
+    
+    search_term = request.GET.get('q', '').strip()
+    
+    if len(search_term) < 2:
+        return JsonResponse({'results': []})
+    
+    # Search clients by name or ID number
+    clients = Client.objects.filter(
+        Q(first_name__icontains=search_term) |
+        Q(last_name__icontains=search_term) |
+        Q(id_number__icontains=search_term) |
+        Q(phone_primary__icontains=search_term),
+        status='active'
+    ).select_related('user').values('id', 'first_name', 'last_name', 'id_number', 'phone_primary')[:20]
+    
+    results = [
+        {
+            'id': client['id'],
+            'text': f"{client['first_name']} {client['last_name']} ({client['id_number']})",
+            'full_name': f"{client['first_name']} {client['last_name']}",
+            'id_number': client['id_number'],
+            'phone': client['phone_primary'],
+        }
+        for client in clients
+    ]
+    
+    return JsonResponse({'results': results})
+
+
+@login_required
+@module_permission_required('vehicles')
+def sell_vehicle(request, pk):
+    """
+    Initiate selling a vehicle to a client
+    Redirects to the full assign_vehicle form with vehicle pre-selected
+    """
+    vehicle = get_object_or_404(Vehicle, pk=pk, status=VehicleStatus.AVAILABLE)
+    
+    if request.method == 'POST':
+        # Get selected client ID from POST data
+        client_id = request.POST.get('client_id')
+        if client_id:
+            return redirect('clients:assign_vehicle', client_pk=client_id)
+        else:
+            messages.error(request, 'Please select a client')
+    
+    context = {
+        'vehicle': vehicle,
+    }
+    return render(request, 'vehicles/sell_vehicle_modal.html', context)
