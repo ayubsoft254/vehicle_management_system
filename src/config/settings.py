@@ -22,6 +22,7 @@ ALLOWED_HOSTS = ['*']  # Update this in production to specific domains
 # CSRF Trusted Origins for cross-origin requests
 CSRF_TRUSTED_ORIGINS = [
     'https://vms.ayubsoft-inc.systems',
+    'https://taifaassist.xyz',
     'http://localhost:3333',
     'http://127.0.0.1:3333',
 ]
