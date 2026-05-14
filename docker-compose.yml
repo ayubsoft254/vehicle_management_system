@@ -1,5 +1,7 @@
 services:
+  # ---------------------------------------------------------------------------
   # PostgreSQL Database
+  # ---------------------------------------------------------------------------
   db:
     image: postgres:15-alpine
     container_name: vms_db
@@ -20,7 +22,9 @@ services:
     networks:
       - vms_network
 
+  # ---------------------------------------------------------------------------
   # Redis for Celery
+  # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
     container_name: vms_redis
@@ -37,7 +41,9 @@ services:
     volumes:
       - redis_data:/data
 
+  # ---------------------------------------------------------------------------
   # Django Web Application
+  # ---------------------------------------------------------------------------
   web:
     build:
       context: .
@@ -45,18 +51,21 @@ services:
     container_name: vms_web
     command: >
       sh -c "python manage.py migrate --noinput &&
-      python manage.py collectstatic --noinput &&
-      gunicorn config.wsgi:application 
-      --bind 0.0.0.0:3333 
-      --workers 4 
-      --threads 2 
-      --timeout 120 
-      --access-logfile - 
-      --error-logfile - 
-      --log-level info"
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application
+               --bind 0.0.0.0:3333
+               --workers 4
+               --threads 2
+               --timeout 120
+               --access-logfile -
+               --error-logfile -
+               --log-level info"
     volumes:
       - ./src:/app
-      - static_volume:/app/static_collected
+      # Bind mounts so Nginx on the host can read these directories directly.
+      # static_collected: populated by collectstatic on every container start.
+      # media: user-uploaded files, persisted on the host across restarts.
+      - ./src/static_collected:/app/static_collected
       - ./src/media:/app/media
       - logs_volume:/app/logs
     ports:
@@ -83,7 +92,9 @@ services:
       retries: 3
       start_period: 40s
 
+  # ---------------------------------------------------------------------------
   # Celery Worker
+  # ---------------------------------------------------------------------------
   celery_worker:
     build:
       context: .
@@ -110,7 +121,9 @@ services:
     networks:
       - vms_network
 
+  # ---------------------------------------------------------------------------
   # Celery Beat (Scheduler)
+  # ---------------------------------------------------------------------------
   celery_beat:
     build:
       context: .
@@ -136,12 +149,15 @@ services:
     networks:
       - vms_network
 
+# -----------------------------------------------------------------------------
+# Volumes
+# static_volume removed — static files now use a host bind mount so Nginx
+# can read them directly without going through Docker's internal volume store.
+# -----------------------------------------------------------------------------
 volumes:
   postgres_data:
     driver: local
   redis_data:
-    driver: local
-  static_volume:
     driver: local
   logs_volume:
     driver: local
