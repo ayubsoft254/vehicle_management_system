@@ -9,7 +9,7 @@ from django.db.models import Q, Count, Sum, Avg
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from .models import Vehicle, VehiclePhoto, VehicleHistory
-from apps.clients.models import ClientVehicle
+from apps.clients.models import ClientVehicle, Client
 from .forms import (
     VehicleForm, VehiclePhotoForm, VehicleSearchForm,
     VehicleStatusChangeForm, BulkVehicleActionForm, VehicleMoveForm
@@ -725,8 +725,6 @@ def search_clients_api(request):
     API endpoint for searching clients
     Used by vehicle sell feature for quick client lookup
     """
-    from apps.clients.models import Client
-    
     search_term = request.GET.get('q', '').strip()
     
     if len(search_term) < 2:
@@ -760,19 +758,25 @@ def search_clients_api(request):
 def sell_vehicle(request, pk):
     """
     Initiate selling a vehicle to a client
-    Redirects to the full assign_vehicle form with vehicle pre-selected
+    Handles modal submission and redirects to assign_vehicle form
     """
     vehicle = get_object_or_404(Vehicle, pk=pk, status=VehicleStatus.AVAILABLE)
     
     if request.method == 'POST':
         # Get selected client ID from POST data
-        client_id = request.POST.get('client_id')
+        client_id = request.POST.get('client_id', '').strip()
         if client_id:
-            return redirect('clients:assign_vehicle', client_pk=client_id)
+            try:
+                # Verify client exists and is active
+                client = Client.objects.get(pk=client_id, status='active')
+                # Redirect to assign vehicle form with the client and vehicle pre-selected
+                return redirect('clients:assign_vehicle', client_pk=client_id)
+            except Client.DoesNotExist:
+                messages.error(request, 'Selected client not found or is inactive')
+                return redirect('vehicles:detail', pk=pk)
         else:
             messages.error(request, 'Please select a client')
+            return redirect('vehicles:detail', pk=pk)
     
-    context = {
-        'vehicle': vehicle,
-    }
-    return render(request, 'vehicles/sell_vehicle_modal.html', context)
+    # GET requests should redirect back to vehicle detail
+    return redirect('vehicles:detail', pk=pk)

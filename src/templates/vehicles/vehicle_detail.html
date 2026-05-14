@@ -781,7 +781,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         
         <!-- Body -->
-        <form method="POST" class="p-6">
+        <form method="POST" action="{% url 'vehicles:sell' vehicle.pk %}" class="p-6">
             {% csrf_token %}
             
             <!-- Vehicle Info -->
