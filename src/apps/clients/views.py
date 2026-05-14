@@ -677,7 +677,18 @@ def assign_vehicle(request, client_pk):
             print("Form errors:", form.errors)
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = ClientVehicleForm(client=client)
+        # Check if vehicle_id is provided via query parameter (from quick-sell feature)
+        vehicle_id = request.GET.get('vehicle_id')
+        initial_data = {}
+        
+        if vehicle_id:
+            try:
+                vehicle = Vehicle.objects.get(pk=vehicle_id, status='available')
+                initial_data['vehicle'] = vehicle
+            except Vehicle.DoesNotExist:
+                messages.warning(request, 'Selected vehicle is not available.')
+        
+        form = ClientVehicleForm(client=client, initial=initial_data)
     
     # Get vehicle prices for JavaScript
     vehicles_qs = Vehicle.objects.filter(status='available')

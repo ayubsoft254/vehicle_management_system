@@ -760,6 +760,8 @@ def sell_vehicle(request, pk):
     Initiate selling a vehicle to a client
     Handles modal submission and redirects to assign_vehicle form
     """
+    from django.urls import reverse
+    
     vehicle = get_object_or_404(Vehicle, pk=pk, status=VehicleStatus.AVAILABLE)
     
     if request.method == 'POST':
@@ -770,7 +772,8 @@ def sell_vehicle(request, pk):
                 # Verify client exists and is active
                 client = Client.objects.get(pk=client_id, status='active')
                 # Redirect to assign vehicle form with the client and vehicle pre-selected
-                return redirect('clients:assign_vehicle', client_pk=client_id)
+                url = reverse('clients:assign_vehicle', kwargs={'client_pk': client_id})
+                return redirect(f'{url}?vehicle_id={pk}')
             except Client.DoesNotExist:
                 messages.error(request, 'Selected client not found or is inactive')
                 return redirect('vehicles:detail', pk=pk)
