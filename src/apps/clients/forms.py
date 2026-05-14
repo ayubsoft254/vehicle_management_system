@@ -318,6 +318,16 @@ class ClientVehicleForm(forms.ModelForm):
                 raise ValidationError("Deposit cannot exceed purchase price.")
             if deposit_paid < 0:
                 raise ValidationError("Deposit cannot be negative.")
+
+        if payment_type == 'full' and purchase_price:
+            cleaned_data['deposit_paid'] = purchase_price
+            cleaned_data['allow_flexible_payments'] = False
+            cleaned_data['remainder_payment_type'] = None
+            cleaned_data['monthly_payment_date'] = None
+            cleaned_data['weekly_payment_day'] = None
+            cleaned_data['installment_months'] = None
+            cleaned_data['monthly_installment'] = None
+            deposit_paid = purchase_price
         
         # Validate payment type-specific requirements
         if payment_type == 'installment':
