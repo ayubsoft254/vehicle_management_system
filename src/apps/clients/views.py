@@ -411,6 +411,9 @@ def assign_vehicle(request, client_pk):
                 client_vehicle.purchase_price = (
                     client_vehicle.purchase_price + insurance_addon + tracker_addon + commission_addon
                 ).quantize(Decimal('0.01'))
+
+                if client_vehicle.payment_type == 'full':
+                    client_vehicle.deposit_paid = client_vehicle.purchase_price
                 
                 # Calculate balance
                 client_vehicle.balance = (
