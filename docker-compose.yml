@@ -49,22 +49,25 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: vms_web
-    command: >
-      sh -c "python manage.py migrate --noinput &&
-             python manage.py collectstatic --noinput &&
-             gunicorn config.wsgi:application
-               --bind 0.0.0.0:3333
-               --workers 4
-               --threads 2
-               --timeout 120
-               --access-logfile -
-               --error-logfile -
-               --log-level info"
+    command:
+      - gunicorn
+      - config.wsgi:application
+      - --bind
+      - 0.0.0.0:3333
+      - --workers
+      - "4"
+      - --threads
+      - "2"
+      - --timeout
+      - "120"
+      - --access-logfile
+      - "-"
+      - --error-logfile
+      - "-"
+      - --log-level
+      - info
     volumes:
       - ./src:/app
-      # Bind mounts so Nginx on the host can read these directories directly.
-      # static_collected: populated by collectstatic on every container start.
-      # media: user-uploaded files, persisted on the host across restarts.
       - ./src/static_collected:/app/static_collected
       - ./src/media:/app/media
       - logs_volume:/app/logs
@@ -75,8 +78,17 @@ services:
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - DATABASE_URL=postgresql://${DB_USER:-vms_user}:${DB_PASSWORD:-vms_password}@db:5432/${DB_NAME:-vms_db}
       - REDIS_URL=redis://redis:6379/0
+      - WAIT_FOR_DB=true
+      - WAIT_FOR_REDIS=false
+      - RUN_MIGRATIONS=true
+      - COLLECT_STATIC=true
+      - CREATE_CACHE_TABLE=true
     depends_on:
       db:
         condition: service_healthy
@@ -100,7 +112,13 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: vms_celery_worker
-    command: celery -A config worker -l info
+    command:
+      - celery
+      - -A
+      - config
+      - worker
+      - -l
+      - info
     volumes:
       - ./src:/app
       - ./src/media:/app/media
@@ -110,8 +128,17 @@ services:
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - DATABASE_URL=postgresql://${DB_USER:-vms_user}:${DB_PASSWORD:-vms_password}@db:5432/${DB_NAME:-vms_db}
       - REDIS_URL=redis://redis:6379/0
+      - WAIT_FOR_DB=true
+      - WAIT_FOR_REDIS=true
+      - RUN_MIGRATIONS=false
+      - COLLECT_STATIC=false
+      - CREATE_CACHE_TABLE=false
     depends_on:
       db:
         condition: service_healthy
@@ -129,7 +156,15 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: vms_celery_beat
-    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command:
+      - celery
+      - -A
+      - config
+      - beat
+      - -l
+      - info
+      - --scheduler
+      - django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - ./src:/app
       - logs_volume:/app/logs
@@ -138,8 +173,17 @@ services:
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - DATABASE_URL=postgresql://${DB_USER:-vms_user}:${DB_PASSWORD:-vms_password}@db:5432/${DB_NAME:-vms_db}
       - REDIS_URL=redis://redis:6379/0
+      - WAIT_FOR_DB=true
+      - WAIT_FOR_REDIS=true
+      - RUN_MIGRATIONS=false
+      - COLLECT_STATIC=false
+      - CREATE_CACHE_TABLE=false
     depends_on:
       db:
         condition: service_healthy
