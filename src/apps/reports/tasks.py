@@ -11,7 +11,7 @@ import logging
 import os
 import traceback
 
-from .models import Report, ReportExecution, ReportSchedule
+from .models import Report, ReportExecution
 from .utils import (
     generate_financial_report_data,
     generate_vehicle_report_data,
