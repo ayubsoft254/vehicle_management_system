@@ -130,42 +130,6 @@
             </div>
         </div>
 
-        <!-- Profit / Loss Summary Panel -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden" id="profit-loss-panel">
-            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
-                <h2 class="text-lg font-semibold text-white"><i class="fas fa-chart-line mr-2"></i>Deal Summary — Cost & Profit</h2>
-            </div>
-            <div class="p-6">
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p class="text-xs text-gray-500 uppercase font-medium">Purchase Price</p>
-                        <p class="text-lg font-bold text-blue-600 mt-1" id="pl-price">KES 0.00</p>
-                        <p class="text-xs text-gray-400 mt-0.5">Vehicle sale price</p>
-                    </div>
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p class="text-xs text-gray-500 uppercase font-medium">Insurance + Tracker + Commission</p>
-                        <p class="text-lg font-bold text-orange-500 mt-1" id="pl-expenses">KES 0.00</p>
-                        <p class="text-xs text-gray-400 mt-0.5">Additional costs</p>
-                    </div>
-                    <div class="bg-blue-50 rounded-lg p-4 border-2 border-blue-300">
-                        <p class="text-xs text-blue-700 uppercase font-medium">Total Cost</p>
-                        <p class="text-lg font-bold text-blue-700 mt-1" id="pl-total-cost">KES 0.00</p>
-                        <p class="text-xs text-blue-600 mt-0.5">Price + Extras</p>
-                    </div>
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p class="text-xs text-gray-500 uppercase font-medium">Vehicle Cost</p>
-                        <p class="text-lg font-bold text-gray-700 mt-1" id="pl-cost">KES 0.00</p>
-                        <p class="text-xs text-gray-400 mt-0.5">Dealer cost</p>
-                    </div>
-                    <div class="rounded-lg p-4 border-2" id="pl-result-box">
-                        <p class="text-xs uppercase font-medium" id="pl-result-label">Net Profit</p>
-                        <p class="text-xl font-bold mt-1" id="pl-result">KES 0.00</p>
-                        <p class="text-xs mt-0.5" id="pl-result-sub">—</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Purchase Details -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
@@ -177,11 +141,6 @@
                         <label for="{{ form.purchase_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Purchase Date <span class="text-red-500">*</span></label>
                         {{ form.purchase_date }}
                         {% if form.purchase_date.errors %}<p class="mt-1 text-sm text-red-600">{{ form.purchase_date.errors.0 }}</p>{% endif %}
-                    </div>
-                    <div>
-                        <label for="{{ form.purchase_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Client Purchase Price (KES) <span class="text-red-500">*</span></label>
-                        {{ form.purchase_price }}
-                        {% if form.purchase_price.errors %}<p class="mt-1 text-sm text-red-600">{{ form.purchase_price.errors.0 }}</p>{% endif %}
                     </div>
                     <div>
                         <label for="{{ form.deposit_paid.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Deposit Paid (KES) <span class="text-red-500">*</span></label>
@@ -586,6 +545,93 @@
             </div>
         </div>
 
+        <!-- Profit / Loss Summary Panel -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden" id="profit-loss-panel">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+                <h2 class="text-lg font-semibold text-white"><i class="fas fa-chart-line mr-2"></i>Deal Summary — Cost & Profit</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p class="text-xs text-gray-500 uppercase font-medium">Purchase Price</p>
+                        <p class="text-lg font-bold text-blue-600 mt-1" id="pl-price">KES 0.00</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Vehicle sale price</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p class="text-xs text-gray-500 uppercase font-medium">Insurance + Tracker + Commission</p>
+                        <p class="text-lg font-bold text-orange-500 mt-1" id="pl-expenses">KES 0.00</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Additional costs</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-lg p-4 border-2 border-blue-300">
+                        <p class="text-xs text-blue-700 uppercase font-medium">Total Cost</p>
+                        <p class="text-lg font-bold text-blue-700 mt-1" id="pl-total-cost">KES 0.00</p>
+                        <p class="text-xs text-blue-600 mt-0.5">Price + Extras</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p class="text-xs text-gray-500 uppercase font-medium">Vehicle Cost</p>
+                        <p class="text-lg font-bold text-gray-700 mt-1" id="pl-cost">KES 0.00</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Dealer cost</p>
+                    </div>
+                    <div class="rounded-lg p-4 border-2" id="pl-result-box">
+                        <p class="text-xs uppercase font-medium" id="pl-result-label">Net Profit</p>
+                        <p class="text-xl font-bold mt-1" id="pl-result">KES 0.00</p>
+                        <p class="text-xs mt-0.5" id="pl-result-sub">—</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Final Purchase Price (Auto-Calculated) -->
+        <div class="bg-white rounded-lg shadow-sm border border-purple-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-purple-50 to-purple-50 px-6 py-4 border-b border-purple-200">
+                <h2 class="text-lg font-semibold text-purple-900"><i class="fas fa-calculator mr-2"></i>Final Purchase Price (Auto-Calculated)</h2>
+                <p class="text-xs text-purple-600 mt-1">This price is automatically calculated based on vehicle cost, insurance, trackers, and commission.</p>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="{{ form.purchase_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Client Purchase Price (KES) <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            {{ form.purchase_price }}
+                            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                <i class="fas fa-lock text-gray-400"></i>
+                            </div>
+                        </div>
+                        {% if form.purchase_price.errors %}<p class="mt-1 text-sm text-red-600">{{ form.purchase_price.errors.0 }}</p>{% endif %}
+                        <p class="mt-2 text-xs text-gray-600">
+                            <i class="fas fa-info-circle mr-1 text-purple-600"></i>
+                            Updated automatically when you modify vehicle selection, insurance, trackers, or commission amounts.
+                        </p>
+                    </div>
+                    <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                        <h3 class="text-sm font-semibold text-purple-900 mb-3"><i class="fas fa-list mr-2"></i>Calculation Breakdown</h3>
+                        <div class="space-y-2 text-xs text-gray-700">
+                            <div class="flex justify-between">
+                                <span>Vehicle Sale Price:</span>
+                                <span id="calc-vehicle-price" class="font-medium">KES 0.00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>+ Insurance Cost:</span>
+                                <span id="calc-insurance" class="font-medium">KES 0.00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>+ Tracker(s) Cost:</span>
+                                <span id="calc-trackers" class="font-medium">KES 0.00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>+ Commission:</span>
+                                <span id="calc-commission" class="font-medium">KES 0.00</span>
+                            </div>
+                            <div class="border-t border-purple-300 pt-2 mt-2 flex justify-between font-semibold text-purple-900">
+                                <span>= Total Client Price:</span>
+                                <span id="calc-total" class="font-bold text-purple-700">KES 0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Additional Information -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
@@ -910,6 +956,21 @@ function calculateEffectivePurchasePrice() {
     return Math.max(0, selectedVehicleBasePrice + insuranceSelling + trackerSelling + commissionValue);
 }
 
+function updateCalculationBreakdown() {
+    const vehicleId = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
+    const priceInput = vehicleId ? selectedVehicleBasePrice : 0;
+    const insuranceSelling = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0) || 0;
+    const trackerSelling = calculateTrackerSellingTotal();
+    const commission = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
+    const total = priceInput + insuranceSelling + trackerSelling + commission;
+    
+    document.getElementById('calc-vehicle-price').textContent = fmt(priceInput);
+    document.getElementById('calc-insurance').textContent = fmt(insuranceSelling);
+    document.getElementById('calc-trackers').textContent = fmt(trackerSelling);
+    document.getElementById('calc-commission').textContent = fmt(commission);
+    document.getElementById('calc-total').textContent = fmt(total);
+}
+
 function updateProfitLoss() {
     const vehicleId = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
     const priceField = document.getElementById('{{ form.purchase_price.id_for_label }}');
@@ -921,6 +982,8 @@ function updateProfitLoss() {
     if (vehicleId) {
         priceField.value = Number(effectivePurchasePrice).toFixed(2);
     }
+
+    updateCalculationBreakdown();
 
     const priceInput  = vehicleId ? effectivePurchasePrice : (parseFloat(priceField.value) || 0);
     const costPrice   = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
@@ -1116,8 +1179,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize payment fields
     updatePaymentFields();
     
-    // Initialize profit/loss
+    // Initialize profit/loss and calculation breakdown
     updateProfitLoss();
+    updateCalculationBreakdown();
 
     // Initialize flexible installments UI
     ensureFlexibleInstallmentRows();
@@ -1128,10 +1192,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize insurance payment type UI
     updateInsurancePaymentUI();
-    document.getElementById('id_insurance_selling_price')?.addEventListener('input', updateInsuranceInstallmentSummary);
+    document.getElementById('id_insurance_selling_price')?.addEventListener('input', () => {
+        updateInsuranceInstallmentSummary();
+        updateCalculationBreakdown();
+        updateProfitLoss();
+    });
     document.getElementById('{{ form.commission_amount.id_for_label }}')?.addEventListener('input', () => {
         updateProfitLoss();
         updateFlexibleInstallmentSummary();
+        updateCalculationBreakdown();
     });
 
     // Initialize tracker payment type UI
@@ -1167,6 +1236,7 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
 
         updateProfitLoss();
         updateFlexibleInstallmentSummary();
+        updateCalculationBreakdown();
     }
 
     if (vehicleSelect && priceInput) {
