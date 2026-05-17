@@ -16,8 +16,13 @@ class DarajaError(Exception):
     """Raised when Daraja API operations fail."""
 
 
+def _clean(value) -> str:
+    """Normalize env/config values used in API payloads."""
+    return str(value or '').strip()
+
+
 def get_daraja_base_url() -> str:
-    env = (settings.MPESA_ENV or 'sandbox').strip().lower()
+    env = _clean(getattr(settings, 'MPESA_ENV', 'sandbox')).lower() or 'sandbox'
     if env == 'production':
         return 'https://api.safaricom.co.ke/'
     return 'https://sandbox.safaricom.co.ke/'
@@ -48,17 +53,19 @@ def mpesa_is_configured() -> bool:
 
 
 def _absolute_callback_url(url_name: str) -> str:
-    base_url = (settings.MPESA_RESULT_URL_BASE or '').strip()
+    base_url = _clean(getattr(settings, 'MPESA_RESULT_URL_BASE', ''))
     if not base_url:
         raise DarajaError('MPESA_RESULT_URL_BASE is not configured.')
+    if base_url.startswith('http://'):
+        raise DarajaError('MPESA_RESULT_URL_BASE must use https:// for Daraja callbacks.')
 
     path = reverse(url_name)
     return urljoin(base_url.rstrip('/') + '/', path.lstrip('/'))
 
 
 def get_access_token() -> str:
-    consumer_key = settings.MPESA_CONSUMER_KEY
-    consumer_secret = settings.MPESA_CONSUMER_SECRET
+    consumer_key = _clean(getattr(settings, 'MPESA_CONSUMER_KEY', ''))
+    consumer_secret = _clean(getattr(settings, 'MPESA_CONSUMER_SECRET', ''))
     auth = b64encode(f'{consumer_key}:{consumer_secret}'.encode('utf-8')).decode('utf-8')
 
     url = urljoin(get_daraja_base_url(), 'oauth/v1/generate?grant_type=client_credentials')
@@ -95,10 +102,10 @@ def request_account_balance() -> dict:
         timeout_url = _absolute_callback_url('payments:paybill_balance_timeout_callback')
 
         payload = {
-            'Initiator': settings.MPESA_INITIATOR_NAME,
-            'SecurityCredential': settings.MPESA_SECURITY_CREDENTIAL,
+            'Initiator': _clean(getattr(settings, 'MPESA_INITIATOR_NAME', '')),
+            'SecurityCredential': _clean(getattr(settings, 'MPESA_SECURITY_CREDENTIAL', '')),
             'CommandID': 'AccountBalance',
-            'PartyA': str(settings.MPESA_SHORTCODE),
+            'PartyA': _clean(getattr(settings, 'MPESA_SHORTCODE', '')),
             'IdentifierType': '4',
             'Remarks': 'Paybill balance check',
             'QueueTimeOutURL': timeout_url,
@@ -123,6 +130,22 @@ def request_account_balance() -> dict:
             'ok': True,
             'response': data,
             'request_reference': payload['Occasion'],
+        }
+    except requests.HTTPError as exc:
+        response = exc.response
+        body = ''
+        if response is not None:
+            try:
+                body = response.text
+            except Exception:
+                body = ''
+        detail = str(exc)
+        if body:
+            detail = f'{detail} | Daraja response: {body}'
+        return {
+            'ok': False,
+            'error': detail,
+            'missing_vars': [],
         }
     except requests.RequestException as exc:
         return {
