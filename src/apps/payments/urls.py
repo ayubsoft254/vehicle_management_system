@@ -37,6 +37,7 @@ urlpatterns = [
     # Daraja callbacks
     path('paybill/callbacks/validation/', views.paybill_validation_callback, name='paybill_validation_callback'),
     path('paybill/callbacks/confirmation/', views.paybill_confirmation_callback, name='paybill_confirmation_callback'),
+    path('mpesa-callback/', views.stk_push_callback, name='stk_push_callback'),
     path('paybill/callbacks/balance-result/', views.paybill_balance_result_callback, name='paybill_balance_result_callback'),
     path('paybill/callbacks/balance-timeout/', views.paybill_balance_timeout_callback, name='paybill_balance_timeout_callback'),
     
