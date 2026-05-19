@@ -44,4 +44,8 @@ urlpatterns = [
     # API endpoints
     path('api/stats/', views.payment_stats_api, name='payment_stats_api'),
     path('api/chart-data/', views.payment_chart_data_api, name='payment_chart_data_api'),
+
+    # Staff STK Push AJAX
+    path('api/stk-push/<int:client_vehicle_pk>/', views.staff_stk_initiate, name='staff_stk_initiate'),
+    path('api/stk-status/', views.staff_stk_status, name='staff_stk_status'),
 ]
