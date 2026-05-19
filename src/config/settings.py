@@ -296,6 +296,9 @@ MPESA_INITIATOR_NAME = config('MPESA_INITIATOR_NAME', default='')
 MPESA_SECURITY_CREDENTIAL = config('MPESA_SECURITY_CREDENTIAL', default='')
 MPESA_RESULT_URL_BASE = config('MPESA_RESULT_URL_BASE', default='')
 MPESA_CALLBACK_SECRET = config('MPESA_CALLBACK_SECRET', default='')
+MPESA_C2B_CONFIRMATION_URL = config('MPESA_C2B_CONFIRMATION_URL', default='https://taifaassist.xyz/confirmation')
+MPESA_C2B_VALIDATION_URL = config('MPESA_C2B_VALIDATION_URL', default='https://taifaassist.xyz/validation')
+MPESA_STK_CALLBACK_URL = config('MPESA_STK_CALLBACK_URL', default='https://taifaassist.xyz/mpesa-callback')
 
 # ==============================================================================
 # CELERY CONFIGURATION (Background Tasks)
