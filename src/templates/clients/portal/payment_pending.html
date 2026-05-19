@@ -12,7 +12,7 @@
             <i class="fas fa-clock text-5xl text-yellow-600 animate-pulse"></i>
         </div>
 
-        <h1 class="text-3xl font-bold text-gray-900 mb-4">Payment Pending</h1>
+        <h1 id="payment_status_title" class="text-3xl font-bold text-gray-900 mb-4">Payment Pending</h1>
         <p class="text-gray-600 mb-8">Please complete the payment on your phone</p>
 
         <!-- Payment Details -->
@@ -30,6 +30,10 @@
                 <div class="flex justify-between">
                     <span class="text-gray-600">Phone Number:</span>
                     <span class="font-semibold text-gray-900">{{ pending_payment.phone_number }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Account Reference:</span>
+                    <span class="font-semibold text-gray-900">{{ pending_payment.account_reference|default:"-" }}</span>
                 </div>
             </div>
 
@@ -55,12 +59,12 @@
                 <div class="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
                 <div class="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
             </div>
-            <p class="text-sm text-gray-600">Waiting for payment confirmation...</p>
+            <p id="payment_status_message" class="text-sm text-gray-600">Waiting for payment confirmation...</p>
         </div>
 
         <!-- Action Buttons -->
         <div class="space-y-3">
-            <button onclick="checkPaymentStatus()" 
+            <button id="check_status_btn" onclick="checkPaymentStatus()" 
                     class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">
                 <i class="fas fa-sync-alt mr-2"></i>
                 Check Payment Status
@@ -81,15 +85,75 @@
 </div>
 
 <script>
-function checkPaymentStatus() {
-    // This would call an API endpoint to check payment status
-    alert('Checking payment status...');
-    // In production, this would be an AJAX call to verify payment
+let pollTimer = null;
+
+function setStatusMessage(message, isSuccess) {
+    const statusTitle = document.getElementById('payment_status_title');
+    const statusMessage = document.getElementById('payment_status_message');
+    if (statusMessage) {
+        statusMessage.textContent = message;
+    }
+    if (statusTitle && isSuccess) {
+        statusTitle.textContent = 'Payment Received';
+        statusTitle.classList.remove('text-gray-900');
+        statusTitle.classList.add('text-green-700');
+    }
 }
 
-// Auto-refresh every 10 seconds to check payment status
-setTimeout(function() {
-    // checkPaymentStatus();
-}, 10000);
+async function checkPaymentStatus() {
+    const checkButton = document.getElementById('check_status_btn');
+    if (checkButton) {
+        checkButton.disabled = true;
+        checkButton.classList.add('opacity-70', 'cursor-not-allowed');
+    }
+
+    try {
+        const response = await fetch("{% url 'clients:portal_payment_status' %}", {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+            setStatusMessage(data.message || 'Still waiting for payment callback...');
+            return;
+        }
+
+        if (data.paid) {
+            setStatusMessage('Payment confirmed. Redirecting...', true);
+            if (pollTimer) {
+                clearInterval(pollTimer);
+            }
+            const receipt = data.mpesa_receipt_number || '';
+            const redirectUrl = "{% url 'clients:portal_payments' %}" + (receipt ? '?mpesa_receipt=' + encodeURIComponent(receipt) : '');
+            setTimeout(() => {
+                window.location.href = redirectUrl;
+            }, 1200);
+            return;
+        }
+
+        if (data.status === 'failed' || data.status === 'cancelled' || data.status === 'timeout') {
+            setStatusMessage(data.result_desc || 'Payment was not completed. You can try again.');
+            if (pollTimer) {
+                clearInterval(pollTimer);
+            }
+            return;
+        }
+
+        setStatusMessage('Waiting for payment confirmation...');
+    } catch (error) {
+        setStatusMessage('Unable to check status right now. Retrying...');
+    } finally {
+        if (checkButton) {
+            checkButton.disabled = false;
+            checkButton.classList.remove('opacity-70', 'cursor-not-allowed');
+        }
+    }
+}
+
+pollTimer = setInterval(checkPaymentStatus, 5000);
+checkPaymentStatus();
 </script>
 {% endblock %}

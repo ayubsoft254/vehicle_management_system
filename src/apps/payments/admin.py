@@ -13,6 +13,7 @@ from .models import (
     InstallmentPlan,
     PaymentSchedule,
     PaymentReminder,
+    MpesaSTKRequest,
     PaybillTransaction,
     PaybillBalanceSnapshot,
 )
@@ -834,4 +835,33 @@ class PaybillBalanceSnapshotAdmin(admin.ModelAdmin):
     list_filter = ['status', 'created_at']
     search_fields = ['request_reference', 'conversation_id', 'originator_conversation_id']
     readonly_fields = ['created_at', 'updated_at', 'raw_payload']
+    list_per_page = 50
+
+
+@admin.register(MpesaSTKRequest)
+class MpesaSTKRequestAdmin(admin.ModelAdmin):
+    list_display = [
+        'created_at',
+        'account_reference',
+        'amount',
+        'phone_number',
+        'status',
+        'mpesa_receipt_number',
+        'checkout_request_id',
+    ]
+    list_filter = ['status', 'created_at']
+    search_fields = [
+        'account_reference',
+        'phone_number',
+        'mpesa_receipt_number',
+        'merchant_request_id',
+        'checkout_request_id',
+    ]
+    readonly_fields = [
+        'created_at',
+        'updated_at',
+        'raw_request_payload',
+        'raw_response_payload',
+        'raw_callback_payload',
+    ]
     list_per_page = 50

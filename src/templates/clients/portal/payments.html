@@ -5,6 +5,20 @@
 
 {% block content %}
 <div class="container-fluid px-4">
+    <!-- M-Pesa success banner (shown when redirected from pending page with receipt) -->
+    <div id="mpesa_success_banner" class="hidden mb-4 flex items-start gap-3 rounded-lg border border-green-300 bg-green-50 p-4">
+        <i class="fas fa-check-circle text-green-500 text-xl mt-0.5 flex-shrink-0"></i>
+        <div class="flex-1">
+            <p class="font-semibold text-green-800">M-Pesa payment received</p>
+            <p class="text-sm text-green-700 mt-0.5">
+                Receipt: <span id="mpesa_receipt_number" class="font-mono font-semibold"></span>
+            </p>
+        </div>
+        <button onclick="document.getElementById('mpesa_success_banner').classList.add('hidden')" class="text-green-600 hover:text-green-800 ml-2 flex-shrink-0" aria-label="Dismiss">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
     <!-- Page Header -->
     <div class="mb-6">
         <div class="flex justify-between items-center">
@@ -286,4 +300,18 @@
         </a>
     </div>
 </div>
+
+<script>
+(function () {
+    const params = new URLSearchParams(window.location.search);
+    const receipt = params.get('mpesa_receipt');
+    if (receipt) {
+        document.getElementById('mpesa_receipt_number').textContent = receipt;
+        document.getElementById('mpesa_success_banner').classList.remove('hidden');
+        // Remove the query param from the address bar without a page reload.
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+    }
+})();
+</script>
 {% endblock %}

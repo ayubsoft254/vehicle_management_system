@@ -11,15 +11,33 @@ from django.utils import timezone
 from django.core.paginator import Paginator
 from datetime import datetime, timedelta
 from decimal import Decimal
+import re
 
 from .models import Client, ClientVehicle, ClientDocument
-from apps.payments.models import Payment, InstallmentPlan, PaymentSchedule
+from apps.payments.models import Payment, InstallmentPlan, PaymentSchedule, MpesaSTKRequest
+from apps.payments.daraja import initiate_stk_push
 from apps.vehicles.models import Vehicle
 from apps.documents.models import Document
 from apps.insurance.models import InsurancePolicy
 from apps.auctions.models import Auction, Bid, AuctionParticipant, AuctionWatchlist
 from utils.constants import UserRole, VehicleStatus
 import json
+
+
+def _normalize_ke_phone_number(value):
+    """Normalize Kenyan client input to 254XXXXXXXXX format for M-Pesa."""
+    digits = re.sub(r'\D', '', str(value or ''))
+    if len(digits) == 10 and digits.startswith('0'):
+        digits = f'254{digits[1:]}'
+    elif len(digits) == 12 and digits.startswith('254'):
+        pass
+    else:
+        return ''
+
+    # Accept both 2547xxxxxxxx and 2541xxxxxxxx prefixes.
+    if re.match(r'^254[17]\d{8}$', digits):
+        return digits
+    return ''
 
 
 # ==================== DECORATORS ====================
@@ -795,16 +813,64 @@ def portal_make_payment(request, client_vehicle_id, payment_type='installment'):
         payment_method = request.POST.get('payment_method')
         
         if payment_method == 'mpesa':
-            phone_number = request.POST.get('phone_number')
-            # Initiate M-Pesa STK Push
-            # This will be implemented in the M-Pesa integration
-            messages.info(request, 'M-Pesa STK Push initiated. Please check your phone to complete the payment.')
-            # Store pending payment info in session
+            phone_number = _normalize_ke_phone_number(request.POST.get('phone_number', ''))
+
+            if not phone_number:
+                messages.error(request, 'Use a valid number: 07XXXXXXXX, 01XXXXXXXX, 2547XXXXXXXX, or 2541XXXXXXXX.')
+                return redirect(
+                    'clients:portal_make_payment',
+                    client_vehicle_id=client_vehicle_id,
+                    payment_type=payment_type,
+                )
+
+            account_reference = (client_vehicle.vehicle.registration_number or '').strip()
+            if not account_reference:
+                account_reference = f'VEH{client_vehicle.id}'
+
+            transaction_desc = f'{description} for {account_reference}'
+            stk_result = initiate_stk_push(
+                phone_number=phone_number,
+                amount=amount_to_pay,
+                account_reference=account_reference,
+                transaction_desc=transaction_desc,
+            )
+
+            if not stk_result.get('ok'):
+                missing_vars = stk_result.get('missing_vars', [])
+                if missing_vars:
+                    messages.error(request, f"Missing M-Pesa settings in .env: {', '.join(missing_vars)}")
+                else:
+                    messages.error(request, f"Unable to start M-Pesa STK Push: {stk_result.get('error', 'Unknown error')}")
+                return redirect(
+                    'clients:portal_make_payment',
+                    client_vehicle_id=client_vehicle_id,
+                    payment_type=payment_type,
+                )
+
+            response_payload = stk_result.get('response', {})
+            stk_request = MpesaSTKRequest.objects.create(
+                client_vehicle=client_vehicle,
+                account_reference=account_reference,
+                payment_type=payment_type,
+                phone_number=phone_number,
+                amount=amount_to_pay,
+                merchant_request_id=str(response_payload.get('MerchantRequestID', '')).strip(),
+                checkout_request_id=str(response_payload.get('CheckoutRequestID', '')).strip(),
+                response_code=str(response_payload.get('ResponseCode', '')).strip(),
+                response_description=str(response_payload.get('ResponseDescription', '')).strip(),
+                status=MpesaSTKRequest.STATUS_PENDING,
+                raw_request_payload=stk_result.get('request_payload', {}),
+                raw_response_payload=response_payload,
+            )
+
+            messages.info(request, 'M-Pesa STK Push initiated. Please complete the payment on your phone.')
             request.session['pending_payment'] = {
                 'client_vehicle_id': client_vehicle_id,
                 'amount': str(amount_to_pay),
                 'payment_type': payment_type,
-                'phone_number': phone_number
+                'phone_number': phone_number,
+                'account_reference': account_reference,
+                'checkout_request_id': stk_request.checkout_request_id,
             }
             return redirect('clients:portal_payment_pending')
         
@@ -852,6 +918,39 @@ def portal_payment_pending(request):
     }
     
     return render(request, 'clients/portal/payment_pending.html', context)
+
+
+@login_required
+@client_required
+def portal_payment_status(request):
+    """Polling endpoint for client portal pending M-Pesa status."""
+    pending_payment = request.session.get('pending_payment')
+    if not pending_payment:
+        return JsonResponse({'ok': False, 'status': 'not_found', 'message': 'No pending payment found.'}, status=404)
+
+    checkout_request_id = str(pending_payment.get('checkout_request_id', '')).strip()
+    if not checkout_request_id:
+        return JsonResponse({'ok': False, 'status': 'missing_reference', 'message': 'Missing checkout reference.'}, status=400)
+
+    stk_request = MpesaSTKRequest.objects.filter(
+        checkout_request_id=checkout_request_id
+    ).select_related('payment').first()
+
+    if not stk_request:
+        return JsonResponse({'ok': True, 'status': 'pending', 'paid': False, 'message': 'Awaiting callback.'})
+
+    paid = stk_request.status == MpesaSTKRequest.STATUS_SUCCESS and stk_request.payment_id is not None
+    if paid:
+        # Clear pending state after successful reconciliation.
+        request.session.pop('pending_payment', None)
+
+    return JsonResponse({
+        'ok': True,
+        'status': stk_request.status,
+        'paid': paid,
+        'mpesa_receipt_number': stk_request.mpesa_receipt_number,
+        'result_desc': stk_request.result_desc,
+    })
 
 
 @login_required

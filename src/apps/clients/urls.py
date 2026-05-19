@@ -46,6 +46,7 @@ urlpatterns = [
     # Portal Payments - Make Payments
     path('portal/make-payment/<int:client_vehicle_id>/<str:payment_type>/', portal_views.portal_make_payment, name='portal_make_payment'),
     path('portal/payment/pending/', portal_views.portal_payment_pending, name='portal_payment_pending'),
+    path('portal/payment/status/', portal_views.portal_payment_status, name='portal_payment_status'),
     path('portal/payment/bank-details/<int:client_vehicle_id>/<str:payment_type>/', portal_views.portal_payment_bank_details, name='portal_payment_bank_details'),
     
     # Portal Auctions

@@ -802,6 +802,76 @@ class PaymentReminder(models.Model):
 
 # ==================== DARAJA PAYBILL TRACKING MODELS ====================
 
+class MpesaSTKRequest(models.Model):
+    """Stores M-Pesa STK push requests and asynchronous callback outcomes."""
+
+    STATUS_PENDING = 'pending'
+    STATUS_SUCCESS = 'success'
+    STATUS_FAILED = 'failed'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_TIMEOUT = 'timeout'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_SUCCESS, 'Success'),
+        (STATUS_FAILED, 'Failed'),
+        (STATUS_CANCELLED, 'Cancelled'),
+        (STATUS_TIMEOUT, 'Timeout'),
+    ]
+
+    client_vehicle = models.ForeignKey(
+        'clients.ClientVehicle',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='mpesa_stk_requests'
+    )
+    payment = models.OneToOneField(
+        'Payment',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='mpesa_stk_request'
+    )
+
+    account_reference = models.CharField(max_length=120, blank=True, default='')
+    payment_type = models.CharField(max_length=40, blank=True, default='')
+    phone_number = models.CharField(max_length=20, blank=True, default='')
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+
+    merchant_request_id = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    checkout_request_id = models.CharField(max_length=120, blank=True, default='', db_index=True)
+    response_code = models.CharField(max_length=20, blank=True, default='')
+    response_description = models.TextField(blank=True, default='')
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    result_code = models.IntegerField(blank=True, null=True)
+    result_desc = models.TextField(blank=True, default='')
+
+    mpesa_receipt_number = models.CharField(max_length=40, blank=True, default='', db_index=True)
+    transaction_date = models.DateTimeField(blank=True, null=True)
+
+    raw_request_payload = models.JSONField(default=dict, blank=True)
+    raw_response_payload = models.JSONField(default=dict, blank=True)
+    raw_callback_payload = models.JSONField(default=dict, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'M-Pesa STK Request'
+        verbose_name_plural = 'M-Pesa STK Requests'
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['account_reference']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        account = self.account_reference or 'no-ref'
+        return f"{account} - KES {self.amount:,.2f} ({self.get_status_display()})"
+
 class PaybillTransaction(models.Model):
     """Stores incoming M-Pesa C2B confirmation transactions for the paybill."""
 

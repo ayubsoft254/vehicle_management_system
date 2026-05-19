@@ -37,10 +37,15 @@ urlpatterns = [
     # Daraja callbacks
     path('paybill/callbacks/validation/', views.paybill_validation_callback, name='paybill_validation_callback'),
     path('paybill/callbacks/confirmation/', views.paybill_confirmation_callback, name='paybill_confirmation_callback'),
+    path('mpesa-callback/', views.stk_push_callback, name='stk_push_callback'),
     path('paybill/callbacks/balance-result/', views.paybill_balance_result_callback, name='paybill_balance_result_callback'),
     path('paybill/callbacks/balance-timeout/', views.paybill_balance_timeout_callback, name='paybill_balance_timeout_callback'),
     
     # API endpoints
     path('api/stats/', views.payment_stats_api, name='payment_stats_api'),
     path('api/chart-data/', views.payment_chart_data_api, name='payment_chart_data_api'),
+
+    # Staff STK Push AJAX
+    path('api/stk-push/<int:client_vehicle_pk>/', views.staff_stk_initiate, name='staff_stk_initiate'),
+    path('api/stk-status/', views.staff_stk_status, name='staff_stk_status'),
 ]

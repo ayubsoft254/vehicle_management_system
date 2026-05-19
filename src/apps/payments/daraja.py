@@ -6,6 +6,9 @@ from base64 import b64encode
 from datetime import datetime
 import uuid
 from urllib.parse import urljoin
+from decimal import Decimal, ROUND_HALF_UP
+
+import re
 
 import requests
 from django.conf import settings
@@ -81,6 +84,128 @@ def get_access_token() -> str:
     if not access_token:
         raise DarajaError('Daraja access token missing from OAuth response.')
     return access_token
+
+
+def _normalize_phone_number(phone_number: str) -> str:
+    """Normalize Kenyan numbers to the expected 2547XXXXXXXX format."""
+    digits = re.sub(r'\D', '', str(phone_number or ''))
+    if digits.startswith('0') and len(digits) == 10:
+        digits = f'254{digits[1:]}'
+    elif digits.startswith('7') and len(digits) == 9:
+        digits = f'254{digits}'
+
+    if not digits.startswith('254') or len(digits) != 12:
+        raise DarajaError('Phone number must be in format 2547XXXXXXXX.')
+    return digits
+
+
+def _get_stk_callback_url() -> str:
+    configured = _clean(getattr(settings, 'MPESA_STK_CALLBACK_URL', ''))
+    if configured:
+        if configured.startswith('http://'):
+            raise DarajaError('MPESA_STK_CALLBACK_URL must use https://.')
+        return configured
+    return _absolute_callback_url('payments:stk_push_callback')
+
+
+def initiate_stk_push(
+    *,
+    phone_number: str,
+    amount,
+    account_reference: str,
+    transaction_desc: str,
+) -> dict:
+    """Initiate an STK push request to the configured M-Pesa shortcode."""
+    required_vars = [
+        'MPESA_CONSUMER_KEY',
+        'MPESA_CONSUMER_SECRET',
+        'MPESA_SHORTCODE',
+        'MPESA_PASSKEY',
+    ]
+    missing = []
+    for var_name in required_vars:
+        value = getattr(settings, var_name, '')
+        if value is None or str(value).strip() == '':
+            missing.append(var_name)
+
+    if missing:
+        return {
+            'ok': False,
+            'missing_vars': missing,
+            'error': 'Missing required M-Pesa settings.',
+        }
+
+    try:
+        normalized_phone = _normalize_phone_number(phone_number)
+        amount_value = Decimal(str(amount)).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+        if amount_value <= 0:
+            raise DarajaError('Amount must be greater than zero.')
+
+        shortcode = _clean(getattr(settings, 'MPESA_SHORTCODE', ''))
+        passkey = _clean(getattr(settings, 'MPESA_PASSKEY', ''))
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        password = b64encode(f'{shortcode}{passkey}{timestamp}'.encode('utf-8')).decode('utf-8')
+        callback_url = _get_stk_callback_url()
+
+        payload = {
+            'BusinessShortCode': shortcode,
+            'Password': password,
+            'Timestamp': timestamp,
+            'TransactionType': _clean(
+                getattr(settings, 'MPESA_STK_TRANSACTION_TYPE', 'CustomerPayBillOnline')
+            ) or 'CustomerPayBillOnline',
+            'Amount': int(amount_value),
+            'PartyA': normalized_phone,
+            'PartyB': shortcode,
+            'PhoneNumber': normalized_phone,
+            'CallBackURL': callback_url,
+            'AccountReference': _clean(account_reference)[:120],
+            'TransactionDesc': _clean(transaction_desc)[:120] or 'Vehicle payment',
+        }
+
+        access_token = get_access_token()
+        url = urljoin(get_daraja_base_url(), 'mpesa/stkpush/v1/processrequest')
+        response = requests.post(
+            url,
+            json=payload,
+            headers={
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'application/json',
+            },
+            timeout=25,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        response_code = str(data.get('ResponseCode', '')).strip()
+        return {
+            'ok': response_code == '0',
+            'response': data,
+            'request_payload': payload,
+            'missing_vars': [],
+            'error': '' if response_code == '0' else data.get('ResponseDescription', 'Request failed.'),
+        }
+    except requests.HTTPError as exc:
+        body = ''
+        if exc.response is not None:
+            try:
+                body = exc.response.text
+            except Exception:
+                body = ''
+        detail = str(exc)
+        if body:
+            detail = f'{detail} | Daraja response: {body}'
+        return {
+            'ok': False,
+            'missing_vars': [],
+            'error': detail,
+        }
+    except (requests.RequestException, DarajaError, ValueError) as exc:
+        return {
+            'ok': False,
+            'missing_vars': [],
+            'error': str(exc),
+        }
 
 
 def request_account_balance() -> dict:
