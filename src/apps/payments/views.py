@@ -30,7 +30,10 @@ from .models import (
     PaybillTransaction,
     PaybillBalanceSnapshot,
 )
-from .daraja import request_account_balance, mpesa_is_configured, get_missing_mpesa_vars
+from .daraja import (
+    request_account_balance, mpesa_is_configured, get_missing_mpesa_vars,
+    initiate_stk_push, _normalize_phone_number,
+)
 from apps.clients.models import Client, ClientVehicle
 from apps.audit.utils import log_audit
 
@@ -1914,3 +1917,112 @@ def update_payment_schedules(payment, client_vehicle):
         
     except InstallmentPlan.DoesNotExist:
         pass
+
+
+# ==================== STAFF STK PUSH AJAX ENDPOINTS ====================
+
+@login_required
+@require_POST
+def staff_stk_initiate(request, client_vehicle_pk):
+    """
+    Initiate an M-Pesa STK Push for a staff-recorded payment.
+    POST body (JSON): { phone_number, amount }
+    Returns JSON: { ok, checkout_request_id, error }
+    """
+    client_vehicle = get_object_or_404(ClientVehicle, pk=client_vehicle_pk)
+
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON body.'}, status=400)
+
+    phone_raw = (body.get('phone_number') or '').strip()
+    amount_raw = body.get('amount')
+
+    # Normalise phone
+    try:
+        phone = _normalize_phone_number(phone_raw)
+    except Exception:
+        phone = None
+    if not phone:
+        return JsonResponse({
+            'ok': False,
+            'error': 'Enter a valid Kenyan phone number '
+                     '(e.g. 0712345678, 254712345678).'
+        }, status=400)
+
+    # Normalise amount
+    try:
+        amount = Decimal(str(amount_raw).replace(',', ''))
+        if amount <= 0:
+            raise ValueError
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Invalid amount.'}, status=400)
+
+    account_reference = client_vehicle.vehicle.registration_number or f'VEH{client_vehicle.pk}'
+    transaction_desc = (
+        f'Payment for {account_reference} by {client_vehicle.client.get_full_name()}'
+    )[:100]
+
+    result = initiate_stk_push(
+        phone_number=phone,
+        amount=amount,
+        account_reference=account_reference,
+        transaction_desc=transaction_desc,
+    )
+
+    if not result.get('ok'):
+        return JsonResponse({'ok': False, 'error': result.get('error', 'STK push failed.')})
+
+    response_data = result.get('response', {})
+    checkout_request_id = response_data.get('CheckoutRequestID', '')
+    merchant_request_id = response_data.get('MerchantRequestID', '')
+
+    stk_req = MpesaSTKRequest.objects.create(
+        client_vehicle=client_vehicle,
+        account_reference=account_reference,
+        payment_type='installment',
+        phone_number=phone,
+        amount=amount,
+        merchant_request_id=merchant_request_id,
+        checkout_request_id=checkout_request_id,
+        response_code=response_data.get('ResponseCode', ''),
+        response_description=response_data.get('ResponseDescription', ''),
+        status='pending',
+        raw_request_payload=result.get('request_payload', {}),
+        raw_response_payload=response_data,
+    )
+
+    log_audit(
+        request.user, 'create', 'MpesaSTKRequest',
+        f'Staff STK push initiated: {account_reference}, KES {amount}, phone {phone}'
+    )
+
+    return JsonResponse({
+        'ok': True,
+        'checkout_request_id': stk_req.checkout_request_id,
+    })
+
+
+@login_required
+def staff_stk_status(request):
+    """
+    Poll the status of a staff-initiated STK push.
+    GET ?checkout_request_id=<id>
+    Returns JSON: { ok, status, paid, mpesa_receipt_number, result_desc }
+    """
+    checkout_request_id = request.GET.get('checkout_request_id', '').strip()
+    if not checkout_request_id:
+        return JsonResponse({'ok': False, 'error': 'checkout_request_id required.'}, status=400)
+    try:
+        stk_req = MpesaSTKRequest.objects.get(checkout_request_id=checkout_request_id)
+    except MpesaSTKRequest.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'Request not found.'}, status=404)
+
+    return JsonResponse({
+        'ok': True,
+        'status': stk_req.status,
+        'paid': stk_req.status == 'success',
+        'mpesa_receipt_number': stk_req.mpesa_receipt_number or '',
+        'result_desc': stk_req.result_desc or '',
+    })
