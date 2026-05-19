@@ -26,6 +26,7 @@ from .models import (
     InstallmentPlan,
     PaymentSchedule,
     PaymentReminder,
+    MpesaSTKRequest,
     PaybillTransaction,
     PaybillBalanceSnapshot,
 )
@@ -1324,6 +1325,60 @@ def _extract_account_balance(raw_value):
     return _safe_decimal(match.group(1))
 
 
+def _normalize_account_reference(value):
+    """Normalize account references to compare vehicle registration numbers reliably."""
+    return re.sub(r'[^A-Z0-9]', '', str(value or '').upper())
+
+
+def _find_client_vehicle_for_reference(account_reference):
+    if not account_reference:
+        return None
+
+    normalized = _normalize_account_reference(account_reference)
+    if not normalized:
+        return None
+
+    direct_match = ClientVehicle.objects.select_related('vehicle').filter(
+        is_active=True,
+        vehicle__registration_number__iexact=str(account_reference).strip(),
+    ).first()
+    if direct_match:
+        return direct_match
+
+    for item in ClientVehicle.objects.select_related('vehicle').filter(
+        is_active=True,
+        vehicle__registration_number__isnull=False,
+    ):
+        if _normalize_account_reference(item.vehicle.registration_number) == normalized:
+            return item
+    return None
+
+
+def _parse_stk_metadata(metadata_items):
+    details = {
+        'amount': None,
+        'mpesa_receipt_number': '',
+        'transaction_date': None,
+        'phone_number': '',
+    }
+    if not isinstance(metadata_items, list):
+        return details
+
+    for item in metadata_items:
+        name = str(item.get('Name', '')).strip().lower()
+        value = item.get('Value')
+        if name == 'amount':
+            details['amount'] = _safe_decimal(value)
+        elif name == 'mpesareceiptnumber':
+            details['mpesa_receipt_number'] = str(value or '').strip()
+        elif name == 'transactiondate':
+            details['transaction_date'] = _parse_mpesa_datetime(value)
+        elif name == 'phonenumber':
+            details['phone_number'] = str(value or '').strip()
+
+    return details
+
+
 def _callback_secret_is_valid(request):
     expected_secret = str(getattr(settings, 'MPESA_CALLBACK_SECRET', '') or '').strip()
     if not expected_secret:
@@ -1361,13 +1416,15 @@ def paybill_confirmation_callback(request):
     if not trans_id:
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Missing TransID'}, status=400)
 
-    PaybillTransaction.objects.update_or_create(
+    bill_ref_number = str(payload.get('BillRefNumber', '')).strip()
+    trans_amount = _safe_decimal(payload.get('TransAmount')) or Decimal('0.00')
+    transaction_obj, _ = PaybillTransaction.objects.update_or_create(
         trans_id=trans_id,
         defaults={
             'trans_time': _parse_mpesa_datetime(payload.get('TransTime')),
-            'trans_amount': _safe_decimal(payload.get('TransAmount')) or Decimal('0.00'),
+            'trans_amount': trans_amount,
             'business_short_code': str(payload.get('BusinessShortCode', '')).strip(),
-            'bill_ref_number': str(payload.get('BillRefNumber', '')).strip(),
+            'bill_ref_number': bill_ref_number,
             'invoice_number': str(payload.get('InvoiceNumber', '')).strip(),
             'org_account_balance': _safe_decimal(payload.get('OrgAccountBalance')),
             'msisdn': str(payload.get('MSISDN', '')).strip(),
@@ -1377,6 +1434,140 @@ def paybill_confirmation_callback(request):
             'raw_payload': payload,
         },
     )
+
+    client_vehicle = _find_client_vehicle_for_reference(bill_ref_number)
+    if client_vehicle and not Payment.objects.filter(
+        client_vehicle=client_vehicle,
+        transaction_reference=trans_id,
+        payment_method='mpesa',
+    ).exists():
+        Payment.objects.create(
+            client_vehicle=client_vehicle,
+            amount=trans_amount,
+            payment_date=(_parse_mpesa_datetime(payload.get('TransTime')) or timezone.now()).date(),
+            payment_method='mpesa',
+            transaction_reference=trans_id,
+            notes=f'Paybill payment received. Account ref: {bill_ref_number or "N/A"}.',
+        )
+        transaction_obj.is_linked_to_payment = True
+        transaction_obj.save(update_fields=['is_linked_to_payment', 'updated_at'])
+
+    return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
+
+
+@csrf_exempt
+@require_POST
+def stk_push_callback(request):
+    """Daraja STK push callback endpoint."""
+    if not _callback_secret_is_valid(request):
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Invalid JSON'}, status=400)
+
+    callback = payload.get('Body', {}).get('stkCallback', {})
+    merchant_request_id = str(callback.get('MerchantRequestID', '')).strip()
+    checkout_request_id = str(callback.get('CheckoutRequestID', '')).strip()
+    result_code_raw = callback.get('ResultCode')
+    result_code = int(result_code_raw) if str(result_code_raw).lstrip('-').isdigit() else None
+    result_desc = str(callback.get('ResultDesc', '')).strip()
+
+    metadata = callback.get('CallbackMetadata', {}).get('Item', [])
+    parsed_metadata = _parse_stk_metadata(metadata)
+
+    stk_request = MpesaSTKRequest.objects.filter(
+        checkout_request_id=checkout_request_id
+    ).order_by('-created_at').first()
+    if not stk_request and merchant_request_id:
+        stk_request = MpesaSTKRequest.objects.filter(
+            merchant_request_id=merchant_request_id
+        ).order_by('-created_at').first()
+
+    if not stk_request:
+        stk_request = MpesaSTKRequest.objects.create(
+            account_reference='',
+            payment_type='',
+            phone_number=parsed_metadata['phone_number'],
+            amount=parsed_metadata['amount'] or Decimal('0.00'),
+            merchant_request_id=merchant_request_id,
+            checkout_request_id=checkout_request_id,
+            status=MpesaSTKRequest.STATUS_FAILED,
+            result_code=result_code,
+            result_desc=result_desc,
+            mpesa_receipt_number=parsed_metadata['mpesa_receipt_number'],
+            transaction_date=parsed_metadata['transaction_date'],
+            raw_callback_payload=payload,
+        )
+
+    status = MpesaSTKRequest.STATUS_FAILED
+    if result_code == 0:
+        status = MpesaSTKRequest.STATUS_SUCCESS
+    elif result_code in {1032, 1}:
+        status = MpesaSTKRequest.STATUS_CANCELLED
+    elif result_code == 1037:
+        status = MpesaSTKRequest.STATUS_TIMEOUT
+
+    stk_request.status = status
+    stk_request.result_code = result_code
+    stk_request.result_desc = result_desc
+    stk_request.raw_callback_payload = payload
+    if parsed_metadata['amount'] is not None:
+        stk_request.amount = parsed_metadata['amount']
+    if parsed_metadata['phone_number']:
+        stk_request.phone_number = parsed_metadata['phone_number']
+    if parsed_metadata['mpesa_receipt_number']:
+        stk_request.mpesa_receipt_number = parsed_metadata['mpesa_receipt_number']
+    if parsed_metadata['transaction_date']:
+        stk_request.transaction_date = parsed_metadata['transaction_date']
+
+    if result_code == 0 and not stk_request.payment_id:
+        account_reference = stk_request.account_reference
+        client_vehicle = stk_request.client_vehicle or _find_client_vehicle_for_reference(account_reference)
+        amount = parsed_metadata['amount'] or stk_request.amount
+        transaction_reference = parsed_metadata['mpesa_receipt_number']
+        payment_date = (parsed_metadata['transaction_date'] or timezone.now()).date()
+
+        if client_vehicle and transaction_reference:
+            existing_payment = Payment.objects.filter(
+                client_vehicle=client_vehicle,
+                transaction_reference=transaction_reference,
+                payment_method='mpesa',
+            ).first()
+
+            if existing_payment:
+                stk_request.payment = existing_payment
+            else:
+                notes = (
+                    f'M-Pesa STK payment. Account ref: {account_reference or "N/A"}. '
+                    f'Phone: {parsed_metadata["phone_number"] or stk_request.phone_number or "N/A"}.'
+                )
+                created_payment = Payment.objects.create(
+                    client_vehicle=client_vehicle,
+                    amount=amount,
+                    payment_date=payment_date,
+                    payment_method='mpesa',
+                    transaction_reference=transaction_reference,
+                    notes=notes,
+                )
+                stk_request.payment = created_payment
+
+            PaybillTransaction.objects.update_or_create(
+                trans_id=transaction_reference,
+                defaults={
+                    'trans_time': parsed_metadata['transaction_date'] or timezone.now(),
+                    'trans_amount': amount,
+                    'business_short_code': str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip(),
+                    'bill_ref_number': account_reference,
+                    'invoice_number': stk_request.checkout_request_id,
+                    'msisdn': parsed_metadata['phone_number'] or stk_request.phone_number,
+                    'raw_payload': payload,
+                    'is_linked_to_payment': True,
+                },
+            )
+
+    stk_request.save()
 
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
