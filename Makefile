@@ -3,7 +3,7 @@
         backup-db restore-db ps stop-web stop-celery stop-beat deploy update
 
 # Variables
-DOCKER_COMPOSE = docker-compose
+DOCKER_COMPOSE = docker compose
 SERVICE_WEB = web
 SERVICE_DB = db
 SERVICE_REDIS = redis
