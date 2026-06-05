@@ -1032,7 +1032,7 @@ function updateCalculationBreakdown() {
     const insuranceSelling = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0) || 0;
     const trackerSelling = calculateTrackerSellingTotal();
     const commission = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
-    const total = priceInput + insuranceSelling + trackerSelling + commission;
+    const total = calculateEffectivePurchasePrice();
     
     document.getElementById('calc-vehicle-price').textContent = fmt(priceInput);
     document.getElementById('calc-insurance').textContent = fmt(insuranceSelling);
@@ -1071,7 +1071,7 @@ function updateProfitLoss() {
     const commissionCost = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
     
     const totalExpenses = insuranceCost + trackerCost + commissionCost;
-    const totalCost = priceInput + totalExpenses;
+    const totalCost = effectivePurchasePrice;
     const netProfit = totalCost - costPrice;
 
     document.getElementById('pl-cost').textContent    = fmt(costPrice);
