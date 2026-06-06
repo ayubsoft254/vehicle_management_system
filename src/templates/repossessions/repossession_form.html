@@ -308,7 +308,7 @@
     </div>
 </div>
 
-{{ vehicle_client_map|json_script:"vehicle-client-map" }}
+{{ vehicle_prefill_map|json_script:"vehicle-prefill-map" }}
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -323,22 +323,44 @@ document.addEventListener('DOMContentLoaded', function() {
     const vehicleSearchMeta = document.getElementById('vehicleSearchMeta');
     const clientSelect = document.getElementById('id_client');
     const autoClientHint = document.getElementById('autoClientHint');
-    const mapElement = document.getElementById('vehicle-client-map');
-    const vehicleClientMap = mapElement ? JSON.parse(mapElement.textContent) : {};
+    const outstandingAmountInput = document.getElementById('id_outstanding_amount');
+    const paymentsMissedInput = document.getElementById('id_payments_missed');
+    const lastPaymentDateInput = document.getElementById('id_last_payment_date');
+    const mapElement = document.getElementById('vehicle-prefill-map');
+    const vehiclePrefillMap = mapElement ? JSON.parse(mapElement.textContent) : {};
 
     function syncClientFromVehicle() {
         if (!vehicleSelect || !clientSelect) return;
 
         const selectedVehicleId = vehicleSelect.value;
-        const mapping = vehicleClientMap[selectedVehicleId];
+        const mapping = vehiclePrefillMap[selectedVehicleId];
 
         if (mapping && mapping.client_id) {
             clientSelect.value = String(mapping.client_id);
             if (autoClientHint) {
                 autoClientHint.textContent = `Auto-selected client: ${mapping.client_name}`;
             }
+
+            if (outstandingAmountInput && mapping.outstanding_amount !== undefined) {
+                outstandingAmountInput.value = mapping.outstanding_amount;
+            }
+            if (paymentsMissedInput && mapping.payments_missed !== undefined) {
+                paymentsMissedInput.value = String(mapping.payments_missed);
+            }
+            if (lastPaymentDateInput && mapping.last_payment_date !== undefined) {
+                lastPaymentDateInput.value = mapping.last_payment_date || '';
+            }
         } else if (autoClientHint) {
             autoClientHint.textContent = 'No sold-client mapping found for selected vehicle.';
+            if (outstandingAmountInput) {
+                outstandingAmountInput.value = '';
+            }
+            if (paymentsMissedInput) {
+                paymentsMissedInput.value = '0';
+            }
+            if (lastPaymentDateInput) {
+                lastPaymentDateInput.value = '';
+            }
         }
     }
 
