@@ -631,28 +631,10 @@ def generate_sales_agreement_pdf(client_vehicle):
     elements.append(Spacer(1, 0.3*cm))
 
     payment_details = [
-        '<b>1. ACCOUNT OPTION</b>',
+        '<b>PAYBILL PAYMENT OPTIONS</b>',
         '',
-        '<b>EQUITY ACCOUNT, MOI AVENUE BRANCH MOMBASA</b>',
-        'ACCOUNT NAME: HOZA INVESTMENT K LIMITED',
-        'ACCOUNT NUMBER: 0250279299771',
-        '',
-        '<b>DIB BANK (DUBAI ISLAMIC BANK), MOI AVENUE BRANCH MOMBASA</b>',
-        'ACCOUNT NAME: HOZA INVESTMENT K LIMITED',
-        'ACCOUNT NUMBER: 003505100422901',
-        '',
-        'KINDLY NOTE THAT YOU MUST INCLUDE THE REG NUMBER OF YOUR CAR WHILE MAKING PAYMENTS THROUGH THE ACCOUNT.',
-        '',
-        '<b>2. MPESA OPTION</b>',
-        '',
-        'SEND MONEY TO:',
-        '0700170447    NAME: FARHAN RAZA',
-        '0748662202    NAME: FARHAN RAZA',
-        '0712235354    NAME: FARHAN RAZA',
-        '',
-        'KINDLY MAKE SURE THAT THE CLIENT PHONE NUMBER AND THE NAME AS PER AGREEMENT ARE USED TO MAKE PAYMENTS TO THE ABOVE MPESA NUMBERS.',
-        '',
-        'WE DO NOT ACCEPT PAYMENT FROM THIRD-PARTY',
+        '1. PAYBILL: 4320049',
+        '2. PAYBILL: 4162495',
     ]
     for line in payment_details:
         elements.append(Paragraph(line, normal_small))
