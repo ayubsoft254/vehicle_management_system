@@ -369,6 +369,35 @@ def assign_vehicle(request, client_pk):
                     except Exception:
                         return Decimal('0')
 
+                def parse_extra_costs(raw_json):
+                    try:
+                        rows = json.loads(raw_json or '[]')
+                    except Exception:
+                        rows = []
+
+                    parsed_rows = []
+                    total = Decimal('0.00')
+                    if not isinstance(rows, list):
+                        return parsed_rows, total
+
+                    for row in rows:
+                        if not isinstance(row, dict):
+                            continue
+                        description = str(row.get('description', '')).strip()
+                        amount = parse_money(row.get('amount', '0'))
+                        if not description and amount <= 0:
+                            continue
+                        if amount < 0:
+                            amount = Decimal('0.00')
+                        amount = amount.quantize(Decimal('0.01'))
+                        parsed_rows.append({
+                            'description': description,
+                            'amount': str(amount),
+                        })
+                        total += amount
+
+                    return parsed_rows, total.quantize(Decimal('0.01'))
+
                 # Parse insurance and tracker inputs early so totals affect the purchase price,
                 # balance, and installment plan calculations.
                 insurance_provider_id = request.POST.get('insurance_provider_id')
@@ -408,9 +437,28 @@ def assign_vehicle(request, client_pk):
                     if name.strip():
                         tracker_addon += parse_money(tracker_selling_prices[i] if i < len(tracker_selling_prices) else '0')
 
-                client_vehicle.purchase_price = (
-                    client_vehicle.purchase_price + insurance_addon + tracker_addon + commission_addon
+                auto_client_purchase_price = (
+                    parse_money(client_vehicle.vehicle.selling_price)
+                    + insurance_addon
+                    + tracker_addon
+                    + commission_addon
                 ).quantize(Decimal('0.01'))
+
+                extra_cost_rows, extra_costs_total = parse_extra_costs(request.POST.get('extra_costs_json', '[]'))
+                final_selling_price = parse_money(request.POST.get('final_selling_price', auto_client_purchase_price))
+                if final_selling_price == Decimal('0') and auto_client_purchase_price > 0:
+                    final_selling_price = auto_client_purchase_price
+                final_selling_price = final_selling_price.quantize(Decimal('0.01'))
+
+                effective_client_price = (final_selling_price - extra_costs_total).quantize(Decimal('0.01'))
+                if effective_client_price < 0:
+                    effective_client_price = Decimal('0.00')
+
+                client_vehicle.client_purchase_price = auto_client_purchase_price
+                client_vehicle.final_selling_price = final_selling_price
+                client_vehicle.extra_costs_total = extra_costs_total
+                client_vehicle.extra_costs_json = json.dumps(extra_cost_rows)
+                client_vehicle.purchase_price = effective_client_price
 
                 if client_vehicle.payment_type == 'full':
                     client_vehicle.deposit_paid = client_vehicle.purchase_price
