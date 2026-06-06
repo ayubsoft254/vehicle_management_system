@@ -231,10 +231,12 @@
                             <span class="text-gray-500">Color:</span>
                             <span class="font-medium text-gray-900">{{ vehicle.color }}</span>
                         </div>
+                        {% if can_view_prices %}
                         <div class="flex justify-between">
                             <span class="text-gray-500">Price:</span>
                             <span class="font-medium text-blue-600">KES {{ vehicle.selling_price|floatformat:2|intcomma }}</span>
                         </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
