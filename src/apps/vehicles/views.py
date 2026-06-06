@@ -5,7 +5,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q, Count, Sum, Avg
+from django.db.models import Q, Count, Sum, Avg, Value, DecimalField
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from .models import Vehicle, VehiclePhoto, VehicleHistory
@@ -20,6 +21,13 @@ from apps.audit.models import AuditLog
 import csv
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+
+
+def _can_view_vehicle_prices(user):
+    """Only administrators should see vehicle pricing data across the app."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return bool(user.is_superuser or user.is_staff or getattr(user, 'role', None) == UserRole.ADMIN)
 
 
 def _extract_extra_cost_entries(post_data):
@@ -80,6 +88,7 @@ def _sync_vehicle_extra_costs(vehicle, entries, user):
 
 def vehicle_list_view(request):
     """List all vehicles with search and filter - Public and authenticated users"""
+    can_view_prices = _can_view_vehicle_prices(request.user)
     vehicles = Vehicle.objects.all().prefetch_related('photos')
     
     # For authenticated users with permissions, include more details
@@ -126,11 +135,14 @@ def vehicle_list_view(request):
         if year_to:
             vehicles = vehicles.filter(year__lte=year_to)
         
-        if price_from:
+        if can_view_prices and price_from:
             vehicles = vehicles.filter(selling_price__gte=price_from)
         
-        if price_to:
+        if can_view_prices and price_to:
             vehicles = vehicles.filter(selling_price__lte=price_to)
+
+        if can_view_prices and request.GET.get('without_purchase_price') in ['1', 'true', 'on', 'yes']:
+            vehicles = vehicles.filter(purchase_price=Decimal('0.00'))
         
         if fuel_type:
             vehicles = vehicles.filter(fuel_type=fuel_type)
@@ -148,9 +160,11 @@ def vehicle_list_view(request):
     reserved_count = vehicles.filter(status=VehicleStatus.RESERVED).count()
     
     # Total value
-    total_inventory_value = vehicles.filter(
-        status=VehicleStatus.AVAILABLE
-    ).aggregate(total=Sum('selling_price'))['total'] or 0
+    total_inventory_value = Decimal('0.00')
+    if can_view_prices:
+        total_inventory_value = vehicles.filter(
+            status=VehicleStatus.AVAILABLE
+        ).aggregate(total=Sum('selling_price'))['total'] or Decimal('0.00')
     
     # Pagination
     paginator = Paginator(vehicles, 20)
@@ -160,6 +174,7 @@ def vehicle_list_view(request):
     context = {
         'page_obj': page_obj,
         'form': form,
+        'can_view_prices': can_view_prices,
         'total_vehicles': total_vehicles,
         'available_count': available_count,
         'sold_count': sold_count,
@@ -175,6 +190,8 @@ def vehicle_detail_view(request, pk):
     - Public users can only see available vehicles
     - Authenticated users can see all vehicles based on permissions
     """
+    can_view_prices = _can_view_vehicle_prices(request.user)
+
     # Build base queryset
     queryset = Vehicle.objects.select_related('added_by').prefetch_related('photos', 'history')
     
@@ -240,6 +257,7 @@ def vehicle_detail_view(request, pk):
         'total_additional_cost': total_additional_cost,
         'total_cost': total_cost,
         'can_view_vin': can_view_vin,
+        'can_view_prices': can_view_prices,
         'latest_sale': latest_sale,
     }
     return render(request, 'vehicles/vehicle_detail.html', context)
@@ -249,6 +267,7 @@ def vehicle_detail_view(request, pk):
 @module_permission_required('vehicles', AccessLevel.READ_WRITE)
 def vehicle_create_view(request):
     """Create new vehicle"""
+    can_view_prices = _can_view_vehicle_prices(request.user)
     if request.method == 'POST':
         print("\n" + "="*50)
         print("POST REQUEST RECEIVED")
@@ -257,7 +276,7 @@ def vehicle_create_view(request):
         print("FILES:", request.FILES)
         print("-"*50)
         
-        form = VehicleForm(request.POST, request.FILES)
+        form = VehicleForm(request.POST, request.FILES, can_view_prices=can_view_prices)
         print("Form created, checking validity...")
         
         if form.is_valid():
@@ -268,13 +287,17 @@ def vehicle_create_view(request):
             vehicle.duty_cost = vehicle.duty_cost or Decimal('0.00')
             vehicle.clearance_cost = vehicle.clearance_cost or Decimal('0.00')
             vehicle.commission_cost = vehicle.commission_cost or Decimal('0.00')
-            vehicle.selling_price = (
-                vehicle.purchase_price +
-                vehicle.duty_cost +
-                vehicle.clearance_cost +
-                vehicle.commission_cost +
-                extra_cost_total
-            )
+            if can_view_prices:
+                vehicle.selling_price = (
+                    vehicle.purchase_price +
+                    vehicle.duty_cost +
+                    vehicle.clearance_cost +
+                    vehicle.commission_cost +
+                    extra_cost_total
+                )
+            else:
+                vehicle.selling_price = Decimal('0.00')
+                vehicle.deposit_required = Decimal('0.00')
             vehicle.added_by = request.user
             vehicle.save()
             
@@ -308,7 +331,7 @@ def vehicle_create_view(request):
             print("="*50 + "\n")
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = VehicleForm()
+        form = VehicleForm(can_view_prices=can_view_prices)
     
     extra_cost_entries = []
     if request.method == 'POST':
@@ -321,6 +344,7 @@ def vehicle_create_view(request):
     context = {
         'form': form,
         'title': 'Add New Vehicle',
+        'can_view_prices': can_view_prices,
         'extra_cost_entries': extra_cost_entries,
     }
     return render(request, 'vehicles/vehicle_form.html', context)
@@ -331,6 +355,7 @@ def vehicle_create_view(request):
 def vehicle_update_view(request, pk):
     """Update vehicle information"""
     vehicle = get_object_or_404(Vehicle, pk=pk)
+    can_view_prices = _can_view_vehicle_prices(request.user)
     
     # Store old values for audit
     old_values = {
@@ -341,7 +366,7 @@ def vehicle_update_view(request, pk):
     }
     
     if request.method == 'POST':
-        form = VehicleForm(request.POST, request.FILES, instance=vehicle)
+        form = VehicleForm(request.POST, request.FILES, instance=vehicle, can_view_prices=can_view_prices)
         if form.is_valid():
             extra_cost_entries, extra_cost_total = _extract_extra_cost_entries(request.POST)
 
@@ -349,13 +374,14 @@ def vehicle_update_view(request, pk):
             vehicle.duty_cost = vehicle.duty_cost or Decimal('0.00')
             vehicle.clearance_cost = vehicle.clearance_cost or Decimal('0.00')
             vehicle.commission_cost = vehicle.commission_cost or Decimal('0.00')
-            vehicle.selling_price = (
-                vehicle.purchase_price +
-                vehicle.duty_cost +
-                vehicle.clearance_cost +
-                vehicle.commission_cost +
-                extra_cost_total
-            )
+            if can_view_prices:
+                vehicle.selling_price = (
+                    vehicle.purchase_price +
+                    vehicle.duty_cost +
+                    vehicle.clearance_cost +
+                    vehicle.commission_cost +
+                    extra_cost_total
+                )
             vehicle.save()
             
             # Handle extra costs
@@ -379,7 +405,7 @@ def vehicle_update_view(request, pk):
             messages.success(request, f'Vehicle {vehicle.full_name} updated successfully!')
             return redirect('vehicles:detail', pk=vehicle.pk)
     else:
-        form = VehicleForm(instance=vehicle)
+        form = VehicleForm(instance=vehicle, can_view_prices=can_view_prices)
 
     if request.method == 'POST':
         parsed_entries, _ = _extract_extra_cost_entries(request.POST)
@@ -393,6 +419,7 @@ def vehicle_update_view(request, pk):
     context = {
         'form': form,
         'vehicle': vehicle,
+        'can_view_prices': can_view_prices,
         'title': f'Edit Vehicle: {vehicle.full_name}',
         'extra_cost_entries': extra_cost_entries,
     }
@@ -480,6 +507,7 @@ def vehicle_delete_view(request, pk):
     
     context = {
         'vehicle': vehicle,
+        'can_view_prices': _can_view_vehicle_prices(request.user),
     }
     return render(request, 'vehicles/vehicle_confirm_delete.html', context)
 
@@ -506,6 +534,7 @@ def vehicle_status_change_view(request, pk):
     context = {
         'form': form,
         'vehicle': vehicle,
+        'can_view_prices': _can_view_vehicle_prices(request.user),
     }
     return render(request, 'vehicles/status_change_form.html', context)
 
@@ -632,6 +661,10 @@ def bulk_vehicle_action_view(request):
 @module_permission_required('vehicles', AccessLevel.READ_ONLY)
 def vehicle_export_view(request):
     """Export vehicles to CSV"""
+    if not _can_view_vehicle_prices(request.user):
+        messages.error(request, 'Only administrators can export vehicle pricing data.')
+        return redirect('vehicles:list')
+
     vehicles = Vehicle.objects.all().select_related('added_by')
     
     # Apply filters from GET parameters
@@ -692,6 +725,7 @@ def vehicle_export_view(request):
 @module_permission_required('vehicles', AccessLevel.READ_ONLY)
 def vehicle_stats_view(request):
     """Get vehicle statistics (AJAX)"""
+    can_view_prices = _can_view_vehicle_prices(request.user)
     stats = {
         'total': Vehicle.objects.count(),
         'available': Vehicle.objects.filter(status=VehicleStatus.AVAILABLE).count(),
@@ -702,12 +736,12 @@ def vehicle_stats_view(request):
             Vehicle.objects.filter(status=VehicleStatus.AVAILABLE).aggregate(
                 total=Sum('selling_price')
             )['total'] or 0
-        ),
+        ) if can_view_prices else 0.0,
         'avg_price': float(
             Vehicle.objects.filter(status=VehicleStatus.AVAILABLE).aggregate(
                 avg=Avg('selling_price')
             )['avg'] or 0
-        ),
+        ) if can_view_prices else 0.0,
         'by_make': list(
             Vehicle.objects.values('make').annotate(
                 count=Count('id')
@@ -783,3 +817,75 @@ def sell_vehicle(request, pk):
     
     # GET requests should redirect back to vehicle detail
     return redirect('vehicles:detail', pk=pk)
+
+
+@login_required
+@role_required(UserRole.ADMIN)
+def vehicle_purchase_price_assignment_view(request):
+    """Admin-only module to assign/edit vehicle purchase price and recalculate selling price."""
+    vehicles = Vehicle.objects.all().prefetch_related('photos', 'extra_costs').annotate(
+        extra_cost_total=Coalesce(
+            Sum('extra_costs__amount'),
+            Value(Decimal('0.00')),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    ).order_by('-date_added')
+
+    search = request.GET.get('search', '').strip()
+    status = request.GET.get('status', '').strip()
+    without_purchase_price = request.GET.get('without_purchase_price', '').strip().lower() in ['1', 'true', 'on', 'yes']
+
+    if search:
+        vehicles = vehicles.filter(
+            Q(make__icontains=search)
+            | Q(model__icontains=search)
+            | Q(vin__icontains=search)
+            | Q(registration_number__icontains=search)
+        )
+
+    if status:
+        vehicles = vehicles.filter(status=status)
+
+    if without_purchase_price:
+        vehicles = vehicles.filter(purchase_price=Decimal('0.00'))
+
+    if request.method == 'POST':
+        vehicle_id = request.POST.get('vehicle_id')
+        purchase_price_raw = (request.POST.get('purchase_price') or '').strip()
+        try:
+            purchase_price = Decimal(purchase_price_raw)
+            if purchase_price < 0:
+                raise InvalidOperation
+        except Exception:
+            messages.error(request, 'Please enter a valid non-negative purchase price.')
+            return redirect('vehicles:purchase_price_assignment')
+
+        vehicle = get_object_or_404(Vehicle, pk=vehicle_id)
+        extra_total = vehicle.extra_costs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        vehicle.purchase_price = purchase_price.quantize(Decimal('0.01'))
+        vehicle.selling_price = (
+            vehicle.purchase_price
+            + (vehicle.duty_cost or Decimal('0.00'))
+            + (vehicle.clearance_cost or Decimal('0.00'))
+            + (vehicle.commission_cost or Decimal('0.00'))
+            + extra_total
+        ).quantize(Decimal('0.01'))
+        vehicle.save(update_fields=['purchase_price', 'selling_price', 'last_updated'])
+
+        messages.success(request, f'Updated purchase price for {vehicle.full_name}.')
+        return redirect('vehicles:purchase_price_assignment')
+
+    paginator = Paginator(vehicles, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'search': search,
+        'status': status,
+        'without_purchase_price': without_purchase_price,
+        'status_choices': VehicleStatus.CHOICES,
+        'can_view_prices': True,
+    }
+    return render(request, 'vehicles/vehicle_purchase_price_assignment.html', context)
