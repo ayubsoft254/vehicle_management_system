@@ -9,6 +9,7 @@ app_name = 'vehicles'
 urlpatterns = [
     # Vehicle List & Search
     path('', views.vehicle_list_view, name='list'),
+    path('purchase-pricing/', views.vehicle_purchase_price_assignment_view, name='purchase_price_assignment'),
     
     # Vehicle CRUD
     path('create/', views.vehicle_create_view, name='create'),
