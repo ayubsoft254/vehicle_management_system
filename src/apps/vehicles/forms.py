@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from .models import Vehicle, VehiclePhoto, VehicleHistory
 from utils.constants import VehicleStatus, VehicleLocation
 from decimal import Decimal
+from django.forms import HiddenInput
 
 
 class VehicleForm(forms.ModelForm):
@@ -177,6 +178,7 @@ class VehicleForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         """Initialize form and set required attribute for fields with defaults"""
+        self.can_view_prices = kwargs.pop('can_view_prices', True)
         super().__init__(*args, **kwargs)
 
         # Fields with defaults in the model - make optional in form
@@ -196,6 +198,22 @@ class VehicleForm(forms.ModelForm):
 
         # Selling price is derived from total cost on the form and server side.
         self.fields['selling_price'].widget.attrs['readonly'] = 'readonly'
+
+        # Non-admin users can input costs but must not see vehicle prices.
+        if not self.can_view_prices:
+            for field_name in ['purchase_price', 'selling_price', 'deposit_required']:
+                self.fields[field_name].required = False
+                self.fields[field_name].widget = HiddenInput()
+
+            if not self.is_bound:
+                if self.instance and self.instance.pk:
+                    self.initial['purchase_price'] = self.instance.purchase_price or Decimal('0.00')
+                    self.initial['selling_price'] = self.instance.selling_price or Decimal('0.00')
+                    self.initial['deposit_required'] = self.instance.deposit_required or Decimal('0.00')
+                else:
+                    self.initial['purchase_price'] = Decimal('0.00')
+                    self.initial['selling_price'] = Decimal('0.00')
+                    self.initial['deposit_required'] = Decimal('0.00')
         
         # Set initial values for fields with model defaults (for new instances)
         if not self.instance.pk:
@@ -255,6 +273,16 @@ class VehicleForm(forms.ModelForm):
         location_driver_name = (cleaned_data.get('location_driver_name') or '').strip()
         location_driver_phone = (cleaned_data.get('location_driver_phone') or '').strip()
         location_driver_id_number = (cleaned_data.get('location_driver_id_number') or '').strip()
+
+        if not self.can_view_prices:
+            if self.instance and self.instance.pk:
+                purchase_price = self.instance.purchase_price or Decimal('0.00')
+                cleaned_data['purchase_price'] = purchase_price
+                cleaned_data['deposit_required'] = self.instance.deposit_required or Decimal('0.00')
+            else:
+                purchase_price = Decimal('0.00')
+                cleaned_data['purchase_price'] = purchase_price
+                cleaned_data['deposit_required'] = Decimal('0.00')
 
         if purchase_price is not None:
             cleaned_data['selling_price'] = purchase_price + duty_cost + clearance_cost + commission_cost
