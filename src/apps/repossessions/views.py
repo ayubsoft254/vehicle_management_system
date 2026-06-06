@@ -14,6 +14,7 @@ from django.views.decorators.http import require_http_methods
 from django.db import transaction
 from datetime import datetime, timedelta, date
 from decimal import Decimal
+from dateutil.relativedelta import relativedelta
 
 from apps.clients.models import ClientVehicle
 from utils.constants import VehicleStatus
@@ -116,6 +117,77 @@ def _sync_additional_cost_items(repossession, entries, user):
 
     repossession.additional_costs = sum((entry['amount'] for entry in entries), Decimal('0.00'))
     repossession.save()
+
+
+def _calculate_repossession_prefill(purchase, as_of_date=None):
+    """Build repossession prefill values from client vehicle payment history and schedule."""
+    as_of = as_of_date or timezone.now().date()
+
+    outstanding_amount = purchase.balance or Decimal('0.00')
+    if outstanding_amount < Decimal('0.00'):
+        outstanding_amount = Decimal('0.00')
+
+    last_payment = purchase.payments.order_by('-payment_date', '-created_at').first()
+    last_payment_date = last_payment.payment_date if last_payment else None
+
+    payments_missed = 0
+    plan = getattr(purchase, 'installment_plan', None)
+    if plan:
+        payments_missed = plan.payment_schedules.filter(
+            is_paid=False,
+            due_date__lt=as_of,
+        ).count()
+    elif purchase.installment_months and purchase.installment_months > 0:
+        payment_type = purchase.payment_type or 'installment'
+        if payment_type != 'full':
+            elapsed_periods = 0
+            purchase_date = purchase.purchase_date or as_of
+
+            if purchase.remainder_payment_type == 'weekly':
+                elapsed_periods = max((as_of - purchase_date).days // 7, 0)
+            else:
+                delta = relativedelta(as_of, purchase_date)
+                elapsed_periods = max((delta.years * 12) + delta.months, 0)
+
+            expected_periods = min(elapsed_periods, purchase.installment_months)
+
+            paid_installments = 0
+            if purchase.monthly_installment and purchase.monthly_installment > 0:
+                paid_towards_installments = (purchase.total_paid or Decimal('0.00')) - (purchase.deposit_paid or Decimal('0.00'))
+                if paid_towards_installments > 0:
+                    paid_installments = int(paid_towards_installments / purchase.monthly_installment)
+
+            payments_missed = max(expected_periods - paid_installments, 0)
+
+    return {
+        'outstanding_amount': str(outstanding_amount.quantize(Decimal('0.01'))),
+        'payments_missed': int(payments_missed),
+        'last_payment_date': last_payment_date.isoformat() if last_payment_date else '',
+    }
+
+
+def _build_vehicle_prefill_map(vehicle_queryset):
+    """Create a map keyed by vehicle_id with client + financial prefill data."""
+    purchase_qs = ClientVehicle.objects.filter(
+        vehicle__in=vehicle_queryset
+    ).select_related('client').order_by('vehicle_id', '-is_active', '-purchase_date', '-created_at')
+
+    map_data = {}
+    seen = set()
+    for purchase in purchase_qs:
+        vehicle_id = str(purchase.vehicle_id)
+        if vehicle_id in seen:
+            continue
+        seen.add(vehicle_id)
+
+        financial_prefill = _calculate_repossession_prefill(purchase)
+        map_data[vehicle_id] = {
+            'client_id': purchase.client_id,
+            'client_name': purchase.client.get_full_name(),
+            **financial_prefill,
+        }
+
+    return map_data
 
 
 # ============================================================================
@@ -311,6 +383,12 @@ def repossession_create(request):
             if purchase:
                 initial['vehicle'] = purchase.vehicle_id
                 initial['client'] = purchase.client_id
+                financial_prefill = _calculate_repossession_prefill(purchase)
+                if Decimal(financial_prefill['outstanding_amount']) > Decimal('0.00'):
+                    initial['outstanding_amount'] = financial_prefill['outstanding_amount']
+                initial['payments_missed'] = financial_prefill['payments_missed']
+                if financial_prefill['last_payment_date']:
+                    initial['last_payment_date'] = financial_prefill['last_payment_date']
 
         form = RepossessionForm(user=request.user, initial=initial)
     
@@ -319,10 +397,12 @@ def repossession_create(request):
     else:
         additional_cost_entries = []
 
+    vehicle_prefill_map = _build_vehicle_prefill_map(form.fields['vehicle'].queryset)
+
     context = {
         'form': form,
         'title': 'Initiate Repossession',
-        'vehicle_client_map': form.vehicle_client_map,
+        'vehicle_prefill_map': vehicle_prefill_map,
         'additional_cost_entries': additional_cost_entries,
     }
     
@@ -352,7 +432,7 @@ def repossession_update(request, pk):
         'form': form,
         'repossession': repossession,
         'title': 'Edit Repossession',
-        'vehicle_client_map': form.vehicle_client_map,
+        'vehicle_prefill_map': _build_vehicle_prefill_map(form.fields['vehicle'].queryset),
         'additional_cost_entries': additional_cost_entries,
     }
     
