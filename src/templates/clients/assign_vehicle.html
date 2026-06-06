@@ -601,11 +601,11 @@
             </div>
         </div>
 
-        <!-- Final Purchase Price (Auto-Calculated) -->
+        <!-- Pricing Adjustments -->
         <div class="bg-white rounded-lg shadow-sm border border-purple-200 overflow-hidden">
             <div class="bg-gradient-to-r from-purple-50 to-purple-50 px-6 py-4 border-b border-purple-200">
-                <h2 class="text-lg font-semibold text-purple-900"><i class="fas fa-calculator mr-2"></i>Final Purchase Price (Auto-Calculated)</h2>
-                <p class="text-xs text-purple-600 mt-1">This price is automatically calculated based on vehicle cost, insurance, trackers, and commission.</p>
+                <h2 class="text-lg font-semibold text-purple-900"><i class="fas fa-calculator mr-2"></i>Pricing Adjustments</h2>
+                <p class="text-xs text-purple-600 mt-1">Set final selling price and optional extra deductions to determine the actual amount charged to the client.</p>
             </div>
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -622,6 +622,30 @@
                             <i class="fas fa-info-circle mr-1 text-purple-600"></i>
                             Updated automatically when you modify vehicle selection, insurance, trackers, or commission amounts.
                         </p>
+
+                        <div class="mt-4">
+                            <label for="{{ form.final_selling_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Final Selling Price (KES) <span class="text-red-500">*</span></label>
+                            {{ form.final_selling_price }}
+                            {% if form.final_selling_price.errors %}<p class="mt-1 text-sm text-red-600">{{ form.final_selling_price.errors.0 }}</p>{% endif %}
+                            <p class="mt-2 text-xs text-gray-600">
+                                <i class="fas fa-pen mr-1 text-purple-600"></i>
+                                Defaults to client purchase price, but you can edit it to increase margin or sell at a loss.
+                            </p>
+                        </div>
+
+                        {{ form.extra_costs_total }}
+                        {{ form.extra_costs_json }}
+
+                        <div class="mt-6 border border-purple-200 rounded-lg p-4 bg-purple-50">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-sm font-semibold text-purple-900"><i class="fas fa-minus-circle mr-2"></i>Extra Costs (Deducted)</h3>
+                                <button type="button" id="add-extra-cost-btn" class="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs font-medium rounded-lg border border-purple-200 transition duration-150">
+                                    <i class="fas fa-plus mr-1"></i>Add Cost
+                                </button>
+                            </div>
+                            <div id="extra-costs-container" class="space-y-2"></div>
+                            <p class="mt-2 text-xs text-gray-600">Each amount here is deducted from the final selling price.</p>
+                        </div>
                     </div>
                     <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
                         <h3 class="text-sm font-semibold text-purple-900 mb-3"><i class="fas fa-list mr-2"></i>Calculation Breakdown</h3>
@@ -642,8 +666,20 @@
                                 <span>+ Commission:</span>
                                 <span id="calc-commission" class="font-medium">KES 0.00</span>
                             </div>
+                            <div class="border-t border-purple-300 pt-2 mt-2 flex justify-between">
+                                <span class="font-semibold text-purple-900">= Client Purchase Price:</span>
+                                <span id="calc-client-purchase" class="font-semibold text-purple-700">KES 0.00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Final Selling Price:</span>
+                                <span id="calc-final-selling" class="font-medium">KES 0.00</span>
+                            </div>
+                            <div class="flex justify-between text-red-700">
+                                <span>- Extra Costs:</span>
+                                <span id="calc-extra-costs" class="font-medium">KES 0.00</span>
+                            </div>
                             <div class="border-t border-purple-300 pt-2 mt-2 flex justify-between font-semibold text-purple-900">
-                                <span>= Total Client Price:</span>
+                                <span>= Net Client Price:</span>
                                 <span id="calc-total" class="font-bold text-purple-700">KES 0.00</span>
                             </div>
                         </div>
@@ -700,6 +736,7 @@ textarea { min-height: 100px; resize: vertical; }
 const vehiclePrices     = {{ vehicle_prices_json|safe|default:"{}" }};
 const vehicleCostPrices = {{ vehicle_cost_prices_json|safe|default:"{}" }};
 let selectedVehicleBasePrice = 0;
+let finalSellingTouched = false;
 
 function fmt(n) { return 'KES ' + n.toLocaleString('en-KE', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
@@ -1026,36 +1063,157 @@ function calculateEffectivePurchasePrice() {
     return Math.max(0, selectedVehicleBasePrice + insuranceSelling + trackerSelling + commissionValue);
 }
 
+function getFinalSellingValue(clientPurchasePrice) {
+    const finalField = document.getElementById('{{ form.final_selling_price.id_for_label }}');
+    if (!finalField) return clientPurchasePrice;
+
+    let current = parseFloat(finalField.value || 0) || 0;
+    if (!finalSellingTouched || finalField.value === '') {
+        current = clientPurchasePrice;
+        finalField.value = Number(current).toFixed(2);
+    }
+    return Math.max(0, current);
+}
+
+function getExtraCostRows() {
+    return Array.from(document.querySelectorAll('.extra-cost-row'));
+}
+
+function calculateExtraCostsTotal() {
+    return getExtraCostRows().reduce((sum, row) => {
+        const amount = parseFloat(row.querySelector('input[name="extra_cost_amount[]"]')?.value || 0) || 0;
+        return sum + amount;
+    }, 0);
+}
+
+function syncExtraCostsPayload() {
+    const payloadInput = document.getElementById('id_extra_costs_json');
+    const totalInput = document.getElementById('id_extra_costs_total');
+    const rows = getExtraCostRows().map((row) => {
+        const description = row.querySelector('input[name="extra_cost_description[]"]')?.value?.trim() || '';
+        const amount = parseFloat(row.querySelector('input[name="extra_cost_amount[]"]')?.value || 0) || 0;
+        return { description, amount: Number(amount).toFixed(2) };
+    }).filter((item) => item.description || parseFloat(item.amount) > 0);
+
+    if (payloadInput) {
+        payloadInput.value = JSON.stringify(rows);
+    }
+    if (totalInput) {
+        totalInput.value = Number(calculateExtraCostsTotal()).toFixed(2);
+    }
+}
+
+function addExtraCostRow(description = '', amount = '') {
+    const container = document.getElementById('extra-costs-container');
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.className = 'extra-cost-row grid grid-cols-1 md:grid-cols-12 gap-2 p-2 bg-white border border-purple-100 rounded-lg';
+    row.innerHTML = `
+        <div class="md:col-span-7">
+            <input type="text" name="extra_cost_description[]" class="form-input" placeholder="Cost description" value="${description}">
+        </div>
+        <div class="md:col-span-4">
+            <input type="number" name="extra_cost_amount[]" class="form-input" min="0" step="0.01" placeholder="0.00" value="${amount}">
+        </div>
+        <div class="md:col-span-1 flex items-center justify-end">
+            <button type="button" class="w-10 h-10 rounded-md border border-red-200 text-red-600 hover:bg-red-50 remove-extra-cost" title="Remove cost">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+
+    row.querySelectorAll('input').forEach((input) => {
+        input.addEventListener('input', () => {
+            syncExtraCostsPayload();
+            updateCalculationBreakdown();
+            updateProfitLoss();
+            updateFlexibleInstallmentSummary();
+        });
+    });
+
+    row.querySelector('.remove-extra-cost')?.addEventListener('click', () => {
+        row.remove();
+        syncExtraCostsPayload();
+        updateCalculationBreakdown();
+        updateProfitLoss();
+        updateFlexibleInstallmentSummary();
+    });
+
+    container.appendChild(row);
+    syncExtraCostsPayload();
+}
+
+function hydrateExtraCostsFromHidden() {
+    const payloadInput = document.getElementById('id_extra_costs_json');
+    const container = document.getElementById('extra-costs-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+    let rows = [];
+    try {
+        rows = JSON.parse(payloadInput?.value || '[]');
+    } catch (e) {
+        rows = [];
+    }
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+        addExtraCostRow();
+        return;
+    }
+
+    rows.forEach((item) => {
+        const description = String(item?.description || '').trim();
+        const amount = String(item?.amount || '').trim();
+        addExtraCostRow(description, amount);
+    });
+}
+
 function updateCalculationBreakdown() {
     const vehicleId = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
     const priceInput = vehicleId ? selectedVehicleBasePrice : 0;
     const insuranceSelling = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0) || 0;
     const trackerSelling = calculateTrackerSellingTotal();
     const commission = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
-    const total = calculateEffectivePurchasePrice();
+    const clientPurchasePrice = calculateEffectivePurchasePrice();
+    const finalSelling = getFinalSellingValue(clientPurchasePrice);
+    const extraCosts = calculateExtraCostsTotal();
+    const total = Math.max(0, finalSelling - extraCosts);
     
     document.getElementById('calc-vehicle-price').textContent = fmt(priceInput);
     document.getElementById('calc-insurance').textContent = fmt(insuranceSelling);
     document.getElementById('calc-trackers').textContent = fmt(trackerSelling);
     document.getElementById('calc-commission').textContent = fmt(commission);
+    document.getElementById('calc-client-purchase').textContent = fmt(clientPurchasePrice);
+    document.getElementById('calc-final-selling').textContent = fmt(finalSelling);
+    document.getElementById('calc-extra-costs').textContent = fmt(extraCosts);
     document.getElementById('calc-total').textContent = fmt(total);
+
+    syncExtraCostsPayload();
 }
 
 function updateProfitLoss() {
     const vehicleId = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
     const priceField = document.getElementById('{{ form.purchase_price.id_for_label }}');
+    const finalSellingField = document.getElementById('{{ form.final_selling_price.id_for_label }}');
     if (!priceField) {
         return;
     }
 
-    const effectivePurchasePrice = calculateEffectivePurchasePrice();
-    if (vehicleId) {
-        priceField.value = Number(effectivePurchasePrice).toFixed(2);
+    const clientPurchasePrice = calculateEffectivePurchasePrice();
+    priceField.value = Number(clientPurchasePrice).toFixed(2);
+
+    const finalSellingPrice = getFinalSellingValue(clientPurchasePrice);
+    const extraCosts = calculateExtraCostsTotal();
+    const netClientPrice = Math.max(0, finalSellingPrice - extraCosts);
+
+    if (finalSellingField && finalSellingField.value === '') {
+        finalSellingField.value = Number(finalSellingPrice).toFixed(2);
     }
 
     updateCalculationBreakdown();
 
-    const priceInput  = vehicleId ? effectivePurchasePrice : (parseFloat(priceField.value) || 0);
+    const priceInput  = finalSellingPrice;
     const costPrice   = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
     
     // Insurance costs
@@ -1070,8 +1228,8 @@ function updateProfitLoss() {
 
     const commissionCost = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
     
-    const totalExpenses = insuranceCost + trackerCost + commissionCost;
-    const totalCost = effectivePurchasePrice;
+    const totalExpenses = insuranceCost + trackerCost + commissionCost + extraCosts;
+    const totalCost = netClientPrice;
     const netProfit = totalCost - costPrice;
 
     document.getElementById('pl-cost').textContent    = fmt(costPrice);
@@ -1131,7 +1289,9 @@ function updatePaymentFields() {
 }
 
 function getRemainingBalanceForFlexible() {
-    const price = parseFloat(document.getElementById('{{ form.purchase_price.id_for_label }}')?.value || 0);
+    const clientPurchasePrice = calculateEffectivePurchasePrice();
+    const finalSellingPrice = getFinalSellingValue(clientPurchasePrice);
+    const price = Math.max(0, finalSellingPrice - calculateExtraCostsTotal());
     const deposit = parseFloat(document.getElementById('{{ form.deposit_paid.id_for_label }}')?.value || 0);
     return Math.max(0, price - deposit);
 }
@@ -1250,6 +1410,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize payment fields
     updatePaymentFields();
+
+    const purchaseField = document.getElementById('{{ form.purchase_price.id_for_label }}');
+    if (purchaseField) {
+        purchaseField.readOnly = true;
+    }
+
+    hydrateExtraCostsFromHidden();
+    document.getElementById('add-extra-cost-btn')?.addEventListener('click', () => addExtraCostRow());
     
     // Initialize profit/loss and calculation breakdown
     updateProfitLoss();
@@ -1275,6 +1443,12 @@ document.addEventListener('DOMContentLoaded', function() {
         updateCalculationBreakdown();
     });
 
+    document.getElementById('{{ form.final_selling_price.id_for_label }}')?.addEventListener('input', () => {
+        finalSellingTouched = true;
+        updateProfitLoss();
+        updateFlexibleInstallmentSummary();
+    });
+
     // Initialize tracker payment type UI
     document.querySelectorAll('.tracker-item').forEach(trackerItem => {
         const checked = trackerItem.querySelector('input[name="tracker_payment_type[]"]:checked');
@@ -1285,6 +1459,7 @@ document.addEventListener('DOMContentLoaded', function() {
     assignmentForm?.addEventListener('submit', () => {
         syncFlexibleInstallmentsPayload();
         syncInsuranceInstallmentsPayload();
+        syncExtraCostsPayload();
         document.querySelectorAll('.tracker-item').forEach(ti => syncTrackerInstallmentsPayload(ti));
     });
 
@@ -1315,7 +1490,6 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
         vehicleSelect.addEventListener('change', function() {
             applyVehicleSelection(this.value);
         });
-        priceInput.addEventListener('input', updateProfitLoss);
     }
 
     // Insurance field changes
