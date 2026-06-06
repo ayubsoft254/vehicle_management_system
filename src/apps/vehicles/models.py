@@ -420,17 +420,30 @@ class Vehicle(models.Model):
         if self.location == VehicleLocation.SHOWROOM:
             return self.location_moved_date
         return None
+
+    @property
+    def total_program_cost(self):
+        """Calculate total program cost for this vehicle."""
+        extra_cost_total = self.extra_costs.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+        return (
+            (self.purchase_price or Decimal('0.00'))
+            + (self.duty_cost or Decimal('0.00'))
+            + (self.clearance_cost or Decimal('0.00'))
+            + (self.commission_cost or Decimal('0.00'))
+            + extra_cost_total
+        )
     
     @property
     def profit(self):
-        """Calculate potential profit"""
-        return self.selling_price - self.purchase_price
+        """Calculate potential profit from selling price minus total program cost."""
+        return (self.selling_price or Decimal('0.00')) - self.total_program_cost
     
     @property
     def profit_percentage(self):
         """Calculate profit percentage"""
-        if self.purchase_price > 0:
-            return (self.profit / self.purchase_price) * 100
+        base_cost = self.total_program_cost
+        if base_cost > 0:
+            return (self.profit / base_cost) * 100
         return 0
     
     @property
