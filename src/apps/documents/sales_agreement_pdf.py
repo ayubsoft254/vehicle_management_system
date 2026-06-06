@@ -5,6 +5,7 @@ Generates a PDF sales agreement with auto-filled vehicle and client information
 from io import BytesIO
 from datetime import datetime
 from decimal import Decimal
+from dateutil.relativedelta import relativedelta
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm, inch
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -87,6 +88,43 @@ def generate_sales_agreement_pdf(client_vehicle):
         plan = client_vehicle.installment_plan
     except Exception:
         plan = None
+
+    # Pull optional insurance policy and tracker data for agreement visibility.
+    try:
+        from apps.insurance.models import InsurancePolicy
+        insurance_policy = InsurancePolicy.objects.filter(
+            vehicle=vehicle,
+            client=client,
+        ).order_by('-created_at').first()
+    except Exception:
+        insurance_policy = None
+
+    trackers = list(client_vehicle.trackers.all().order_by('created_at'))
+
+    selected_months = None
+    if plan and plan.number_of_installments:
+        selected_months = plan.number_of_installments
+    elif client_vehicle.installment_months:
+        selected_months = client_vehicle.installment_months
+
+    client_id_display = (client.id_number or '').replace('-', '')
+
+    def _payment_type_label(value):
+        return {
+            'full': 'Full Payment',
+            'installment': 'Installment',
+            'flexible': 'Flexible Installments',
+            'monthly': 'Monthly',
+            'weekly': 'Weekly',
+            'deduct_from_deposit': 'Deduct from Deposit',
+        }.get(value, value or '')
+
+    def _ordinal(n):
+        if 10 <= (n % 100) <= 20:
+            suffix = 'TH'
+        else:
+            suffix = {1: 'ST', 2: 'ND', 3: 'RD'}.get(n % 10, 'TH')
+        return f'{n}{suffix}'
 
     agreement_date = datetime.now().strftime("%d-%m-%Y")
 
@@ -187,7 +225,7 @@ def generate_sales_agreement_pdf(client_vehicle):
         ],
         [
             Paragraph(f'<b>CELL PHONE:</b> {client.phone_primary or ""}', normal_small),
-            Paragraph(f'<b>ID NO:</b> {client.id_number or ""}', normal_small),
+            Paragraph(f'<b>ID NO:</b> {client_id_display}', normal_small),
         ],
         [
             Paragraph(f'<b>PIN NO:</b> {client.kra_pin or ""}', normal_small),
@@ -216,10 +254,22 @@ def generate_sales_agreement_pdf(client_vehicle):
     elements.append(Spacer(1, 0.3*cm))
 
     # ---- PRICING DETAILS ----
+    client_base_price = client_vehicle.client_purchase_price or client_vehicle.purchase_price
+    final_selling_price = client_vehicle.final_selling_price or client_base_price
+    extra_costs_total = client_vehicle.extra_costs_total or Decimal('0.00')
+
     price_data = [
         [
-            Paragraph(f'<b>SALE PRICE IN KSHS:</b> {float(client_vehicle.purchase_price):,.2f}', normal_small),
-            Paragraph(f'<b>IN WORDS:</b> {_number_to_words(client_vehicle.purchase_price)} Kenya Shillings Only', normal_small),
+            Paragraph(f'<b>CLIENT PURCHASE PRICE (BASE) IN KSHS:</b> {float(client_base_price):,.2f}', normal_small),
+            Paragraph(f'<b>IN WORDS:</b> {_number_to_words(client_base_price)} Kenya Shillings Only', normal_small),
+        ],
+        [
+            Paragraph(f'<b>FINAL SELLING PRICE IN KSHS:</b> {float(final_selling_price):,.2f}', normal_small),
+            Paragraph(f'<b>IN WORDS:</b> {_number_to_words(final_selling_price)} Kenya Shillings Only', normal_small),
+        ],
+        [
+            Paragraph(f'<b>EXTRA COSTS DEDUCTED:</b> KES {float(extra_costs_total):,.2f}', normal_small),
+            Paragraph(f'<b>NET CLIENT PRICE IN KSHS:</b> {float(client_vehicle.purchase_price):,.2f}', normal_small),
         ],
         [
             Paragraph(f'<b>AMOUNT PAID (DEPOSIT):</b> KES {float(client_vehicle.deposit_paid):,.2f}', normal_small),
@@ -244,13 +294,65 @@ def generate_sales_agreement_pdf(client_vehicle):
     elements.append(Spacer(1, 0.2*cm))
 
     # "TO BE PAID IN X MONTHS" line
-    months_text = ''
-    if plan and plan.number_of_installments:
-        months_text = str(plan.number_of_installments)
+    months_text = str(selected_months) if selected_months else ''
     elements.append(Paragraph(
         f'<b>TO BE PAID IN</b> {months_text} <b>MONTH(S) [AS STIPULATED IN THE AGREED TERMS AND CONDITION]</b>',
         normal_small
     ))
+    elements.append(Spacer(1, 0.2*cm))
+
+    # ---- INSURANCE & TRACKER ADD-ONS ----
+    elements.append(Paragraph('<b>INSURANCE &amp; TRACKER DETAILS</b>', heading_style))
+
+    if insurance_policy:
+        insurance_lines = [
+            f'<b>INSURANCE PROVIDER:</b> {insurance_policy.provider.name if insurance_policy.provider else ""}',
+            f'<b>POLICY NO:</b> {insurance_policy.policy_number or ""}',
+            f'<b>INSURANCE SELLING PRICE:</b> KES {float(insurance_policy.selling_price or Decimal("0.00")):,.2f}',
+            f'<b>PAYMENT TYPE:</b> {_payment_type_label(insurance_policy.payment_type)}',
+        ]
+        if insurance_policy.has_payment_plan:
+            insurance_lines.append(
+                f'<b>PLAN:</b> Deposit KES {float(insurance_policy.insurance_deposit or Decimal("0.00")):,.2f}, '
+                f'Months {insurance_policy.insurance_installment_months or ""}, '
+                f'Monthly KES {float(insurance_policy.insurance_monthly_installment or Decimal("0.00")):,.2f}, '
+                f'Balance KES {float(insurance_policy.insurance_balance or Decimal("0.00")):,.2f}'
+            )
+
+        insurance_schedules = list(insurance_policy.insurance_payment_schedules.order_by('installment_number'))
+        if insurance_schedules:
+            schedule_parts = []
+            for sch in insurance_schedules:
+                schedule_parts.append(
+                    f'#{sch.installment_number}: {sch.due_date.strftime("%d-%m-%Y") if sch.due_date else ""} '
+                    f'(KES {float(sch.amount_due):,.2f})'
+                )
+            insurance_lines.append(f'<b>INSURANCE PAYMENT SCHEDULE:</b> {"; ".join(schedule_parts)}')
+
+        for line in insurance_lines:
+            elements.append(Paragraph(line, normal_small))
+    else:
+        elements.append(Paragraph('<b>INSURANCE:</b> Not included in this sale.', normal_small))
+
+    elements.append(Spacer(1, 0.1*cm))
+    if trackers:
+        elements.append(Paragraph('<b>TRACKER(S):</b>', normal_small))
+        for idx, tracker in enumerate(trackers, start=1):
+            tracker_lines = [
+                f'<b>{idx}. {tracker.tracker_name or "Tracker"}</b> '
+                f'({tracker.serial_number or "No serial"}) '
+                f'- Selling Price KES {float(tracker.selling_price or Decimal("0.00")):,.2f}',
+                f'Payment Type: {_payment_type_label(tracker.payment_type)} | '
+                f'Plan: {"Yes" if tracker.has_payment_plan else "No"} | '
+                f'Months: {tracker.installment_months or ""} | '
+                f'Monthly: KES {float(tracker.monthly_installment or Decimal("0.00")):,.2f} | '
+                f'Balance: KES {float(tracker.balance or Decimal("0.00")):,.2f}',
+            ]
+            for line in tracker_lines:
+                elements.append(Paragraph(line, normal_small))
+    else:
+        elements.append(Paragraph('<b>TRACKER:</b> Not included in this sale.', normal_small))
+
     elements.append(Spacer(1, 0.2*cm))
 
     # Extra Terms and Conditions note line
@@ -303,34 +405,34 @@ def generate_sales_agreement_pdf(client_vehicle):
     elements.append(sched_header_table)
 
     # Balance / months / end date summary
-    if plan:
-        end_date_str = plan.end_date.strftime('%d-%m-%Y') if plan.end_date else ''
-        months_str = str(plan.number_of_installments) if plan.number_of_installments else ''
-        elements.append(Paragraph(
-            f'<b>BALANCE TO PAY:</b> KES {float(client_vehicle.balance):,.2f}  '
-            f'<b>IN</b> {months_str} <b>MONTHS FROM AGREEMENT DATE UPTO</b> {end_date_str}',
-            normal_small
-        ))
+    if plan and plan.end_date:
+        end_date_str = plan.end_date.strftime('%d-%m-%Y')
+    elif selected_months and client_vehicle.purchase_date:
+        end_date_str = (client_vehicle.purchase_date + relativedelta(months=selected_months)).strftime('%d-%m-%Y')
     else:
-        elements.append(Paragraph(
-            f'<b>BALANCE TO PAY:</b> KES {float(client_vehicle.balance):,.2f}  '
-            '<b>IN</b> ___ <b>MONTHS FROM AGREEMENT DATE UPTO</b> ___________',
-            normal_small
-        ))
+        end_date_str = ''
+
+    months_str = str(selected_months) if selected_months else '___'
+    end_date_text = end_date_str if end_date_str else '___________'
+    elements.append(Paragraph(
+        f'<b>BALANCE TO PAY:</b> KES {float(client_vehicle.balance):,.2f}  '
+        f'<b>IN</b> {months_str} <b>MONTHS FROM AGREEMENT DATE UPTO</b> {end_date_text}',
+        normal_small
+    ))
     elements.append(Spacer(1, 0.15*cm))
     elements.append(Paragraph('<b>OTHER PAYMENT DETAILS:</b> ' + '_' * 70, normal_small))
     elements.append(Spacer(1, 0.2*cm))
 
     # Installment table
-    ordinals = [
-        '1ST', '2ND', '3RD', '4TH', '5TH', '6TH', '7TH', '8TH',
-        '9TH', '10TH', '11TH', '12TH', '13TH', '14TH', '15TH',
-    ]
 
     if plan:
-        schedules = list(plan.payment_schedules.all().order_by('installment_number')[:15])
+        schedules = list(plan.payment_schedules.all().order_by('installment_number'))
     else:
         schedules = []
+
+    schedule_count = selected_months or (len(schedules) if schedules else 15)
+    if schedule_count < 1:
+        schedule_count = 1
 
     # Build rows: two installments side-by-side per row
     sched_table_data = [
@@ -343,9 +445,10 @@ def generate_sales_agreement_pdf(client_vehicle):
         ]
     ]
 
-    for i in range(0, 15, 2):
+    for i in range(0, schedule_count, 2):
         # Left installment
-        label_left = f'<b>{ordinals[i]} INSTALMENT</b>'
+        installment_left = i + 1
+        label_left = f'<b>{_ordinal(installment_left)} INSTALMENT</b>'
         if i < len(schedules):
             s = schedules[i]
             date_left = s.due_date.strftime('%d-%m-%Y') if s.due_date else ''
@@ -355,8 +458,9 @@ def generate_sales_agreement_pdf(client_vehicle):
             amt_left = ''
 
         # Right installment (i+1)
-        if i + 1 < 15:
-            label_right = f'<b>{ordinals[i+1]} INSTALMENT</b>'
+        if i + 1 < schedule_count:
+            installment_right = i + 2
+            label_right = f'<b>{_ordinal(installment_right)} INSTALMENT</b>'
             if i + 1 < len(schedules):
                 s2 = schedules[i + 1]
                 date_right = s2.due_date.strftime('%d-%m-%Y') if s2.due_date else ''
@@ -493,7 +597,7 @@ def generate_sales_agreement_pdf(client_vehicle):
         ],
         [
             Paragraph(f'{client.get_full_name()}', normal_small),
-            Paragraph(f'{client.id_number or ""}', normal_small),
+            Paragraph(f'{client_id_display}', normal_small),
         ],
         [
             Paragraph('<b>WITNESS NAME</b> ___________________________', normal_small),
