@@ -372,6 +372,7 @@ def repossession_create(request):
                 f'Repossession {repossession.repossession_number} created successfully.'
             )
             return redirect('repossessions:repossession_detail', pk=repossession.pk)
+        messages.error(request, 'Repossession could not be created. Please correct the highlighted errors and try again.')
     else:
         initial = {}
         vehicle_id = request.GET.get('vehicle')
@@ -423,6 +424,7 @@ def repossession_update(request, pk):
             _apply_repossessed_vehicle_pricing(repossession)
             messages.success(request, 'Repossession updated successfully.')
             return redirect('repossessions:repossession_detail', pk=repossession.pk)
+        messages.error(request, 'Repossession could not be updated. Please correct the highlighted errors and try again.')
         additional_cost_entries = _extract_additional_cost_entries(request.POST)[0]
     else:
         form = RepossessionForm(instance=repossession, user=request.user)
