@@ -181,6 +181,103 @@ def tracker_management(request):
     return render(request, 'clients/tracker_management.html', context)
 
 
+def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insurance_data, existing_policy=None):
+    """Create or update the insurance policy linked to a client vehicle assignment."""
+    insurance_provider_id = insurance_data.get('insurance_provider_id')
+    insurance_policy_number = insurance_data.get('insurance_policy_number', '').strip()
+    insurance_start_date = insurance_data.get('insurance_start_date', '').strip()
+    insurance_end_date = insurance_data.get('insurance_end_date', '').strip()
+
+    if not (insurance_provider_id and insurance_policy_number and insurance_start_date and insurance_end_date):
+        return existing_policy
+
+    from apps.insurance.models import InsuranceProvider, InsurancePolicy, InsurancePaymentSchedule
+    from datetime import datetime as dt
+
+    def parse_money(value):
+        try:
+            return Decimal(str(value).strip() or '0')
+        except Exception:
+            return Decimal('0.00')
+
+    insurance_policy_type = insurance_data.get('insurance_policy_type', 'comprehensive')
+    insurance_vehicle_usage = insurance_data.get('insurance_vehicle_usage', 'private').strip() or 'private'
+    insurance_buying_price = insurance_data.get('insurance_buying_price', '').strip()
+    insurance_selling_price = insurance_data.get('insurance_selling_price', '').strip()
+    insurance_agent_name = insurance_data.get('insurance_agent_name', '').strip()
+    insurance_agent_id = insurance_data.get('insurance_agent_id', '').strip()
+    insurance_payment_type = insurance_data.get('insurance_payment_type', 'full').strip()
+    insurance_flexible_json = insurance_data.get('insurance_flexible_installments_json', '[]')
+    insurance_has_plan = insurance_payment_type == 'flexible'
+
+    provider = InsuranceProvider.objects.get(pk=insurance_provider_id)
+
+    try:
+        ins_installments = json.loads(insurance_flexible_json or '[]')
+    except Exception:
+        ins_installments = []
+
+    insurance_months = None
+    insurance_monthly = None
+    insurance_deposit = Decimal('0.00')
+    insurance_total_paid = Decimal('0.00')
+    insurance_balance = parse_money(insurance_selling_price)
+
+    if insurance_payment_type == 'deduct_from_deposit':
+        insurance_deposit = min(client_vehicle.deposit_paid, parse_money(insurance_selling_price))
+        insurance_total_paid = insurance_deposit
+        insurance_balance = max(Decimal('0.00'), parse_money(insurance_selling_price) - insurance_deposit)
+        insurance_has_plan = False
+    elif insurance_has_plan and ins_installments:
+        insurance_months = len(ins_installments)
+        total_ins = sum((Decimal(str(row.get('amount', '0') or '0')) for row in ins_installments), Decimal('0.00'))
+        insurance_monthly = (total_ins / insurance_months).quantize(Decimal('0.01')) if insurance_months else None
+
+    policy = existing_policy or InsurancePolicy(
+        vehicle=vehicle,
+        client=client,
+        created_by=request.user,
+    )
+    policy.vehicle = vehicle
+    policy.provider = provider
+    policy.client = client
+    policy.policy_number = insurance_policy_number
+    policy.policy_type = insurance_policy_type
+    policy.vehicle_usage = insurance_vehicle_usage
+    policy.start_date = insurance_start_date
+    policy.end_date = insurance_end_date
+    policy.premium_amount = parse_money(insurance_selling_price)
+    policy.sum_insured = client_vehicle.purchase_price
+    policy.buying_price = parse_money(insurance_buying_price)
+    policy.selling_price = parse_money(insurance_selling_price)
+    policy.agent_name = insurance_agent_name
+    policy.agent_id = insurance_agent_id
+    policy.payment_type = insurance_payment_type
+    policy.has_payment_plan = insurance_has_plan
+    policy.insurance_deposit = insurance_deposit
+    policy.insurance_installment_months = insurance_months if insurance_has_plan else None
+    policy.insurance_monthly_installment = insurance_monthly if insurance_has_plan else None
+    policy.insurance_total_paid = insurance_total_paid
+    policy.insurance_balance = insurance_balance
+    policy.insurance_interest_rate = Decimal('0.00')
+    policy.status = 'active'
+    policy.save()
+
+    policy.insurance_payment_schedules.all().delete()
+    if insurance_has_plan and ins_installments:
+        for idx, installment in enumerate(ins_installments, start=1):
+            due_date = dt.strptime(str(installment.get('due_date')).strip(), '%Y-%m-%d').date()
+            amount_due = Decimal(str(installment.get('amount')).strip())
+            InsurancePaymentSchedule.objects.create(
+                policy=policy,
+                installment_number=idx,
+                due_date=due_date,
+                amount_due=amount_due,
+            )
+
+    return policy
+
+
 @login_required
 def client_detail(request, pk):
     """
@@ -589,79 +686,16 @@ def assign_vehicle(request, client_pk):
                             )
                 
                 # --- Handle Insurance ---
-                if insurance_provider_id and insurance_policy_number and insurance_start_date and insurance_end_date:
-                    try:
-                        from apps.insurance.models import InsuranceProvider, InsurancePolicy, InsurancePaymentSchedule
-                        from datetime import datetime as dt
-                        
-                        provider = InsuranceProvider.objects.get(pk=insurance_provider_id)
-                        
-                        # Parse flexible installments from JSON
-                        import json as _json
-                        insurance_months = None
-                        insurance_monthly = None
-                        insurance_deposit = Decimal('0.00')
-                        insurance_total_paid = Decimal('0.00')
-                        insurance_balance = Decimal(insurance_selling_price or '0')
-
-                        try:
-                            ins_installments = _json.loads(insurance_flexible_json or '[]')
-                        except Exception:
-                            ins_installments = []
-
-                        if insurance_payment_type == 'deduct_from_deposit':
-                            insurance_deposit = min(client_vehicle.deposit_paid, Decimal(insurance_selling_price or '0'))
-                            insurance_total_paid = insurance_deposit
-                            insurance_balance = max(Decimal('0.00'), Decimal(insurance_selling_price or '0') - insurance_deposit)
-                            insurance_has_plan = False
-                        elif insurance_has_plan and ins_installments:
-                            insurance_months = len(ins_installments)
-                            total_ins = sum(
-                                Decimal(str(row.get('amount', '0') or '0'))
-                                for row in ins_installments
-                            )
-                            insurance_monthly = (total_ins / insurance_months) if insurance_months else None
-
-                        policy = InsurancePolicy.objects.create(
-                            vehicle=vehicle,
-                            provider=provider,
-                            client=client,
-                            policy_number=insurance_policy_number,
-                            policy_type=insurance_policy_type,
-                            vehicle_usage=insurance_vehicle_usage,
-                            start_date=insurance_start_date,
-                            end_date=insurance_end_date,
-                            premium_amount=Decimal(insurance_selling_price or '0'),
-                            sum_insured=client_vehicle.purchase_price,
-                            buying_price=Decimal(insurance_buying_price or '0'),
-                            selling_price=Decimal(insurance_selling_price or '0'),
-                            agent_name=insurance_agent_name,
-                            agent_id=insurance_agent_id,
-                            payment_type=insurance_payment_type,
-                            has_payment_plan=insurance_has_plan,
-                            insurance_deposit=insurance_deposit,
-                            insurance_installment_months=insurance_months if insurance_has_plan else None,
-                            insurance_monthly_installment=insurance_monthly if insurance_has_plan else None,
-                            insurance_total_paid=insurance_total_paid,
-                            insurance_balance=insurance_balance,
-                            insurance_interest_rate=Decimal('0'),
-                            status='active',
-                            created_by=request.user,
-                        )
-
-                        if insurance_has_plan and ins_installments:
-                            policy.insurance_payment_schedules.all().delete()
-                            for idx, installment in enumerate(ins_installments, start=1):
-                                due_date = dt.strptime(str(installment.get('due_date')).strip(), '%Y-%m-%d').date()
-                                amount_due = Decimal(str(installment.get('amount')).strip())
-                                InsurancePaymentSchedule.objects.create(
-                                    policy=policy,
-                                    installment_number=idx,
-                                    due_date=due_date,
-                                    amount_due=amount_due,
-                                )
-                    except Exception as e:
-                        messages.warning(request, f'Vehicle assigned but insurance could not be saved: {e}')
+                try:
+                    _upsert_insurance_policy(
+                        request=request,
+                        client=client,
+                        vehicle=vehicle,
+                        client_vehicle=client_vehicle,
+                        insurance_data=request.POST,
+                    )
+                except Exception as e:
+                    messages.warning(request, f'Vehicle assigned but insurance could not be saved: {e}')
                 
                 # --- Handle Multiple Trackers ---
                 for i, name in enumerate(tracker_names):
@@ -939,7 +973,116 @@ def client_vehicle_update(request, pk):
     if request.method == 'POST':
         form = ClientVehicleForm(request.POST, instance=client_vehicle)
         if form.is_valid():
-            client_vehicle = form.save()
+            updated_client_vehicle = form.save(commit=False)
+            updated_client_vehicle.client = client_vehicle.client
+
+            def parse_money(value):
+                try:
+                    return Decimal(str(value).strip() or '0')
+                except Exception:
+                    return Decimal('0')
+
+            def parse_extra_costs(raw_json):
+                try:
+                    rows = json.loads(raw_json or '[]')
+                except Exception:
+                    rows = []
+
+                parsed_rows = []
+                total = Decimal('0.00')
+                if not isinstance(rows, list):
+                    return parsed_rows, total
+
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+                    description = str(row.get('description', '')).strip()
+                    amount = parse_money(row.get('amount', '0'))
+                    if not description and amount <= 0:
+                        continue
+                    if amount < 0:
+                        amount = Decimal('0.00')
+                    amount = amount.quantize(Decimal('0.01'))
+                    parsed_rows.append({
+                        'description': description,
+                        'amount': str(amount),
+                    })
+                    total += amount
+
+                return parsed_rows, total.quantize(Decimal('0.01'))
+
+            insurance_provider_id = request.POST.get('insurance_provider_id')
+            insurance_policy_number = request.POST.get('insurance_policy_number', '').strip()
+            insurance_start_date = request.POST.get('insurance_start_date', '').strip()
+            insurance_end_date = request.POST.get('insurance_end_date', '').strip()
+            insurance_selling_price = request.POST.get('insurance_selling_price', '').strip()
+            tracker_names = request.POST.getlist('tracker_name[]')
+            tracker_selling_prices = request.POST.getlist('tracker_selling_price[]')
+
+            commission_addon = parse_money(updated_client_vehicle.commission_amount)
+            insurance_addon = Decimal('0.00')
+            if insurance_provider_id and insurance_policy_number and insurance_start_date and insurance_end_date:
+                insurance_addon = parse_money(insurance_selling_price)
+
+            tracker_addon = Decimal('0.00')
+            for i, name in enumerate(tracker_names):
+                if name.strip():
+                    tracker_addon += parse_money(tracker_selling_prices[i] if i < len(tracker_selling_prices) else '0')
+
+            auto_client_purchase_price = (
+                parse_money(updated_client_vehicle.vehicle.selling_price)
+                + insurance_addon
+                + tracker_addon
+                + commission_addon
+            ).quantize(Decimal('0.01'))
+
+            extra_cost_rows, extra_costs_total = parse_extra_costs(request.POST.get('extra_costs_json', '[]'))
+            final_selling_price = parse_money(request.POST.get('final_selling_price', auto_client_purchase_price))
+            if final_selling_price == Decimal('0') and auto_client_purchase_price > 0:
+                final_selling_price = auto_client_purchase_price
+            final_selling_price = final_selling_price.quantize(Decimal('0.01'))
+
+            effective_client_price = (final_selling_price - extra_costs_total).quantize(Decimal('0.01'))
+            if effective_client_price < 0:
+                effective_client_price = Decimal('0.00')
+
+            updated_client_vehicle.client_purchase_price = auto_client_purchase_price
+            updated_client_vehicle.final_selling_price = final_selling_price
+            updated_client_vehicle.extra_costs_total = extra_costs_total
+            updated_client_vehicle.extra_costs_json = json.dumps(extra_cost_rows)
+            updated_client_vehicle.purchase_price = effective_client_price
+
+            if updated_client_vehicle.payment_type == 'full':
+                updated_client_vehicle.deposit_paid = updated_client_vehicle.purchase_price
+
+            updated_client_vehicle.balance = updated_client_vehicle.purchase_price - (updated_client_vehicle.total_paid or Decimal('0.00'))
+            if updated_client_vehicle.balance < Decimal('0.00'):
+                updated_client_vehicle.balance = Decimal('0.00')
+
+            updated_client_vehicle.save()
+            client_vehicle = updated_client_vehicle
+
+            existing_policy = None
+            try:
+                from apps.insurance.models import InsurancePolicy
+                existing_policy = InsurancePolicy.objects.filter(
+                    vehicle=client_vehicle.vehicle,
+                    client=client_vehicle.client,
+                ).order_by('-created_at').first()
+            except Exception:
+                existing_policy = None
+
+            try:
+                _upsert_insurance_policy(
+                    request=request,
+                    client=client_vehicle.client,
+                    vehicle=client_vehicle.vehicle,
+                    client_vehicle=client_vehicle,
+                    insurance_data=request.POST,
+                    existing_policy=existing_policy,
+                )
+            except Exception as e:
+                messages.warning(request, f'Assignment updated but insurance could not be saved: {e}')
             
             # Automatically create Installment Plan if there's a balance and payment terms are provided
             if client_vehicle.balance > 0 and client_vehicle.installment_months:
