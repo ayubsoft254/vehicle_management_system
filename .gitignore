@@ -133,3 +133,6 @@ vehicle_management_system.code-workspace
 nginx.conf
 
 **/db.sqlite3
+
+# Local Copilot instruction workspace artifacts
+.github/
