@@ -33,7 +33,9 @@ class RepossessionForm(forms.ModelForm):
             'vehicle', 'client', 'reason', 'outstanding_amount',
             'additional_costs',
             'payments_missed', 'last_payment_date', 'initiated_date',
-            'assigned_to', 'last_known_location', 'notes'
+            'assigned_to',
+            'contracted_auctioneer_name', 'contracted_auctioneer_id', 'contracted_auctioneer_no',
+            'last_known_location', 'notes'
         ]
         widgets = {
             'vehicle': forms.Select(attrs={
@@ -71,6 +73,18 @@ class RepossessionForm(forms.ModelForm):
                 'class': 'form-control select2',
                 'data-placeholder': 'Select agent (optional)'
             }),
+            'contracted_auctioneer_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Auctioneer name'
+            }),
+            'contracted_auctioneer_id': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Auctioneer ID number'
+            }),
+            'contracted_auctioneer_no': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Auctioneer contact number'
+            }),
             'last_known_location': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
@@ -88,8 +102,12 @@ class RepossessionForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         self.fields['assigned_to'].required = False
+        self.fields['assigned_to'].label = 'User Initiating the Repossession'
         self.fields['additional_costs'].required = False
         self.fields['last_payment_date'].required = False
+        self.fields['contracted_auctioneer_name'].required = False
+        self.fields['contracted_auctioneer_id'].required = False
+        self.fields['contracted_auctioneer_no'].required = False
         self.fields['last_known_location'].required = False
         self.fields['notes'].required = False
         self.fields['additional_costs'].initial = self.instance.additional_costs if self.instance and self.instance.pk else Decimal('0.00')
