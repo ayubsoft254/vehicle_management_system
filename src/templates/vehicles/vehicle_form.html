@@ -49,6 +49,11 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">
         <form method="post" enctype="multipart/form-data" id="vehicleForm" class="p-6 lg:p-8">
             {% csrf_token %}
+            {% if not can_view_prices %}
+            {{ form.purchase_price }}
+            {{ form.selling_price }}
+            {{ form.deposit_required }}
+            {% endif %}
 
             {% if form.non_field_errors %}
             <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
@@ -215,6 +220,7 @@
                         {{ form.purchase_date }}
                         {% if form.purchase_date.errors %}<p class="mt-1 text-xs text-red-600">{{ form.purchase_date.errors.0 }}</p>{% endif %}
                     </div>
+                    {% if can_view_prices %}
                     <div>
                         <label for="{{ form.purchase_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
                             Purchase Price (KES) <span class="text-red-500">*</span>
@@ -227,6 +233,7 @@
                         </div>
                         {% if form.purchase_price.errors %}<p class="mt-1 text-xs text-red-600">{{ form.purchase_price.errors.0 }}</p>{% endif %}
                     </div>
+                    {% endif %}
                 </div>
 
                 <!-- Additional cost components -->
@@ -324,6 +331,7 @@
                 </div>
 
                 <!-- Cost breakdown + selling price result -->
+                {% if can_view_prices %}
                 <div class="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-5">
                     <p class="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-4">Cost Breakdown &amp; Calculated Selling Price</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -390,6 +398,11 @@
 
                     </div>
                 </div>
+                {% else %}
+                <div class="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700">
+                    Cost summary and vehicle pricing are visible to administrators only.
+                </div>
+                {% endif %}
             </div>
 
             <!-- ── 4. Import Details ───────────────────────────────────── -->
@@ -622,12 +635,19 @@ document.addEventListener('DOMContentLoaded', function () {
         var spInput = document.getElementById('id_selling_price');
         if (spInput) spInput.value = total.toFixed(2);
 
-        document.getElementById('purchaseDisplay').textContent   = fmt(purchase);
-        document.getElementById('dutyDisplay').textContent       = fmt(duty);
-        document.getElementById('clearanceDisplay').textContent  = fmt(clearance);
-        document.getElementById('commissionDisplay').textContent = fmt(commission);
-        document.getElementById('extraCostsDisplay').textContent = fmt(extras);
-        document.getElementById('totalCostDisplay').textContent  = fmt(total);
+        var purchaseDisplay = document.getElementById('purchaseDisplay');
+        var dutyDisplay = document.getElementById('dutyDisplay');
+        var clearanceDisplay = document.getElementById('clearanceDisplay');
+        var commissionDisplay = document.getElementById('commissionDisplay');
+        var extraCostsDisplay = document.getElementById('extraCostsDisplay');
+        var totalCostDisplay = document.getElementById('totalCostDisplay');
+
+        if (purchaseDisplay) purchaseDisplay.textContent = fmt(purchase);
+        if (dutyDisplay) dutyDisplay.textContent = fmt(duty);
+        if (clearanceDisplay) clearanceDisplay.textContent = fmt(clearance);
+        if (commissionDisplay) commissionDisplay.textContent = fmt(commission);
+        if (extraCostsDisplay) extraCostsDisplay.textContent = fmt(extras);
+        if (totalCostDisplay) totalCostDisplay.textContent = fmt(total);
     }
 
     ['id_purchase_price', 'id_duty_cost', 'id_clearance_cost', 'id_commission_cost'].forEach(function (id) {
