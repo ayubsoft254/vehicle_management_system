@@ -55,7 +55,7 @@ class Repossession(models.Model):
     
     # Financial Details
     outstanding_amount = models.DecimalField(
-        max_digits=10,
+        max_digits=14,
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0.01'))],
         help_text="Total amount owed"
@@ -77,6 +77,22 @@ class Repossession(models.Model):
         blank=True,
         related_name='assigned_repossessions',
         help_text="Agent/officer assigned to this repossession"
+    )
+
+    contracted_auctioneer_name = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text='Name of the contracted auctioneer'
+    )
+    contracted_auctioneer_id = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text='ID number of the contracted auctioneer'
+    )
+    contracted_auctioneer_no = models.CharField(
+        max_length=30,
+        blank=True,
+        help_text='Phone/contact number of the contracted auctioneer'
     )
     
     # Vehicle Location
