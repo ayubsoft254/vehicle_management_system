@@ -261,11 +261,11 @@ def generate_sales_agreement_pdf(client_vehicle):
     price_data = [
         [
             Paragraph(f'<b>CLIENT PURCHASE PRICE (BASE) IN KSHS:</b> {float(client_base_price):,.2f}', normal_small),
-            Paragraph(f'<b>IN WORDS:</b> {_number_to_words(client_base_price)} Kenya Shillings Only', normal_small),
+            Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(client_base_price)}', normal_small),
         ],
         [
             Paragraph(f'<b>FINAL SELLING PRICE IN KSHS:</b> {float(final_selling_price):,.2f}', normal_small),
-            Paragraph(f'<b>IN WORDS:</b> {_number_to_words(final_selling_price)} Kenya Shillings Only', normal_small),
+            Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(final_selling_price)}', normal_small),
         ],
         [
             Paragraph(f'<b>EXTRA COSTS DEDUCTED:</b> KES {float(extra_costs_total):,.2f}', normal_small),
@@ -273,11 +273,11 @@ def generate_sales_agreement_pdf(client_vehicle):
         ],
         [
             Paragraph(f'<b>AMOUNT PAID (DEPOSIT):</b> KES {float(client_vehicle.deposit_paid):,.2f}', normal_small),
-            Paragraph(f'<b>IN WORDS:</b> {_number_to_words(client_vehicle.deposit_paid)} Kenya Shillings Only', normal_small),
+            Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(client_vehicle.deposit_paid)}', normal_small),
         ],
         [
             Paragraph(f'<b>BALANCE:</b> KES {float(client_vehicle.balance):,.2f}', normal_small),
-            Paragraph(f'<b>IN WORDS:</b> {_number_to_words(client_vehicle.balance)} Kenya Shillings Only', normal_small),
+            Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(client_vehicle.balance)}', normal_small),
         ],
     ]
     price_table = Table(price_data, colWidths=[9.5*cm, 8.5*cm])
@@ -669,28 +669,82 @@ def generate_sales_agreement_pdf(client_vehicle):
 
 def _number_to_words(number):
     """
-    Convert a number to words (simplified version for KES)
+    Convert a number to words for KES amounts, including cents.
     """
     try:
-        num = int(float(number))
-        ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
-        teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
-        tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
-        
-        if num == 0:
-            return 'Zero'
-        
-        if num < 10:
-            return ones[num]
-        elif num < 20:
-            return teens[num - 10]
-        elif num < 100:
-            return tens[num // 10] + (' ' + ones[num % 10] if num % 10 else '')
-        elif num < 1000:
-            return ones[num // 100] + ' Hundred' + (' ' + _number_to_words(num % 100) if num % 100 else '')
-        elif num < 1000000:
-            return _number_to_words(num // 1000) + ' Thousand' + (' ' + _number_to_words(num % 1000) if num % 1000 else '')
-        else:
-            return str(num)
-    except:
+        amount = Decimal(str(number)).quantize(Decimal('0.01'))
+
+        def convert_hundreds(value):
+            ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+            teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+            tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+
+            parts = []
+            hundreds = value // 100
+            remainder = value % 100
+
+            if hundreds:
+                parts.append(f'{ones[hundreds]} Hundred')
+
+            if remainder:
+                if remainder < 10:
+                    parts.append(ones[remainder])
+                elif remainder < 20:
+                    parts.append(teens[remainder - 10])
+                else:
+                    tens_word = tens[remainder // 10]
+                    ones_word = ones[remainder % 10]
+                    parts.append(f'{tens_word} {ones_word}'.strip())
+
+            return ' '.join(part for part in parts if part).strip()
+
+        def convert_integer(value):
+            if value == 0:
+                return 'Zero'
+
+            scales = [
+                (1_000_000_000, 'Billion'),
+                (1_000_000, 'Million'),
+                (1_000, 'Thousand'),
+                (1, ''),
+            ]
+
+            parts = []
+            remainder = value
+            for divisor, label in scales:
+                chunk = remainder // divisor
+                remainder %= divisor
+                if not chunk:
+                    continue
+                chunk_words = convert_hundreds(chunk)
+                if label:
+                    parts.append(f'{chunk_words} {label}')
+                else:
+                    parts.append(chunk_words)
+
+            return ' '.join(parts).strip()
+
+        whole_amount = int(amount)
+        cents = int((amount - Decimal(str(whole_amount))) * 100)
+
+        words = convert_integer(whole_amount)
+        if cents:
+            words = f'{words} and {convert_integer(cents)} Cents'
+
+        return words
+    except Exception:
+        return ''
+
+
+def _amount_to_words(number):
+    """Format an amount as words with Kenya Shillings and optional cents."""
+    try:
+        amount = Decimal(str(number)).quantize(Decimal('0.01'))
+        whole_amount = int(amount)
+        cents = int((amount - Decimal(str(whole_amount))) * 100)
+
+        if cents:
+            return f'{_number_to_words(whole_amount)} Kenya Shillings and {_number_to_words(cents)} Cents Only'
+        return f'{_number_to_words(whole_amount)} Kenya Shillings Only'
+    except Exception:
         return ''
