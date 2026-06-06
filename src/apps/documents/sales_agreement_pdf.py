@@ -107,6 +107,8 @@ def generate_sales_agreement_pdf(client_vehicle):
     elif client_vehicle.installment_months:
         selected_months = client_vehicle.installment_months
 
+    is_full_payment = (client_vehicle.payment_type == 'full') or ((client_vehicle.balance or Decimal('0.00')) <= Decimal('0.00'))
+
     client_id_display = (client.id_number or '').replace('-', '')
 
     def _payment_type_label(value):
@@ -293,13 +295,14 @@ def generate_sales_agreement_pdf(client_vehicle):
     elements.append(price_table)
     elements.append(Spacer(1, 0.2*cm))
 
-    # "TO BE PAID IN X MONTHS" line
-    months_text = str(selected_months) if selected_months else ''
-    elements.append(Paragraph(
-        f'<b>TO BE PAID IN</b> {months_text} <b>MONTH(S) [AS STIPULATED IN THE AGREED TERMS AND CONDITION]</b>',
-        normal_small
-    ))
-    elements.append(Spacer(1, 0.2*cm))
+    # "TO BE PAID IN X MONTHS" line (only for non-full payment plans)
+    if not is_full_payment:
+        months_text = str(selected_months) if selected_months else ''
+        elements.append(Paragraph(
+            f'<b>TO BE PAID IN</b> {months_text} <b>MONTH(S) [AS STIPULATED IN THE AGREED TERMS AND CONDITION]</b>',
+            normal_small
+        ))
+        elements.append(Spacer(1, 0.2*cm))
 
     # ---- INSURANCE & TRACKER ADD-ONS ----
     elements.append(Paragraph('<b>INSURANCE &amp; TRACKER DETAILS</b>', heading_style))
@@ -378,151 +381,149 @@ def generate_sales_agreement_pdf(client_vehicle):
     elements.append(sig1_table)
 
     # ============================================================
-    # PAGE 2 — PAYMENT SCHEDULE
+    # PAGE 2 — PAYMENT SCHEDULE (only for non-full payment)
     # ============================================================
-    elements.append(PageBreak())
+    if not is_full_payment:
+        elements.append(PageBreak())
 
-    # Payment schedule page header
-    elements.append(Paragraph('<b>HOZA INVESTMENT (K) LTD - MOMBASA KENYA</b>', title_style))
-    elements.append(Paragraph('<b>PAYMENT SCHEDULE</b>', heading_style))
-    elements.append(Spacer(1, 0.2*cm))
+        # Payment schedule page header
+        elements.append(Paragraph('<b>HOZA INVESTMENT (K) LTD - MOMBASA KENYA</b>', title_style))
+        elements.append(Paragraph('<b>PAYMENT SCHEDULE</b>', heading_style))
+        elements.append(Spacer(1, 0.2*cm))
 
-    # Make + Reg on this page
-    sched_header_data = [
-        [
-            Paragraph(f'<b>MAKE:</b> {vehicle.make or ""} {vehicle.model or ""}', normal_small),
-            Paragraph(f'<b>REGISTRATION NO:</b> {vehicle.registration_number or ""}', normal_small),
-        ],
-    ]
-    sched_header_table = Table(sched_header_data, colWidths=[9*cm, 9*cm])
-    sched_header_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 2),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-        ('TOPPADDING', (0, 0), (-1, -1), 2),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-    ]))
-    elements.append(sched_header_table)
-
-    # Balance / months / end date summary
-    if plan and plan.end_date:
-        end_date_str = plan.end_date.strftime('%d-%m-%Y')
-    elif selected_months and client_vehicle.purchase_date:
-        end_date_str = (client_vehicle.purchase_date + relativedelta(months=selected_months)).strftime('%d-%m-%Y')
-    else:
-        end_date_str = ''
-
-    months_str = str(selected_months) if selected_months else '___'
-    end_date_text = end_date_str if end_date_str else '___________'
-    elements.append(Paragraph(
-        f'<b>BALANCE TO PAY:</b> KES {float(client_vehicle.balance):,.2f}  '
-        f'<b>IN</b> {months_str} <b>MONTHS FROM AGREEMENT DATE UPTO</b> {end_date_text}',
-        normal_small
-    ))
-    elements.append(Spacer(1, 0.15*cm))
-    elements.append(Paragraph('<b>OTHER PAYMENT DETAILS:</b> ' + '_' * 70, normal_small))
-    elements.append(Spacer(1, 0.2*cm))
-
-    # Installment table
-
-    if plan:
-        schedules = list(plan.payment_schedules.all().order_by('installment_number'))
-    else:
-        schedules = []
-
-    schedule_count = selected_months or (len(schedules) if schedules else 15)
-    if schedule_count < 1:
-        schedule_count = 1
-
-    # Build rows: two installments side-by-side per row
-    sched_table_data = [
-        [
-            Paragraph('<b>DATE</b>', normal_small),
-            Paragraph('<b>AMOUNT</b>', normal_small),
-            Paragraph('', normal_small),
-            Paragraph('<b>DATE</b>', normal_small),
-            Paragraph('<b>AMOUNT</b>', normal_small),
+        # Make + Reg on this page
+        sched_header_data = [
+            [
+                Paragraph(f'<b>MAKE:</b> {vehicle.make or ""} {vehicle.model or ""}', normal_small),
+                Paragraph(f'<b>REGISTRATION NO:</b> {vehicle.registration_number or ""}', normal_small),
+            ],
         ]
-    ]
+        sched_header_table = Table(sched_header_data, colWidths=[9*cm, 9*cm])
+        sched_header_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ]))
+        elements.append(sched_header_table)
 
-    for i in range(0, schedule_count, 2):
-        # Left installment
-        installment_left = i + 1
-        label_left = f'<b>{_ordinal(installment_left)} INSTALMENT</b>'
-        if i < len(schedules):
-            s = schedules[i]
-            date_left = s.due_date.strftime('%d-%m-%Y') if s.due_date else ''
-            amt_left = f'KES {float(s.amount_due):,.2f}'
+        # Balance / months / end date summary
+        if plan and plan.end_date:
+            end_date_str = plan.end_date.strftime('%d-%m-%Y')
+        elif selected_months and client_vehicle.purchase_date:
+            end_date_str = (client_vehicle.purchase_date + relativedelta(months=selected_months)).strftime('%d-%m-%Y')
         else:
-            date_left = ''
-            amt_left = ''
+            end_date_str = ''
 
-        # Right installment (i+1)
-        if i + 1 < schedule_count:
-            installment_right = i + 2
-            label_right = f'<b>{_ordinal(installment_right)} INSTALMENT</b>'
-            if i + 1 < len(schedules):
-                s2 = schedules[i + 1]
-                date_right = s2.due_date.strftime('%d-%m-%Y') if s2.due_date else ''
-                amt_right = f'KES {float(s2.amount_due):,.2f}'
+        months_str = str(selected_months) if selected_months else '___'
+        end_date_text = end_date_str if end_date_str else '___________'
+        elements.append(Paragraph(
+            f'<b>BALANCE TO PAY:</b> KES {float(client_vehicle.balance):,.2f}  '
+            f'<b>IN</b> {months_str} <b>MONTHS FROM AGREEMENT DATE UPTO</b> {end_date_text}',
+            normal_small
+        ))
+        elements.append(Spacer(1, 0.15*cm))
+        elements.append(Paragraph('<b>OTHER PAYMENT DETAILS:</b> ' + '_' * 70, normal_small))
+        elements.append(Spacer(1, 0.2*cm))
+
+        # Installment table
+        if plan:
+            schedules = list(plan.payment_schedules.all().order_by('installment_number'))
+        else:
+            schedules = []
+
+        schedule_count = selected_months or (len(schedules) if schedules else 15)
+        if schedule_count < 1:
+            schedule_count = 1
+
+        # Build rows: two installments side-by-side per row
+        sched_table_data = [
+            [
+                Paragraph('<b>DATE</b>', normal_small),
+                Paragraph('<b>AMOUNT</b>', normal_small),
+                Paragraph('', normal_small),
+                Paragraph('<b>DATE</b>', normal_small),
+                Paragraph('<b>AMOUNT</b>', normal_small),
+            ]
+        ]
+
+        for i in range(0, schedule_count, 2):
+            installment_left = i + 1
+            label_left = f'<b>{_ordinal(installment_left)} INSTALMENT</b>'
+            if i < len(schedules):
+                s = schedules[i]
+                date_left = s.due_date.strftime('%d-%m-%Y') if s.due_date else ''
+                amt_left = f'KES {float(s.amount_due):,.2f}'
             else:
+                date_left = ''
+                amt_left = ''
+
+            if i + 1 < schedule_count:
+                installment_right = i + 2
+                label_right = f'<b>{_ordinal(installment_right)} INSTALMENT</b>'
+                if i + 1 < len(schedules):
+                    s2 = schedules[i + 1]
+                    date_right = s2.due_date.strftime('%d-%m-%Y') if s2.due_date else ''
+                    amt_right = f'KES {float(s2.amount_due):,.2f}'
+                else:
+                    date_right = ''
+                    amt_right = ''
+            else:
+                label_right = ''
                 date_right = ''
                 amt_right = ''
-        else:
-            label_right = ''
-            date_right = ''
-            amt_right = ''
 
-        sched_table_data.append([
-            Paragraph(f'{label_left}  {date_left}', normal_small),
-            Paragraph(amt_left, normal_small),
-            Paragraph('', normal_small),
-            Paragraph(f'{label_right}  {date_right}', normal_small),
-            Paragraph(amt_right, normal_small),
-        ])
+            sched_table_data.append([
+                Paragraph(f'{label_left}  {date_left}', normal_small),
+                Paragraph(amt_left, normal_small),
+                Paragraph('', normal_small),
+                Paragraph(f'{label_right}  {date_right}', normal_small),
+                Paragraph(amt_right, normal_small),
+            ])
 
-    sched_table = Table(sched_table_data, colWidths=[5.5*cm, 2.8*cm, 0.4*cm, 5.5*cm, 3.8*cm])
-    sched_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('LEFTPADDING', (0, 0), (-1, -1), 3),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-        ('GRID', (0, 0), (1, -1), 0.5, colors.grey),
-        ('GRID', (3, 0), (4, -1), 0.5, colors.grey),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
-    ]))
-    elements.append(sched_table)
-    elements.append(Spacer(1, 0.4*cm))
+        sched_table = Table(sched_table_data, colWidths=[5.5*cm, 2.8*cm, 0.4*cm, 5.5*cm, 3.8*cm])
+        sched_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('GRID', (0, 0), (1, -1), 0.5, colors.grey),
+            ('GRID', (3, 0), (4, -1), 0.5, colors.grey),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
+        ]))
+        elements.append(sched_table)
+        elements.append(Spacer(1, 0.4*cm))
 
-    # Payment schedule page signatures
-    sched_sig_data = [
-        [
-            Paragraph("<b>Customer's Signature</b>", normal_small),
-            Paragraph('<b>Seller\'s Signature</b>', normal_small),
-        ],
-        [
-            Paragraph('___________________________', normal_small),
-            Paragraph('___________________________', normal_small),
-        ],
-        [
-            Paragraph(f'{client.get_full_name()}', normal_small),
-            Paragraph('For HOZA INVESTMENT (K) LTD', normal_small),
-        ],
-    ]
-    sched_sig_table = Table(sched_sig_data, colWidths=[9*cm, 9*cm])
-    sched_sig_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 2),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ]))
-    elements.append(sched_sig_table)
+        # Payment schedule page signatures
+        sched_sig_data = [
+            [
+                Paragraph("<b>Customer's Signature</b>", normal_small),
+                Paragraph('<b>Seller\'s Signature</b>', normal_small),
+            ],
+            [
+                Paragraph('___________________________', normal_small),
+                Paragraph('___________________________', normal_small),
+            ],
+            [
+                Paragraph(f'{client.get_full_name()}', normal_small),
+                Paragraph('For HOZA INVESTMENT (K) LTD', normal_small),
+            ],
+        ]
+        sched_sig_table = Table(sched_sig_data, colWidths=[9*cm, 9*cm])
+        sched_sig_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        elements.append(sched_sig_table)
 
     # ============================================================
     # PAGE 3 — TERMS AND CONDITIONS
