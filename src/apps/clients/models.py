@@ -385,6 +385,40 @@ class ClientVehicle(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
         help_text='Agreed purchase price'
     )
+
+    client_purchase_price = models.DecimalField(
+        'Client Purchase Price',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        default=Decimal('0.00'),
+        help_text='Auto-calculated client purchase price before manual adjustments'
+    )
+
+    final_selling_price = models.DecimalField(
+        'Final Selling Price',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        default=Decimal('0.00'),
+        help_text='Editable selling price before deducting extra costs'
+    )
+
+    extra_costs_total = models.DecimalField(
+        'Extra Costs Total',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        default=Decimal('0.00'),
+        help_text='Total extra costs deducted from final selling price'
+    )
+
+    extra_costs_json = models.TextField(
+        'Extra Costs JSON',
+        blank=True,
+        default='[]',
+        help_text='JSON list of extra costs with description and amount'
+    )
     
     deposit_paid = models.DecimalField(
         'Deposit Paid',
