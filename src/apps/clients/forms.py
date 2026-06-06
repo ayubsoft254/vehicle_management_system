@@ -187,6 +187,7 @@ class ClientVehicleForm(forms.ModelForm):
             'vehicle',
             'broker_name', 'broker_id_no', 'broker_phone_no',
             'purchase_date', 'purchase_price',
+            'final_selling_price', 'extra_costs_total', 'extra_costs_json',
             'deposit_paid', 'payment_type',
             'remainder_payment_type', 'monthly_payment_date', 'weekly_payment_day',
             'allow_flexible_payments',
@@ -221,6 +222,18 @@ class ClientVehicleForm(forms.ModelForm):
                 'placeholder': '0.00',
                 'step': '0.01'
             }),
+            'final_selling_price': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': '0.00',
+                'step': '0.01',
+                'min': '0'
+            }),
+            'extra_costs_total': forms.NumberInput(attrs={
+                'class': 'hidden',
+                'step': '0.01',
+                'min': '0'
+            }),
+            'extra_costs_json': forms.HiddenInput(),
             'deposit_paid': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '0.00',
@@ -278,6 +291,15 @@ class ClientVehicleForm(forms.ModelForm):
             self.fields['vehicle'].queryset = Vehicle.objects.filter(
                 Q(status='available') | Q(pk=self.instance.vehicle.pk)
             )
+            if not self.is_bound:
+                if self.instance.client_purchase_price and self.instance.client_purchase_price > 0:
+                    self.fields['purchase_price'].initial = self.instance.client_purchase_price
+                if self.instance.final_selling_price and self.instance.final_selling_price > 0:
+                    self.fields['final_selling_price'].initial = self.instance.final_selling_price
+                else:
+                    self.fields['final_selling_price'].initial = self.instance.purchase_price
+                self.fields['extra_costs_total'].initial = self.instance.extra_costs_total or Decimal('0.00')
+                self.fields['extra_costs_json'].initial = self.instance.extra_costs_json or '[]'
         else:
             self.fields['vehicle'].queryset = Vehicle.objects.filter(status='available')
         
@@ -292,6 +314,9 @@ class ClientVehicleForm(forms.ModelForm):
         ]
         for field_name in optional_fields:
             self.fields[field_name].required = False
+
+        self.fields['extra_costs_total'].required = False
+        self.fields['extra_costs_json'].required = False
     
     def clean(self):
         """Validate vehicle assignment and payment plan"""
@@ -300,11 +325,30 @@ class ClientVehicleForm(forms.ModelForm):
         vehicle = cleaned_data.get('vehicle')
         deposit_paid = cleaned_data.get('deposit_paid')
         purchase_price = cleaned_data.get('purchase_price')
+        final_selling_price = cleaned_data.get('final_selling_price')
+        extra_costs_total = cleaned_data.get('extra_costs_total') or Decimal('0.00')
         payment_type = cleaned_data.get('payment_type')
         remainder_payment_type = cleaned_data.get('remainder_payment_type')
         monthly_payment_date = cleaned_data.get('monthly_payment_date')
         weekly_payment_day = cleaned_data.get('weekly_payment_day')
         installment_months = cleaned_data.get('installment_months')
+
+        if purchase_price is None:
+            purchase_price = Decimal('0.00')
+
+        if final_selling_price is None:
+            final_selling_price = purchase_price
+
+        if extra_costs_total < 0:
+            raise ValidationError("Extra costs cannot be negative.")
+
+        effective_purchase_price = (final_selling_price - extra_costs_total).quantize(Decimal('0.01'))
+        if effective_purchase_price < 0:
+            raise ValidationError("Final selling price cannot be lower than total extra costs.")
+
+        cleaned_data['purchase_price'] = effective_purchase_price
+        cleaned_data['final_selling_price'] = final_selling_price.quantize(Decimal('0.01'))
+        cleaned_data['extra_costs_total'] = extra_costs_total.quantize(Decimal('0.01'))
         
         # Check if vehicle is already assigned
         if vehicle and vehicle.status != 'available':
@@ -313,21 +357,21 @@ class ClientVehicleForm(forms.ModelForm):
                 raise ValidationError(f"Vehicle {vehicle} is not available for assignment.")
         
         # Validate deposit
-        if deposit_paid and purchase_price:
-            if deposit_paid > purchase_price:
-                raise ValidationError("Deposit cannot exceed purchase price.")
+        if deposit_paid and effective_purchase_price:
+            if deposit_paid > effective_purchase_price:
+                raise ValidationError("Deposit cannot exceed net client price.")
             if deposit_paid < 0:
                 raise ValidationError("Deposit cannot be negative.")
 
-        if payment_type == 'full' and purchase_price:
-            cleaned_data['deposit_paid'] = purchase_price
+        if payment_type == 'full' and effective_purchase_price:
+            cleaned_data['deposit_paid'] = effective_purchase_price
             cleaned_data['allow_flexible_payments'] = False
             cleaned_data['remainder_payment_type'] = None
             cleaned_data['monthly_payment_date'] = None
             cleaned_data['weekly_payment_day'] = None
             cleaned_data['installment_months'] = None
             cleaned_data['monthly_installment'] = None
-            deposit_paid = purchase_price
+            deposit_paid = effective_purchase_price
         
         # Validate payment type-specific requirements
         if payment_type == 'installment':
@@ -350,7 +394,7 @@ class ClientVehicleForm(forms.ModelForm):
             if not isinstance(installments, list) or len(installments) == 0:
                 raise ValidationError("Add at least one installment for flexible payment.")
 
-            balance = (purchase_price or Decimal('0.00')) - (deposit_paid or Decimal('0.00'))
+            balance = (effective_purchase_price or Decimal('0.00')) - (deposit_paid or Decimal('0.00'))
             if balance <= 0:
                 raise ValidationError("Flexible installments require a remaining balance after deposit.")
 
@@ -394,8 +438,8 @@ class ClientVehicleForm(forms.ModelForm):
             cleaned_data['monthly_installment'] = (balance / Decimal(str(len(installments)))).quantize(Decimal('0.01'))
         
         # Check client credit limit (only if a limit is set > 0)
-        if client and purchase_price and client.credit_limit > 0:
-            balance = purchase_price - (deposit_paid or 0)
+        if client and effective_purchase_price and client.credit_limit > 0:
+            balance = effective_purchase_price - (deposit_paid or 0)
             
             # If updating, add back the existing balance to available credit
             if self.instance and self.instance.pk:
