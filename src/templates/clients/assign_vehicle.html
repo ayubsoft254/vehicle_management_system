@@ -115,7 +115,7 @@
         {% endif %}
 
         <!-- Vehicle Selection -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div id="payment-method-section" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
                 <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-car mr-2"></i>Vehicle Selection</h2>
             </div>
@@ -131,7 +131,7 @@
         </div>
 
         <!-- Payment Method -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div id="purchase-details-section" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
                 <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-credit-card mr-2"></i>Payment Method</h2>
             </div>
@@ -201,6 +201,9 @@
                                 <option value="cash">Cash</option>
                                 <option value="mpesa">M-Pesa</option>
                                 <option value="bank_transfer">Bank Transfer</option>
+                                <option value="kcb_ke">KCB KE</option>
+                                <option value="absa_ke">ABSA KE</option>
+                                <option value="equity_ke">EQUITY KE</option>
                                 <option value="cheque">Cheque</option>
                                 <option value="card">Card</option>
                                 <option value="other">Other</option>
@@ -602,7 +605,7 @@
         </div>
 
         <!-- Pricing Adjustments -->
-        <div class="bg-white rounded-lg shadow-sm border border-purple-200 overflow-hidden">
+        <div id="pricing-adjustments-section" class="bg-white rounded-lg shadow-sm border border-purple-200 overflow-hidden">
             <div class="bg-gradient-to-r from-purple-50 to-purple-50 px-6 py-4 border-b border-purple-200">
                 <h2 class="text-lg font-semibold text-purple-900"><i class="fas fa-calculator mr-2"></i>Pricing Adjustments</h2>
                 <p class="text-xs text-purple-600 mt-1">Set final selling price and optional extra deductions to determine the actual amount charged to the client.</p>
@@ -735,10 +738,129 @@ textarea { min-height: 100px; resize: vertical; }
 <script>
 const vehiclePrices     = {{ vehicle_prices_json|safe|default:"{}" }};
 const vehicleCostPrices = {{ vehicle_cost_prices_json|safe|default:"{}" }};
+const initialInsurance  = {{ initial_insurance_json|safe|default:"{}" }};
+const initialTrackers   = {{ initial_trackers_json|safe|default:"[]" }};
 let selectedVehicleBasePrice = 0;
 let finalSellingTouched = false;
 
 function fmt(n) { return 'KES ' + n.toLocaleString('en-KE', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function movePaymentSectionsAfterPricing() {
+    const form = document.querySelector('form[method="post"]');
+    const pricingSection = document.getElementById('pricing-adjustments-section');
+    const paymentMethodSection = document.getElementById('payment-method-section');
+    const purchaseDetailsSection = document.getElementById('purchase-details-section');
+    const paymentConfigSection = document.getElementById('payment-config-section');
+
+    if (!form || !pricingSection || !paymentMethodSection || !purchaseDetailsSection || !paymentConfigSection) {
+        return;
+    }
+
+    const anchor = pricingSection.nextSibling;
+    form.insertBefore(paymentMethodSection, anchor);
+    form.insertBefore(purchaseDetailsSection, anchor);
+    form.insertBefore(paymentConfigSection, anchor);
+}
+
+function applyInitialInsuranceData() {
+    if (!initialInsurance || Object.keys(initialInsurance).length === 0) {
+        return;
+    }
+
+    const setValue = (id, value) => {
+        const el = document.getElementById(id);
+        if (el && value !== undefined && value !== null) {
+            el.value = value;
+        }
+    };
+
+    setValue('id_insurance_provider_id', initialInsurance.provider_id || '');
+    setValue('id_insurance_policy_number', initialInsurance.policy_number || '');
+    setValue('id_insurance_policy_type', initialInsurance.policy_type || 'comprehensive');
+    setValue('id_insurance_vehicle_usage', initialInsurance.vehicle_usage || 'private');
+    setValue('id_insurance_start_date', initialInsurance.start_date || '');
+    setValue('id_insurance_end_date', initialInsurance.end_date || '');
+    setValue('id_insurance_buying_price', initialInsurance.buying_price || '');
+    setValue('id_insurance_selling_price', initialInsurance.selling_price || '');
+    setValue('id_insurance_agent_name', initialInsurance.agent_name || '');
+    setValue('id_insurance_agent_id', initialInsurance.agent_id || '');
+
+    const paymentType = initialInsurance.payment_type || 'full';
+    const paymentRadio = document.querySelector(`input[name="insurance_payment_type"][value="${paymentType}"]`);
+    if (paymentRadio) {
+        paymentRadio.checked = true;
+    }
+
+    const installments = Array.isArray(initialInsurance.flexible_installments)
+        ? initialInsurance.flexible_installments
+        : [];
+    if (paymentType === 'flexible' && installments.length > 0) {
+        const container = document.getElementById('insurance-installments-container');
+        if (container) {
+            container.innerHTML = '';
+            installments.forEach(inst => addInsuranceInstallmentRow(inst.due_date || '', inst.amount || ''));
+        }
+    }
+
+    updateInsurancePaymentUI();
+    syncInsuranceInstallmentsPayload();
+}
+
+function applyInitialTrackerData() {
+    if (!Array.isArray(initialTrackers) || initialTrackers.length === 0) {
+        return;
+    }
+
+    const container = document.getElementById('trackers-container');
+    if (!container) {
+        return;
+    }
+
+    while (container.querySelectorAll('.tracker-item').length < initialTrackers.length) {
+        addTracker();
+    }
+
+    const items = Array.from(container.querySelectorAll('.tracker-item'));
+    initialTrackers.forEach((tracker, idx) => {
+        const item = items[idx];
+        if (!item) {
+            return;
+        }
+
+        const setRowValue = (selector, value) => {
+            const el = item.querySelector(selector);
+            if (el && value !== undefined && value !== null) {
+                el.value = value;
+            }
+        };
+
+        setRowValue('input[name="tracker_name[]"]', tracker.tracker_name || '');
+        setRowValue('input[name="tracker_serial[]"]', tracker.serial_number || '');
+        setRowValue('input[name="tracker_certificate_number[]"]', tracker.certificate_number || '');
+        setRowValue('input[name="tracker_provider[]"]', tracker.provider || '');
+        setRowValue('input[name="tracker_install_date[]"]', tracker.install_date || '');
+        setRowValue('input[name="tracker_buying_price[]"]', tracker.buying_price || '');
+        setRowValue('input[name="tracker_selling_price[]"]', tracker.selling_price || '');
+
+        const paymentType = tracker.payment_type || 'full';
+        const radio = item.querySelector(`input[name="tracker_payment_type[]"][value="${paymentType}"]`);
+        if (radio) {
+            radio.checked = true;
+            updateTrackerPaymentUI(radio);
+        }
+
+        const installments = Array.isArray(tracker.flexible_installments) ? tracker.flexible_installments : [];
+        if (paymentType === 'flexible' && installments.length > 0) {
+            const installmentsContainer = item.querySelector('.tracker-installments-container');
+            if (installmentsContainer) {
+                installmentsContainer.innerHTML = '';
+                installments.forEach(inst => addTrackerInstallmentRow(null, item, inst.due_date || '', inst.amount || ''));
+                syncTrackerInstallmentsPayload(item);
+                updateTrackerInstallmentSummary(item);
+            }
+        }
+    });
+}
 
 function updateInsurancePaymentUI() {
     const val = document.querySelector('input[name="insurance_payment_type"]:checked')?.value;
@@ -796,7 +918,7 @@ function updateInsuranceInstallmentSummary() {
     syncInsuranceInstallmentsPayload();
 }
 
-function addInsuranceInstallmentRow() {
+function addInsuranceInstallmentRow(dueDate = '', amount = '') {
     const container = document.getElementById('insurance-installments-container');
     if (!container) return;
     const count = getInsuranceInstallmentRows().length + 1;
@@ -818,6 +940,8 @@ function addInsuranceInstallmentRow() {
             </button>
         </div>
     `;
+    row.querySelector('input[name="ins_installment_due_date[]"]').value = dueDate || '';
+    row.querySelector('input[name="ins_installment_amount[]"]').value = amount || '';
     row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updateInsuranceInstallmentSummary));
     row.querySelector('.remove-ins-row')?.addEventListener('click', () => {
         row.remove();
@@ -910,7 +1034,7 @@ function updateTrackerInstallmentSummary(trackerItem) {
     syncTrackerInstallmentsPayload(trackerItem);
 }
 
-function addTrackerInstallmentRow(btnEl, trackerItemArg) {
+function addTrackerInstallmentRow(btnEl, trackerItemArg, dueDate = '', amount = '') {
     const trackerItem = trackerItemArg || btnEl?.closest('.tracker-item');
     if (!trackerItem) return;
     const container = trackerItem.querySelector('.tracker-installments-container');
@@ -934,6 +1058,8 @@ function addTrackerInstallmentRow(btnEl, trackerItemArg) {
             </button>
         </div>
     `;
+    row.querySelector('input[name="trk_installment_due_date[]"]').value = dueDate || '';
+    row.querySelector('input[name="trk_installment_amount[]"]').value = amount || '';
     row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => updateTrackerInstallmentSummary(trackerItem)));
     row.querySelector('.remove-trk-row')?.addEventListener('click', () => {
         row.remove();
@@ -1403,6 +1529,8 @@ function ensureFlexibleInstallmentRows() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    movePaymentSectionsAfterPricing();
+
     const initialVehicleId = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
     if (initialVehicleId && vehiclePrices[initialVehicleId] !== undefined) {
         selectedVehicleBasePrice = Number(vehiclePrices[initialVehicleId]) || 0;
@@ -1431,6 +1559,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('{{ form.deposit_paid.id_for_label }}')?.addEventListener('input', updateFlexibleInstallmentSummary);
 
     // Initialize insurance payment type UI
+    applyInitialInsuranceData();
     updateInsurancePaymentUI();
     document.getElementById('id_insurance_selling_price')?.addEventListener('input', () => {
         updateInsuranceInstallmentSummary();
@@ -1450,6 +1579,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Initialize tracker payment type UI
+    applyInitialTrackerData();
     document.querySelectorAll('.tracker-item').forEach(trackerItem => {
         const checked = trackerItem.querySelector('input[name="tracker_payment_type[]"]:checked');
         if (checked) updateTrackerPaymentUI(checked);
@@ -1593,6 +1723,9 @@ function addDepositSplitRow() {
                 <option value="cash">Cash</option>
                 <option value="mpesa">M-Pesa</option>
                 <option value="bank_transfer">Bank Transfer</option>
+                <option value="kcb_ke">KCB KE</option>
+                <option value="absa_ke">ABSA KE</option>
+                <option value="equity_ke">EQUITY KE</option>
                 <option value="cheque">Cheque</option>
                 <option value="card">Card</option>
                 <option value="other">Other</option>
