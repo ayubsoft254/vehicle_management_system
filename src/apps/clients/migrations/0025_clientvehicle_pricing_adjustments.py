@@ -5,6 +5,50 @@ from django.core.validators import MinValueValidator
 from django.db import migrations, models
 
 
+def add_missing_client_vehicle_pricing_fields(apps, schema_editor):
+    """Add pricing columns only when missing to avoid duplicate-column failures."""
+    table_name = 'client_vehicles'
+    quoted_table = schema_editor.quote_name(table_name)
+    vendor = schema_editor.connection.vendor
+
+    if vendor == 'postgresql':
+        schema_editor.execute(
+            f"ALTER TABLE {quoted_table} ADD COLUMN IF NOT EXISTS client_purchase_price numeric(12,2) NOT NULL DEFAULT 0.00"
+        )
+        schema_editor.execute(
+            f"ALTER TABLE {quoted_table} ADD COLUMN IF NOT EXISTS final_selling_price numeric(12,2) NOT NULL DEFAULT 0.00"
+        )
+        schema_editor.execute(
+            f"ALTER TABLE {quoted_table} ADD COLUMN IF NOT EXISTS extra_costs_total numeric(12,2) NOT NULL DEFAULT 0.00"
+        )
+        schema_editor.execute(
+            f"ALTER TABLE {quoted_table} ADD COLUMN IF NOT EXISTS extra_costs_json text NOT NULL DEFAULT '[]'"
+        )
+        return
+
+    with schema_editor.connection.cursor() as cursor:
+        existing_columns = {
+            column.name for column in schema_editor.connection.introspection.get_table_description(cursor, table_name)
+        }
+
+    if 'client_purchase_price' not in existing_columns:
+        schema_editor.execute(
+            f"ALTER TABLE {quoted_table} ADD COLUMN client_purchase_price decimal(12,2) NOT NULL DEFAULT 0.00"
+        )
+    if 'final_selling_price' not in existing_columns:
+        schema_editor.execute(
+            f"ALTER TABLE {quoted_table} ADD COLUMN final_selling_price decimal(12,2) NOT NULL DEFAULT 0.00"
+        )
+    if 'extra_costs_total' not in existing_columns:
+        schema_editor.execute(
+            f"ALTER TABLE {quoted_table} ADD COLUMN extra_costs_total decimal(12,2) NOT NULL DEFAULT 0.00"
+        )
+    if 'extra_costs_json' not in existing_columns:
+        schema_editor.execute(
+            f"ALTER TABLE {quoted_table} ADD COLUMN extra_costs_json text NOT NULL DEFAULT '[]'"
+        )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -12,24 +56,31 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='clientvehicle',
-            name='client_purchase_price',
-            field=models.DecimalField(decimal_places=2, default=Decimal('0.00'), help_text='Auto-calculated client purchase price before manual adjustments', max_digits=12, validators=[MinValueValidator(Decimal('0.00'))], verbose_name='Client Purchase Price'),
-        ),
-        migrations.AddField(
-            model_name='clientvehicle',
-            name='extra_costs_json',
-            field=models.TextField(blank=True, default='[]', help_text='JSON list of extra costs with description and amount', verbose_name='Extra Costs JSON'),
-        ),
-        migrations.AddField(
-            model_name='clientvehicle',
-            name='extra_costs_total',
-            field=models.DecimalField(decimal_places=2, default=Decimal('0.00'), help_text='Total extra costs deducted from final selling price', max_digits=12, validators=[MinValueValidator(Decimal('0.00'))], verbose_name='Extra Costs Total'),
-        ),
-        migrations.AddField(
-            model_name='clientvehicle',
-            name='final_selling_price',
-            field=models.DecimalField(decimal_places=2, default=Decimal('0.00'), help_text='Editable selling price before deducting extra costs', max_digits=12, validators=[MinValueValidator(Decimal('0.00'))], verbose_name='Final Selling Price'),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(add_missing_client_vehicle_pricing_fields, migrations.RunPython.noop),
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name='clientvehicle',
+                    name='client_purchase_price',
+                    field=models.DecimalField(decimal_places=2, default=Decimal('0.00'), help_text='Auto-calculated client purchase price before manual adjustments', max_digits=12, validators=[MinValueValidator(Decimal('0.00'))], verbose_name='Client Purchase Price'),
+                ),
+                migrations.AddField(
+                    model_name='clientvehicle',
+                    name='extra_costs_json',
+                    field=models.TextField(blank=True, default='[]', help_text='JSON list of extra costs with description and amount', verbose_name='Extra Costs JSON'),
+                ),
+                migrations.AddField(
+                    model_name='clientvehicle',
+                    name='extra_costs_total',
+                    field=models.DecimalField(decimal_places=2, default=Decimal('0.00'), help_text='Total extra costs deducted from final selling price', max_digits=12, validators=[MinValueValidator(Decimal('0.00'))], verbose_name='Extra Costs Total'),
+                ),
+                migrations.AddField(
+                    model_name='clientvehicle',
+                    name='final_selling_price',
+                    field=models.DecimalField(decimal_places=2, default=Decimal('0.00'), help_text='Editable selling price before deducting extra costs', max_digits=12, validators=[MinValueValidator(Decimal('0.00'))], verbose_name='Final Selling Price'),
+                ),
+            ],
         ),
     ]
