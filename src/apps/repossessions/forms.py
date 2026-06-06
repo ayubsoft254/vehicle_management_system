@@ -88,9 +88,11 @@ class RepossessionForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         self.fields['assigned_to'].required = False
+        self.fields['additional_costs'].required = False
         self.fields['last_payment_date'].required = False
         self.fields['last_known_location'].required = False
         self.fields['notes'].required = False
+        self.fields['additional_costs'].initial = self.instance.additional_costs if self.instance and self.instance.pk else Decimal('0.00')
 
         sold_vehicle_qs = Vehicle.objects.filter(status=VehicleStatus.SOLD)
         if self.instance and self.instance.pk and self.instance.vehicle_id:
