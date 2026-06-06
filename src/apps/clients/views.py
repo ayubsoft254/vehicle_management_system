@@ -944,6 +944,8 @@ def client_vehicle_update(request, pk):
             # Automatically create Installment Plan if there's a balance and payment terms are provided
             if client_vehicle.balance > 0 and client_vehicle.installment_months:
                 from apps.payments.models import InstallmentPlan
+                # ClientVehicle no longer stores interest_rate; default to zero when creating/updating plans.
+                default_interest_rate = Decimal('0.00')
                 plan, created = InstallmentPlan.objects.get_or_create(
                     client_vehicle=client_vehicle,
                     defaults={
@@ -951,7 +953,7 @@ def client_vehicle_update(request, pk):
                         'deposit': client_vehicle.deposit_paid,
                         'monthly_installment': client_vehicle.monthly_installment,
                         'number_of_installments': client_vehicle.installment_months,
-                        'interest_rate': client_vehicle.interest_rate or Decimal('0.00'),
+                        'interest_rate': default_interest_rate,
                         'start_date': timezone.now().date(),
                         'is_active': True,
                         'created_by': request.user
@@ -964,7 +966,7 @@ def client_vehicle_update(request, pk):
                     plan.deposit = client_vehicle.deposit_paid
                     plan.monthly_installment = client_vehicle.monthly_installment
                     plan.number_of_installments = client_vehicle.installment_months
-                    plan.interest_rate = client_vehicle.interest_rate or Decimal('0.00')
+                    plan.interest_rate = default_interest_rate
                     plan.save()
                     # Re-generate schedules
                     plan.payment_schedules.all().delete()
@@ -986,6 +988,64 @@ def client_vehicle_update(request, pk):
     vehicles = Vehicle.objects.filter(Q(status='available') | Q(id=client_vehicle.vehicle.id))
     vehicle_prices = {v.id: float(v.selling_price) for v in vehicles}
     vehicle_cost_prices = {v.id: float(v.purchase_price) for v in vehicles}
+
+    # Prefill insurance and tracker sections for edit mode.
+    from apps.insurance.models import InsuranceProvider, InsurancePolicy
+
+    insurance_providers = InsuranceProvider.objects.filter(is_active=True).order_by('name')
+    insurance_policy = InsurancePolicy.objects.filter(
+        vehicle=client_vehicle.vehicle,
+        client=client_vehicle.client,
+    ).order_by('-created_at').first()
+
+    initial_insurance_data = {}
+    if insurance_policy:
+        insurance_installments = list(
+            insurance_policy.insurance_payment_schedules.order_by('installment_number').values('due_date', 'amount_due')
+        )
+        initial_insurance_data = {
+            'provider_id': insurance_policy.provider_id,
+            'policy_number': insurance_policy.policy_number,
+            'policy_type': insurance_policy.policy_type,
+            'vehicle_usage': insurance_policy.vehicle_usage or 'private',
+            'start_date': insurance_policy.start_date.isoformat() if insurance_policy.start_date else '',
+            'end_date': insurance_policy.end_date.isoformat() if insurance_policy.end_date else '',
+            'buying_price': str(insurance_policy.buying_price or Decimal('0.00')),
+            'selling_price': str(insurance_policy.selling_price or Decimal('0.00')),
+            'agent_name': insurance_policy.agent_name or '',
+            'agent_id': insurance_policy.agent_id or '',
+            'payment_type': insurance_policy.payment_type or 'full',
+            'flexible_installments': [
+                {
+                    'due_date': row['due_date'].isoformat() if row['due_date'] else '',
+                    'amount': str(row['amount_due'] or Decimal('0.00')),
+                }
+                for row in insurance_installments
+            ],
+        }
+
+    initial_trackers_data = []
+    for tracker in client_vehicle.trackers.all().order_by('created_at'):
+        installments = []
+        if tracker.has_payment_plan and tracker.installment_months and tracker.monthly_installment:
+            base_date = tracker.installed_date or timezone.now().date()
+            for idx in range(int(tracker.installment_months)):
+                installments.append({
+                    'due_date': (base_date + relativedelta(months=idx + 1)).isoformat(),
+                    'amount': str(tracker.monthly_installment),
+                })
+
+        initial_trackers_data.append({
+            'tracker_name': tracker.tracker_name or '',
+            'serial_number': tracker.serial_number or '',
+            'certificate_number': tracker.certificate_number or '',
+            'provider': tracker.provider or '',
+            'install_date': tracker.installed_date.isoformat() if tracker.installed_date else '',
+            'buying_price': str(tracker.buying_price or Decimal('0.00')),
+            'selling_price': str(tracker.selling_price or Decimal('0.00')),
+            'payment_type': tracker.payment_type or 'full',
+            'flexible_installments': installments,
+        })
     
     context = {
         'form': form,
@@ -994,7 +1054,10 @@ def client_vehicle_update(request, pk):
         'title': 'Update Vehicle Assignment',
         'button_text': 'Update Assignment',
         'vehicle_prices_json': json.dumps(vehicle_prices),
-        'vehicle_cost_prices_json': json.dumps(vehicle_cost_prices)
+        'vehicle_cost_prices_json': json.dumps(vehicle_cost_prices),
+        'insurance_providers': insurance_providers,
+        'initial_insurance_json': json.dumps(initial_insurance_data),
+        'initial_trackers_json': json.dumps(initial_trackers_data),
     }
     
     return render(request, 'clients/assign_vehicle.html', context)
@@ -1304,7 +1367,7 @@ def create_installment_plan(request, client_vehicle_pk):
         initial_data = {
             'monthly_installment': client_vehicle.monthly_installment,
             'number_of_installments': client_vehicle.installment_months,
-            'interest_rate': client_vehicle.interest_rate,
+            'interest_rate': Decimal('0.00'),
             'start_date': client_vehicle.purchase_date,
         }
         form = InstallmentPlanForm(initial=initial_data, client_vehicle=client_vehicle)
