@@ -94,6 +94,8 @@ class InsuranceProvider(models.Model):
     # Contact Information
     phone_primary = models.CharField(
         max_length=15,
+        blank=True,
+        null=True,
         help_text="Primary contact phone"
     )
     
@@ -118,6 +120,8 @@ class InsuranceProvider(models.Model):
     
     # Address
     physical_address = models.TextField(
+        blank=True,
+        null=True,
         help_text="Physical office address"
     )
     
