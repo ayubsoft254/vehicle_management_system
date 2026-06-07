@@ -14,6 +14,7 @@ A comprehensive vehicle sales management system built with Django 5.1, featuring
 - **Insurance Management**: Track policies and expiry notifications
 - **Notifications Center**: In-app notifications with unread counts, read/unread actions, filters, and user delivery preferences
 - **Document Management**: Upload and manage contracts, agreements, and documents
+- **Electronic Signatures**: Send PDF/DOCX documents for e-signing via DocuSeal
 - **Comprehensive Reporting**: PDF/CSV exports for all modules
 - **Audit Logging**: Complete system activity tracking
 - **Background Tasks**: Celery for asynchronous processing
@@ -114,6 +115,29 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+## DocuSeal Setup (Electronic Signatures)
+
+The document details page now includes a Send For Signature option for PDF and DOCX files.
+
+### 1. Run DocuSeal
+
+Use the official install guide: https://www.docuseal.com/install
+
+Quick Docker example:
+
+```bash
+docker run --name docuseal -p 3000:3000 -v ./:/data docuseal/docuseal
+```
+
+### 2. Configure API access in .env
+
+```env
+DOCUSEAL_BASE_URL=http://localhost:3000
+DOCUSEAL_API_KEY=your-docuseal-api-key
+DOCUSEAL_DEFAULT_SIGNER_ROLE=Signer
+DOCUSEAL_TIMEOUT_SECONDS=20
+```
+
 ## Architecture
 
 ### Docker Services
@@ -211,6 +235,12 @@ MPESA_RESULT_URL_BASE=https://your-public-domain
 MPESA_C2B_CONFIRMATION_URL=https://taifaassist.xyz/confirmation
 MPESA_C2B_VALIDATION_URL=https://taifaassist.xyz/validation
 MPESA_STK_CALLBACK_URL=https://taifaassist.xyz/mpesa-callback
+
+# DocuSeal e-signatures
+DOCUSEAL_BASE_URL=http://localhost:3000
+DOCUSEAL_API_KEY=your-docuseal-api-key
+DOCUSEAL_DEFAULT_SIGNER_ROLE=Signer
+DOCUSEAL_TIMEOUT_SECONDS=20
 ```
 
 M-Pesa account reference rule:
