@@ -5,6 +5,14 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def create_agreement_signature_table_if_missing(apps, schema_editor):
+    """Create agreement_signatures table only when it does not already exist."""
+    AgreementSignature = apps.get_model('clients', 'AgreementSignature')
+    if AgreementSignature._meta.db_table in schema_editor.connection.introspection.table_names():
+        return
+    schema_editor.create_model(AgreementSignature)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -13,22 +21,32 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='AgreementSignature',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('signer_name', models.CharField(help_text='Name of the person who signed', max_length=200, verbose_name='Signer Full Name')),
-                ('signer_id_number', models.CharField(blank=True, help_text='National ID or passport used to verify identity', max_length=50, verbose_name='Signer ID / Passport')),
-                ('signature_data', models.TextField(help_text='Base-64 encoded PNG of the drawn signature', verbose_name='Signature Image Data')),
-                ('ip_address', models.GenericIPAddressField(blank=True, help_text='IP address from which the signature was submitted', null=True, verbose_name='IP Address')),
-                ('signed_at', models.DateTimeField(auto_now_add=True, verbose_name='Signed At')),
-                ('client_vehicle', models.OneToOneField(help_text='The vehicle purchase this signature belongs to', on_delete=django.db.models.deletion.CASCADE, related_name='agreement_signature', to='clients.clientvehicle')),
-                ('signed_by', models.ForeignKey(blank=True, help_text='Logged-in user who submitted the signature (if any)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='agreements_signed', to=settings.AUTH_USER_MODEL)),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.CreateModel(
+                    name='AgreementSignature',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('signer_name', models.CharField(help_text='Name of the person who signed', max_length=200, verbose_name='Signer Full Name')),
+                        ('signer_id_number', models.CharField(blank=True, help_text='National ID or passport used to verify identity', max_length=50, verbose_name='Signer ID / Passport')),
+                        ('signature_data', models.TextField(help_text='Base-64 encoded PNG of the drawn signature', verbose_name='Signature Image Data')),
+                        ('ip_address', models.GenericIPAddressField(blank=True, help_text='IP address from which the signature was submitted', null=True, verbose_name='IP Address')),
+                        ('signed_at', models.DateTimeField(auto_now_add=True, verbose_name='Signed At')),
+                        ('client_vehicle', models.OneToOneField(help_text='The vehicle purchase this signature belongs to', on_delete=django.db.models.deletion.CASCADE, related_name='agreement_signature', to='clients.clientvehicle')),
+                        ('signed_by', models.ForeignKey(blank=True, help_text='Logged-in user who submitted the signature (if any)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='agreements_signed', to=settings.AUTH_USER_MODEL)),
+                    ],
+                    options={
+                        'verbose_name': 'Agreement Signature',
+                        'verbose_name_plural': 'Agreement Signatures',
+                        'db_table': 'agreement_signatures',
+                    },
+                ),
             ],
-            options={
-                'verbose_name': 'Agreement Signature',
-                'verbose_name_plural': 'Agreement Signatures',
-                'db_table': 'agreement_signatures',
-            },
+            database_operations=[
+                migrations.RunPython(
+                    create_agreement_signature_table_if_missing,
+                    migrations.RunPython.noop,
+                ),
+            ],
         ),
     ]
