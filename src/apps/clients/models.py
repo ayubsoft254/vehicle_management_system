@@ -1044,10 +1044,45 @@ class AgreementSignature(models.Model):
         help_text='National ID or passport used to verify identity',
     )
 
+    witness_name = models.CharField(
+        'Witness Full Name',
+        max_length=200,
+        blank=True,
+        help_text='Witness name if a witness signs online',
+    )
+
+    witness_id_number = models.CharField(
+        'Witness ID / Passport',
+        max_length=50,
+        blank=True,
+        help_text='Witness ID or passport number',
+    )
+
+    seller_name = models.CharField(
+        'Seller Full Name',
+        max_length=200,
+        blank=True,
+        help_text='Hoza representative signing the agreement',
+    )
+
     # Signature image stored as a data-URL (data:image/png;base64,...)
     signature_data = models.TextField(
         'Signature Image Data',
         help_text='Base-64 encoded PNG of the drawn signature',
+    )
+
+    witness_signature_data = models.TextField(
+        'Witness Signature Image Data',
+        blank=True,
+        default='',
+        help_text='Base-64 encoded PNG of the witness signature',
+    )
+
+    seller_signature_data = models.TextField(
+        'Seller Signature Image Data',
+        blank=True,
+        default='',
+        help_text='Base-64 encoded PNG of the seller signature',
     )
 
     # Audit
