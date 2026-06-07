@@ -8,9 +8,10 @@ from django.urls import reverse
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django import forms
-from .models import Client, ClientVehicle, ClientDocument
+from .models import Client, ClientVehicle, ClientDocument, VehicleTracker, TrackerCompany
 from apps.payments.models import Payment
 from apps.authentication.models import User
+from apps.insurance.models import InsurancePolicy
 from utils.constants import UserRole
 
 
@@ -78,7 +79,7 @@ class PaymentInline(admin.TabularInline):
     """
     model = Payment
     extra = 0
-    fields = ['payment_date', 'amount', 'payment_method', 'transaction_reference', 'recorded_by']
+    fields = ['payment_date', 'amount', 'payment_method', 'payment_location', 'transaction_reference', 'recorded_by']
     readonly_fields = ['recorded_by']
     can_delete = False
 
@@ -584,3 +585,52 @@ class ClientDocumentAdmin(admin.ModelAdmin):
         if not change:  # New object
             obj.uploaded_by = request.user
         super().save_model(request, obj, form, change)
+
+
+@admin.register(TrackerCompany)
+class TrackerCompanyAdmin(admin.ModelAdmin):
+    list_display = ['name', 'phone', 'email', 'contact_person', 'is_active', 'updated_at']
+    list_filter = ['is_active', 'updated_at']
+    search_fields = ['name', 'phone', 'email', 'contact_person']
+    readonly_fields = ['created_at', 'updated_at']
+
+
+@admin.register(VehicleTracker)
+class VehicleTrackerAdmin(admin.ModelAdmin):
+    list_display = [
+        'tracker_name', 'provider', 'client_name', 'vehicle_registration',
+        'selling_price', 'total_paid', 'balance', 'payment_type', 'installed_date'
+    ]
+    list_filter = ['payment_type', 'installed_date', 'provider']
+    search_fields = [
+        'tracker_name', 'provider', 'serial_number', 'certificate_number',
+        'client_vehicle__client__first_name', 'client_vehicle__client__last_name',
+        'client_vehicle__vehicle__registration_number'
+    ]
+    readonly_fields = ['created_at']
+    change_list_template = 'admin/clients/vehicletracker/change_list.html'
+
+    def client_name(self, obj):
+        return obj.client_vehicle.client.get_full_name()
+    client_name.short_description = 'Client'
+
+    def vehicle_registration(self, obj):
+        return obj.client_vehicle.vehicle.registration_number
+    vehicle_registration.short_description = 'Vehicle Reg'
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        sold_trackers_qs = VehicleTracker.objects.filter(client_vehicle__vehicle__status='sold')
+
+        sold_trackers_count = sold_trackers_qs.count()
+        sold_trackers_total = sold_trackers_qs.aggregate(total=Sum('selling_price'))['total'] or 0
+        sold_insurance_total = InsurancePolicy.objects.filter(
+            vehicle__status='sold'
+        ).aggregate(total=Sum('selling_price'))['total'] or 0
+
+        extra_context.update({
+            'sold_trackers_count': sold_trackers_count,
+            'sold_trackers_total': sold_trackers_total,
+            'sold_insurance_total': sold_insurance_total,
+        })
+        return super().changelist_view(request, extra_context=extra_context)
