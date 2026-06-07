@@ -89,7 +89,7 @@ def _sync_vehicle_extra_costs(vehicle, entries, user):
 def vehicle_list_view(request):
     """List all vehicles with search and filter - Public and authenticated users"""
     can_view_prices = _can_view_vehicle_prices(request.user)
-    show_public_prices = not request.user.is_authenticated
+    show_public_prices = not can_view_prices
     vehicles = Vehicle.objects.all().prefetch_related('photos')
     
     # For authenticated users with permissions, include more details
@@ -193,6 +193,7 @@ def vehicle_detail_view(request, pk):
     - Authenticated users can see all vehicles based on permissions
     """
     can_view_prices = _can_view_vehicle_prices(request.user)
+    show_public_prices = not can_view_prices
 
     # Build base queryset
     queryset = Vehicle.objects.select_related('added_by').prefetch_related('photos', 'history')
@@ -260,7 +261,7 @@ def vehicle_detail_view(request, pk):
         'total_cost': total_cost,
         'can_view_vin': can_view_vin,
         'can_view_prices': can_view_prices,
-        'show_public_prices': not request.user.is_authenticated,
+        'show_public_prices': show_public_prices,
         'display_price': vehicle.website_display_price,
         'latest_sale': latest_sale,
     }
