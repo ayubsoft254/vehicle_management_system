@@ -1,0 +1,292 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Agreement — {{ client_vehicle.vehicle.full_name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        #signatureCanvas {
+            touch-action: none; /* prevent page-scroll while drawing on mobile */
+            cursor: crosshair;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Nav -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-car text-white"></i>
+                </div>
+                <span class="font-bold text-gray-900 text-lg">Hoza Investments</span>
+            </div>
+            {% if user.is_authenticated %}
+            <a href="{% url 'clients:client_vehicle_detail' client_vehicle.pk %}"
+               class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                <i class="fas fa-arrow-left mr-1"></i> Back to Vehicle
+            </a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="max-w-2xl mx-auto px-4 py-10">
+
+        <!-- Title -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-gray-900">Sales Agreement Signature</h1>
+            <p class="mt-2 text-gray-600">
+                {{ client_vehicle.vehicle.full_name }} &nbsp;·&nbsp;
+                Reg: {{ client_vehicle.vehicle.registration_number }}
+            </p>
+        </div>
+
+        <!-- Django messages -->
+        {% if messages %}
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+            <div class="px-4 py-3 rounded-lg text-sm font-medium
+                {% if message.tags == 'success' %}bg-green-100 text-green-800
+                {% elif message.tags == 'error' %}bg-red-100 text-red-800
+                {% else %}bg-blue-100 text-blue-800{% endif %}">
+                <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} mr-2"></i>
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Already-signed banner -->
+        {% if existing_sig %}
+        <div class="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
+            <i class="fas fa-check-circle text-green-600 text-xl mt-0.5"></i>
+            <div>
+                <p class="font-semibold text-green-800">This agreement has already been signed.</p>
+                <p class="text-sm text-green-700 mt-0.5">
+                    Signed by <strong>{{ existing_sig.signer_name }}</strong>
+                    on {{ existing_sig.signed_at|date:"d M Y \a\t H:i" }}.
+                </p>
+                <p class="text-sm text-green-700 mt-1">You can re-sign below to replace the previous signature.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Agreement Summary Card -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+            <div class="bg-gray-50 px-5 py-4 border-b border-gray-200 rounded-t-xl">
+                <h2 class="font-semibold text-gray-800"><i class="fas fa-file-contract mr-2 text-blue-600"></i>Agreement Summary</h2>
+            </div>
+            <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                    <p class="text-gray-500 font-medium">Client</p>
+                    <p class="text-gray-900 font-semibold">{{ client_vehicle.client.get_full_name }}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500 font-medium">Vehicle</p>
+                    <p class="text-gray-900 font-semibold">{{ client_vehicle.vehicle.full_name }}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500 font-medium">Registration</p>
+                    <p class="text-gray-900 font-semibold">{{ client_vehicle.vehicle.registration_number }}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500 font-medium">Purchase Price</p>
+                    <p class="text-gray-900 font-semibold">KES {{ client_vehicle.purchase_price|floatformat:2 }}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500 font-medium">Purchase Date</p>
+                    <p class="text-gray-900 font-semibold">{{ client_vehicle.purchase_date|date:"d M Y" }}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500 font-medium">Payment Type</p>
+                    <p class="text-gray-900 font-semibold">{{ client_vehicle.get_payment_type_display }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signature Form -->
+        <form id="signForm" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="signature_data" id="signatureDataInput">
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+                <div class="bg-gray-50 px-5 py-4 border-b border-gray-200 rounded-t-xl">
+                    <h2 class="font-semibold text-gray-800"><i class="fas fa-pen-nib mr-2 text-blue-600"></i>Signer Details</h2>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <label for="signer_name" class="block text-sm font-medium text-gray-700 mb-1">
+                            Full Name <span class="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="signer_name"
+                            name="signer_name"
+                            required
+                            value="{{ existing_sig.signer_name|default:client_vehicle.client.get_full_name }}"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            placeholder="Full name of the person signing">
+                    </div>
+                    <div>
+                        <label for="signer_id_number" class="block text-sm font-medium text-gray-700 mb-1">
+                            ID / Passport Number
+                        </label>
+                        <input
+                            type="text"
+                            id="signer_id_number"
+                            name="signer_id_number"
+                            value="{{ existing_sig.signer_id_number|default:client_vehicle.client.id_number }}"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            placeholder="National ID or passport number">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signature Pad -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+                <div class="bg-gray-50 px-5 py-4 border-b border-gray-200 rounded-t-xl flex items-center justify-between">
+                    <h2 class="font-semibold text-gray-800"><i class="fas fa-signature mr-2 text-blue-600"></i>Draw Signature</h2>
+                    <button type="button" id="clearBtn"
+                            class="text-sm text-red-600 hover:text-red-800 font-medium flex items-center gap-1">
+                        <i class="fas fa-trash-alt"></i> Clear
+                    </button>
+                </div>
+                <div class="p-5">
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 overflow-hidden relative" style="height:180px;">
+                        <canvas id="signatureCanvas" class="w-full h-full block" width="640" height="180"></canvas>
+                        <p id="signaturePlaceholder" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm pointer-events-none select-none">
+                            <i class="fas fa-pen mr-2"></i> Sign here with your mouse or finger
+                        </p>
+                    </div>
+                    <p class="mt-2 text-xs text-gray-500">Use your mouse (click + drag) or finger on touch screens to draw your signature.</p>
+                </div>
+            </div>
+
+            <!-- Declaration -->
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-800">
+                <i class="fas fa-info-circle mr-2"></i>
+                By submitting this signature, I confirm that I have read and agreed to the terms of the sales agreement
+                for the vehicle above, and that the information provided is accurate.
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" id="submitBtn"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-lg shadow-md transition-colors">
+                <i class="fas fa-check-circle mr-2"></i>
+                {% if existing_sig %}Update Signature{% else %}Submit Signature{% endif %}
+            </button>
+        </form>
+
+        {% if existing_sig %}
+        <!-- Show saved signature preview -->
+        <div class="mt-8 bg-white rounded-xl shadow-sm border border-gray-200">
+            <div class="bg-gray-50 px-5 py-4 border-b border-gray-200 rounded-t-xl">
+                <h2 class="font-semibold text-gray-800"><i class="fas fa-history mr-2 text-green-600"></i>Saved Signature</h2>
+            </div>
+            <div class="p-5">
+                <img src="{{ existing_sig.signature_data }}" alt="Saved signature"
+                     class="max-h-32 border border-gray-200 rounded-lg bg-white">
+                <p class="mt-2 text-xs text-gray-500">
+                    Signed by {{ existing_sig.signer_name }} ({{ existing_sig.signer_id_number }}) on
+                    {{ existing_sig.signed_at|date:"d M Y H:i" }}
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+    </div><!-- end max-w-2xl -->
+
+    <script>
+    (function () {
+        const canvas = document.getElementById('signatureCanvas');
+        const ctx = canvas.getContext('2d');
+        const input = document.getElementById('signatureDataInput');
+        const placeholder = document.getElementById('signaturePlaceholder');
+        const clearBtn = document.getElementById('clearBtn');
+        const form = document.getElementById('signForm');
+
+        let drawing = false;
+        let hasDrawn = false;
+
+        // Resize canvas to match its displayed size
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            if (e.touches) {
+                return {
+                    x: e.touches[0].clientX - rect.left,
+                    y: e.touches[0].clientY - rect.top,
+                };
+            }
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+
+        function startDraw(e) {
+            drawing = true;
+            const pos = getPos(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            if (placeholder) placeholder.style.display = 'none';
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+            e.preventDefault();
+            const pos = getPos(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            hasDrawn = true;
+        }
+
+        function stopDraw() {
+            drawing = false;
+        }
+
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDraw);
+        canvas.addEventListener('mouseleave', stopDraw);
+
+        canvas.addEventListener('touchstart', startDraw, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stopDraw);
+
+        clearBtn.addEventListener('click', function () {
+            const rect = canvas.getBoundingClientRect();
+            ctx.clearRect(0, 0, rect.width, rect.height);
+            input.value = '';
+            hasDrawn = false;
+            if (placeholder) placeholder.style.display = '';
+        });
+
+        form.addEventListener('submit', function (e) {
+            if (!hasDrawn) {
+                e.preventDefault();
+                alert('Please draw your signature before submitting.');
+                return;
+            }
+            input.value = canvas.toDataURL('image/png');
+        });
+    })();
+    </script>
+
+</body>
+</html>
