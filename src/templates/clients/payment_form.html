@@ -157,6 +157,15 @@
 
                 <!-- Reference (single method only) -->
                 <div id="single-reference-section">
+                    <label for="{{ form.payment_location.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Payment Location
+                    </label>
+                    {{ form.payment_location }}
+                    {% if form.payment_location.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.payment_location.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500 mb-3">Where was this payment received? (Office, branch, field collection point, etc.)</p>
+
                     <label for="{{ form.transaction_reference.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
                         Reference Number
                     </label>
@@ -279,6 +288,12 @@ function addSplitRow() {
                 <option value="cash">Cash</option>
                 <option value="mpesa">M-Pesa</option>
                 <option value="bank_transfer">Bank Transfer</option>
+                <option value="equity_hoza">Equity Hoza</option>
+                <option value="dib_hoza">DIB Hoza</option>
+                <option value="coop_hoza">COOP Hoza</option>
+                <option value="kcb_ke">KCB KE</option>
+                <option value="absa_ke">ABSA KE</option>
+                <option value="equity_ke">EQUITY KE</option>
                 <option value="cheque">Cheque</option>
                 <option value="card">Card</option>
                 <option value="other">Other</option>
@@ -289,7 +304,12 @@ function addSplitRow() {
             <input type="number" name="split_amount[]" class="split-amount" min="0" step="0.01" placeholder="0.00"
                 style="width:100%;padding:0.5rem 0.75rem;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.875rem;">
         </div>
-        <div class="md:col-span-3">
+        <div class="md:col-span-2">
+            <label class="block text-xs text-gray-600 mb-1">Location (optional)</label>
+            <input type="text" name="split_location[]" placeholder="e.g. Branch"
+                style="width:100%;padding:0.5rem 0.75rem;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.875rem;">
+        </div>
+        <div class="md:col-span-2">
             <label class="block text-xs text-gray-600 mb-1">Reference (optional)</label>
             <input type="text" name="split_reference[]" placeholder="e.g. MPesa code"
                 style="width:100%;padding:0.5rem 0.75rem;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.875rem;">
