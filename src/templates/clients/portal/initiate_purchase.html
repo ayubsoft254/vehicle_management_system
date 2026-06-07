@@ -29,7 +29,7 @@
                 <div>
                     <h3 class="text-lg font-semibold text-gray-900">{{ vehicle.full_name }}</h3>
                     <p class="text-gray-600">{{ vehicle.color }} • {{ vehicle.mileage|intcomma }} km</p>
-                    <p class="text-2xl font-bold text-blue-600 mt-1">KSH {{ vehicle.selling_price|floatformat:0|intcomma }}</p>
+                    <p class="text-2xl font-bold text-blue-600 mt-1">KSH {{ website_price|floatformat:0|intcomma }}</p>
                 </div>
             </div>
         </div>
@@ -85,7 +85,7 @@
                        id="down_payment" 
                        value="{{ min_deposit }}" 
                        min="{{ min_deposit }}" 
-                       max="{{ vehicle.selling_price }}"
+                       max="{{ website_price }}"
                        step="1000"
                        required
                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-lg font-semibold"
@@ -102,7 +102,7 @@
             <dl class="space-y-2">
                 <div class="flex justify-between">
                     <dt class="text-blue-700">Vehicle Price:</dt>
-                    <dd class="font-semibold text-blue-900">KSH {{ vehicle.selling_price|floatformat:0|intcomma }}</dd>
+                    <dd class="font-semibold text-blue-900">KSH {{ website_price|floatformat:0|intcomma }}</dd>
                 </div>
                 <div class="flex justify-between" id="summary_deposit_row">
                     <dt class="text-blue-700">Down Payment:</dt>
@@ -110,11 +110,11 @@
                 </div>
                 <div class="flex justify-between pt-2 border-t border-blue-300" id="summary_balance_row">
                     <dt class="text-blue-700 font-semibold">Balance to Finance:</dt>
-                    <dd class="font-bold text-blue-900" id="summary_balance">KSH {{ vehicle.selling_price|add:min_deposit|floatformat:0|intcomma }}</dd>
+                    <dd class="font-bold text-blue-900" id="summary_balance">KSH {{ website_price|add:min_deposit|floatformat:0|intcomma }}</dd>
                 </div>
                 <div class="flex justify-between pt-2 border-t border-blue-300" id="summary_total_row" style="display: none;">
                     <dt class="text-blue-700 font-semibold">Total Payment:</dt>
-                    <dd class="font-bold text-blue-900" id="summary_total">KSH {{ vehicle.selling_price|floatformat:0|intcomma }}</dd>
+                    <dd class="font-bold text-blue-900" id="summary_total">KSH {{ website_price|floatformat:0|intcomma }}</dd>
                 </div>
             </dl>
         </div>
@@ -146,7 +146,7 @@
 
 <script>
 function calculatePlan() {
-    const vehiclePrice = {{ vehicle.selling_price }};
+    const vehiclePrice = {{ website_price }};
     const minDeposit = {{ min_deposit }};
     const downPaymentSection = document.getElementById('down_payment_section');
     const downPaymentInput = document.getElementById('down_payment');
