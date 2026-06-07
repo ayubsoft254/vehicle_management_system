@@ -188,7 +188,18 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     insurance_start_date = insurance_data.get('insurance_start_date', '').strip()
     insurance_end_date = insurance_data.get('insurance_end_date', '').strip()
 
-    if not (insurance_provider_id and insurance_policy_number and insurance_start_date and insurance_end_date):
+    has_any_insurance_input = any([
+        insurance_provider_id,
+        insurance_policy_number,
+        insurance_start_date,
+        insurance_end_date,
+        str(insurance_data.get('insurance_buying_price', '')).strip(),
+        str(insurance_data.get('insurance_selling_price', '')).strip(),
+        str(insurance_data.get('insurance_agent_name', '')).strip(),
+        str(insurance_data.get('insurance_agent_id', '')).strip(),
+    ])
+
+    if not has_any_insurance_input:
         return existing_policy
 
     from apps.insurance.models import InsuranceProvider, InsurancePolicy, InsurancePaymentSchedule
@@ -209,6 +220,23 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     insurance_payment_type = insurance_data.get('insurance_payment_type', 'full').strip()
     insurance_flexible_json = insurance_data.get('insurance_flexible_installments_json', '[]')
     insurance_has_plan = insurance_payment_type == 'flexible'
+
+    if not insurance_provider_id:
+        messages.warning(request, 'Insurance details were entered but no provider was selected, so policy was not saved.')
+        return existing_policy
+
+    def parse_date(value):
+        if not value:
+            return None
+        try:
+            return dt.strptime(value, '%Y-%m-%d').date()
+        except Exception:
+            return None
+
+    start_date = parse_date(insurance_start_date) or client_vehicle.purchase_date or timezone.now().date()
+    end_date = parse_date(insurance_end_date)
+    if not end_date or end_date <= start_date:
+        end_date = start_date + timedelta(days=365)
 
     provider = InsuranceProvider.objects.get(pk=insurance_provider_id)
 
@@ -233,19 +261,29 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
         total_ins = sum((Decimal(str(row.get('amount', '0') or '0')) for row in ins_installments), Decimal('0.00'))
         insurance_monthly = (total_ins / insurance_months).quantize(Decimal('0.01')) if insurance_months else None
 
+    if not insurance_policy_number:
+        insurance_policy_number = f"AUTO-{vehicle.pk}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+
     policy = existing_policy or InsurancePolicy(
         vehicle=vehicle,
         client=client,
         created_by=request.user,
     )
+
+    if (
+        existing_policy is None
+        and InsurancePolicy.objects.filter(policy_number=insurance_policy_number).exists()
+    ):
+        insurance_policy_number = f"{insurance_policy_number}-{vehicle.pk}"
+
     policy.vehicle = vehicle
     policy.provider = provider
     policy.client = client
     policy.policy_number = insurance_policy_number
     policy.policy_type = insurance_policy_type
     policy.vehicle_usage = insurance_vehicle_usage
-    policy.start_date = insurance_start_date
-    policy.end_date = insurance_end_date
+    policy.start_date = start_date
+    policy.end_date = end_date
     policy.premium_amount = parse_money(insurance_selling_price)
     policy.sum_insured = client_vehicle.purchase_price
     policy.buying_price = parse_money(insurance_buying_price)
@@ -266,8 +304,14 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     policy.insurance_payment_schedules.all().delete()
     if insurance_has_plan and ins_installments:
         for idx, installment in enumerate(ins_installments, start=1):
-            due_date = dt.strptime(str(installment.get('due_date')).strip(), '%Y-%m-%d').date()
-            amount_due = Decimal(str(installment.get('amount')).strip())
+            due_date_raw = str(installment.get('due_date', '')).strip()
+            amount_raw = str(installment.get('amount', '0')).strip()
+            due_date = parse_date(due_date_raw)
+            if not due_date:
+                continue
+            amount_due = Decimal(amount_raw or '0')
+            if amount_due <= 0:
+                continue
             InsurancePaymentSchedule.objects.create(
                 policy=policy,
                 installment_number=idx,
