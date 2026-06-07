@@ -11,8 +11,6 @@ from django.utils import timezone
 from django.core.paginator import Paginator
 from datetime import datetime, timedelta
 from decimal import Decimal
-import re
-
 from .models import Client, ClientVehicle, ClientDocument
 from apps.payments.models import Payment, InstallmentPlan, PaymentSchedule, MpesaSTKRequest
 from apps.payments.daraja import initiate_stk_push
@@ -24,20 +22,9 @@ from utils.constants import UserRole, VehicleStatus
 import json
 
 
-def _normalize_ke_phone_number(value):
-    """Normalize Kenyan client input to 254XXXXXXXXX format for M-Pesa."""
-    digits = re.sub(r'\D', '', str(value or ''))
-    if len(digits) == 10 and digits.startswith('0'):
-        digits = f'254{digits[1:]}'
-    elif len(digits) == 12 and digits.startswith('254'):
-        pass
-    else:
-        return ''
-
-    # Accept both 2547xxxxxxxx and 2541xxxxxxxx prefixes.
-    if re.match(r'^254[17]\d{8}$', digits):
-        return digits
-    return ''
+def _clean_phone_number(value):
+    """Clean a phone number without enforcing country-specific rules."""
+    return ''.join(ch for ch in str(value or '').strip() if ch.isdigit() or ch == '+')
 
 
 # ==================== DECORATORS ====================
@@ -813,10 +800,10 @@ def portal_make_payment(request, client_vehicle_id, payment_type='installment'):
         payment_method = request.POST.get('payment_method')
         
         if payment_method == 'mpesa':
-            phone_number = _normalize_ke_phone_number(request.POST.get('phone_number', ''))
+            phone_number = _clean_phone_number(request.POST.get('phone_number', ''))
 
             if not phone_number:
-                messages.error(request, 'Use a valid number: 07XXXXXXXX, 01XXXXXXXX, 2547XXXXXXXX, or 2541XXXXXXXX.')
+                messages.error(request, 'Enter a phone number to continue.')
                 return redirect(
                     'clients:portal_make_payment',
                     client_vehicle_id=client_vehicle_id,
