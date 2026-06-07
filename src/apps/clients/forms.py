@@ -3,7 +3,7 @@ Forms for the client app
 Handles client registration, vehicle assignment, document uploads, and payments
 """
 from django import forms
-from django.core.validators import RegexValidator, MinValueValidator
+from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 from datetime import datetime
