@@ -300,6 +300,15 @@ MPESA_C2B_CONFIRMATION_URL = config('MPESA_C2B_CONFIRMATION_URL', default='https
 MPESA_C2B_VALIDATION_URL = config('MPESA_C2B_VALIDATION_URL', default='https://taifaassist.xyz/validation')
 MPESA_STK_CALLBACK_URL = config('MPESA_STK_CALLBACK_URL', default='https://taifaassist.xyz/mpesa-callback')
 
+# ============================================================================== 
+# DOCUSEAL E-SIGNATURE CONFIGURATION
+# ==============================================================================
+
+DOCUSEAL_BASE_URL = config('DOCUSEAL_BASE_URL', default='')
+DOCUSEAL_API_KEY = config('DOCUSEAL_API_KEY', default='')
+DOCUSEAL_DEFAULT_SIGNER_ROLE = config('DOCUSEAL_DEFAULT_SIGNER_ROLE', default='Signer')
+DOCUSEAL_TIMEOUT_SECONDS = config('DOCUSEAL_TIMEOUT_SECONDS', default=20, cast=int)
+
 # ==============================================================================
 # CELERY CONFIGURATION (Background Tasks)
 # ==============================================================================
