@@ -76,6 +76,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.authentication.middleware.SessionTimeoutMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',  # Required for allauth 65.0+
@@ -224,7 +225,7 @@ ACCOUNT_EMAIL_VERIFICATION = 'none'  # 'mandatory', 'optional', or 'none'
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGOUT_ON_GET = False  # Require POST for logout
-ACCOUNT_SESSION_REMEMBER = True  # Remember user session
+ACCOUNT_SESSION_REMEMBER = False  # Do not persist sessions by default
 ACCOUNT_SIGNUP_PASSWORD_ENTER_TWICE = True
 
 # Rate limiting
@@ -379,9 +380,11 @@ if not DEBUG:
 # ==============================================================================
 
 SESSION_COOKIE_AGE = 1209600  # 2 weeks in seconds
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_IDLE_TIMEOUT_SECONDS = 3600
 
 # ==============================================================================
 # LOGGING CONFIGURATION
