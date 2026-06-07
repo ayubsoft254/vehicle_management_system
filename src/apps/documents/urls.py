@@ -22,6 +22,7 @@ urlpatterns = [
     path('<int:pk>/edit/', views.document_edit, name='document_edit'),
     path('<int:pk>/delete/', views.document_delete, name='document_delete'),
     path('<int:pk>/download/', views.download_document, name='download_document'),
+    path('<int:pk>/request-signature/', views.request_signature, name='request_signature'),
     
     # ========================================================================
     # Sharing URLs
