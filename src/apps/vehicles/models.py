@@ -186,6 +186,16 @@ class Vehicle(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
         help_text='Current selling price'
     )
+
+    website_price = models.DecimalField(
+        'Website Price',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        blank=True,
+        null=True,
+        help_text='Public-facing vehicle price shown on the website'
+    )
     
     deposit_required = models.DecimalField(
         'Deposit Required',
@@ -445,6 +455,13 @@ class Vehicle(models.Model):
         if base_cost > 0:
             return (self.profit / base_cost) * 100
         return 0
+
+    @property
+    def website_display_price(self):
+        """Price displayed on website pages, defaults to selling price."""
+        if self.website_price is not None and self.website_price > Decimal('0.00'):
+            return self.website_price
+        return self.selling_price or Decimal('0.00')
     
     @property
     def is_available(self):
