@@ -3,6 +3,7 @@ Sales Agreement PDF Generator
 Generates a PDF sales agreement with auto-filled vehicle and client information
 """
 from io import BytesIO
+import base64
 from datetime import datetime
 from decimal import Decimal
 from dateutil.relativedelta import relativedelta
@@ -100,6 +101,10 @@ def generate_sales_agreement_pdf(client_vehicle):
         insurance_policy = None
 
     trackers = list(client_vehicle.trackers.all().order_by('created_at'))
+    try:
+        agreement_signature = client_vehicle.agreement_signature
+    except Exception:
+        agreement_signature = None
 
     selected_months = None
     if plan and plan.number_of_installments:
@@ -127,6 +132,18 @@ def generate_sales_agreement_pdf(client_vehicle):
         else:
             suffix = {1: 'ST', 2: 'ND', 3: 'RD'}.get(n % 10, 'TH')
         return f'{n}{suffix}'
+
+    def _signature_flowable(signature_data, width=5.5 * cm, height=1.5 * cm):
+        if not signature_data:
+            return Paragraph('___________________________', normal_small)
+        try:
+            encoded = signature_data.split(',', 1)[1] if ',' in signature_data else signature_data
+            image_bytes = BytesIO(base64.b64decode(encoded))
+            image = Image(image_bytes, width=width, height=height)
+            image.hAlign = 'LEFT'
+            return image
+        except Exception:
+            return Paragraph('___________________________', normal_small)
 
     generated_at = timezone.localtime(timezone.now())
     agreement_date = generated_at.strftime("%d-%m-%Y")
@@ -362,8 +379,12 @@ def generate_sales_agreement_pdf(client_vehicle):
     # Page 1 quick signatures
     sig1_data = [
         [
-            Paragraph("<b>Buyer's signature</b> ___________________________", normal_small),
-            Paragraph('<b>Seller\'s Signature</b> ___________________________', normal_small),
+            Paragraph("<b>Buyer's signature</b>", normal_small),
+            Paragraph('<b>Seller\'s Signature</b>', normal_small),
+        ],
+        [
+            _signature_flowable(getattr(agreement_signature, 'signature_data', '')),
+            _signature_flowable(getattr(agreement_signature, 'seller_signature_data', '')),
         ],
     ]
     sig1_table = Table(sig1_data, colWidths=[9.5*cm, 8.5*cm])
@@ -502,12 +523,12 @@ def generate_sales_agreement_pdf(client_vehicle):
                 Paragraph('<b>Seller\'s Signature</b>', normal_small),
             ],
             [
-                Paragraph('___________________________', normal_small),
-                Paragraph('___________________________', normal_small),
+                _signature_flowable(getattr(agreement_signature, 'signature_data', '')),
+                _signature_flowable(getattr(agreement_signature, 'seller_signature_data', '')),
             ],
             [
                 Paragraph(f'{client.get_full_name()}', normal_small),
-                Paragraph('For HOZA INVESTMENT (K) LTD', normal_small),
+                Paragraph(getattr(agreement_signature, 'seller_name', '') or 'For HOZA INVESTMENT (K) LTD', normal_small),
             ],
         ]
         sched_sig_table = Table(sched_sig_data, colWidths=[9*cm, 9*cm])
@@ -589,24 +610,36 @@ def generate_sales_agreement_pdf(client_vehicle):
     # Full signature block
     full_sig_data = [
         [
-            Paragraph("<b>Buyer's Signature</b> ___________________________", normal_small),
+            Paragraph("<b>Buyer's Signature</b>", normal_small),
             Paragraph('<b>ID NO</b> ___________________________', normal_small),
         ],
         [
-            Paragraph(f'{client.get_full_name()}', normal_small),
+            _signature_flowable(getattr(agreement_signature, 'signature_data', '')),
             Paragraph(f'{client_id_display}', normal_small),
         ],
         [
-            Paragraph('<b>WITNESS NAME</b> ___________________________', normal_small),
+            Paragraph(f'{client.get_full_name()}', normal_small),
+            Paragraph('', normal_small),
+        ],
+        [
+            Paragraph('<b>WITNESS NAME</b>', normal_small),
             Paragraph('<b>MOBILE</b> ___________________________', normal_small),
         ],
         [
-            Paragraph('<b>WITNESS ID NO</b> ___________________________', normal_small),
-            Paragraph('<b>WITNESS Signature</b> ___________________________', normal_small),
+            Paragraph(getattr(agreement_signature, 'witness_name', '') or '___________________________', normal_small),
+            Paragraph(getattr(agreement_signature, 'witness_id_number', '') or '___________________________', normal_small),
         ],
         [
-            Paragraph("<b>SELLER'S SIGNATURE</b> ___________________________", normal_small),
-            Paragraph('<b>For HOZA INVESTMENT (K) LTD</b>', normal_small),
+            Paragraph('<b>WITNESS Signature</b>', normal_small),
+            Paragraph("<b>SELLER'S SIGNATURE</b>", normal_small),
+        ],
+        [
+            _signature_flowable(getattr(agreement_signature, 'witness_signature_data', '')),
+            _signature_flowable(getattr(agreement_signature, 'seller_signature_data', '')),
+        ],
+        [
+            Paragraph('', normal_small),
+            Paragraph(getattr(agreement_signature, 'seller_name', '') or 'For HOZA INVESTMENT (K) LTD', normal_small),
         ],
     ]
     full_sig_table = Table(full_sig_data, colWidths=[9.5*cm, 8.5*cm])
