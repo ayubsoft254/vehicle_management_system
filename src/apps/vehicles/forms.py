@@ -15,7 +15,7 @@ class VehicleForm(forms.ModelForm):
     class Meta:
         model = Vehicle
         fields = [
-            'make', 'model', 'year', 'vin', 'registration_number',
+            'make', 'model', 'year', 'vin', 'engine_number', 'registration_number',
             'color', 'mileage', 'fuel_type', 'transmission',
             'engine_size', 'body_type', 'seats', 'doors',
             'condition', 'purchase_price', 'selling_price', 'deposit_required',
@@ -47,6 +47,10 @@ class VehicleForm(forms.ModelForm):
                 'placeholder': '17-character VIN',
                 'maxlength': '17',
                 'required': 'required'
+            }),
+            'engine_number': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Engine number'
             }),
             'registration_number': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
