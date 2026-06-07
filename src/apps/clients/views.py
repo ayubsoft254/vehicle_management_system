@@ -547,9 +547,8 @@ def assign_vehicle(request, client_pk):
                     final_selling_price = auto_client_purchase_price
                 final_selling_price = final_selling_price.quantize(Decimal('0.01'))
 
-                effective_client_price = (final_selling_price - extra_costs_total).quantize(Decimal('0.01'))
-                if effective_client_price < 0:
-                    effective_client_price = Decimal('0.00')
+                # Extra costs are stored for records only and should not change client price.
+                effective_client_price = final_selling_price.quantize(Decimal('0.01'))
 
                 client_vehicle.client_purchase_price = auto_client_purchase_price
                 client_vehicle.final_selling_price = final_selling_price
@@ -1049,9 +1048,8 @@ def client_vehicle_update(request, pk):
                 final_selling_price = auto_client_purchase_price
             final_selling_price = final_selling_price.quantize(Decimal('0.01'))
 
-            effective_client_price = (final_selling_price - extra_costs_total).quantize(Decimal('0.01'))
-            if effective_client_price < 0:
-                effective_client_price = Decimal('0.00')
+            # Extra costs are stored for records only and should not change client price.
+            effective_client_price = final_selling_price.quantize(Decimal('0.01'))
 
             updated_client_vehicle.client_purchase_price = auto_client_purchase_price
             updated_client_vehicle.final_selling_price = final_selling_price
