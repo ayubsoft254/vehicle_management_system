@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from .models import Document, DocumentCategory, DocumentShare
 from .forms import DocumentForm, DocumentCategoryForm, DocumentShareForm, DocumentSearchForm, BulkDocumentActionForm
+from .services.docuseal import DocuSealError, create_signature_request
 from apps.audit.utils import log_audit
 
 
@@ -69,7 +70,7 @@ def document_detail(request, pk):
     document = get_object_or_404(Document, pk=pk, is_active=True)
     
     # Check if user has access
-    if not (document.uploaded_by == request.user or document.is_public):
+    if not (document.uploaded_by == request.user or not document.is_private):
         # Check if document is shared with user
         if not DocumentShare.objects.filter(document=document, user=request.user, is_active=True).exists():
             messages.error(request, 'You do not have permission to view this document.')
@@ -190,6 +191,57 @@ def document_share(request, pk):
 
 
 @login_required
+def request_signature(request, pk):
+    """Create an e-signature request for a document via DocuSeal."""
+    document = get_object_or_404(Document, pk=pk, is_active=True)
+
+    if document.uploaded_by != request.user:
+        messages.error(request, 'You do not have permission to request signatures for this document.')
+        return redirect('documents:document_detail', pk=document.pk)
+
+    if request.method != 'POST':
+        return redirect('documents:document_detail', pk=document.pk)
+
+    signer_name = (request.POST.get('signer_name') or '').strip()
+    signer_email = (request.POST.get('signer_email') or '').strip()
+
+    if not signer_name or not signer_email:
+        messages.error(request, 'Signer name and signer email are required.')
+        return redirect('documents:document_detail', pk=document.pk)
+
+    try:
+        result = create_signature_request(document, signer_name=signer_name, signer_email=signer_email)
+    except DocuSealError as exc:
+        document.esign_provider = 'docuseal'
+        document.esign_status = 'failed'
+        document.save(update_fields=['esign_provider', 'esign_status'])
+        messages.error(request, str(exc))
+        return redirect('documents:document_detail', pk=document.pk)
+
+    document.esign_provider = 'docuseal'
+    document.esign_submission_id = result['submission_id']
+    document.esign_signer_name = signer_name
+    document.esign_signer_email = signer_email
+    document.esign_signing_link = result['signing_link']
+    document.esign_status = 'pending'
+    document.esign_requested_at = timezone.now()
+    document.save(
+        update_fields=[
+            'esign_provider',
+            'esign_submission_id',
+            'esign_signer_name',
+            'esign_signer_email',
+            'esign_signing_link',
+            'esign_status',
+            'esign_requested_at',
+        ]
+    )
+
+    messages.success(request, 'E-signature request created successfully.')
+    return redirect('documents:document_detail', pk=document.pk)
+
+
+@login_required
 def category_list(request):
     """Display list of document categories."""
     categories = DocumentCategory.objects.filter(is_active=True).order_by('name')
@@ -227,7 +279,7 @@ def download_document(request, pk):
     document = get_object_or_404(Document, pk=pk, is_active=True)
     
     # Check if user has access
-    if not (document.uploaded_by == request.user or document.is_public):
+    if not (document.uploaded_by == request.user or not document.is_private):
         # Check if document is shared with user
         if not DocumentShare.objects.filter(document=document, user=request.user, is_active=True).exists():
             messages.error(request, 'You do not have permission to download this document.')
