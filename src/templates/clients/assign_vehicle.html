@@ -201,6 +201,9 @@
                                 <option value="cash">Cash</option>
                                 <option value="mpesa">M-Pesa</option>
                                 <option value="bank_transfer">Bank Transfer</option>
+                                <option value="equity_hoza">Equity Hoza</option>
+                                <option value="dib_hoza">DIB Hoza</option>
+                                <option value="coop_hoza">COOP Hoza</option>
                                 <option value="kcb_ke">KCB KE</option>
                                 <option value="absa_ke">ABSA KE</option>
                                 <option value="equity_ke">EQUITY KE</option>
@@ -210,6 +213,10 @@
                             </select>
                         </div>
                         <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Location (optional)</label>
+                            <input type="text" name="deposit_payment_location" class="form-input" placeholder="e.g. Head Office, CBD Branch">
+                        </div>
+                        <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Reference (optional)</label>
                             <input type="text" name="deposit_transaction_reference" class="form-input" placeholder="e.g. MPesa code, cheque no.">
                         </div>
@@ -435,6 +442,11 @@
                 <p class="text-xs text-orange-600 mt-1">Add one or more GPS trackers for vehicle tracking and monitoring.</p>
             </div>
             <div class="p-6">
+                <datalist id="tracker-companies-list">
+                    {% for company in tracker_companies %}
+                    <option value="{{ company.name }}"></option>
+                    {% endfor %}
+                </datalist>
                 <!-- Tracker Container -->
                 <div id="trackers-container" class="space-y-6">
                     <!-- Tracker 1 Template -->
@@ -462,7 +474,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Provider / Vendor</label>
-                                <input type="text" name="tracker_provider[]" placeholder="Vendor name" class="form-input">
+                                <input type="text" name="tracker_provider[]" placeholder="Vendor name" class="form-input" list="tracker-companies-list">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Installation Date</label>
@@ -1102,7 +1114,7 @@ function addTracker() {
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Provider / Vendor</label>
-                    <input type="text" name="tracker_provider[]" placeholder="Vendor name" class="form-input">
+                    <input type="text" name="tracker_provider[]" placeholder="Vendor name" class="form-input" list="tracker-companies-list">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Installation Date</label>
@@ -1723,6 +1735,9 @@ function addDepositSplitRow() {
                 <option value="cash">Cash</option>
                 <option value="mpesa">M-Pesa</option>
                 <option value="bank_transfer">Bank Transfer</option>
+                <option value="equity_hoza">Equity Hoza</option>
+                <option value="dib_hoza">DIB Hoza</option>
+                <option value="coop_hoza">COOP Hoza</option>
                 <option value="kcb_ke">KCB KE</option>
                 <option value="absa_ke">ABSA KE</option>
                 <option value="equity_ke">EQUITY KE</option>
@@ -1731,11 +1746,15 @@ function addDepositSplitRow() {
                 <option value="other">Other</option>
             </select>
         </div>
-        <div class="md:col-span-4">
+        <div class="md:col-span-3">
             <label class="block text-xs text-gray-600 mb-1">Amount (KES)</label>
             <input type="number" name="deposit_split_amount[]" class="form-input deposit-split-amount" min="0" step="0.01" placeholder="0.00">
         </div>
-        <div class="md:col-span-3">
+        <div class="md:col-span-2">
+            <label class="block text-xs text-gray-600 mb-1">Location (optional)</label>
+            <input type="text" name="deposit_split_location[]" class="form-input" placeholder="e.g. Branch">
+        </div>
+        <div class="md:col-span-2">
             <label class="block text-xs text-gray-600 mb-1">Reference (optional)</label>
             <input type="text" name="deposit_split_reference[]" class="form-input" placeholder="e.g. MPesa code">
         </div>
