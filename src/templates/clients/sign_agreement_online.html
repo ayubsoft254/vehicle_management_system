@@ -112,6 +112,8 @@
         <form id="signForm" method="post">
             {% csrf_token %}
             <input type="hidden" name="signature_data" id="signatureDataInput">
+            <input type="hidden" name="witness_signature_data" id="witnessSignatureDataInput">
+            <input type="hidden" name="seller_signature_data" id="sellerSignatureDataInput">
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
                 <div class="bg-gray-50 px-5 py-4 border-b border-gray-200 rounded-t-xl">
@@ -146,7 +148,7 @@
                 </div>
             </div>
 
-            <!-- Signature Pad -->
+            <!-- Client Signature Pad -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
                 <div class="bg-gray-50 px-5 py-4 border-b border-gray-200 rounded-t-xl flex items-center justify-between">
                     <h2 class="font-semibold text-gray-800"><i class="fas fa-signature mr-2 text-blue-600"></i>Draw Signature</h2>
@@ -163,6 +165,46 @@
                         </p>
                     </div>
                     <p class="mt-2 text-xs text-gray-500">Use your mouse (click + drag) or finger on touch screens to draw your signature.</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+                <div class="bg-gray-50 px-5 py-4 border-b border-gray-200 rounded-t-xl">
+                    <h2 class="font-semibold text-gray-800"><i class="fas fa-user-friends mr-2 text-blue-600"></i>Witness Details</h2>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <label for="witness_name" class="block text-sm font-medium text-gray-700 mb-1">Witness Full Name</label>
+                        <input type="text" id="witness_name" name="witness_name" value="{{ existing_sig.witness_name|default:'' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" placeholder="Witness full name">
+                    </div>
+                    <div>
+                        <label for="witness_id_number" class="block text-sm font-medium text-gray-700 mb-1">Witness ID / Passport</label>
+                        <input type="text" id="witness_id_number" name="witness_id_number" value="{{ existing_sig.witness_id_number|default:'' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" placeholder="Witness ID number">
+                    </div>
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 overflow-hidden relative" style="height:180px;">
+                        <canvas id="witnessSignatureCanvas" class="w-full h-full block" width="640" height="180"></canvas>
+                        <p id="witnessSignaturePlaceholder" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm pointer-events-none select-none">
+                            <i class="fas fa-pen mr-2"></i> Witness signs here
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+                <div class="bg-gray-50 px-5 py-4 border-b border-gray-200 rounded-t-xl">
+                    <h2 class="font-semibold text-gray-800"><i class="fas fa-briefcase mr-2 text-blue-600"></i>Seller Details</h2>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <label for="seller_name" class="block text-sm font-medium text-gray-700 mb-1">Seller / Hoza Representative</label>
+                        <input type="text" id="seller_name" name="seller_name" value="{{ existing_sig.seller_name|default:seller_default_name }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" placeholder="Seller full name">
+                    </div>
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 overflow-hidden relative" style="height:180px;">
+                        <canvas id="sellerSignatureCanvas" class="w-full h-full block" width="640" height="180"></canvas>
+                        <p id="sellerSignaturePlaceholder" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm pointer-events-none select-none">
+                            <i class="fas fa-pen mr-2"></i> Seller signs here
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -187,13 +229,30 @@
             <div class="bg-gray-50 px-5 py-4 border-b border-gray-200 rounded-t-xl">
                 <h2 class="font-semibold text-gray-800"><i class="fas fa-history mr-2 text-green-600"></i>Saved Signature</h2>
             </div>
-            <div class="p-5">
+            <div class="p-5 space-y-5">
+                <div>
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Buyer Signature</p>
                 <img src="{{ existing_sig.signature_data }}" alt="Saved signature"
                      class="max-h-32 border border-gray-200 rounded-lg bg-white">
                 <p class="mt-2 text-xs text-gray-500">
                     Signed by {{ existing_sig.signer_name }} ({{ existing_sig.signer_id_number }}) on
                     {{ existing_sig.signed_at|date:"d M Y H:i" }}
                 </p>
+                </div>
+                {% if existing_sig.witness_signature_data %}
+                <div>
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Witness Signature</p>
+                    <img src="{{ existing_sig.witness_signature_data }}" alt="Witness signature" class="max-h-32 border border-gray-200 rounded-lg bg-white">
+                    <p class="mt-2 text-xs text-gray-500">{{ existing_sig.witness_name }} ({{ existing_sig.witness_id_number }})</p>
+                </div>
+                {% endif %}
+                {% if existing_sig.seller_signature_data %}
+                <div>
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Seller Signature</p>
+                    <img src="{{ existing_sig.seller_signature_data }}" alt="Seller signature" class="max-h-32 border border-gray-200 rounded-lg bg-white">
+                    <p class="mt-2 text-xs text-gray-500">{{ existing_sig.seller_name }}</p>
+                </div>
+                {% endif %}
             </div>
         </div>
         {% endif %}
@@ -202,88 +261,107 @@
 
     <script>
     (function () {
-        const canvas = document.getElementById('signatureCanvas');
-        const ctx = canvas.getContext('2d');
-        const input = document.getElementById('signatureDataInput');
-        const placeholder = document.getElementById('signaturePlaceholder');
+        function wirePad(canvasId, inputId, placeholderId) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            const input = document.getElementById(inputId);
+            const placeholder = document.getElementById(placeholderId);
+            let drawing = false;
+            let hasDrawn = false;
+
+            function resizeCanvas() {
+                const rect = canvas.getBoundingClientRect();
+                const dpr = window.devicePixelRatio || 1;
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 2.5;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+            }
+
+            function getPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                if (e.touches) {
+                    return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+                }
+                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            }
+
+            function startDraw(e) {
+                drawing = true;
+                const pos = getPos(e);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+                if (placeholder) placeholder.style.display = 'none';
+            }
+
+            function draw(e) {
+                if (!drawing) return;
+                e.preventDefault();
+                const pos = getPos(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                hasDrawn = true;
+            }
+
+            function stopDraw() {
+                drawing = false;
+            }
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            canvas.addEventListener('mousedown', startDraw);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDraw);
+            canvas.addEventListener('mouseleave', stopDraw);
+            canvas.addEventListener('touchstart', startDraw, { passive: false });
+            canvas.addEventListener('touchmove', draw, { passive: false });
+            canvas.addEventListener('touchend', stopDraw);
+
+            return {
+                clear() {
+                    const rect = canvas.getBoundingClientRect();
+                    ctx.clearRect(0, 0, rect.width, rect.height);
+                    input.value = '';
+                    hasDrawn = false;
+                    if (placeholder) placeholder.style.display = '';
+                },
+                serialize() {
+                    if (!hasDrawn) {
+                        input.value = '';
+                        return '';
+                    }
+                    input.value = canvas.toDataURL('image/png');
+                    return input.value;
+                },
+                hasDrawn() {
+                    return hasDrawn;
+                }
+            };
+        }
+
         const clearBtn = document.getElementById('clearBtn');
         const form = document.getElementById('signForm');
 
-        let drawing = false;
-        let hasDrawn = false;
-
-        // Resize canvas to match its displayed size
-        function resizeCanvas() {
-            const rect = canvas.getBoundingClientRect();
-            const dpr = window.devicePixelRatio || 1;
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
-            ctx.scale(dpr, dpr);
-            ctx.strokeStyle = '#1e293b';
-            ctx.lineWidth = 2.5;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-        }
-
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-
-        function getPos(e) {
-            const rect = canvas.getBoundingClientRect();
-            if (e.touches) {
-                return {
-                    x: e.touches[0].clientX - rect.left,
-                    y: e.touches[0].clientY - rect.top,
-                };
-            }
-            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        }
-
-        function startDraw(e) {
-            drawing = true;
-            const pos = getPos(e);
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-            if (placeholder) placeholder.style.display = 'none';
-        }
-
-        function draw(e) {
-            if (!drawing) return;
-            e.preventDefault();
-            const pos = getPos(e);
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-            hasDrawn = true;
-        }
-
-        function stopDraw() {
-            drawing = false;
-        }
-
-        canvas.addEventListener('mousedown', startDraw);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDraw);
-        canvas.addEventListener('mouseleave', stopDraw);
-
-        canvas.addEventListener('touchstart', startDraw, { passive: false });
-        canvas.addEventListener('touchmove', draw, { passive: false });
-        canvas.addEventListener('touchend', stopDraw);
+        const buyerPad = wirePad('signatureCanvas', 'signatureDataInput', 'signaturePlaceholder');
+        const witnessPad = wirePad('witnessSignatureCanvas', 'witnessSignatureDataInput', 'witnessSignaturePlaceholder');
+        const sellerPad = wirePad('sellerSignatureCanvas', 'sellerSignatureDataInput', 'sellerSignaturePlaceholder');
 
         clearBtn.addEventListener('click', function () {
-            const rect = canvas.getBoundingClientRect();
-            ctx.clearRect(0, 0, rect.width, rect.height);
-            input.value = '';
-            hasDrawn = false;
-            if (placeholder) placeholder.style.display = '';
+            buyerPad.clear();
         });
 
         form.addEventListener('submit', function (e) {
-            if (!hasDrawn) {
+            const buyer = buyerPad.serialize();
+            witnessPad.serialize();
+            sellerPad.serialize();
+            if (!buyer && !{{ has_existing_buyer_signature|yesno:'true,false' }}) {
                 e.preventDefault();
                 alert('Please draw your signature before submitting.');
                 return;
             }
-            input.value = canvas.toDataURL('image/png');
         });
     })();
     </script>
