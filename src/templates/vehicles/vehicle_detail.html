@@ -285,6 +285,20 @@
                         </div>
                         {% endif %}
 
+                        {% if vehicle.engine_number %}
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 3v18m4-15h-8a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V8a2 2 0 00-2-2zM9 8h6"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Engine Number</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ vehicle.engine_number }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         <!-- Registration Number -->
                         {% if vehicle.registration_number %}
                         <div class="flex items-start">
