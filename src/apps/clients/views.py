@@ -16,7 +16,7 @@ import csv
 import json
 from decimal import Decimal
 
-from .models import Client, ClientVehicle, ClientDocument, VehicleTracker
+from .models import Client, ClientVehicle, ClientDocument, VehicleTracker, TrackerCompany
 from apps.payments.models import Payment, PaymentSplit, InstallmentPlan
 from .forms import (
     ClientForm, ClientVehicleForm, PaymentForm, 
@@ -574,15 +574,16 @@ def assign_vehicle(request, client_pk):
                     deposit_split_methods = request.POST.getlist('deposit_split_method[]')
                     deposit_split_amounts = request.POST.getlist('deposit_split_amount[]')
                     deposit_split_references = request.POST.getlist('deposit_split_reference[]')
+                    deposit_split_locations = request.POST.getlist('deposit_split_location[]')
 
                     # Build valid splits (method + positive amount required)
                     valid_splits = []
-                    for m, a, r in zip(deposit_split_methods, deposit_split_amounts, deposit_split_references):
+                    for m, a, r, loc in zip(deposit_split_methods, deposit_split_amounts, deposit_split_references, deposit_split_locations):
                         if m and a:
                             try:
                                 amt = Decimal(str(a).replace(',', ''))
                                 if amt > 0:
-                                    valid_splits.append((m, amt, r.strip() if r else None))
+                                    valid_splits.append((m, amt, r.strip() if r else None, (loc or '').strip() or None))
                             except Exception:
                                 pass
 
@@ -595,21 +596,23 @@ def assign_vehicle(request, client_pk):
                             notes='Initial deposit — vehicle assignment',
                             recorded_by=request.user,
                         )
-                        for method, amt, ref in valid_splits:
+                        for method, amt, ref, loc in valid_splits:
                             PaymentSplit.objects.create(
                                 payment=deposit_payment,
                                 payment_method=method,
                                 amount=amt,
                                 transaction_reference=ref,
+                                payment_location=loc,
                             )
                     elif len(valid_splits) == 1:
-                        method, amt, ref = valid_splits[0]
+                        method, amt, ref, loc = valid_splits[0]
                         Payment.objects.create(
                             client_vehicle=client_vehicle,
                             amount=client_vehicle.deposit_paid,
                             payment_date=deposit_date,
                             payment_method=method,
                             transaction_reference=ref,
+                            payment_location=loc,
                             notes='Initial deposit — vehicle assignment',
                             recorded_by=request.user,
                         )
@@ -617,12 +620,14 @@ def assign_vehicle(request, client_pk):
                         # No split info — use single method fallback
                         single_method = request.POST.get('deposit_payment_method', 'cash') or 'cash'
                         single_ref = request.POST.get('deposit_transaction_reference', '').strip() or None
+                        single_loc = request.POST.get('deposit_payment_location', '').strip() or None
                         Payment.objects.create(
                             client_vehicle=client_vehicle,
                             amount=client_vehicle.deposit_paid,
                             payment_date=deposit_date,
                             payment_method=single_method,
                             transaction_reference=single_ref,
+                            payment_location=single_loc,
                             notes='Initial deposit — vehicle assignment',
                             recorded_by=request.user,
                         )
@@ -783,6 +788,7 @@ def assign_vehicle(request, client_pk):
     # Get insurance providers
     from apps.insurance.models import InsuranceProvider
     insurance_providers = InsuranceProvider.objects.filter(is_active=True).order_by('name')
+    tracker_companies = TrackerCompany.objects.filter(is_active=True).order_by('name')
     
     context = {
         'form': form,
@@ -792,6 +798,7 @@ def assign_vehicle(request, client_pk):
         'vehicle_prices_json': json.dumps(vehicle_prices),
         'vehicle_cost_prices_json': json.dumps(vehicle_cost_prices),
         'insurance_providers': insurance_providers,
+        'tracker_companies': tracker_companies,
     }
     
     return render(request, 'clients/assign_vehicle.html', context)
@@ -1136,6 +1143,7 @@ def client_vehicle_update(request, pk):
     from apps.insurance.models import InsuranceProvider, InsurancePolicy
 
     insurance_providers = InsuranceProvider.objects.filter(is_active=True).order_by('name')
+    tracker_companies = TrackerCompany.objects.filter(is_active=True).order_by('name')
     insurance_policy = InsurancePolicy.objects.filter(
         vehicle=client_vehicle.vehicle,
         client=client_vehicle.client,
@@ -1199,6 +1207,7 @@ def client_vehicle_update(request, pk):
         'vehicle_prices_json': json.dumps(vehicle_prices),
         'vehicle_cost_prices_json': json.dumps(vehicle_cost_prices),
         'insurance_providers': insurance_providers,
+        'tracker_companies': tracker_companies,
         'initial_insurance_json': json.dumps(initial_insurance_data),
         'initial_trackers_json': json.dumps(initial_trackers_data),
     }
@@ -1255,14 +1264,15 @@ def record_payment(request, client_vehicle_pk):
                 split_methods = request.POST.getlist('split_method[]')
                 split_amounts = request.POST.getlist('split_amount[]')
                 split_references = request.POST.getlist('split_reference[]')
+                split_locations = request.POST.getlist('split_location[]')
 
                 valid_splits = []
-                for m, a, r in zip(split_methods, split_amounts, split_references):
+                for m, a, r, loc in zip(split_methods, split_amounts, split_references, split_locations):
                     if m and a:
                         try:
                             amt = Decimal(str(a).replace(',', ''))
                             if amt > 0:
-                                valid_splits.append((m, amt, r.strip() if r else None))
+                                valid_splits.append((m, amt, r.strip() if r else None, (loc or '').strip() or None))
                         except Exception:
                             pass
 
@@ -1274,17 +1284,19 @@ def record_payment(request, client_vehicle_pk):
                     payment.payment_method = 'mixed'
                 elif len(valid_splits) == 1:
                     payment.payment_method = valid_splits[0][0]
+                    payment.payment_location = valid_splits[0][3]
 
                 payment.save()
 
                 # Create PaymentSplit records for multi-method payments
                 if len(valid_splits) > 1:
-                    for method, amt, ref in valid_splits:
+                    for method, amt, ref, loc in valid_splits:
                         PaymentSplit.objects.create(
                             payment=payment,
                             payment_method=method,
                             amount=amt,
                             transaction_reference=ref,
+                            payment_location=loc,
                         )
 
                 # Update payment schedules if an installment plan exists
