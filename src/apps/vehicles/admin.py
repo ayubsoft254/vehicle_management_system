@@ -86,7 +86,7 @@ class VehicleAdmin(admin.ModelAdmin):
         }),
         ('Pricing', {
             'fields': (
-                ('purchase_price', 'selling_price', 'deposit_required'),
+                ('purchase_price', 'selling_price', 'website_price', 'deposit_required'),
                 ('profit_display', 'profit_percentage_display'),
             ),
             'classes': ('wide',)
@@ -172,9 +172,11 @@ class VehicleAdmin(admin.ModelAdmin):
         profit_color = '#10b981' if obj.profit >= 0 else '#ef4444'
         return format_html(
             '<strong>KSh {}</strong><br>'
+            '<small style="color: #2563eb;">Website: KSh {}</small><br>'
             '<small style="color: #6b7280;">Purchase: KSh {}</small><br>'
             '<small style="color: {};">Profit: KSh {}</small>',
             f'{obj.selling_price:,}',
+            f'{obj.website_display_price:,}',
             f'{obj.purchase_price:,}',
             profit_color,
             f'{obj.profit:,}'
