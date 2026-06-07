@@ -293,6 +293,47 @@ class Document(models.Model):
         null=True,
         help_text="Additional notes"
     )
+
+    # E-signature Tracking
+    esign_provider = models.CharField(
+        max_length=30,
+        blank=True,
+        help_text="E-signature provider used for this document (e.g., docuseal)"
+    )
+
+    esign_submission_id = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Provider submission identifier"
+    )
+
+    esign_signer_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Requested signer name"
+    )
+
+    esign_signer_email = models.EmailField(
+        blank=True,
+        help_text="Requested signer email"
+    )
+
+    esign_signing_link = models.URLField(
+        blank=True,
+        help_text="Direct signing URL returned by provider"
+    )
+
+    esign_status = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Current e-signature status (pending/completed/failed)"
+    )
+
+    esign_requested_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When the latest e-signature request was created"
+    )
     
     # System Fields
     uploaded_by = models.ForeignKey(
