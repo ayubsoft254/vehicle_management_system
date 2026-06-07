@@ -128,7 +128,14 @@ def generate_sales_agreement_pdf(client_vehicle):
             suffix = {1: 'ST', 2: 'ND', 3: 'RD'}.get(n % 10, 'TH')
         return f'{n}{suffix}'
 
-    agreement_date = datetime.now().strftime("%d-%m-%Y")
+    generated_at = timezone.localtime(timezone.now())
+    agreement_date = generated_at.strftime("%d-%m-%Y")
+
+    assigned_by_user = client_vehicle.created_by
+    if assigned_by_user:
+        assigned_by_name = assigned_by_user.get_full_name().strip() or getattr(assigned_by_user, 'username', '') or 'Unknown User'
+    else:
+        assigned_by_name = 'Unknown User'
 
     # ============================================================
     # PAGE 1 — SALES AGREEMENT
@@ -256,32 +263,21 @@ def generate_sales_agreement_pdf(client_vehicle):
     elements.append(Spacer(1, 0.3*cm))
 
     # ---- PRICING DETAILS ----
-    client_base_price = client_vehicle.client_purchase_price or client_vehicle.purchase_price
-    final_selling_price = client_vehicle.final_selling_price or client_base_price
-    extra_costs_total = client_vehicle.extra_costs_total or Decimal('0.00')
+    client_final_price = client_vehicle.purchase_price or Decimal('0.00')
+    deposit_paid = client_vehicle.deposit_paid or Decimal('0.00')
 
     price_data = [
         [
-            Paragraph(f'<b>CLIENT PURCHASE PRICE (BASE) IN KSHS:</b> {float(client_base_price):,.2f}', normal_small),
-            Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(client_base_price)}', normal_small),
-        ],
-        [
-            Paragraph(f'<b>FINAL SELLING PRICE IN KSHS:</b> {float(final_selling_price):,.2f}', normal_small),
-            Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(final_selling_price)}', normal_small),
-        ],
-        [
-            Paragraph(f'<b>EXTRA COSTS DEDUCTED:</b> KES {float(extra_costs_total):,.2f}', normal_small),
-            Paragraph(f'<b>NET CLIENT PRICE IN KSHS:</b> {float(client_vehicle.purchase_price):,.2f}', normal_small),
-        ],
-        [
-            Paragraph(f'<b>AMOUNT PAID (DEPOSIT):</b> KES {float(client_vehicle.deposit_paid):,.2f}', normal_small),
-            Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(client_vehicle.deposit_paid)}', normal_small),
-        ],
-        [
-            Paragraph(f'<b>BALANCE:</b> KES {float(client_vehicle.balance):,.2f}', normal_small),
-            Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(client_vehicle.balance)}', normal_small),
+            Paragraph(f'<b>CLIENT FINAL PRICE IN KSHS:</b> {float(client_final_price):,.2f}', normal_small),
+            Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(client_final_price)}', normal_small),
         ],
     ]
+
+    if deposit_paid > Decimal('0.00'):
+        price_data.append([
+            Paragraph(f'<b>AMOUNT PAID (DEPOSIT):</b> KES {float(deposit_paid):,.2f}', normal_small),
+            Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(deposit_paid)}', normal_small),
+        ])
     price_table = Table(price_data, colWidths=[9.5*cm, 8.5*cm])
     price_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -344,7 +340,7 @@ def generate_sales_agreement_pdf(client_vehicle):
             tracker_lines = [
                 f'<b>{idx}. {tracker.tracker_name or "Tracker"}</b> '
                 f'({tracker.serial_number or "No serial"}) '
-                f'- Selling Price KES {float(tracker.selling_price or Decimal("0.00")):,.2f}',
+                f'Selling Price KES {float(tracker.selling_price or Decimal("0.00")):,.2f}',
                 f'Payment Type: {_payment_type_label(tracker.payment_type)} | '
                 f'Plan: {"Yes" if tracker.has_payment_plan else "No"} | '
                 f'Months: {tracker.installment_months or ""} | '
@@ -631,18 +627,71 @@ def generate_sales_agreement_pdf(client_vehicle):
     elements.append(Paragraph('<b>PAYMENT DETAILS FOR HOZA INVESTMENT K LIMITED</b>', title_style))
     elements.append(Spacer(1, 0.3*cm))
 
-    payment_details = [
-        '<b>PAYBILL PAYMENT OPTIONS</b>',
-        '',
-        '1. PAYBILL: 4320049',
-        '2. PAYBILL: 4162495',
-    ]
-    for line in payment_details:
-        elements.append(Paragraph(line, normal_small))
-        elements.append(Spacer(1, 0.1*cm))
+    paybill_heading_style = ParagraphStyle(
+        'PaybillHeadingStyle',
+        parent=styles['Normal'],
+        fontSize=18,
+        leading=22,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
 
-    elements.append(Spacer(1, 0.5*cm))
-    elements.append(Paragraph('<b>RECEIVED BY:</b> ___________________________', normal_small))
+    paybill_value_style = ParagraphStyle(
+        'PaybillValueStyle',
+        parent=styles['Normal'],
+        fontSize=34,
+        leading=38,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+
+    paybill_account_style = ParagraphStyle(
+        'PaybillAccountStyle',
+        parent=styles['Normal'],
+        fontSize=26,
+        leading=30,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+
+    paybill_note_style = ParagraphStyle(
+        'PaybillNoteStyle',
+        parent=styles['Normal'],
+        fontSize=12,
+        leading=15,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+
+    elements.append(Paragraph('<b>PAYBILL</b>', paybill_heading_style))
+    elements.append(Spacer(1, 0.15*cm))
+    elements.append(Paragraph('<b>4320049</b>', paybill_value_style))
+    elements.append(Spacer(1, 0.15*cm))
+    elements.append(Paragraph('<b>A/C: REG FOR THE CAR</b>', paybill_account_style))
+    elements.append(Spacer(1, 0.25*cm))
+    elements.append(Paragraph('<b>NOTE: WE DO NOT ACCEPT THIRD PARTY PAYMENTS.</b>', paybill_note_style))
+
+    elements.append(Spacer(1, 0.8*cm))
+    elements.append(Paragraph('<b>RECEIVED BY:</b> ___________________________', normal_style))
+    elements.append(Spacer(1, 0.25*cm))
+    elements.append(Paragraph('<b>SIGNATURE:</b> ___________________________', normal_style))
+    elements.append(Spacer(1, 1.0*cm))
+    elements.append(HRFlowable(width='100%', thickness=0.6, color=colors.grey, spaceBefore=4, spaceAfter=4))
+    elements.append(Spacer(1, 0.1*cm))
+    elements.append(Paragraph(
+        (
+            f'Assigned By: {assigned_by_name} | '
+            f'Agreement Generated: {generated_at.strftime("%d-%m-%Y %I:%M %p")}'
+        ),
+        ParagraphStyle(
+            'AgreementFooterStyle',
+            parent=styles['Normal'],
+            fontSize=7,
+            leading=9,
+            alignment=TA_CENTER,
+            fontName='Helvetica'
+        )
+    ))
 
     # Build PDF
     doc.build(elements)
