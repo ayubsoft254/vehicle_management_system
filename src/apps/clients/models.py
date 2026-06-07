@@ -1013,3 +1013,69 @@ class VehicleSaleWitness(models.Model):
 
     def __str__(self):
         return f"{self.get_role_display()}: {self.full_name}"
+
+
+# ==================== AGREEMENT SIGNATURE MODEL ====================
+
+class AgreementSignature(models.Model):
+    """
+    Stores an online e-signature for a sales agreement.
+    The signature is captured via a canvas pad and saved as a base-64 PNG.
+    """
+
+    client_vehicle = models.OneToOneField(
+        ClientVehicle,
+        on_delete=models.CASCADE,
+        related_name='agreement_signature',
+        help_text='The vehicle purchase this signature belongs to',
+    )
+
+    # Signer identity (pre-filled from client, editable on the sign page)
+    signer_name = models.CharField(
+        'Signer Full Name',
+        max_length=200,
+        help_text='Name of the person who signed',
+    )
+
+    signer_id_number = models.CharField(
+        'Signer ID / Passport',
+        max_length=50,
+        blank=True,
+        help_text='National ID or passport used to verify identity',
+    )
+
+    # Signature image stored as a data-URL (data:image/png;base64,...)
+    signature_data = models.TextField(
+        'Signature Image Data',
+        help_text='Base-64 encoded PNG of the drawn signature',
+    )
+
+    # Audit
+    ip_address = models.GenericIPAddressField(
+        'IP Address',
+        blank=True,
+        null=True,
+        help_text='IP address from which the signature was submitted',
+    )
+
+    signed_at = models.DateTimeField(
+        'Signed At',
+        auto_now_add=True,
+    )
+
+    signed_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='agreements_signed',
+        help_text='Logged-in user who submitted the signature (if any)',
+    )
+
+    class Meta:
+        db_table = 'agreement_signatures'
+        verbose_name = 'Agreement Signature'
+        verbose_name_plural = 'Agreement Signatures'
+
+    def __str__(self):
+        return f"Signature: {self.signer_name} — {self.client_vehicle}"
