@@ -53,6 +53,11 @@
                    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                     <i class="fas fa-file-pdf mr-2"></i> Print Agreement
                 </a>
+                <a href="{% url 'clients:sign_agreement_online' client_vehicle.pk %}" 
+                   class="inline-flex items-center px-4 py-2 {% if client_vehicle.agreement_signature %}bg-green-600 hover:bg-green-700{% else %}bg-purple-600 hover:bg-purple-700{% endif %} text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                    <i class="fas fa-signature mr-2"></i>
+                    {% if client_vehicle.agreement_signature %}Signed ✓{% else %}Sign Online{% endif %}
+                </a>
                 <a href="{% url 'clients:client_vehicle_update' client_vehicle.pk %}" 
                    class="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                     <i class="fas fa-edit mr-2"></i> Edit
