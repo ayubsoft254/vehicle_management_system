@@ -348,9 +348,7 @@ class ClientVehicleForm(forms.ModelForm):
 
         commission_amount = cleaned_data.get('commission_amount') or Decimal('0.00')
 
-        effective_purchase_price = (final_selling_price - extra_costs_total).quantize(Decimal('0.01'))
-        if effective_purchase_price < 0:
-            raise ValidationError("Final selling price cannot be lower than total extra costs.")
+        effective_purchase_price = final_selling_price.quantize(Decimal('0.01'))
 
         cleaned_data['purchase_price'] = effective_purchase_price
         cleaned_data['final_selling_price'] = final_selling_price.quantize(Decimal('0.01'))
@@ -366,7 +364,7 @@ class ClientVehicleForm(forms.ModelForm):
         # Validate deposit
         if deposit_paid and effective_purchase_price:
             if deposit_paid > effective_purchase_price:
-                raise ValidationError("Deposit cannot exceed net client price.")
+                raise ValidationError("Deposit cannot exceed final selling price.")
             if deposit_paid < 0:
                 raise ValidationError("Deposit cannot be negative.")
 
