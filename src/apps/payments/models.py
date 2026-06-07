@@ -106,6 +106,9 @@ class Payment(models.Model):
         ('cash', 'Cash'),
         ('mpesa', 'M-Pesa'),
         ('bank_transfer', 'Bank Transfer'),
+        ('equity_hoza', 'Equity Hoza'),
+        ('dib_hoza', 'DIB Hoza'),
+        ('coop_hoza', 'COOP Hoza'),
         ('kcb_ke', 'KCB KE'),
         ('absa_ke', 'ABSA KE'),
         ('equity_ke', 'EQUITY KE'),
@@ -148,6 +151,13 @@ class Payment(models.Model):
         blank=True,
         null=True,
         help_text="Transaction reference number (M-Pesa code, cheque number, etc.)"
+    )
+
+    payment_location = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text='Where payment was made (branch, office, channel point, etc.)'
     )
     
     # Additional Information
@@ -265,6 +275,13 @@ class PaymentSplit(models.Model):
         blank=True,
         null=True,
         help_text='Transaction reference / M-Pesa code / Cheque number'
+    )
+
+    payment_location = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text='Where this split payment portion was made'
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
