@@ -25,6 +25,7 @@ class InsuranceProviderForm(forms.ModelForm):
     # Phone validator
     phone_regex = forms.RegexField(
         regex=r'^(\+?254|0)[17]\d{8}$',
+        required=False,
         error_messages={'invalid': "Phone number must be in format: '0712345678' or '+254712345678'"}
     )
     
