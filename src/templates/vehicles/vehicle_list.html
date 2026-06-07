@@ -159,6 +159,18 @@
             <h1 class="text-3xl font-bold text-gray-900">{% if user.is_authenticated %}Vehicle Inventory{% else %}Available Vehicles{% endif %}</h1>
             <p class="mt-1 text-sm text-gray-600">{% if user.is_authenticated %}Manage and track your vehicle inventory{% else %}Browse our collection of quality vehicles{% endif %}</p>
         </div>
+        {% if show_public_prices %}
+        <div class="mt-4 md:mt-0">
+            <div class="inline-flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-3 py-2">
+                <label for="publicListCurrency" class="text-sm text-gray-600">Currency</label>
+                <select id="publicListCurrency" class="text-sm border-0 focus:ring-0">
+                    <option value="KES" selected>KES</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                </select>
+            </div>
+        </div>
+        {% endif %}
         {% if user.is_authenticated and perms.vehicles.add_vehicle %}
         <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
             <a href="{% url 'vehicles:create' %}" 
@@ -498,13 +510,17 @@
 
                                 <div class="pt-4 border-t border-gray-200 mt-auto">
                                     <!-- Price -->
-                                    {% if can_view_prices %}
+                                    {% if can_view_prices or show_public_prices %}
                                     <div class="mb-4">
                                         <div class="price-pill">
-                                            <p class="text-[11px] font-semibold uppercase tracking-wider text-blue-700">Total Price</p>
+                                            <p class="text-[11px] font-semibold uppercase tracking-wider text-blue-700">{% if can_view_prices %}Total Price{% else %}Website Price{% endif %}</p>
                                             <div class="price-tag price-value text-blue-700 font-extrabold text-lg sm:text-xl xl:text-2xl tabular-nums">
+                                                {% if can_view_prices %}
                                                 <span class="text-[11px] font-semibold text-blue-600 mr-1 align-middle">KES</span>
                                                 <span class="align-middle">{{ vehicle.selling_price|floatformat:0|intcomma }}</span>
+                                                {% else %}
+                                                <span class="align-middle js-public-list-currency" data-kes="{{ vehicle.website_display_price|floatformat:2 }}">KES {{ vehicle.website_display_price|floatformat:0|intcomma }}</span>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>
@@ -851,4 +867,68 @@ if (searchForm) {
 }
 </script>
 
+{% if show_public_prices %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const currencySelector = document.getElementById('publicListCurrency');
+    const moneyNodes = document.querySelectorAll('.js-public-list-currency');
+    if (!currencySelector || !moneyNodes.length) {
+        return;
+    }
+
+    const rates = {
+        KES: 1,
+        USD: null,
+        EUR: null,
+    };
+
+    function formatAmount(amount) {
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(amount);
+    }
+
+    function renderCurrency(currency) {
+        const rate = rates[currency] || 1;
+        moneyNodes.forEach((node) => {
+            const kesValue = parseFloat(node.dataset.kes || '0');
+            const converted = kesValue * rate;
+            node.textContent = `${currency} ${formatAmount(converted)}`;
+        });
+    }
+
+    async function loadRatesIfNeeded(currency) {
+        if (currency === 'KES' || rates[currency]) {
+            return;
+        }
+
+        const response = await fetch('https://open.er-api.com/v6/latest/KES');
+        if (!response.ok) {
+            throw new Error('Unable to fetch exchange rates');
+        }
+
+        const data = await response.json();
+        if (!data || !data.rates || !data.rates.USD || !data.rates.EUR) {
+            throw new Error('Invalid exchange rate response');
+        }
+
+        rates.USD = data.rates.USD;
+        rates.EUR = data.rates.EUR;
+    }
+
+    currencySelector.addEventListener('change', async function() {
+        const selectedCurrency = this.value;
+        try {
+            await loadRatesIfNeeded(selectedCurrency);
+            renderCurrency(selectedCurrency);
+        } catch (error) {
+            this.value = 'KES';
+            renderCurrency('KES');
+            console.error('Currency conversion failed:', error);
+        }
+    });
+});
+</script>
+{% endif %}
 {% endblock %}
