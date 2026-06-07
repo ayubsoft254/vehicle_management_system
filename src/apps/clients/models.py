@@ -722,6 +722,59 @@ class ClientDocument(models.Model):
         return ""
 
 
+class TrackerCompany(models.Model):
+    """Master data for tracker provider/vendor names and optional contact details."""
+
+    name = models.CharField(
+        max_length=200,
+        unique=True,
+        help_text='Tracker company/vendor name'
+    )
+
+    phone = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text='Primary contact phone (optional)'
+    )
+
+    email = models.EmailField(
+        blank=True,
+        null=True,
+        help_text='Contact email (optional)'
+    )
+
+    contact_person = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text='Contact person name (optional)'
+    )
+
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Additional notes (optional)'
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        help_text='Whether this tracker company is active'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'tracker_companies'
+        ordering = ['name']
+        verbose_name = 'Tracker Company'
+        verbose_name_plural = 'Tracker Companies'
+
+    def __str__(self):
+        return self.name
+
+
 # ==================== VEHICLE TRACKER MODEL ====================
 
 class VehicleTracker(models.Model):
