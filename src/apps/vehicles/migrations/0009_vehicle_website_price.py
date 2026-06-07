@@ -5,6 +5,63 @@ from decimal import Decimal
 from django.db import migrations, models
 
 
+def add_website_price_if_missing(apps, schema_editor):
+    table_name = 'vehicles'
+    column_name = 'website_price'
+
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = %s AND column_name = %s
+            """,
+            [table_name, column_name],
+        )
+        exists = cursor.fetchone() is not None
+
+    if exists:
+        return
+
+    # Build the field definition Django would have generated, then apply it manually.
+    field = models.DecimalField(
+        null=True,
+        blank=True,
+        max_digits=12,
+        decimal_places=2,
+        validators=[django.core.validators.MinValueValidator(Decimal('0.00'))],
+        verbose_name='Website Price',
+        help_text='Public-facing vehicle price shown on the website',
+    )
+    field.set_attributes_from_name(column_name)
+
+    Vehicle = apps.get_model('vehicles', 'Vehicle')
+    schema_editor.add_field(Vehicle, field)
+
+
+def remove_website_price_if_exists(apps, schema_editor):
+    table_name = 'vehicles'
+    column_name = 'website_price'
+
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = %s AND column_name = %s
+            """,
+            [table_name, column_name],
+        )
+        exists = cursor.fetchone() is not None
+
+    if not exists:
+        return
+
+    Vehicle = apps.get_model('vehicles', 'Vehicle')
+    field = Vehicle._meta.get_field(column_name)
+    schema_editor.remove_field(Vehicle, field)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -12,9 +69,19 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='vehicle',
-            name='website_price',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='Public-facing vehicle price shown on the website', max_digits=12, null=True, validators=[django.core.validators.MinValueValidator(Decimal('0.00'))], verbose_name='Website Price'),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(
+                    add_website_price_if_missing,
+                    reverse_code=remove_website_price_if_exists,
+                ),
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name='vehicle',
+                    name='website_price',
+                    field=models.DecimalField(blank=True, decimal_places=2, help_text='Public-facing vehicle price shown on the website', max_digits=12, null=True, validators=[django.core.validators.MinValueValidator(Decimal('0.00'))], verbose_name='Website Price'),
+                ),
+            ],
         ),
     ]
