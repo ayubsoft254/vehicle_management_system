@@ -1258,6 +1258,81 @@ def client_vehicle_update(request, pk):
 
 
 @login_required
+def sign_agreement_online(request, pk):
+    """
+    Display a canvas-based online signature page for a sales agreement.
+    Anyone with the direct link (or a logged-in staff member) can sign.
+    On POST, save the signature and redirect back to the vehicle detail page.
+    """
+    from .models import AgreementSignature
+
+    client_vehicle = get_object_or_404(
+        ClientVehicle.objects.select_related('client', 'vehicle'),
+        pk=pk,
+    )
+
+    # Try to load an existing signature (if re-signing is attempted)
+    try:
+        existing_sig = client_vehicle.agreement_signature
+    except AgreementSignature.DoesNotExist:
+        existing_sig = None
+
+    if request.method == 'POST':
+        signature_data = request.POST.get('signature_data', '').strip()
+        signer_name = request.POST.get('signer_name', '').strip()
+        signer_id_number = request.POST.get('signer_id_number', '').strip()
+
+        errors = []
+        if not signer_name:
+            errors.append('Signer full name is required.')
+        if not signature_data or signature_data == 'data:,':
+            errors.append('Please draw your signature before submitting.')
+
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+        else:
+            # Get client IP
+            x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+            ip = x_forwarded.split(',')[0].strip() if x_forwarded else request.META.get('REMOTE_ADDR')
+
+            if existing_sig:
+                existing_sig.signer_name = signer_name
+                existing_sig.signer_id_number = signer_id_number
+                existing_sig.signature_data = signature_data
+                existing_sig.ip_address = ip
+                if request.user.is_authenticated:
+                    existing_sig.signed_by = request.user
+                existing_sig.save()
+            else:
+                AgreementSignature.objects.create(
+                    client_vehicle=client_vehicle,
+                    signer_name=signer_name,
+                    signer_id_number=signer_id_number,
+                    signature_data=signature_data,
+                    ip_address=ip,
+                    signed_by=request.user if request.user.is_authenticated else None,
+                )
+
+            log_audit(
+                request.user if request.user.is_authenticated else None,
+                'create', 'AgreementSignature',
+                f'Agreement signed for {client_vehicle.client.get_full_name()} '
+                f'— {client_vehicle.vehicle}',
+            )
+
+            messages.success(request, 'Agreement signed successfully!')
+            if request.user.is_authenticated:
+                return redirect('clients:client_vehicle_detail', pk=pk)
+            return redirect('clients:sign_agreement_online', pk=pk)
+
+    context = {
+        'client_vehicle': client_vehicle,
+        'existing_sig': existing_sig,
+    }
+    return render(request, 'clients/sign_agreement_online.html', context)
+
+
 def download_sales_agreement(request, client_vehicle_pk):
     """
     Download sales agreement PDF for a vehicle purchase
