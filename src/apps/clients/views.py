@@ -1277,16 +1277,32 @@ def sign_agreement_online(request, pk):
     except AgreementSignature.DoesNotExist:
         existing_sig = None
 
+    seller_default_name = ''
+    if client_vehicle.created_by:
+        seller_default_name = client_vehicle.created_by.get_full_name().strip()
+    if not seller_default_name:
+        seller_default_name = 'HOZA INVESTMENT (K) LTD'
+
     if request.method == 'POST':
         signature_data = request.POST.get('signature_data', '').strip()
+        witness_signature_data = request.POST.get('witness_signature_data', '').strip()
+        seller_signature_data = request.POST.get('seller_signature_data', '').strip()
         signer_name = request.POST.get('signer_name', '').strip()
         signer_id_number = request.POST.get('signer_id_number', '').strip()
+        witness_name = request.POST.get('witness_name', '').strip()
+        witness_id_number = request.POST.get('witness_id_number', '').strip()
+        seller_name = request.POST.get('seller_name', '').strip()
 
         errors = []
         if not signer_name:
             errors.append('Signer full name is required.')
-        if not signature_data or signature_data == 'data:,':
+        has_existing_buyer_signature = bool(existing_sig and existing_sig.signature_data)
+        if (not signature_data or signature_data == 'data:,') and not has_existing_buyer_signature:
             errors.append('Please draw your signature before submitting.')
+        if (witness_name or witness_id_number or witness_signature_data) and (not witness_signature_data or witness_signature_data == 'data:,'):
+            errors.append('Please draw the witness signature or clear the witness details.')
+        if (seller_name or seller_signature_data) and (not seller_signature_data or seller_signature_data == 'data:,') and not (existing_sig and existing_sig.seller_signature_data):
+            errors.append('Please draw the seller signature or clear the seller details.')
 
         if errors:
             for err in errors:
@@ -1299,7 +1315,17 @@ def sign_agreement_online(request, pk):
             if existing_sig:
                 existing_sig.signer_name = signer_name
                 existing_sig.signer_id_number = signer_id_number
-                existing_sig.signature_data = signature_data
+                if signature_data and signature_data != 'data:,':
+                    existing_sig.signature_data = signature_data
+                existing_sig.witness_name = witness_name
+                existing_sig.witness_id_number = witness_id_number
+                if witness_signature_data and witness_signature_data != 'data:,':
+                    existing_sig.witness_signature_data = witness_signature_data
+                elif not witness_name and not witness_id_number:
+                    existing_sig.witness_signature_data = ''
+                existing_sig.seller_name = seller_name or seller_default_name
+                if seller_signature_data and seller_signature_data != 'data:,':
+                    existing_sig.seller_signature_data = seller_signature_data
                 existing_sig.ip_address = ip
                 if request.user.is_authenticated:
                     existing_sig.signed_by = request.user
@@ -1310,6 +1336,11 @@ def sign_agreement_online(request, pk):
                     signer_name=signer_name,
                     signer_id_number=signer_id_number,
                     signature_data=signature_data,
+                    witness_name=witness_name,
+                    witness_id_number=witness_id_number,
+                    witness_signature_data='' if witness_signature_data == 'data:,' else witness_signature_data,
+                    seller_name=seller_name or seller_default_name,
+                    seller_signature_data='' if seller_signature_data == 'data:,' else seller_signature_data,
                     ip_address=ip,
                     signed_by=request.user if request.user.is_authenticated else None,
                 )
@@ -1329,6 +1360,8 @@ def sign_agreement_online(request, pk):
     context = {
         'client_vehicle': client_vehicle,
         'existing_sig': existing_sig,
+        'seller_default_name': seller_default_name,
+        'has_existing_buyer_signature': bool(existing_sig and existing_sig.signature_data),
     }
     return render(request, 'clients/sign_agreement_online.html', context)
 
