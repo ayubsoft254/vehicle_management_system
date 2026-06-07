@@ -13,10 +13,20 @@
                 <h1 class="text-3xl font-bold text-gray-900">Vehicle Marketplace</h1>
                 <p class="text-gray-600 mt-1">Browse and purchase your next vehicle</p>
             </div>
-            <a href="{% url 'clients:portal_dashboard' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
-                <i class="fas fa-arrow-left mr-2"></i>
-                Back to Dashboard
-            </a>
+            <div class="flex items-center gap-3">
+                <div class="bg-white border border-gray-300 rounded-lg px-3 py-2">
+                    <label for="marketplaceCurrency" class="text-sm text-gray-600 mr-2">Currency</label>
+                    <select id="marketplaceCurrency" class="text-sm border-0 focus:ring-0">
+                        <option value="KES" selected>KES</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                    </select>
+                </div>
+                <a href="{% url 'clients:portal_dashboard' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Back to Dashboard
+                </a>
+            </div>
         </div>
     </div>
 
@@ -118,11 +128,11 @@
                         <div class="flex justify-between items-center">
                             <div>
                                 <p class="text-sm text-gray-600">Selling Price</p>
-                                <p class="text-2xl font-bold text-gray-900">KSH {{ vehicle.selling_price|floatformat:0|intcomma }}</p>
+                                <p class="text-2xl font-bold text-gray-900 js-market-currency" data-kes="{{ vehicle.website_display_price|floatformat:2 }}">KES {{ vehicle.website_display_price|floatformat:0|intcomma }}</p>
                             </div>
                             <div class="text-right">
                                 <p class="text-xs text-gray-600">Min. Deposit</p>
-                                <p class="text-sm font-semibold text-blue-600">KSH {{ vehicle.deposit_required|floatformat:0|intcomma }}</p>
+                                <p class="text-sm font-semibold text-blue-600 js-market-currency" data-kes="{{ vehicle.deposit_required|floatformat:2 }}">KES {{ vehicle.deposit_required|floatformat:0|intcomma }}</p>
                             </div>
                         </div>
                     </div>
@@ -180,4 +190,67 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const currencySelector = document.getElementById('marketplaceCurrency');
+    const moneyNodes = document.querySelectorAll('.js-market-currency');
+    if (!currencySelector || !moneyNodes.length) {
+        return;
+    }
+
+    const rates = {
+        KES: 1,
+        USD: null,
+        EUR: null,
+    };
+
+    function formatAmount(amount) {
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(amount);
+    }
+
+    function renderCurrency(currency) {
+        const rate = rates[currency] || 1;
+        moneyNodes.forEach((node) => {
+            const kesValue = parseFloat(node.dataset.kes || '0');
+            const converted = kesValue * rate;
+            node.textContent = `${currency} ${formatAmount(converted)}`;
+        });
+    }
+
+    async function loadRatesIfNeeded(currency) {
+        if (currency === 'KES' || rates[currency]) {
+            return;
+        }
+
+        const response = await fetch('https://open.er-api.com/v6/latest/KES');
+        if (!response.ok) {
+            throw new Error('Unable to fetch exchange rates');
+        }
+
+        const data = await response.json();
+        if (!data || !data.rates || !data.rates.USD || !data.rates.EUR) {
+            throw new Error('Invalid exchange rate response');
+        }
+
+        rates.USD = data.rates.USD;
+        rates.EUR = data.rates.EUR;
+    }
+
+    currencySelector.addEventListener('change', async function() {
+        const selectedCurrency = this.value;
+        try {
+            await loadRatesIfNeeded(selectedCurrency);
+            renderCurrency(selectedCurrency);
+        } catch (error) {
+            this.value = 'KES';
+            renderCurrency('KES');
+            console.error('Currency conversion failed:', error);
+        }
+    });
+});
+</script>
 {% endblock %}
