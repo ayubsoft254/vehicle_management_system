@@ -49,7 +49,7 @@ def payment_list(request):
         'client_vehicle__client',
         'client_vehicle__vehicle',
         'recorded_by'
-    ).order_by('-payment_date')
+    ).prefetch_related('splits').order_by('-payment_date')
     
     # Filtering
     date_from = request.GET.get('date_from')
@@ -64,7 +64,10 @@ def payment_list(request):
         payments = payments.filter(payment_date__lte=date_to)
     
     if payment_method:
-        payments = payments.filter(payment_method=payment_method)
+        payments = payments.filter(
+            Q(payment_method=payment_method) |
+            Q(splits__payment_method=payment_method)
+        ).distinct()
     
     if search:
         payments = payments.filter(
@@ -85,6 +88,28 @@ def payment_list(request):
         payment_date__year=now.year,
         payment_date__month=now.month
     ).aggregate(Sum('amount'))['amount__sum'] or 0
+
+    hoza_methods = {'equity_hoza', 'dib_hoza', 'coop_hoza'}
+
+    hoza_total = Decimal('0.00')
+    ke_total = Decimal('0.00')
+    other_total = Decimal('0.00')
+
+    for payment in payments:
+        if payment.splits.exists():
+            portions = [(split.payment_method, split.amount) for split in payment.splits.all()]
+        else:
+            portions = [(payment.payment_method, payment.amount)]
+
+        for method, amount in portions:
+            method_value = (method or '').lower()
+            amt = amount or Decimal('0.00')
+            if method_value in hoza_methods:
+                hoza_total += amt
+            elif method_value.endswith('_ke'):
+                ke_total += amt
+            else:
+                other_total += amt
     
     # Pagination
     paginator = Paginator(payments, 50)
@@ -96,6 +121,9 @@ def payment_list(request):
         'total_payments': total_payments,
         'payment_count': payment_count,
         'this_month_payments': this_month_payments,
+        'hoza_total': hoza_total,
+        'ke_total': ke_total,
+        'other_total': other_total,
         'payment_methods': Payment.PAYMENT_METHOD_CHOICES,
     }
     
@@ -149,10 +177,11 @@ def record_payment(request, client_vehicle_pk):
         split_methods = request.POST.getlist('split_method[]')
         split_amounts = request.POST.getlist('split_amount[]')
         split_references = request.POST.getlist('split_reference[]')
+        split_locations = request.POST.getlist('split_location[]')
         
         # Filter out empty splits
         valid_splits = [
-            (m, a, r) for m, a, r in zip(split_methods, split_amounts, split_references) 
+            (m, a, r, loc) for m, a, r, loc in zip(split_methods, split_amounts, split_references, split_locations) 
             if m and a
         ]
         
@@ -161,7 +190,7 @@ def record_payment(request, client_vehicle_pk):
             with transaction.atomic():
                 try:
                     # Calculate total from splits
-                    total_amount = sum(Decimal(a) for _, a, _ in valid_splits)
+                    total_amount = sum(Decimal(a) for _, a, _, _ in valid_splits)
                     
                     # Create main payment with MIXED method
                     payment = Payment.objects.create(
@@ -174,12 +203,13 @@ def record_payment(request, client_vehicle_pk):
                     )
                     
                     # Create split records
-                    for method, amount, reference in valid_splits:
+                    for method, amount, reference, location in valid_splits:
                         PaymentSplit.objects.create(
                             payment=payment,
                             payment_method=method,
                             amount=Decimal(amount),
                             transaction_reference=reference or None,
+                            payment_location=(location or '').strip() or None,
                         )
                     
                     # Update client vehicle balance
@@ -201,7 +231,7 @@ def record_payment(request, client_vehicle_pk):
                             f"{Payment.PAYMENT_METHOD_CHOICES[
                                 [x[0] for x in Payment.PAYMENT_METHOD_CHOICES].index(m)
                             ][1]} KES {a:,.2f}"
-                            for m, a, _ in valid_splits
+                            for m, a, _, _ in valid_splits
                         ])
                         messages.success(
                             request,
@@ -296,10 +326,11 @@ def quick_record_payment(request):
         split_methods = request.POST.getlist('split_method[]')
         split_amounts = request.POST.getlist('split_amount[]')
         split_references = request.POST.getlist('split_reference[]')
+        split_locations = request.POST.getlist('split_location[]')
         
         # Filter out empty splits
         valid_splits = [
-            (m, a, r) for m, a, r in zip(split_methods, split_amounts, split_references) 
+            (m, a, r, loc) for m, a, r, loc in zip(split_methods, split_amounts, split_references, split_locations) 
             if m and a
         ]
         
@@ -311,7 +342,7 @@ def quick_record_payment(request):
                     client_vehicle = ClientVehicle.objects.get(pk=client_vehicle_id)
                     
                     # Calculate total from splits
-                    total_amount = sum(Decimal(a) for _, a, _ in valid_splits)
+                    total_amount = sum(Decimal(a) for _, a, _, _ in valid_splits)
                     
                     # Create main payment with MIXED method
                     payment = Payment.objects.create(
@@ -324,12 +355,13 @@ def quick_record_payment(request):
                     )
                     
                     # Create split records
-                    for method, amount, reference in valid_splits:
+                    for method, amount, reference, location in valid_splits:
                         PaymentSplit.objects.create(
                             payment=payment,
                             payment_method=method,
                             amount=Decimal(amount),
                             transaction_reference=reference or None,
+                            payment_location=(location or '').strip() or None,
                         )
                     
                     # Update client vehicle balance
