@@ -22,6 +22,13 @@ from utils.constants import UserRole, VehicleStatus
 import json
 
 
+def _website_price(vehicle):
+    """Return website-facing price with fallback to internal selling price."""
+    if vehicle.website_price is not None and vehicle.website_price > Decimal('0.00'):
+        return vehicle.website_price
+    return vehicle.selling_price or Decimal('0.00')
+
+
 def _clean_phone_number(value):
     """Clean a phone number without enforcing country-specific rules."""
     return ''.join(ch for ch in str(value or '').strip() if ch.isdigit() or ch == '+')
@@ -567,9 +574,15 @@ def portal_marketplace(request):
     if body_type:
         vehicles = vehicles.filter(body_type=body_type)
     if min_price:
-        vehicles = vehicles.filter(selling_price__gte=min_price)
+        vehicles = vehicles.filter(
+            Q(website_price__gte=min_price) |
+            Q(website_price__isnull=True, selling_price__gte=min_price)
+        )
     if max_price:
-        vehicles = vehicles.filter(selling_price__lte=max_price)
+        vehicles = vehicles.filter(
+            Q(website_price__lte=max_price) |
+            Q(website_price__isnull=True, selling_price__lte=max_price)
+        )
     
     # Get unique makes and body types for filters
     makes = Vehicle.objects.available().values_list('make', flat=True).distinct()
@@ -620,6 +633,7 @@ def portal_vehicle_marketplace_detail(request, vehicle_id):
     context = {
         'client': client,
         'vehicle': vehicle,
+        'website_price': _website_price(vehicle),
         'already_purchased': already_purchased,
     }
     
@@ -667,7 +681,9 @@ def portal_initiate_purchase(request, vehicle_id):
             messages.error(request, f'Minimum deposit required is KSH {vehicle.deposit_required:,.2f}')
             return redirect('clients:portal_initiate_purchase', vehicle_id=vehicle_id)
         
-        if down_payment > vehicle.selling_price:
+        website_price = _website_price(vehicle)
+
+        if down_payment > website_price:
             messages.error(request, 'Down payment cannot exceed the vehicle price.')
             return redirect('clients:portal_initiate_purchase', vehicle_id=vehicle_id)
         
@@ -675,17 +691,17 @@ def portal_initiate_purchase(request, vehicle_id):
         client_vehicle = ClientVehicle.objects.create(
             client=client,
             vehicle=vehicle,
-            purchase_price=vehicle.selling_price,
+            purchase_price=website_price,
             deposit_paid=down_payment,
             total_paid=down_payment,  # Initialize total_paid with down_payment
-            balance=vehicle.selling_price - down_payment,  # Calculate initial balance
+            balance=website_price - down_payment,  # Calculate initial balance
             purchase_date=timezone.now().date(),
             is_active=True,
             created_by=request.user
         )
         
         # If full payment
-        if payment_plan == 'full' or down_payment >= vehicle.selling_price:
+        if payment_plan == 'full' or down_payment >= website_price:
             # Create payment record
             Payment.objects.create(
                 client_vehicle=client_vehicle,
@@ -701,12 +717,12 @@ def portal_initiate_purchase(request, vehicle_id):
         
         # Create installment plan
         duration_months = int(payment_plan)
-        balance = vehicle.selling_price - down_payment
+        balance = website_price - down_payment
         monthly_payment = balance / duration_months
         
         installment_plan = InstallmentPlan.objects.create(
             client_vehicle=client_vehicle,
-            total_amount=vehicle.selling_price,
+            total_amount=website_price,
             deposit=down_payment,
             monthly_installment=monthly_payment,
             number_of_installments=duration_months,
@@ -724,7 +740,7 @@ def portal_initiate_purchase(request, vehicle_id):
         return redirect('clients:portal_make_payment', client_vehicle_id=client_vehicle.id, payment_type='down_payment')
     
     # Calculate payment options
-    selling_price = vehicle.selling_price
+    selling_price = _website_price(vehicle)
     min_deposit = vehicle.deposit_required
     
     payment_options = []
@@ -745,6 +761,7 @@ def portal_initiate_purchase(request, vehicle_id):
     context = {
         'client': client,
         'vehicle': vehicle,
+        'website_price': selling_price,
         'payment_options': payment_options,
         'min_deposit': min_deposit,
     }
