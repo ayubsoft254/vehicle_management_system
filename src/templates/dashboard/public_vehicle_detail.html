@@ -1,4 +1,5 @@
 {% load static %}
+{% load humanize %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -129,7 +130,7 @@
                             </div>
                             <div>
                                 <p class="text-sm text-gray-600">Year</p>
-                                <p class="font-semibold text-gray-900">{{ vehicle.year }}</p>
+                                <p class="font-semibold text-gray-900">{{ vehicle.year|stringformat:"d" }}</p>
                             </div>
                         </div>
                         
@@ -139,7 +140,7 @@
                             </div>
                             <div>
                                 <p class="text-sm text-gray-600">Mileage</p>
-                                <p class="font-semibold text-gray-900">{{ vehicle.mileage|floatformat:0 }} KM</p>
+                                <p class="font-semibold text-gray-900">{{ vehicle.mileage|floatformat:0|intcomma }} KM</p>
                             </div>
                         </div>
                         
@@ -163,6 +164,7 @@
                             </div>
                         </div>
                         
+                        {% if vehicle.color %}
                         <div class="flex items-center space-x-3">
                             <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-paint-brush text-primary-600"></i>
@@ -172,7 +174,9 @@
                                 <p class="font-semibold text-gray-900">{{ vehicle.color|title }}</p>
                             </div>
                         </div>
+                        {% endif %}
                         
+                        {% if vehicle.body_type %}
                         <div class="flex items-center space-x-3">
                             <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-car-side text-primary-600"></i>
@@ -182,19 +186,33 @@
                                 <p class="font-semibold text-gray-900">{{ vehicle.get_body_type_display|title }}</p>
                             </div>
                         </div>
+                        {% endif %}
                         
                         {% if vehicle.engine_size %}
                         <div class="flex items-center space-x-3">
                             <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-engine text-primary-600"></i>
+                                <i class="fas fa-cogs text-primary-600"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-600">Engine</p>
+                                <p class="text-sm text-gray-600">Engine Size</p>
                                 <p class="font-semibold text-gray-900">{{ vehicle.engine_size }}</p>
                             </div>
                         </div>
                         {% endif %}
                         
+                        {% if vehicle.engine_number %}
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-hashtag text-primary-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Engine No.</p>
+                                <p class="font-semibold text-gray-900">{{ vehicle.engine_number }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if vehicle.seats %}
                         <div class="flex items-center space-x-3">
                             <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-users text-primary-600"></i>
@@ -204,6 +222,7 @@
                                 <p class="font-semibold text-gray-900">{{ vehicle.seats }} Seats</p>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
                 </div>
                 
@@ -235,8 +254,8 @@
                     
                     <div class="space-y-4 mb-6">
                         <div class="flex justify-between items-center py-3 border-b">
-                            <span class="text-gray-600">Pricing</span>
-                            <span class="font-bold text-gray-900">Negotiable KES {{ vehicle.website_display_price|floatformat:0 }}</span>
+                            <span class="text-gray-600">Price</span>
+                            <span class="font-bold text-primary-600 text-lg js-public-price" data-kes="{{ vehicle.website_display_price|floatformat:2 }}">Negotiable KES {{ vehicle.website_display_price|floatformat:0|intcomma }}</span>
                         </div>
                         <div class="flex justify-between items-center py-3">
                             <span class="text-gray-600">Status</span>
@@ -246,6 +265,16 @@
                         </div>
                     </div>
                     
+                    <!-- Currency switcher -->
+                    <div class="flex items-center justify-between mb-5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                        <span class="text-sm text-gray-600"><i class="fas fa-exchange-alt mr-1"></i> Currency</span>
+                        <select id="publicDetailCurrency" class="text-sm border-0 bg-transparent focus:ring-0 font-medium text-gray-700">
+                            <option value="KES" selected>KES — Kenyan Shilling</option>
+                            <option value="USD">USD — US Dollar</option>
+                            <option value="EUR">EUR — Euro</option>
+                        </select>
+                    </div>
+
                     {% if is_authenticated %}
                         <!-- User is logged in -->
                         <a href="{% url 'dashboard:public_vehicle_purchase' vehicle.pk %}" 
@@ -345,4 +374,47 @@
         }
     </script>
 </body>
+
+    <script>
+    (function () {
+        const sel = document.getElementById('publicDetailCurrency');
+        const priceNodes = document.querySelectorAll('.js-public-price');
+        if (!sel || !priceNodes.length) return;
+
+        const rates = { KES: 1, USD: null, EUR: null };
+
+        function fmt(amount, currency) {
+            return currency + ' ' + new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 0, maximumFractionDigits: 2
+            }).format(amount);
+        }
+
+        function render(currency) {
+            const rate = rates[currency] || 1;
+            priceNodes.forEach(function (node) {
+                const kes = parseFloat(node.dataset.kes || '0');
+                node.textContent = 'Negotiable ' + fmt(kes * rate, currency);
+            });
+        }
+
+        async function fetchRates() {
+            const res = await fetch('https://open.er-api.com/v6/latest/KES');
+            if (!res.ok) throw new Error('Rate fetch failed');
+            const data = await res.json();
+            rates.USD = data.rates.USD;
+            rates.EUR = data.rates.EUR;
+        }
+
+        sel.addEventListener('change', async function () {
+            const cur = this.value;
+            try {
+                if (cur !== 'KES' && !rates[cur]) await fetchRates();
+                render(cur);
+            } catch (e) {
+                this.value = 'KES';
+                render('KES');
+            }
+        });
+    })();
+    </script>
 </html>
