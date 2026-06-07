@@ -8,8 +8,6 @@ import uuid
 from urllib.parse import urljoin
 from decimal import Decimal, ROUND_HALF_UP
 
-import re
-
 import requests
 from django.conf import settings
 from django.urls import reverse
@@ -87,16 +85,8 @@ def get_access_token() -> str:
 
 
 def _normalize_phone_number(phone_number: str) -> str:
-    """Normalize Kenyan numbers to the expected 2547XXXXXXXX format."""
-    digits = re.sub(r'\D', '', str(phone_number or ''))
-    if digits.startswith('0') and len(digits) == 10:
-        digits = f'254{digits[1:]}'
-    elif digits.startswith('7') and len(digits) == 9:
-        digits = f'254{digits}'
-
-    if not digits.startswith('254') or len(digits) != 12:
-        raise DarajaError('Phone number must be in format 2547XXXXXXXX.')
-    return digits
+    """Return a cleaned phone number without enforcing a country format."""
+    return ''.join(ch for ch in str(phone_number or '').strip() if ch.isdigit() or ch == '+')
 
 
 def _get_stk_callback_url() -> str:
