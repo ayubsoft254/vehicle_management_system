@@ -6,10 +6,7 @@ from django.db import models
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 from utils.constants import ClientStatus, DocumentType
-from utils.validators import (
-    validate_phone_number, 
-    validate_passport_number
-)
+from utils.validators import validate_passport_number
 import os
 
 
@@ -188,7 +185,6 @@ class Client(models.Model):
     next_of_kin_phone = models.CharField(
         'Next of Kin Phone',
         max_length=20,
-        validators=[validate_phone_number],
         blank=True
     )
     
