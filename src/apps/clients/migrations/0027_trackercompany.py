@@ -3,6 +3,14 @@
 from django.db import migrations, models
 
 
+def create_tracker_company_table_if_missing(apps, schema_editor):
+    """Create tracker_companies table only when it does not already exist."""
+    TrackerCompany = apps.get_model('clients', 'TrackerCompany')
+    if TrackerCompany._meta.db_table in schema_editor.connection.introspection.table_names():
+        return
+    schema_editor.create_model(TrackerCompany)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,24 +18,34 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='TrackerCompany',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(help_text='Tracker company/vendor name', max_length=200, unique=True)),
-                ('phone', models.CharField(blank=True, help_text='Primary contact phone (optional)', max_length=20, null=True)),
-                ('email', models.EmailField(blank=True, help_text='Contact email (optional)', max_length=254, null=True)),
-                ('contact_person', models.CharField(blank=True, help_text='Contact person name (optional)', max_length=200, null=True)),
-                ('notes', models.TextField(blank=True, help_text='Additional notes (optional)', null=True)),
-                ('is_active', models.BooleanField(default=True, help_text='Whether this tracker company is active')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.CreateModel(
+                    name='TrackerCompany',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('name', models.CharField(help_text='Tracker company/vendor name', max_length=200, unique=True)),
+                        ('phone', models.CharField(blank=True, help_text='Primary contact phone (optional)', max_length=20, null=True)),
+                        ('email', models.EmailField(blank=True, help_text='Contact email (optional)', max_length=254, null=True)),
+                        ('contact_person', models.CharField(blank=True, help_text='Contact person name (optional)', max_length=200, null=True)),
+                        ('notes', models.TextField(blank=True, help_text='Additional notes (optional)', null=True)),
+                        ('is_active', models.BooleanField(default=True, help_text='Whether this tracker company is active')),
+                        ('created_at', models.DateTimeField(auto_now_add=True)),
+                        ('updated_at', models.DateTimeField(auto_now=True)),
+                    ],
+                    options={
+                        'verbose_name': 'Tracker Company',
+                        'verbose_name_plural': 'Tracker Companies',
+                        'db_table': 'tracker_companies',
+                        'ordering': ['name'],
+                    },
+                ),
             ],
-            options={
-                'verbose_name': 'Tracker Company',
-                'verbose_name_plural': 'Tracker Companies',
-                'db_table': 'tracker_companies',
-                'ordering': ['name'],
-            },
+            database_operations=[
+                migrations.RunPython(
+                    create_tracker_company_table_if_missing,
+                    migrations.RunPython.noop,
+                ),
+            ],
         ),
     ]
