@@ -24,7 +24,7 @@ class ClientForm(forms.ModelForm):
         max_length=20,
         widget=forms.TextInput(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-            'placeholder': 'e.g. 0712345678 or +254712345678'
+            'placeholder': 'e.g. +254712345678 or +447700900123'
         })
     )
     
@@ -269,7 +269,6 @@ class ClientVehicleForm(forms.ModelForm):
             }),
             'commission_amount': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': '0.00',
                 'step': '0.01',
                 'min': '0'
             }),
@@ -317,6 +316,11 @@ class ClientVehicleForm(forms.ModelForm):
 
         self.fields['extra_costs_total'].required = False
         self.fields['extra_costs_json'].required = False
+
+        if not self.is_bound:
+            commission_value = self.instance.commission_amount if self.instance and self.instance.pk else None
+            if commission_value is None or commission_value == Decimal('0.00'):
+                self.fields['commission_amount'].initial = ''
     
     def clean(self):
         """Validate vehicle assignment and payment plan"""
@@ -342,6 +346,8 @@ class ClientVehicleForm(forms.ModelForm):
         if extra_costs_total < 0:
             raise ValidationError("Extra costs cannot be negative.")
 
+        commission_amount = cleaned_data.get('commission_amount') or Decimal('0.00')
+
         effective_purchase_price = (final_selling_price - extra_costs_total).quantize(Decimal('0.01'))
         if effective_purchase_price < 0:
             raise ValidationError("Final selling price cannot be lower than total extra costs.")
@@ -349,6 +355,7 @@ class ClientVehicleForm(forms.ModelForm):
         cleaned_data['purchase_price'] = effective_purchase_price
         cleaned_data['final_selling_price'] = final_selling_price.quantize(Decimal('0.01'))
         cleaned_data['extra_costs_total'] = extra_costs_total.quantize(Decimal('0.01'))
+        cleaned_data['commission_amount'] = commission_amount.quantize(Decimal('0.01'))
         
         # Check if vehicle is already assigned
         if vehicle and vehicle.status != 'available':
