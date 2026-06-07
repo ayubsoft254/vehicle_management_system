@@ -18,7 +18,7 @@ class VehicleForm(forms.ModelForm):
             'make', 'model', 'year', 'vin', 'engine_number', 'registration_number',
             'color', 'mileage', 'fuel_type', 'transmission',
             'engine_size', 'body_type', 'seats', 'doors',
-            'condition', 'purchase_price', 'selling_price', 'deposit_required',
+            'condition', 'purchase_price', 'selling_price', 'website_price', 'deposit_required',
             'duty_cost', 'clearance_cost', 'commission_cost',
             'status', 'is_active', 'is_featured',
             'description', 'features', 'location', 'location_moved_date',
@@ -100,6 +100,11 @@ class VehicleForm(forms.ModelForm):
                 'placeholder': 'Selling price in KES',
                 'step': '0.01',
                 'required': 'required'
+            }),
+            'website_price': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Website price in KES (optional)',
+                'step': '0.01'
             }),
             'deposit_required': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
@@ -190,7 +195,8 @@ class VehicleForm(forms.ModelForm):
             'seats', 'condition', 'deposit_required', 'duty_cost',
             'clearance_cost', 'commission_cost', 'location',
             'location_moved_date', 'location_driver_name',
-            'location_driver_phone', 'location_driver_id_number'
+            'location_driver_phone', 'location_driver_id_number',
+            'website_price'
         ]
         for field_name in optional_fields:
             self.fields[field_name].required = False
@@ -205,7 +211,7 @@ class VehicleForm(forms.ModelForm):
 
         # Non-admin users can input costs but must not see vehicle prices.
         if not self.can_view_prices:
-            for field_name in ['purchase_price', 'selling_price', 'deposit_required']:
+            for field_name in ['purchase_price', 'selling_price', 'website_price', 'deposit_required']:
                 self.fields[field_name].required = False
                 self.fields[field_name].widget = HiddenInput()
 
@@ -213,10 +219,12 @@ class VehicleForm(forms.ModelForm):
                 if self.instance and self.instance.pk:
                     self.initial['purchase_price'] = self.instance.purchase_price or Decimal('0.00')
                     self.initial['selling_price'] = self.instance.selling_price or Decimal('0.00')
+                    self.initial['website_price'] = self.instance.website_price or self.instance.selling_price or Decimal('0.00')
                     self.initial['deposit_required'] = self.instance.deposit_required or Decimal('0.00')
                 else:
                     self.initial['purchase_price'] = Decimal('0.00')
                     self.initial['selling_price'] = Decimal('0.00')
+                    self.initial['website_price'] = Decimal('0.00')
                     self.initial['deposit_required'] = Decimal('0.00')
         
         # Set initial values for fields with model defaults (for new instances)
@@ -272,6 +280,7 @@ class VehicleForm(forms.ModelForm):
         duty_cost = cleaned_data.get('duty_cost') or Decimal('0.00')
         clearance_cost = cleaned_data.get('clearance_cost') or Decimal('0.00')
         commission_cost = cleaned_data.get('commission_cost') or Decimal('0.00')
+        website_price = cleaned_data.get('website_price')
         location = cleaned_data.get('location')
         location_moved_date = cleaned_data.get('location_moved_date')
         location_driver_name = (cleaned_data.get('location_driver_name') or '').strip()
@@ -282,14 +291,24 @@ class VehicleForm(forms.ModelForm):
             if self.instance and self.instance.pk:
                 purchase_price = self.instance.purchase_price or Decimal('0.00')
                 cleaned_data['purchase_price'] = purchase_price
+                cleaned_data['website_price'] = self.instance.website_price
                 cleaned_data['deposit_required'] = self.instance.deposit_required or Decimal('0.00')
             else:
                 purchase_price = Decimal('0.00')
                 cleaned_data['purchase_price'] = purchase_price
+                cleaned_data['website_price'] = Decimal('0.00')
                 cleaned_data['deposit_required'] = Decimal('0.00')
 
         if purchase_price is not None:
             cleaned_data['selling_price'] = purchase_price + duty_cost + clearance_cost + commission_cost
+
+        selling_price = cleaned_data.get('selling_price')
+        if website_price is None:
+            cleaned_data['website_price'] = selling_price
+        else:
+            if website_price < 0:
+                raise ValidationError('Website price cannot be negative.')
+            cleaned_data['website_price'] = website_price
 
         if location and not location_moved_date:
             self.add_error('location_moved_date', 'Please provide the date the vehicle was moved to this location.')
@@ -299,7 +318,6 @@ class VehicleForm(forms.ModelForm):
         cleaned_data['location_driver_id_number'] = location_driver_id_number
         
         # Validate deposit is not more than selling price
-        selling_price = cleaned_data.get('selling_price')
         if deposit_required and selling_price and deposit_required > selling_price:
             raise ValidationError('Deposit cannot be more than selling price.')
 
