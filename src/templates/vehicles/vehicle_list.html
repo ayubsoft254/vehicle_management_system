@@ -519,7 +519,7 @@
                                                 <span class="text-[11px] font-semibold text-blue-600 mr-1 align-middle">KES</span>
                                                 <span class="align-middle">{{ vehicle.selling_price|floatformat:0|intcomma }}</span>
                                                 {% else %}
-                                                <span class="align-middle js-public-list-currency" data-kes="{{ vehicle.website_display_price|floatformat:2 }}">KES {{ vehicle.website_display_price|floatformat:0|intcomma }}</span>
+                                                <span class="align-middle js-public-list-currency" data-kes="{{ vehicle.website_display_price|unlocalize }}">KES {{ vehicle.website_display_price|floatformat:0|intcomma }}</span>
                                                 {% endif %}
                                             </div>
                                         </div>
