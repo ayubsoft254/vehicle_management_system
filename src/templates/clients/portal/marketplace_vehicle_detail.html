@@ -115,8 +115,8 @@
                 
                 <div class="mb-6">
                     <p class="text-sm text-gray-600">Selling Price</p>
-                    <p class="text-3xl font-bold text-gray-900 mb-1 js-market-detail-currency" data-kes="{{ website_price|floatformat:2 }}">KES {{ website_price|floatformat:0|intcomma }}</p>
-                    <p class="text-sm text-gray-600">Minimum Deposit: <span class="font-semibold text-blue-600 js-market-detail-currency" data-kes="{{ vehicle.deposit_required|floatformat:2 }}">KES {{ vehicle.deposit_required|floatformat:0|intcomma }}</span></p>
+                    <p class="text-3xl font-bold text-gray-900 mb-1 js-market-detail-currency" data-kes="{{ website_price|unlocalize }}">KES {{ website_price|floatformat:0|intcomma }}</p>
+                    <p class="text-sm text-gray-600">Minimum Deposit: <span class="font-semibold text-blue-600 js-market-detail-currency" data-kes="{{ vehicle.deposit_required|unlocalize }}">KES {{ vehicle.deposit_required|floatformat:0|intcomma }}</span></p>
                 </div>
 
                 {% if already_purchased %}
