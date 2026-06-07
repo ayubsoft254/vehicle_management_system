@@ -393,6 +393,19 @@
                             </div>
                             <div>
                                 <label for="{{ form.deposit_required.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                                    Website Price (KES)
+                                </label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-gray-400 text-sm font-medium">KES</span>
+                                    </div>
+                                    {{ form.website_price }}
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500">Price shown to website users. Leave blank to use selling price.</p>
+                                {% if form.website_price.errors %}<p class="mt-1 text-xs text-red-600">{{ form.website_price.errors.0 }}</p>{% endif %}
+                            </div>
+                            <div>
+                                <label for="{{ form.deposit_required.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
                                     Minimum Deposit (KES)
                                 </label>
                                 <div class="relative">
@@ -609,7 +622,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // KES prefix fields need left padding
-    ['purchase_price', 'selling_price', 'deposit_required', 'duty_cost', 'clearance_cost', 'commission_cost'].forEach(function (name) {
+    ['purchase_price', 'selling_price', 'website_price', 'deposit_required', 'duty_cost', 'clearance_cost', 'commission_cost'].forEach(function (name) {
         var el = document.querySelector('input[name="' + name + '"]');
         if (el) el.classList.add('pl-12');
     });
@@ -643,6 +656,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var spInput = document.getElementById('id_selling_price');
         if (spInput) spInput.value = total.toFixed(2);
+
+        var wpInput = document.getElementById('id_website_price');
+        if (wpInput && (wpInput.value === '' || parseFloat(wpInput.value || '0') === 0)) {
+            wpInput.value = total.toFixed(2);
+        }
 
         var purchaseDisplay = document.getElementById('purchaseDisplay');
         var dutyDisplay = document.getElementById('dutyDisplay');
