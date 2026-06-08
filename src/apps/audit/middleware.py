@@ -3,14 +3,84 @@ Audit Middleware
 Automatically logs all requests and user actions
 """
 from django.utils.deprecation import MiddlewareMixin
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
+from django.http import Http404
+from django.core.exceptions import PermissionDenied
 from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
 from django.dispatch import receiver
 from .models import AuditLog, LoginHistory
 from utils.constants import AuditAction
 import json
 import logging
+import traceback
 
 logger = logging.getLogger(__name__)
+
+
+class ExceptionEmailNotificationMiddleware(MiddlewareMixin):
+    """Send exception emails to admin users in production."""
+
+    def process_exception(self, request, exception):
+        if settings.DEBUG:
+            return None
+
+        if isinstance(exception, (Http404, PermissionDenied)):
+            return None
+
+        try:
+            user_model = get_user_model()
+            recipients = list(
+                user_model.objects.filter(
+                    is_active=True,
+                    is_superuser=True,
+                ).exclude(email='').values_list('email', flat=True).distinct()
+            )
+
+            # Fall back to configured ADMINS if no superuser emails are available.
+            if not recipients:
+                recipients = [email for _, email in getattr(settings, 'ADMINS', []) if email]
+
+            if not recipients:
+                return None
+
+            request_user = getattr(request, 'user', None)
+            if request_user and request_user.is_authenticated:
+                user_identity = f"{request_user.get_username()} (id={request_user.pk})"
+            else:
+                user_identity = 'Anonymous'
+
+            subject = f"[VMS] Production Error: {request.method} {request.path}"
+            message = (
+                "An unhandled server error occurred.\n\n"
+                f"Host: {request.get_host()}\n"
+                f"Path: {request.path}\n"
+                f"Method: {request.method}\n"
+                f"User: {user_identity}\n"
+                f"Remote IP: {self.get_client_ip(request)}\n"
+                f"Exception: {exception.__class__.__name__}: {exception}\n\n"
+                "Traceback:\n"
+                f"{traceback.format_exc()}"
+            )
+
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=getattr(settings, 'SERVER_EMAIL', None) or getattr(settings, 'DEFAULT_FROM_EMAIL', None),
+                recipient_list=recipients,
+                fail_silently=True,
+            )
+        except Exception:
+            logger.exception('Failed to send production exception email alert')
+
+        return None
+
+    def get_client_ip(self, request):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', '')
 
 
 class AuditLogMiddleware(MiddlewareMixin):
