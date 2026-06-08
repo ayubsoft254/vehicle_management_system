@@ -33,6 +33,9 @@ urlpatterns = [
     path('paybill/refresh-balance/', views.refresh_paybill_balance, name='refresh_paybill_balance'),
     path('defaulters/', views.defaulters_report, name='defaulters_report'),
     path('export/csv/', views.export_payments_csv, name='export_payments_csv'),
+    path('export/pdf/agreement/<int:client_vehicle_pk>/', views.generate_agreement_pdf_view, name='generate_agreement_pdf'),
+    path('export/pdf/proforma/<int:client_vehicle_pk>/', views.generate_proforma_invoice_pdf_view, name='generate_proforma_invoice_pdf'),
+    path('export/pdf/tracker/<int:client_vehicle_pk>/', views.generate_payment_tracker_pdf_view, name='generate_payment_tracker_pdf'),
 
     # Daraja callbacks
     path('paybill/callbacks/validation/', views.paybill_validation_callback, name='paybill_validation_callback'),
@@ -44,6 +47,7 @@ urlpatterns = [
     # API endpoints
     path('api/stats/', views.payment_stats_api, name='payment_stats_api'),
     path('api/chart-data/', views.payment_chart_data_api, name='payment_chart_data_api'),
+    path('api/due-monitor/', views.due_monitor_api, name='due_monitor_api'),
 
     # Staff STK Push AJAX
     path('api/stk-push/<int:client_vehicle_pk>/', views.staff_stk_initiate, name='staff_stk_initiate'),
