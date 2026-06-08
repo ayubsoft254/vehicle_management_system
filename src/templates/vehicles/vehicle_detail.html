@@ -78,6 +78,16 @@
         {% can_delete user 'vehicles' as can_delete_vehicles %}
         
         <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            {% if user.is_superuser or user.role == 'admin' %}
+                <a href="{% url 'vehicles:purchase_price_assignment' %}?vehicle={{ vehicle.pk }}"
+                   class="inline-flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition duration-150">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Assign Purchase Price
+                </a>
+            {% endif %}
+
             {% if can_edit_vehicles %}
                 {% if vehicle.status == 'available' %}
                 <button onclick="openSellVehicleModal()" 
