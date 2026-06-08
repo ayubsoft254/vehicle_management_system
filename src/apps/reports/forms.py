@@ -76,11 +76,6 @@ class ReportForm(forms.ModelForm):
             'frequency',
             'schedule_time',
             'schedule_day',
-            'recipients',
-            'email_recipients',
-            'send_email',
-            'is_public',
-            'allowed_users',
             'is_active',
         ]
         widgets = {
@@ -95,11 +90,7 @@ class ReportForm(forms.ModelForm):
             }),
             'report_type': forms.Select(attrs={'class': 'form-control'}),
             'template': forms.Select(attrs={'class': 'form-control'}),
-            'query_config': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 4,
-                'placeholder': '{"filters": {}, "groupby": []}'
-            }),
+            'query_config': forms.HiddenInput(),
             'date_range_type': forms.Select(attrs={'class': 'form-control'}),
             'custom_date_from': forms.DateInput(attrs={
                 'class': 'form-control',
@@ -123,21 +114,6 @@ class ReportForm(forms.ModelForm):
                 'class': 'form-control',
                 'min': '1',
                 'max': '31'
-            }),
-            'recipients': forms.SelectMultiple(attrs={
-                'class': 'form-control',
-                'size': '5'
-            }),
-            'email_recipients': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 2,
-                'placeholder': 'email1@example.com, email2@example.com'
-            }),
-            'send_email': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'is_public': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'allowed_users': forms.SelectMultiple(attrs={
-                'class': 'form-control',
-                'size': '5'
             }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
