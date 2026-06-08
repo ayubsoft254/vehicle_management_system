@@ -72,6 +72,7 @@ class Report(models.Model):
         ('client', 'Client Report'),
         ('auction', 'Auction Report'),
         ('payment', 'Payment Report'),
+        ('company_payout', 'Company Payout Report'),
         ('expense', 'Expense Report'),
         ('payroll', 'Payroll Report'),
         ('insurance', 'Insurance Report'),
