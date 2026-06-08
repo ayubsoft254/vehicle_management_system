@@ -322,8 +322,6 @@ def generate_sales_agreement_pdf(client_vehicle):
 
     if insurance_policy:
         insurance_lines = [
-            f'<b>INSURANCE PROVIDER:</b> {insurance_policy.provider.name if insurance_policy.provider else ""}',
-            f'<b>POLICY NO:</b> {insurance_policy.policy_number or ""}',
             f'<b>INSURANCE SELLING PRICE:</b> KES {float(insurance_policy.selling_price or Decimal("0.00")):,.2f}',
             f'<b>PAYMENT TYPE:</b> {_payment_type_label(insurance_policy.payment_type)}',
         ]
