@@ -169,13 +169,12 @@ def generate_financial_report_data(date_from, date_to):
     payments = Payment.objects.filter(
         payment_date__gte=date_from,
         payment_date__lte=date_to,
-        status='completed'
     )
     
     expenses = Expense.objects.filter(
         expense_date__gte=date_from,
         expense_date__lte=date_to,
-        status='approved'
+        status='APPROVED'
     )
     
     total_revenue = payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
@@ -192,7 +191,8 @@ def generate_financial_report_data(date_from, date_to):
             'expense_count': expenses.count(),
         },
         'payments': list(payments.values(
-            'id', 'amount', 'payment_date', 'payment_method', 'client__name'
+            'id', 'amount', 'payment_date', 'payment_method',
+            'client_vehicle__client__first_name', 'client_vehicle__client__last_name'
         )),
         'expenses': list(expenses.values(
             'id', 'amount', 'expense_date', 'category', 'description'
@@ -232,11 +232,11 @@ def generate_vehicle_report_data(date_from, date_to):
             'by_make': dict(vehicles.values('make').annotate(
                 count=Count('id')
             ).order_by('-count')[:10].values_list('make', 'count')),
-            'average_price': float(vehicles.aggregate(avg=Avg('price'))['avg'] or 0),
-            'total_value': float(vehicles.aggregate(sum=Sum('price'))['sum'] or 0),
+            'average_price': float(vehicles.aggregate(avg=Avg('selling_price'))['avg'] or 0),
+            'total_value': float(vehicles.aggregate(sum=Sum('selling_price'))['sum'] or 0),
         },
         'vehicles': list(vehicles.values(
-            'id', 'vin', 'make', 'model', 'year', 'status', 'price'
+            'id', 'vin', 'make', 'model', 'year', 'status', 'selling_price'
         )),
     }
     
@@ -249,16 +249,15 @@ def generate_client_report_data(date_from, date_to):
     from apps.payments.models import Payment
     
     clients = Client.objects.filter(
-        created_at__gte=date_from,
-        created_at__lte=date_to
+        date_registered__date__gte=date_from,
+        date_registered__date__lte=date_to
     )
     
     # Get payment statistics for clients
     client_payments = Payment.objects.filter(
         payment_date__gte=date_from,
         payment_date__lte=date_to,
-        status='completed'
-    ).values('client').annotate(
+    ).values('client_vehicle__client').annotate(
         total_paid=Sum('amount'),
         payment_count=Count('id')
     )
@@ -270,7 +269,7 @@ def generate_client_report_data(date_from, date_to):
             'active_clients': Client.objects.filter(is_active=True).count(),
         },
         'clients': list(clients.values(
-            'id', 'name', 'email', 'phone', 'created_at'
+            'id', 'first_name', 'last_name', 'email', 'phone_primary', 'date_registered'
         )),
         'top_clients': list(client_payments.order_by('-total_paid')[:10]),
     }
@@ -324,28 +323,19 @@ def generate_payment_report_data(date_from, date_to):
     data = {
         'summary': {
             'total_payments': payments.count(),
-            'completed_payments': payments.filter(status='completed').count(),
-            'pending_payments': payments.filter(status='pending').count(),
-            'failed_payments': payments.filter(status='failed').count(),
-            'total_amount': float(payments.filter(
-                status='completed'
-            ).aggregate(sum=Sum('amount'))['sum'] or 0),
-            'average_payment': float(payments.filter(
-                status='completed'
-            ).aggregate(avg=Avg('amount'))['avg'] or 0),
+            'total_amount': float(payments.aggregate(sum=Sum('amount'))['sum'] or 0),
+            'average_payment': float(payments.aggregate(avg=Avg('amount'))['avg'] or 0),
         },
         'payments': list(payments.values(
             'id', 'amount', 'payment_date', 'payment_method',
-            'status', 'client__name'
+            'receipt_number',
+            'client_vehicle__client__first_name', 'client_vehicle__client__last_name'
         )),
         'by_method': list(
-            payments.filter(status='completed').values('payment_method').annotate(
+            payments.values('payment_method').annotate(
                 total=Sum('amount'),
                 count=Count('id')
             )
-        ),
-        'by_status': list(
-            payments.values('status').annotate(count=Count('id'))
         ),
     }
     
@@ -368,17 +358,16 @@ def generate_sales_report_data(date_from, date_to):
     payments = Payment.objects.filter(
         payment_date__gte=date_from,
         payment_date__lte=date_to,
-        status='completed'
     )
     
     data = {
         'summary': {
             'vehicles_sold': sold_vehicles.count(),
             'total_revenue': float(payments.aggregate(sum=Sum('amount'))['sum'] or 0),
-            'average_sale_price': float(sold_vehicles.aggregate(avg=Avg('price'))['avg'] or 0),
+            'average_sale_price': float(sold_vehicles.aggregate(avg=Avg('selling_price'))['avg'] or 0),
         },
         'sales': list(sold_vehicles.values(
-            'id', 'vin', 'make', 'model', 'year', 'price', 'updated_at'
+            'id', 'vin', 'make', 'model', 'year', 'selling_price', 'updated_at'
         )),
         'revenue_trend': generate_revenue_trend(payments, date_from, date_to),
     }
