@@ -3,6 +3,7 @@ Reports App - Utility Functions
 """
 
 from django.db.models import Count, Sum, Avg, Max, Min, Q
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from datetime import timedelta, datetime
@@ -180,6 +181,49 @@ def generate_financial_report_data(date_from, date_to):
     total_revenue = payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     total_expenses = expenses.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     net_profit = total_revenue - total_expenses
+    operating_ratio = (total_expenses / total_revenue * 100) if total_revenue > 0 else Decimal('0.00')
+
+    revenue_trend = list(
+        payments.annotate(day=TruncDate('payment_date')).values('day').annotate(
+            total=Sum('amount'),
+            count=Count('id')
+        ).order_by('day')
+    )
+    expense_trend = list(
+        expenses.annotate(day=TruncDate('expense_date')).values('day').annotate(
+            total=Sum('amount'),
+            count=Count('id')
+        ).order_by('day')
+    )
+
+    top_clients = list(
+        payments.values(
+            'client_vehicle__client',
+            'client_vehicle__client__first_name',
+            'client_vehicle__client__last_name',
+        ).annotate(
+            total_paid=Sum('amount'),
+            payment_count=Count('id')
+        ).order_by('-total_paid')[:10]
+    )
+
+    top_vehicles = list(
+        payments.values(
+            'client_vehicle__vehicle',
+            'client_vehicle__vehicle__vin',
+            'client_vehicle__vehicle__make',
+            'client_vehicle__vehicle__model',
+        ).annotate(
+            total_received=Sum('amount'),
+            payment_count=Count('id')
+        ).order_by('-total_received')[:10]
+    )
+
+    largest_expenses = list(
+        expenses.order_by('-amount').values(
+            'id', 'amount', 'expense_date', 'category', 'description'
+        )[:10]
+    )
     
     data = {
         'summary': {
@@ -187,8 +231,13 @@ def generate_financial_report_data(date_from, date_to):
             'total_expenses': float(total_expenses),
             'net_profit': float(net_profit),
             'profit_margin': float((net_profit / total_revenue * 100) if total_revenue > 0 else 0),
+            'operating_ratio': float(operating_ratio),
             'payment_count': payments.count(),
             'expense_count': expenses.count(),
+            'average_payment': float(payments.aggregate(avg=Avg('amount'))['avg'] or 0),
+            'average_expense': float(expenses.aggregate(avg=Avg('amount'))['avg'] or 0),
+            'largest_payment': float(payments.aggregate(max=Max('amount'))['max'] or 0),
+            'largest_expense': float(expenses.aggregate(max=Max('amount'))['max'] or 0),
         },
         'payments': list(payments.values(
             'id', 'amount', 'payment_date', 'payment_method',
@@ -209,9 +258,51 @@ def generate_financial_report_data(date_from, date_to):
                 count=Count('id')
             )
         ),
+        'revenue_trend': revenue_trend,
+        'expense_trend': expense_trend,
+        'top_clients': top_clients,
+        'top_vehicles': top_vehicles,
+        'largest_expenses': largest_expenses,
     }
     
     return data
+
+
+def generate_custom_report_data(date_from, date_to, query_config=None):
+    """Generate custom report data from selected sections in query_config."""
+    config = query_config or {}
+    selected_sections = config.get('custom_sections') or []
+    if not isinstance(selected_sections, list):
+        selected_sections = []
+
+    if not selected_sections:
+        selected_sections = ['summary', 'payments', 'expenses']
+
+    financial_data = generate_financial_report_data(date_from, date_to)
+    payout_data = generate_company_payout_report_data(date_from, date_to)
+
+    custom_data = {
+        'summary': financial_data.get('summary', {}),
+    }
+
+    section_map = {
+        'summary': 'summary',
+        'payments': 'payments',
+        'expenses': 'expenses',
+        'revenue_by_method': 'revenue_by_method',
+        'expenses_by_category': 'expenses_by_category',
+    }
+
+    for section in selected_sections:
+        mapped_key = section_map.get(section)
+        if mapped_key and mapped_key in financial_data:
+            custom_data[mapped_key] = financial_data[mapped_key]
+
+    if 'company_payouts' in selected_sections:
+        custom_data['company_payouts'] = payout_data.get('company_payouts', [])
+        custom_data['company_totals'] = payout_data.get('company_totals', [])
+
+    return custom_data
 
 
 def generate_vehicle_report_data(date_from, date_to):
