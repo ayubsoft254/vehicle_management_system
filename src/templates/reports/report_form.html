@@ -24,6 +24,7 @@
 
             <form method="post" class="p-6 space-y-8">
                 {% csrf_token %}
+                {{ form.query_config }}
 
                 {% if form.non_field_errors %}
                     <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
@@ -74,6 +75,38 @@
                                 <p class="text-red-500 text-sm mt-1">{{ form.template.errors.0 }}</p>
                             {% endif %}
                         </div>
+                    </div>
+                </div>
+
+                <!-- Custom Report Options -->
+                <div id="custom-options-card" class="bg-gray-50 rounded-lg p-6 hidden">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Custom Report Options</h3>
+                    <p class="text-sm text-gray-600 mb-4">Select what to include in the custom report output.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label class="flex items-center p-3 bg-white rounded border border-gray-200">
+                            <input type="checkbox" class="custom-report-option form-check-input" value="summary">
+                            <span class="ml-2 text-sm text-gray-700">Executive Summary</span>
+                        </label>
+                        <label class="flex items-center p-3 bg-white rounded border border-gray-200">
+                            <input type="checkbox" class="custom-report-option form-check-input" value="payments">
+                            <span class="ml-2 text-sm text-gray-700">Payment Transactions</span>
+                        </label>
+                        <label class="flex items-center p-3 bg-white rounded border border-gray-200">
+                            <input type="checkbox" class="custom-report-option form-check-input" value="expenses">
+                            <span class="ml-2 text-sm text-gray-700">Expense Transactions</span>
+                        </label>
+                        <label class="flex items-center p-3 bg-white rounded border border-gray-200">
+                            <input type="checkbox" class="custom-report-option form-check-input" value="revenue_by_method">
+                            <span class="ml-2 text-sm text-gray-700">Revenue by Payment Method</span>
+                        </label>
+                        <label class="flex items-center p-3 bg-white rounded border border-gray-200">
+                            <input type="checkbox" class="custom-report-option form-check-input" value="expenses_by_category">
+                            <span class="ml-2 text-sm text-gray-700">Expenses by Category</span>
+                        </label>
+                        <label class="flex items-center p-3 bg-white rounded border border-gray-200">
+                            <input type="checkbox" class="custom-report-option form-check-input" value="company_payouts">
+                            <span class="ml-2 text-sm text-gray-700">Insurance/Tracker Company Payouts</span>
+                        </label>
                     </div>
                 </div>
 
@@ -190,68 +223,11 @@
                     </div>
                 </div>
 
-                <!-- Email Settings -->
                 <div class="bg-gray-50 rounded-lg p-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Email Notifications</h3>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="flex items-center">
-                                {{ form.send_email }}
-                                <span class="ml-2 text-sm font-medium text-gray-700">Send Email Notifications</span>
-                            </label>
-                        </div>
-
-                        <div>
-                            <label for="id_recipients" class="block text-sm font-medium text-gray-700 mb-2">
-                                Recipients (Users)
-                            </label>
-                            {{ form.recipients }}
-                            {% if form.recipients.errors %}
-                                <p class="text-red-500 text-sm mt-1">{{ form.recipients.errors.0 }}</p>
-                            {% endif %}
-                        </div>
-
-                        <div>
-                            <label for="id_email_recipients" class="block text-sm font-medium text-gray-700 mb-2">
-                                Additional Email Addresses
-                            </label>
-                            {{ form.email_recipients }}
-                            <p class="text-xs text-gray-500 mt-1">Comma-separated email addresses</p>
-                            {% if form.email_recipients.errors %}
-                                <p class="text-red-500 text-sm mt-1">{{ form.email_recipients.errors.0 }}</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Access Control -->
-                <div class="bg-gray-50 rounded-lg p-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Access Control</h3>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="flex items-center">
-                                {{ form.is_public }}
-                                <span class="ml-2 text-sm font-medium text-gray-700">Public (All users can view)</span>
-                            </label>
-                        </div>
-
-                        <div>
-                            <label for="id_allowed_users" class="block text-sm font-medium text-gray-700 mb-2">
-                                Allowed Users
-                            </label>
-                            {{ form.allowed_users }}
-                            {% if form.allowed_users.errors %}
-                                <p class="text-red-500 text-sm mt-1">{{ form.allowed_users.errors.0 }}</p>
-                            {% endif %}
-                        </div>
-
-                        <div>
-                            <label class="flex items-center">
-                                {{ form.is_active }}
-                                <span class="ml-2 text-sm font-medium text-gray-700">Active</span>
-                            </label>
-                        </div>
-                    </div>
+                    <label class="flex items-center">
+                        {{ form.is_active }}
+                        <span class="ml-2 text-sm font-medium text-gray-700">Active</span>
+                    </label>
                 </div>
 
                 <!-- Info Box -->
@@ -283,4 +259,55 @@
         </div>
     </div>
 </div>
+<script>
+    (function() {
+        const reportTypeField = document.getElementById('id_report_type');
+        const queryConfigField = document.getElementById('id_query_config');
+        const customCard = document.getElementById('custom-options-card');
+        const optionInputs = Array.from(document.querySelectorAll('.custom-report-option'));
+
+        function readExistingConfig() {
+            if (!queryConfigField || !queryConfigField.value) return {};
+            try {
+                return JSON.parse(queryConfigField.value);
+            } catch (err) {
+                return {};
+            }
+        }
+
+        function syncConfigFromOptions() {
+            if (!queryConfigField) return;
+            const existing = readExistingConfig();
+            const selected = optionInputs.filter((el) => el.checked).map((el) => el.value);
+            existing.custom_sections = selected;
+            queryConfigField.value = JSON.stringify(existing);
+        }
+
+        function applyOptionsFromConfig() {
+            const existing = readExistingConfig();
+            const selected = Array.isArray(existing.custom_sections) ? existing.custom_sections : [];
+            optionInputs.forEach((el) => {
+                el.checked = selected.includes(el.value);
+            });
+        }
+
+        function toggleCustomOptions() {
+            const isCustom = reportTypeField && reportTypeField.value === 'custom';
+            if (customCard) {
+                customCard.classList.toggle('hidden', !isCustom);
+            }
+            if (isCustom) {
+                applyOptionsFromConfig();
+            }
+            syncConfigFromOptions();
+        }
+
+        optionInputs.forEach((input) => {
+            input.addEventListener('change', syncConfigFromOptions);
+        });
+
+        reportTypeField?.addEventListener('change', toggleCustomOptions);
+        toggleCustomOptions();
+    })();
+</script>
 {% endblock %}
