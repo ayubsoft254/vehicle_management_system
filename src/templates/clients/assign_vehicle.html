@@ -544,7 +544,7 @@
         </div>
 
         <!-- Additional Information -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div id="broker-info-section" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
                 <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-user-tie mr-2"></i>Broker Information</h2>
             </div>
@@ -763,6 +763,7 @@ function movePaymentSectionsAfterPricing() {
     const paymentMethodSection = document.getElementById('payment-method-section');
     const purchaseDetailsSection = document.getElementById('purchase-details-section');
     const paymentConfigSection = document.getElementById('payment-config-section');
+    const brokerInfoSection = document.getElementById('broker-info-section');
     const insuranceSection = document.getElementById('insurance-section');
     const trackerSection = document.getElementById('tracker-section');
 
@@ -775,9 +776,14 @@ function movePaymentSectionsAfterPricing() {
     form.insertBefore(purchaseDetailsSection, anchor);
     form.insertBefore(paymentConfigSection, anchor);
 
-    // Ensure insurance and tracker appear below payment configuration.
+    // Ensure broker information appears between payment configuration and insurance.
+    if (brokerInfoSection) {
+        form.insertBefore(brokerInfoSection, paymentConfigSection.nextSibling);
+    }
+
+    // Ensure insurance and tracker appear below payment configuration and broker info.
     if (insuranceSection) {
-        form.insertBefore(insuranceSection, paymentConfigSection.nextSibling);
+        form.insertBefore(insuranceSection, brokerInfoSection ? brokerInfoSection.nextSibling : paymentConfigSection.nextSibling);
     }
     if (trackerSection) {
         form.insertBefore(trackerSection, insuranceSection ? insuranceSection.nextSibling : paymentConfigSection.nextSibling);
