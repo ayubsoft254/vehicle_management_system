@@ -303,7 +303,7 @@
             </div>
 
             <!-- Recipients -->
-            {% if report.send_email and report.recipients.exists or report.email_recipients %}
+            {% if report.send_email and report.recipients.exists or email_recipients_list %}
                 <div class="bg-white rounded-xl shadow-md p-6">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">Email Recipients</h3>
                     <div class="space-y-2">
@@ -313,11 +313,11 @@
                                 {{ recipient.get_full_name|default:recipient.username }}
                             </div>
                         {% endfor %}
-                        {% if report.email_recipients %}
-                            {% for email in report.email_recipients.split:',' %}
+                        {% if email_recipients_list %}
+                            {% for email in email_recipients_list %}
                                 <div class="flex items-center text-sm text-gray-700">
                                     <i class="far fa-envelope mr-2 text-gray-400"></i>
-                                    {{ email|trim }}
+                                    {{ email }}
                                 </div>
                             {% endfor %}
                         {% endif %}
