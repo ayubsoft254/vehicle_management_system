@@ -45,6 +45,11 @@ def _user_report_type_choices(instance=None):
 class ReportForm(forms.ModelForm):
     """Form for creating and updating reports"""
 
+    date_range_type = forms.ChoiceField(
+        choices=DATE_RANGE_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['date_range_type'].choices = DATE_RANGE_CHOICES
@@ -182,6 +187,11 @@ class ReportForm(forms.ModelForm):
 
 class QuickReportForm(forms.ModelForm):
     """Simplified form for quick report creation"""
+
+    date_range_type = forms.ChoiceField(
+        choices=DATE_RANGE_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
     
     class Meta:
         model = Report
