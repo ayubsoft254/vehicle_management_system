@@ -166,6 +166,13 @@ def format_currency(amount, currency='KES'):
     return f"{currency} {amount:,.2f}"
 
 
+def convert_from_kes(amount, fx_rate=Decimal('1.00')):
+    """Convert KES-denominated amount using provided FX rate."""
+    value = amount or Decimal('0.00')
+    rate = fx_rate or Decimal('1.00')
+    return (value * rate).quantize(Decimal('0.01'))
+
+
 # ==================== DATE UTILITIES ====================
 
 def get_next_payment_date(start_date, months_offset):
@@ -357,7 +364,7 @@ def generate_payment_receipt_pdf(payment):
     return response
 
 
-def generate_agreement_pdf(client_vehicle):
+def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00')):
     """
     Generate sales agreement PDF
     
@@ -435,10 +442,10 @@ def generate_agreement_pdf(client_vehicle):
     # Payment terms
     elements.append(Paragraph("<b>PAYMENT TERMS:</b>", styles['Heading2']))
     payment_info = [
-        ['Purchase Price:', format_currency(client_vehicle.purchase_price)],
-        ['Deposit Paid:', format_currency(client_vehicle.deposit_paid)],
-        ['Balance:', format_currency(client_vehicle.balance)],
-        ['Monthly Installment:', format_currency(client_vehicle.monthly_installment)],
+        ['Purchase Price:', format_currency(convert_from_kes(client_vehicle.purchase_price, fx_rate), currency)],
+        ['Deposit Paid:', format_currency(convert_from_kes(client_vehicle.deposit_paid, fx_rate), currency)],
+        ['Balance:', format_currency(convert_from_kes(client_vehicle.balance, fx_rate), currency)],
+        ['Monthly Installment:', format_currency(convert_from_kes(client_vehicle.monthly_installment, fx_rate), currency)],
         ['Number of Months:', str(client_vehicle.installment_months)],
         ['Interest Rate:', f"{client_vehicle.interest_rate}%"],
     ]
@@ -485,12 +492,12 @@ def generate_agreement_pdf(client_vehicle):
     buffer.seek(0)
     
     response = HttpResponse(buffer, content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="agreement_{client.id_number}.pdf"'
+    response['Content-Disposition'] = f'attachment; filename="agreement_{client.id_number}_{currency.lower()}.pdf"'
     
     return response
 
 
-def generate_payment_tracker_pdf(client_vehicle):
+def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00')):
     """
     Generate payment tracker/history PDF
     
@@ -532,10 +539,10 @@ def generate_payment_tracker_pdf(client_vehicle):
     
     # Payment summary
     summary_data = [
-        ['Purchase Price:', format_currency(client_vehicle.purchase_price)],
-        ['Deposit Paid:', format_currency(client_vehicle.deposit_paid)],
-        ['Total Paid:', format_currency(client_vehicle.total_paid)],
-        ['Balance:', format_currency(client_vehicle.balance)],
+        ['Purchase Price:', format_currency(convert_from_kes(client_vehicle.purchase_price, fx_rate), currency)],
+        ['Deposit Paid:', format_currency(convert_from_kes(client_vehicle.deposit_paid, fx_rate), currency)],
+        ['Total Paid:', format_currency(convert_from_kes(client_vehicle.total_paid, fx_rate), currency)],
+        ['Balance:', format_currency(convert_from_kes(client_vehicle.balance, fx_rate), currency)],
         ['Payment Progress:', f"{client_vehicle.payment_progress:.1f}%"],
     ]
     
@@ -565,8 +572,8 @@ def generate_payment_tracker_pdf(client_vehicle):
                 payment.payment_date.strftime('%d/%m/%Y'),
                 payment.receipt_number,
                 payment.get_payment_method_display(),
-                format_currency(payment.amount),
-                format_currency(client_vehicle.balance)  # This should ideally be the balance at that time
+                format_currency(convert_from_kes(payment.amount, fx_rate), currency),
+                format_currency(convert_from_kes(client_vehicle.balance, fx_rate), currency)  # This should ideally be the balance at that time
             ])
         
         payment_table = Table(payment_data, colWidths=[1.2*inch, 1.5*inch, 1.2*inch, 1.2*inch, 1.2*inch])
@@ -588,12 +595,12 @@ def generate_payment_tracker_pdf(client_vehicle):
     buffer.seek(0)
     
     response = HttpResponse(buffer, content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="payment_tracker_{client.id_number}.pdf"'
+    response['Content-Disposition'] = f'attachment; filename="payment_tracker_{client.id_number}_{currency.lower()}.pdf"'
     
     return response
 
 
-def generate_performa_invoice_pdf(client_vehicle):
+def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00')):
     """
     Generate performa invoice PDF
     
@@ -644,7 +651,7 @@ def generate_performa_invoice_pdf(client_vehicle):
     vehicle_data = [
         ['Description', 'Amount'],
         [f"{vehicle.make} {vehicle.model} {vehicle.year}\nReg: {vehicle.registration_number}", 
-         format_currency(client_vehicle.purchase_price)]
+            format_currency(convert_from_kes(client_vehicle.purchase_price, fx_rate), currency)]
     ]
     
     vehicle_table = Table(vehicle_data, colWidths=[4*inch, 2*inch])
@@ -663,9 +670,9 @@ def generate_performa_invoice_pdf(client_vehicle):
     
     # Totals
     totals_data = [
-        ['Subtotal:', format_currency(client_vehicle.purchase_price)],
-        ['Deposit:', f"({format_currency(client_vehicle.deposit_paid)})"],
-        ['<b>Balance Due:</b>', f"<b>{format_currency(client_vehicle.balance)}</b>"],
+        ['Subtotal:', format_currency(convert_from_kes(client_vehicle.purchase_price, fx_rate), currency)],
+        ['Deposit:', f"({format_currency(convert_from_kes(client_vehicle.deposit_paid, fx_rate), currency)})"],
+        ['<b>Balance Due:</b>', f"<b>{format_currency(convert_from_kes(client_vehicle.balance, fx_rate), currency)}</b>"],
     ]
     
     totals_table = Table(totals_data, colWidths=[4*inch, 2*inch])
@@ -682,7 +689,7 @@ def generate_performa_invoice_pdf(client_vehicle):
     # Payment terms
     terms_text = f"""
     <b>PAYMENT TERMS:</b><br/>
-    Monthly Installment: {format_currency(client_vehicle.monthly_installment)}<br/>
+    Monthly Installment: {format_currency(convert_from_kes(client_vehicle.monthly_installment, fx_rate), currency)}<br/>
     Number of Installments: {client_vehicle.installment_months} months<br/>
     Interest Rate: {client_vehicle.interest_rate}% per annum
     """
@@ -698,7 +705,7 @@ def generate_performa_invoice_pdf(client_vehicle):
     buffer.seek(0)
     
     response = HttpResponse(buffer, content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="proforma_invoice_{invoice_no}.pdf"'
+    response['Content-Disposition'] = f'attachment; filename="proforma_invoice_{invoice_no}_{currency.lower()}.pdf"'
     
     return response
 
