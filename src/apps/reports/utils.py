@@ -375,6 +375,85 @@ def generate_sales_report_data(date_from, date_to):
     return data
 
 
+def generate_company_payout_report_data(date_from, date_to):
+    """Generate totals paid/allocated to insurance and tracker companies."""
+    from apps.insurance.models import InsurancePolicy
+    from apps.clients.models import VehicleTracker
+
+    insurance_policies = InsurancePolicy.objects.filter(
+        created_at__date__gte=date_from,
+        created_at__date__lte=date_to,
+    ).select_related('provider')
+
+    trackers = VehicleTracker.objects.filter(
+        created_at__date__gte=date_from,
+        created_at__date__lte=date_to,
+    )
+
+    insurance_by_company = list(
+        insurance_policies.values('provider__name').annotate(
+            total_amount=Sum('selling_price'),
+            item_count=Count('id'),
+        ).order_by('-total_amount')
+    )
+
+    tracker_by_company = list(
+        trackers.values('provider').annotate(
+            total_amount=Sum('selling_price'),
+            item_count=Count('id'),
+        ).order_by('-total_amount')
+    )
+
+    company_totals = {}
+    for item in insurance_by_company:
+        company = item.get('provider__name') or 'Unspecified Insurance Company'
+        company_totals.setdefault(company, Decimal('0.00'))
+        company_totals[company] += item.get('total_amount') or Decimal('0.00')
+
+    for item in tracker_by_company:
+        company = item.get('provider') or 'Unspecified Tracker Company'
+        company_totals.setdefault(company, Decimal('0.00'))
+        company_totals[company] += item.get('total_amount') or Decimal('0.00')
+
+    combined_by_company = [
+        {
+            'company': company,
+            'total_amount': float(total),
+        }
+        for company, total in sorted(company_totals.items(), key=lambda x: x[1], reverse=True)
+    ]
+
+    total_insurance = insurance_policies.aggregate(total=Sum('selling_price'))['total'] or Decimal('0.00')
+    total_tracker = trackers.aggregate(total=Sum('selling_price'))['total'] or Decimal('0.00')
+
+    return {
+        'summary': {
+            'total_insurance_amount': float(total_insurance),
+            'total_tracker_amount': float(total_tracker),
+            'combined_total_amount': float(total_insurance + total_tracker),
+            'insurance_company_count': len([x for x in insurance_by_company if x.get('provider__name')]),
+            'tracker_company_count': len([x for x in tracker_by_company if x.get('provider')]),
+        },
+        'insurance_by_company': [
+            {
+                'company': item.get('provider__name') or 'Unspecified Insurance Company',
+                'total_amount': float(item.get('total_amount') or Decimal('0.00')),
+                'item_count': item.get('item_count') or 0,
+            }
+            for item in insurance_by_company
+        ],
+        'tracker_by_company': [
+            {
+                'company': item.get('provider') or 'Unspecified Tracker Company',
+                'total_amount': float(item.get('total_amount') or Decimal('0.00')),
+                'item_count': item.get('item_count') or 0,
+            }
+            for item in tracker_by_company
+        ],
+        'combined_by_company': combined_by_company,
+    }
+
+
 # ============================================================================
 # WIDGET DATA GENERATORS
 # ============================================================================
