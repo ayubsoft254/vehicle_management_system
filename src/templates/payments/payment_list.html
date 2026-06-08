@@ -32,7 +32,7 @@
     </div>
 
     <!-- Statistics Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 mb-6">
         <!-- Total Payments -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
             <div class="flex items-center">
@@ -98,6 +98,19 @@
             </div>
         </div>
 
+        <!-- Cash Totals -->
+        <div class="bg-white rounded-lg shadow-sm border border-blue-200 p-6 hover:shadow-md transition-shadow duration-200">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-blue-100 rounded-lg p-3">
+                    <i class="fas fa-coins text-2xl text-blue-600"></i>
+                </div>
+                <div class="ml-4 flex-1">
+                    <p class="text-sm font-medium text-gray-600">Cash Total</p>
+                    <p class="text-2xl font-bold text-gray-900">KES {{ cash_total|floatformat:2|default:"0.00" }}</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Other Methods Totals -->
         <div class="bg-white rounded-lg shadow-sm border border-amber-200 p-6 hover:shadow-md transition-shadow duration-200">
             <div class="flex items-center">
@@ -111,6 +124,47 @@
             </div>
         </div>
     </div>
+
+    <!-- Live Due-Date Monitoring -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm border border-indigo-200 p-6">
+            <p class="text-sm font-medium text-gray-600">Due Today</p>
+            <p id="dueTodayCount" class="text-2xl font-bold text-indigo-700">{{ due_today_count|default:0 }}</p>
+            <p class="text-xs text-gray-500 mt-1">Amount: <span id="dueTodayAmount">KES {{ due_today_amount|floatformat:2 }}</span></p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-red-200 p-6">
+            <p class="text-sm font-medium text-gray-600">Overdue Installments</p>
+            <p id="overdueCount" class="text-2xl font-bold text-red-700">{{ overdue_count|default:0 }}</p>
+            <p class="text-xs text-gray-500 mt-1">Amount: <span id="overdueAmount">KES {{ overdue_amount|floatformat:2 }}</span></p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-orange-200 p-6">
+            <p class="text-sm font-medium text-gray-600">Current Defaulters</p>
+            <p id="defaultersCount" class="text-2xl font-bold text-orange-700">{{ defaulters_count|default:0 }}</p>
+            <p class="text-xs text-gray-500 mt-1">Updated: <span id="dueSnapshot">{{ snapshot_time|date:"M d, H:i:s" }}</span></p>
+        </div>
+    </div>
+
+    {% if top_defaulters %}
+    <div class="bg-white rounded-lg shadow-sm border border-red-200 p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">
+                <i class="fas fa-triangle-exclamation text-red-500 mr-2"></i>
+                Defaulters Snapshot
+            </h2>
+            <a href="{% url 'payments:defaulters_report' %}" class="text-sm text-red-600 hover:text-red-700 font-medium">View full report</a>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            {% for item in top_defaulters %}
+            <a href="{% url 'payments:record_payment' item.client_vehicle_id %}" class="block p-3 rounded-lg border border-gray-200 hover:border-red-300 hover:bg-red-50 transition-colors duration-150">
+                <p class="text-sm font-semibold text-gray-900">{{ item.client.get_full_name }}</p>
+                <p class="text-xs text-gray-500">{{ item.vehicle.registration_number }}</p>
+                <p class="text-xs text-red-600 mt-1">{{ item.days_overdue }} days overdue</p>
+                <p class="text-xs text-gray-600">KES {{ item.remaining_amount|floatformat:2 }}</p>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Filter Section -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -348,4 +402,43 @@
         {% endif %}
     </div>
 </div>
+<script>
+    (function() {
+        const fmtKes = (value) => `KES ${Number(value || 0).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+        async function refreshDueMonitor() {
+            try {
+                const response = await fetch('{% url "payments:due_monitor_api" %}', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                if (!response.ok) return;
+                const data = await response.json();
+                const dueTodayCount = document.getElementById('dueTodayCount');
+                const dueTodayAmount = document.getElementById('dueTodayAmount');
+                const overdueCount = document.getElementById('overdueCount');
+                const overdueAmount = document.getElementById('overdueAmount');
+                const defaultersCount = document.getElementById('defaultersCount');
+                const dueSnapshot = document.getElementById('dueSnapshot');
+
+                if (dueTodayCount) dueTodayCount.textContent = data.due_today_count ?? 0;
+                if (dueTodayAmount) dueTodayAmount.textContent = fmtKes(data.due_today_amount);
+                if (overdueCount) overdueCount.textContent = data.overdue_count ?? 0;
+                if (overdueAmount) overdueAmount.textContent = fmtKes(data.overdue_amount);
+                if (defaultersCount) defaultersCount.textContent = data.defaulters_count ?? 0;
+                if (dueSnapshot && data.snapshot_time) {
+                    const dt = new Date(data.snapshot_time);
+                    if (!Number.isNaN(dt.getTime())) {
+                        dueSnapshot.textContent = dt.toLocaleString('en-KE', {
+                            month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
+                        });
+                    }
+                }
+            } catch (err) {
+                // Ignore transient polling errors; next poll will retry.
+            }
+        }
+
+        setInterval(refreshDueMonitor, 60000);
+    })();
+</script>
 {% endblock %}
