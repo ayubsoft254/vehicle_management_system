@@ -160,8 +160,14 @@ class QuickReportForm(forms.ModelForm):
         fields = [
             'name',
             'report_type',
+            'template',
             'date_range_type',
+            'custom_date_from',
+            'custom_date_to',
             'output_format',
+            'include_charts',
+            'include_summary',
+            'include_details',
         ]
         widgets = {
             'name': forms.TextInput(attrs={
@@ -169,9 +175,42 @@ class QuickReportForm(forms.ModelForm):
                 'placeholder': 'Report name'
             }),
             'report_type': forms.Select(attrs={'class': 'form-control'}),
+            'template': forms.Select(attrs={'class': 'form-control'}),
             'date_range_type': forms.Select(attrs={'class': 'form-control'}),
+            'custom_date_from': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'custom_date_to': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
             'output_format': forms.Select(attrs={'class': 'form-control'}),
+            'include_charts': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'include_summary': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'include_details': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Report builder must work even when no template is selected.
+        self.fields['template'].required = False
+        self.fields['template'].queryset = ReportTemplate.objects.filter(is_active=True)
+        self.fields['template'].empty_label = 'No template (build from defaults)'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        date_range_type = cleaned_data.get('date_range_type')
+        custom_date_from = cleaned_data.get('custom_date_from')
+        custom_date_to = cleaned_data.get('custom_date_to')
+
+        if date_range_type == 'custom':
+            if not custom_date_from or not custom_date_to:
+                raise ValidationError('Custom date range requires both from and to dates.')
+            if custom_date_from > custom_date_to:
+                raise ValidationError('From date must be before to date.')
+
+        return cleaned_data
 
 
 class ReportFilterForm(forms.Form):
