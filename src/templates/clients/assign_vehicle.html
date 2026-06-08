@@ -307,7 +307,7 @@
         </div>
 
         <!-- Insurance Section -->
-        <div class="bg-white rounded-lg shadow-sm border border-blue-200 overflow-hidden">
+        <div id="insurance-section" class="bg-white rounded-lg shadow-sm border border-blue-200 overflow-hidden">
             <div class="bg-blue-50 px-6 py-4 border-b border-blue-200">
                 <h2 class="text-lg font-semibold text-blue-900"><i class="fas fa-shield-alt mr-2"></i>Insurance (Optional)</h2>
                 <p class="text-xs text-blue-600 mt-1">Fill in to add an insurance policy for this vehicle at the time of sale.</p>
@@ -436,7 +436,7 @@
         </div>
 
         <!-- Tracker Section -->
-        <div class="bg-white rounded-lg shadow-sm border border-orange-200 overflow-hidden">
+        <div id="tracker-section" class="bg-white rounded-lg shadow-sm border border-orange-200 overflow-hidden">
             <div class="bg-orange-50 px-6 py-4 border-b border-orange-200">
                 <h2 class="text-lg font-semibold text-orange-900"><i class="fas fa-map-marker-alt mr-2"></i>Vehicle Trackers (Optional)</h2>
                 <p class="text-xs text-orange-600 mt-1">Add one or more GPS trackers for vehicle tracking and monitoring.</p>
@@ -763,6 +763,8 @@ function movePaymentSectionsAfterPricing() {
     const paymentMethodSection = document.getElementById('payment-method-section');
     const purchaseDetailsSection = document.getElementById('purchase-details-section');
     const paymentConfigSection = document.getElementById('payment-config-section');
+    const insuranceSection = document.getElementById('insurance-section');
+    const trackerSection = document.getElementById('tracker-section');
 
     if (!form || !pricingSection || !paymentMethodSection || !purchaseDetailsSection || !paymentConfigSection) {
         return;
@@ -772,6 +774,14 @@ function movePaymentSectionsAfterPricing() {
     form.insertBefore(paymentMethodSection, anchor);
     form.insertBefore(purchaseDetailsSection, anchor);
     form.insertBefore(paymentConfigSection, anchor);
+
+    // Ensure insurance and tracker appear below payment configuration.
+    if (insuranceSection) {
+        form.insertBefore(insuranceSection, paymentConfigSection.nextSibling);
+    }
+    if (trackerSection) {
+        form.insertBefore(trackerSection, insuranceSection ? insuranceSection.nextSibling : paymentConfigSection.nextSibling);
+    }
 }
 
 function applyInitialInsuranceData() {
