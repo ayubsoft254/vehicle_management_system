@@ -15,7 +15,7 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from dateutil.relativedelta import relativedelta
 import csv
 import json
@@ -36,6 +36,78 @@ from .daraja import (
 )
 from apps.clients.models import Client, ClientVehicle
 from apps.audit.utils import log_audit
+
+
+def _parse_export_currency(request):
+    """Read export currency context from query params with safe defaults."""
+    currency = (request.GET.get('currency') or 'KES').strip().upper()
+    if currency not in {'KES', 'USD'}:
+        currency = 'KES'
+
+    if currency == 'KES':
+        return currency, Decimal('1.00')
+
+    # Prefer client-provided runtime rate from the UI selector/session.
+    rate_raw = (request.GET.get('currency_rate') or '').strip()
+    if rate_raw:
+        try:
+            rate = Decimal(rate_raw)
+            if rate > 0:
+                return currency, rate
+        except (InvalidOperation, TypeError):
+            pass
+
+    # Fallback for server-side usage when a runtime rate was not supplied.
+    return currency, Decimal('0.0077')
+
+
+def _convert_kes_amount(amount, fx_rate):
+    """Convert amount from KES using supplied FX rate; keep 2 decimal places."""
+    value = amount or Decimal('0.00')
+    return (value * fx_rate).quantize(Decimal('0.01'))
+
+
+def _build_due_monitor_stats(today=None):
+    """Return live due-date and defaulter metrics for dashboard/reporting widgets."""
+    today = today or timezone.now().date()
+
+    due_today_qs = PaymentSchedule.objects.filter(is_paid=False, due_date=today)
+    overdue_qs = PaymentSchedule.objects.filter(is_paid=False, due_date__lt=today)
+
+    due_today_amount = due_today_qs.aggregate(total=Sum(F('amount_due') - F('amount_paid')))['total'] or Decimal('0.00')
+    overdue_amount = overdue_qs.aggregate(total=Sum(F('amount_due') - F('amount_paid')))['total'] or Decimal('0.00')
+
+    defaulters_count = overdue_qs.values('installment_plan__client_vehicle__client_id').distinct().count()
+
+    top_defaulter_rows = overdue_qs.select_related(
+        'installment_plan__client_vehicle__client',
+        'installment_plan__client_vehicle__vehicle',
+    ).order_by('due_date')[:8]
+
+    top_defaulters = []
+    seen_client_vehicle_ids = set()
+    for schedule in top_defaulter_rows:
+        client_vehicle = schedule.installment_plan.client_vehicle
+        if client_vehicle.id in seen_client_vehicle_ids:
+            continue
+        seen_client_vehicle_ids.add(client_vehicle.id)
+        top_defaulters.append({
+            'client': client_vehicle.client,
+            'vehicle': client_vehicle.vehicle,
+            'client_vehicle_id': client_vehicle.id,
+            'days_overdue': schedule.days_overdue,
+            'remaining_amount': schedule.remaining_amount,
+        })
+
+    return {
+        'due_today_count': due_today_qs.count(),
+        'due_today_amount': due_today_amount,
+        'overdue_count': overdue_qs.count(),
+        'overdue_amount': overdue_amount,
+        'defaulters_count': defaulters_count,
+        'top_defaulters': top_defaulters,
+        'snapshot_time': timezone.now(),
+    }
 
 
 # ==================== PAYMENT MANAGEMENT VIEWS ====================
@@ -93,6 +165,7 @@ def payment_list(request):
 
     hoza_total = Decimal('0.00')
     ke_total = Decimal('0.00')
+    cash_total = Decimal('0.00')
     other_total = Decimal('0.00')
 
     for payment in payments:
@@ -108,8 +181,12 @@ def payment_list(request):
                 hoza_total += amt
             elif method_value.endswith('_ke'):
                 ke_total += amt
+            elif method_value == 'cash':
+                cash_total += amt
             else:
                 other_total += amt
+
+    due_stats = _build_due_monitor_stats()
     
     # Pagination
     paginator = Paginator(payments, 50)
@@ -123,8 +200,10 @@ def payment_list(request):
         'this_month_payments': this_month_payments,
         'hoza_total': hoza_total,
         'ke_total': ke_total,
+        'cash_total': cash_total,
         'other_total': other_total,
         'payment_methods': Payment.PAYMENT_METHOD_CHOICES,
+        **due_stats,
     }
     
     log_audit(request.user, 'view', 'Payment', 'Viewed payment list')
@@ -1762,14 +1841,17 @@ def export_payments_csv(request):
     """
     Export payments to CSV
     """
+    currency, fx_rate = _parse_export_currency(request)
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = f'attachment; filename="payments_{timezone.now().strftime("%Y%m%d")}.csv"'
+    response['Content-Disposition'] = (
+        f'attachment; filename="payments_{currency.lower()}_{timezone.now().strftime("%Y%m%d")}.csv"'
+    )
     
     writer = csv.writer(response)
     writer.writerow([
         'Receipt Number', 'Client', 'ID Number', 'Vehicle', 
-        'Payment Date', 'Amount', 'Payment Method', 
-        'Transaction Reference', 'Balance', 'Recorded By'
+        'Payment Date', 'Amount', 'Currency', 'FX Rate (from KES)',
+        'Payment Method', 'Transaction Reference', 'Balance', 'Recorded By'
     ])
     
     payments = Payment.objects.select_related(
@@ -1788,20 +1870,29 @@ def export_payments_csv(request):
         payments = payments.filter(payment_date__lte=date_to)
     
     for payment in payments:
+        converted_amount = _convert_kes_amount(payment.amount, fx_rate)
+        converted_balance = _convert_kes_amount(payment.client_vehicle.balance, fx_rate)
         writer.writerow([
             payment.receipt_number,
             payment.client_vehicle.client.get_full_name(),
             payment.client_vehicle.client.id_number,
             str(payment.client_vehicle.vehicle),
             payment.payment_date.strftime('%Y-%m-%d'),
-            payment.amount,
+            converted_amount,
+            currency,
+            fx_rate,
             payment.get_payment_method_display(),
             payment.transaction_reference or '',
-            payment.client_vehicle.balance,
+            converted_balance,
             payment.recorded_by.get_full_name() if payment.recorded_by else ''
         ])
     
-    log_audit(request.user, 'export', 'Payment', 'Exported payments to CSV')
+    log_audit(
+        request.user,
+        'export',
+        'Payment',
+        f'Exported payments to CSV in {currency} (rate={fx_rate})'
+    )
     
     return response
 
@@ -1841,6 +1932,20 @@ def payment_stats_api(request):
 
 
 @login_required
+def due_monitor_api(request):
+    """API endpoint for near real-time due-date and defaulter counters."""
+    stats = _build_due_monitor_stats()
+    return JsonResponse({
+        'due_today_count': stats['due_today_count'],
+        'due_today_amount': float(stats['due_today_amount']),
+        'overdue_count': stats['overdue_count'],
+        'overdue_amount': float(stats['overdue_amount']),
+        'defaulters_count': stats['defaulters_count'],
+        'snapshot_time': stats['snapshot_time'].isoformat(),
+    })
+
+
+@login_required
 def payment_chart_data_api(request):
     """
     API endpoint for payment chart data
@@ -1876,13 +1981,14 @@ def generate_agreement_pdf_view(request, client_vehicle_pk):
         ClientVehicle.objects.select_related('client', 'vehicle'),
         pk=client_vehicle_pk
     )
+    currency, fx_rate = _parse_export_currency(request)
     
     log_audit(
         request.user, 'view', 'ClientVehicle',
-        f'Generated agreement PDF for {client_vehicle.client.get_full_name()}'
+        f'Generated agreement PDF for {client_vehicle.client.get_full_name()} in {currency}'
     )
     
-    return generate_agreement_pdf(client_vehicle)
+    return generate_agreement_pdf(client_vehicle, currency=currency, fx_rate=fx_rate)
 
 
 @login_required
@@ -1896,13 +2002,14 @@ def generate_proforma_invoice_pdf_view(request, client_vehicle_pk):
         ClientVehicle.objects.select_related('client', 'vehicle'),
         pk=client_vehicle_pk
     )
+    currency, fx_rate = _parse_export_currency(request)
     
     log_audit(
         request.user, 'view', 'ClientVehicle',
-        f'Generated proforma invoice for {client_vehicle.client.get_full_name()}'
+        f'Generated proforma invoice for {client_vehicle.client.get_full_name()} in {currency}'
     )
     
-    return generate_performa_invoice_pdf(client_vehicle)
+    return generate_performa_invoice_pdf(client_vehicle, currency=currency, fx_rate=fx_rate)
 
 
 @login_required
@@ -1916,13 +2023,14 @@ def generate_payment_tracker_pdf_view(request, client_vehicle_pk):
         ClientVehicle.objects.select_related('client', 'vehicle'),
         pk=client_vehicle_pk
     )
+    currency, fx_rate = _parse_export_currency(request)
     
     log_audit(
         request.user, 'view', 'ClientVehicle',
-        f'Generated payment tracker PDF for {client_vehicle.client.get_full_name()}'
+        f'Generated payment tracker PDF for {client_vehicle.client.get_full_name()} in {currency}'
     )
     
-    return generate_payment_tracker_pdf(client_vehicle)
+    return generate_payment_tracker_pdf(client_vehicle, currency=currency, fx_rate=fx_rate)
 
 
 # ==================== HELPER FUNCTIONS ====================
