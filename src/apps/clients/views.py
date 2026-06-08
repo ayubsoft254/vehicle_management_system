@@ -12,6 +12,7 @@ from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 import csv
 import json
 from decimal import Decimal
@@ -855,7 +856,6 @@ def client_vehicle_detail(request, pk):
     from apps.payments.models import PaymentSchedule
     from apps.insurance.models import InsurancePolicy
     from django.utils import timezone
-    from dateutil.relativedelta import relativedelta
     
     client_vehicle = get_object_or_404(
         ClientVehicle.objects.select_related('client', 'vehicle'), 
