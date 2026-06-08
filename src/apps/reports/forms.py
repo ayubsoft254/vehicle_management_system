@@ -17,12 +17,40 @@ from .models import (
 User = get_user_model()
 
 
+DATE_RANGE_CHOICES = [
+    ('today', 'Today'),
+    ('yesterday', 'Yesterday'),
+    ('last_7_days', 'Last 7 Days'),
+    ('last_30_days', 'Last 30 Days'),
+    ('last_quarter', 'Last Quarter'),
+    ('last_year', 'Last Year'),
+    ('month_to_date', 'Month to Date'),
+    ('year_to_date', 'Year to Date'),
+    ('custom', 'Custom Range'),
+]
+
+
+def _user_report_type_choices(instance=None):
+    """User-facing report types (payroll hidden); preserve existing value for edits."""
+    choices = [choice for choice in Report.REPORT_TYPE_CHOICES if choice[0] != 'payroll']
+    if instance and instance.pk and instance.report_type == 'payroll':
+        choices.append(('payroll', 'Payroll Report (Legacy)'))
+    return choices
+
+
 # ============================================================================
 # REPORT FORMS
 # ============================================================================
 
 class ReportForm(forms.ModelForm):
     """Form for creating and updating reports"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['date_range_type'].choices = DATE_RANGE_CHOICES
+        self.fields['date_range_type'].initial = self.initial.get('date_range_type') or self.instance.date_range_type or 'last_30_days'
+        self.fields['report_type'].choices = _user_report_type_choices(self.instance)
+        self.fields['template'].queryset = ReportTemplate.objects.filter(is_active=True)
     
     class Meta:
         model = Report
@@ -197,6 +225,9 @@ class QuickReportForm(forms.ModelForm):
         self.fields['template'].required = False
         self.fields['template'].queryset = ReportTemplate.objects.filter(is_active=True)
         self.fields['template'].empty_label = 'No template (build from defaults)'
+        self.fields['date_range_type'].choices = DATE_RANGE_CHOICES
+        self.fields['date_range_type'].initial = self.initial.get('date_range_type') or self.instance.date_range_type or 'last_30_days'
+        self.fields['report_type'].choices = _user_report_type_choices(self.instance)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -225,7 +256,7 @@ class ReportFilterForm(forms.Form):
     )
     report_type = forms.ChoiceField(
         required=False,
-        choices=[('', 'All Types')] + list(Report.REPORT_TYPE_CHOICES),
+        choices=[('', 'All Types')],
         widget=forms.Select(attrs={'class': 'form-control'})
     )
     is_scheduled = forms.ChoiceField(
@@ -238,6 +269,10 @@ class ReportFilterForm(forms.Form):
         choices=[('', 'All Formats')] + list(Report.OUTPUT_FORMAT_CHOICES),
         widget=forms.Select(attrs={'class': 'form-control'})
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['report_type'].choices = [('', 'All Types')] + _user_report_type_choices()
 
 
 class ReportExecutionForm(forms.Form):
@@ -296,6 +331,10 @@ class ReportExecutionForm(forms.Form):
 
 class ReportTemplateForm(forms.ModelForm):
     """Form for creating and updating report templates"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['report_type'].choices = _user_report_type_choices(self.instance)
     
     class Meta:
         model = ReportTemplate
@@ -534,7 +573,7 @@ class ReportBuilderForm(forms.Form):
         })
     )
     report_type = forms.ChoiceField(
-        choices=Report.REPORT_TYPE_CHOICES,
+        choices=_user_report_type_choices(),
         widget=forms.Select(attrs={'class': 'form-control'})
     )
     
