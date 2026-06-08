@@ -19,6 +19,7 @@ from .utils import (
     generate_auction_report_data,
     generate_payment_report_data,
     generate_sales_report_data,
+    generate_company_payout_report_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -135,6 +136,7 @@ def generate_report_data(report_type, date_from, date_to, query_config=None):
         'auction': generate_auction_report_data,
         'payment': generate_payment_report_data,
         'sales': generate_sales_report_data,
+        'company_payout': generate_company_payout_report_data,
     }
     
     generator = generators.get(report_type)
