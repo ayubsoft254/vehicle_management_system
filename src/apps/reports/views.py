@@ -122,11 +122,18 @@ def report_detail(request, pk):
     
     # Get recent executions
     recent_executions = report.executions.order_by('-created_at')[:10]
+
+    email_recipients_list = [
+        email.strip()
+        for email in (report.email_recipients or '').split(',')
+        if email.strip()
+    ]
     
     context = {
         'report': report,
         'recent_executions': recent_executions,
         'is_saved': SavedReport.objects.filter(user=request.user, report=report).exists(),
+        'email_recipients_list': email_recipients_list,
     }
     
     return render(request, 'reports/report_detail.html', context)
