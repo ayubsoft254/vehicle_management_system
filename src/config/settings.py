@@ -77,6 +77,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'apps.authentication.middleware.SessionTimeoutMiddleware',
+    'apps.audit.middleware.ExceptionEmailNotificationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',  # Required for allauth 65.0+
