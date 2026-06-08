@@ -579,8 +579,10 @@ def assign_vehicle(request, client_pk):
                     if name.strip():
                         tracker_addon += parse_money(tracker_selling_prices[i] if i < len(tracker_selling_prices) else '0')
 
+                base_vehicle_price = parse_money(client_vehicle.vehicle.website_display_price)
+
                 auto_client_purchase_price = (
-                    parse_money(client_vehicle.vehicle.selling_price)
+                    base_vehicle_price
                     + insurance_addon
                     + tracker_addon
                     + commission_addon
@@ -678,6 +680,14 @@ def assign_vehicle(request, client_pk):
 
                 # Update vehicle status
                 vehicle = client_vehicle.vehicle
+
+                # Keep vehicle selling price in sync with website/final pricing decisions.
+                # Website display price takes precedence as baseline when present.
+                if vehicle.website_price is not None and vehicle.website_price > Decimal('0.00'):
+                    vehicle.selling_price = vehicle.website_price
+
+                # Final selling price from assignment is the authoritative latest selling price.
+                vehicle.selling_price = final_selling_price
                 vehicle.status = 'sold'
                 vehicle.save()
                 
@@ -826,7 +836,7 @@ def assign_vehicle(request, client_pk):
     
     # Get vehicle prices for JavaScript
     vehicles_qs = Vehicle.objects.filter(status='available')
-    vehicle_prices = {v.id: float(v.selling_price) for v in vehicles_qs}
+    vehicle_prices = {v.id: float(v.website_display_price or Decimal('0.00')) for v in vehicles_qs}
     vehicle_cost_prices = {v.id: float(v.purchase_price) for v in vehicles_qs}
     
     # Get insurance providers
@@ -1079,8 +1089,10 @@ def client_vehicle_update(request, pk):
                 if name.strip():
                     tracker_addon += parse_money(tracker_selling_prices[i] if i < len(tracker_selling_prices) else '0')
 
+            base_vehicle_price = parse_money(updated_client_vehicle.vehicle.website_display_price)
+
             auto_client_purchase_price = (
-                parse_money(updated_client_vehicle.vehicle.selling_price)
+                base_vehicle_price
                 + insurance_addon
                 + tracker_addon
                 + commission_addon
@@ -1110,6 +1122,13 @@ def client_vehicle_update(request, pk):
 
             updated_client_vehicle.save()
             client_vehicle = updated_client_vehicle
+
+            # Keep current vehicle selling price aligned to assignment pricing.
+            vehicle = client_vehicle.vehicle
+            if vehicle.website_price is not None and vehicle.website_price > Decimal('0.00'):
+                vehicle.selling_price = vehicle.website_price
+            vehicle.selling_price = final_selling_price
+            vehicle.save(update_fields=['selling_price'])
 
             existing_policy = None
             try:
@@ -1178,7 +1197,7 @@ def client_vehicle_update(request, pk):
     
     # Get vehicle prices for JavaScript (include the currently assigned vehicle)
     vehicles = Vehicle.objects.filter(Q(status='available') | Q(id=client_vehicle.vehicle.id))
-    vehicle_prices = {v.id: float(v.selling_price) for v in vehicles}
+    vehicle_prices = {v.id: float(v.website_display_price or Decimal('0.00')) for v in vehicles}
     vehicle_cost_prices = {v.id: float(v.purchase_price) for v in vehicles}
 
     # Prefill insurance and tracker sections for edit mode.
