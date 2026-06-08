@@ -555,8 +555,12 @@ def unschedule_report(request, pk):
 @login_required
 def report_types_api(request):
     """Get available report types"""
-    
-    types = [{'value': t[0], 'label': t[1]} for t in Report.REPORT_TYPE_CHOICES]
+
+    types = [
+        {'value': t[0], 'label': t[1]}
+        for t in Report.REPORT_TYPE_CHOICES
+        if t[0] != 'payroll'
+    ]
     return JsonResponse({'types': types})
 
 
