@@ -400,6 +400,7 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
     # Parties
     client = client_vehicle.client
     vehicle = client_vehicle.vehicle
+    client_id_display = (client.id_number or '').replace('-', '')
     
     seller_text = """
     <b>SELLER:</b><br/>
@@ -413,7 +414,7 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
     buyer_text = f"""
     <b>BUYER:</b><br/>
     {client.get_full_name()}<br/>
-    ID No: {client.id_number}<br/>
+    ID No: {client_id_display}<br/>
     Phone: {client.phone_primary}<br/>
     Address: {client.physical_address}<br/>
     """
