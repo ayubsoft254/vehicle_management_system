@@ -141,6 +141,7 @@
                             <i class="fas fa-plus mr-1"></i>Add Method
                         </button>
                         <p id="split-summary" class="text-sm text-gray-600 mt-2"></p>
+                        <div id="split-breakdown" class="mt-2 text-xs text-gray-600 grid grid-cols-2 md:grid-cols-4 gap-2"></div>
                         <p id="split-warning" class="text-sm text-red-500 hidden mt-1">
                             <i class="fas fa-exclamation-triangle mr-1"></i>Split total must equal the payment amount.
                         </p>
@@ -256,6 +257,7 @@ function addSplitRow() {
         </div>
     `;
     row.querySelectorAll('.split-amount').forEach(inp => inp.addEventListener('input', updateSplitSummary));
+    row.querySelectorAll('select[name="split_method[]"]').forEach(sel => sel.addEventListener('change', updateSplitSummary));
     container.appendChild(row);
     updateSplitSummary();
 }
@@ -266,12 +268,41 @@ function updateSplitSummary() {
     const paymentAmt = parseFloat(document.querySelector('[name="amount"]')?.value || '0') || 0;
     const amounts = Array.from(document.querySelectorAll('.split-amount'))
         .map(inp => parseFloat(inp.value || '0') || 0);
+    const methods = Array.from(document.querySelectorAll('select[name="split_method[]"]')).map(sel => sel.value || '');
     const total = amounts.reduce((a, b) => a + b, 0);
     const diff = Math.abs(total - paymentAmt);
     const summary = document.getElementById('split-summary');
+    const breakdown = document.getElementById('split-breakdown');
     const warning = document.getElementById('split-warning');
+
+    let cashSubtotal = 0;
+    let hozaSubtotal = 0;
+    let keSubtotal = 0;
+    let otherSubtotal = 0;
+    for (let i = 0; i < amounts.length; i += 1) {
+        const method = (methods[i] || '').toLowerCase();
+        const amount = amounts[i] || 0;
+        if (method === 'cash') {
+            cashSubtotal += amount;
+        } else if (method.endsWith('_hoza')) {
+            hozaSubtotal += amount;
+        } else if (method.endsWith('_ke')) {
+            keSubtotal += amount;
+        } else {
+            otherSubtotal += amount;
+        }
+    }
+
     if (summary) {
         summary.textContent = `Split total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2})} / Payment: KES ${paymentAmt.toLocaleString('en-KE', {minimumFractionDigits:2})}`;
+    }
+    if (breakdown) {
+        breakdown.innerHTML = `
+            <span><strong>Cash:</strong> KES ${cashSubtotal.toLocaleString('en-KE', {minimumFractionDigits:2})}</span>
+            <span><strong>HOZA:</strong> KES ${hozaSubtotal.toLocaleString('en-KE', {minimumFractionDigits:2})}</span>
+            <span><strong>KE:</strong> KES ${keSubtotal.toLocaleString('en-KE', {minimumFractionDigits:2})}</span>
+            <span><strong>Other:</strong> KES ${otherSubtotal.toLocaleString('en-KE', {minimumFractionDigits:2})}</span>
+        `;
     }
     if (warning) {
         warning.classList.toggle('hidden', diff <= 0.01 || paymentAmt === 0);
