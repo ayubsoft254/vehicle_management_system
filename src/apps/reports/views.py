@@ -33,6 +33,35 @@ from .forms import (
 )
 
 
+DEFAULT_REPORT_TEMPLATE_NAME = 'Universal Executive Template'
+
+
+def ensure_default_report_template():
+    """Create a single reusable default template for the report builder."""
+    template, created = ReportTemplate.objects.get_or_create(
+        name=DEFAULT_REPORT_TEMPLATE_NAME,
+        defaults={
+            'description': 'Default polished template for all quick reports.',
+            'report_type': 'custom',
+            'layout': 'executive',
+            'columns': ['date', 'reference', 'category', 'amount', 'status'],
+            'grouping': {'by': 'date'},
+            'sorting': {'field': 'date', 'direction': 'desc'},
+            'aggregations': ['count', 'sum'],
+            'is_active': True,
+            'header_template': 'Vehicle Management System - Executive Report',
+            'footer_template': 'Generated automatically by Report Builder',
+            'css_styles': '.report-title{font-weight:700;color:#1f2937;} .summary-card{border:1px solid #e5e7eb;}',
+        },
+    )
+
+    if not created and not template.is_active:
+        template.is_active = True
+        template.save(update_fields=['is_active'])
+
+    return template
+
+
 # ============================================================================
 # REPORT LIST & DETAIL VIEWS
 # ============================================================================
@@ -454,22 +483,30 @@ def report_dashboard(request):
 @permission_required('reports.add_report')
 def report_builder(request):
     """Interactive report builder"""
+    default_template = ensure_default_report_template()
+
     
     if request.method == 'POST':
         form = QuickReportForm(request.POST)
         if form.is_valid():
             report = form.save(commit=False)
+            if not report.template_id:
+                report.template = default_template
             report.created_by = request.user
             report.save()
             
             messages.success(request, 'Report created successfully.')
             return redirect('reports:report_detail', pk=report.pk)
     else:
-        form = QuickReportForm()
+        form = QuickReportForm(initial={'template': default_template.pk})
+
+    templates = list(ReportTemplate.objects.filter(is_active=True))
+    templates.sort(key=lambda template: (template.pk != default_template.pk, template.name))
     
     context = {
         'form': form,
-        'templates': ReportTemplate.objects.filter(is_active=True),
+        'templates': templates,
+        'default_template': default_template,
     }
     
     return render(request, 'reports/report_builder.html', context)
