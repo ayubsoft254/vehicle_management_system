@@ -828,6 +828,10 @@ def sell_vehicle(request, pk):
 @role_required(UserRole.ADMIN)
 def vehicle_purchase_price_assignment_view(request):
     """Admin-only module to assign/edit vehicle purchase price and recalculate selling price."""
+    from django.urls import reverse
+
+    selected_vehicle_id = (request.GET.get('vehicle') or '').strip()
+
     vehicles = Vehicle.objects.all().prefetch_related('photos', 'extra_costs').annotate(
         extra_cost_total=Coalesce(
             Sum('extra_costs__amount'),
@@ -835,6 +839,9 @@ def vehicle_purchase_price_assignment_view(request):
             output_field=DecimalField(max_digits=12, decimal_places=2),
         )
     ).order_by('-date_added')
+
+    if selected_vehicle_id:
+        vehicles = vehicles.filter(pk=selected_vehicle_id)
 
     search = request.GET.get('search', '').strip()
     status = request.GET.get('status', '').strip()
@@ -863,6 +870,8 @@ def vehicle_purchase_price_assignment_view(request):
                 raise InvalidOperation
         except Exception:
             messages.error(request, 'Please enter a valid non-negative purchase price.')
+            if selected_vehicle_id:
+                return redirect(f"{reverse('vehicles:purchase_price_assignment')}?vehicle={selected_vehicle_id}")
             return redirect('vehicles:purchase_price_assignment')
 
         vehicle = get_object_or_404(Vehicle, pk=vehicle_id)
@@ -879,6 +888,8 @@ def vehicle_purchase_price_assignment_view(request):
         vehicle.save(update_fields=['purchase_price', 'selling_price', 'last_updated'])
 
         messages.success(request, f'Updated purchase price for {vehicle.full_name}.')
+        if selected_vehicle_id:
+            return redirect(f"{reverse('vehicles:purchase_price_assignment')}?vehicle={selected_vehicle_id}")
         return redirect('vehicles:purchase_price_assignment')
 
     paginator = Paginator(vehicles, 20)
@@ -890,6 +901,7 @@ def vehicle_purchase_price_assignment_view(request):
         'search': search,
         'status': status,
         'without_purchase_price': without_purchase_price,
+        'selected_vehicle_id': selected_vehicle_id,
         'status_choices': VehicleStatus.CHOICES,
         'can_view_prices': True,
     }
