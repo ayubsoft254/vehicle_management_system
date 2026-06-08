@@ -84,19 +84,46 @@
                             {% endif %}
                         </div>
 
-                        <!-- Payment Method -->
+                        <!-- Payment Method (single or split) -->
                         <div>
-                            <label for="{{ form.payment_method.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                                Payment Method <span class="text-red-500">*</span>
-                            </label>
-                            {{ form.payment_method }}
-                            {% if form.payment_method.errors %}
-                                <p class="mt-1 text-sm text-red-600">{{ form.payment_method.errors.0 }}</p>
-                            {% endif %}
+                            <div class="flex items-center justify-between mb-2">
+                                <label for="{{ form.payment_method.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                    Payment Method <span class="text-red-500">*</span>
+                                </label>
+                                <div class="flex items-center gap-3 text-sm">
+                                    <label class="flex items-center gap-1.5 cursor-pointer">
+                                        <input type="radio" name="payment_mode" value="single" class="h-4 w-4 text-primary-600" checked onchange="togglePaymentMode('single')">
+                                        <span class="text-gray-700">Single method</span>
+                                    </label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer">
+                                        <input type="radio" name="payment_mode" value="split" class="h-4 w-4 text-primary-600" onchange="togglePaymentMode('split')">
+                                        <span class="text-gray-700">Split methods</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div id="single-method-section">
+                                {{ form.payment_method }}
+                                {% if form.payment_method.errors %}
+                                    <p class="mt-1 text-sm text-red-600">{{ form.payment_method.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+
+                            <div id="split-method-section" class="hidden mt-3">
+                                <div id="splits-container" class="space-y-3 mb-3"></div>
+                                <button type="button" onclick="addSplitRow()" class="px-4 py-2 bg-green-50 hover:bg-green-100 text-green-700 text-sm font-medium rounded-lg border border-green-200 transition duration-150">
+                                    <i class="fas fa-plus mr-1"></i>Add Method
+                                </button>
+                                <p id="split-summary" class="text-sm text-gray-600 mt-2"></p>
+                                <div id="split-breakdown" class="mt-2 text-xs text-gray-600 grid grid-cols-2 md:grid-cols-4 gap-2"></div>
+                                <p id="split-warning" class="text-sm text-red-500 hidden mt-1">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>Split total must equal the payment amount.
+                                </p>
+                            </div>
                         </div>
 
                         <!-- Payment Location -->
-                        <div>
+                        <div id="single-reference-section">
                             <label for="{{ form.payment_location.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
                                 Payment Location
                             </label>
@@ -107,7 +134,7 @@
                         </div>
 
                         <!-- Transaction Reference -->
-                        <div>
+                        <div id="single-reference-section-2">
                             <label for="{{ form.transaction_reference.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
                                 Transaction Reference
                             </label>
@@ -200,6 +227,125 @@
 </div>
 
 <script>
+    function togglePaymentMode(mode) {
+        const isSplit = mode === 'split';
+        const singleMethodSection = document.getElementById('single-method-section');
+        const splitMethodSection = document.getElementById('split-method-section');
+        const singleReferenceSection = document.getElementById('single-reference-section');
+        const singleReferenceSectionTwo = document.getElementById('single-reference-section-2');
+
+        if (singleMethodSection) singleMethodSection.classList.toggle('hidden', isSplit);
+        if (splitMethodSection) splitMethodSection.classList.toggle('hidden', !isSplit);
+        if (singleReferenceSection) singleReferenceSection.classList.toggle('hidden', isSplit);
+        if (singleReferenceSectionTwo) singleReferenceSectionTwo.classList.toggle('hidden', isSplit);
+
+        if (isSplit && document.querySelectorAll('.split-row').length === 0) {
+            addSplitRow();
+            addSplitRow();
+        }
+        updateSplitSummary();
+    }
+
+    function addSplitRow() {
+        const container = document.getElementById('splits-container');
+        if (!container) return;
+
+        const row = document.createElement('div');
+        row.className = 'split-row grid grid-cols-1 md:grid-cols-12 gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg';
+        row.innerHTML = `
+            <div class="md:col-span-4">
+                <label class="block text-xs text-gray-600 mb-1">Method</label>
+                <select name="split_method[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500">
+                    <option value="cash">Cash</option>
+                    <option value="mpesa">M-Pesa</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="equity_hoza">Equity Hoza</option>
+                    <option value="dib_hoza">DIB Hoza</option>
+                    <option value="coop_hoza">COOP Hoza</option>
+                    <option value="kcb_ke">KCB KE</option>
+                    <option value="absa_ke">ABSA KE</option>
+                    <option value="equity_ke">EQUITY KE</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="card">Card</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="md:col-span-4">
+                <label class="block text-xs text-gray-600 mb-1">Amount (KES)</label>
+                <input type="number" name="split_amount[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg split-amount" min="0" step="0.01" placeholder="0.00">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs text-gray-600 mb-1">Location</label>
+                <input type="text" name="split_location[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Branch">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs text-gray-600 mb-1">Reference</label>
+                <input type="text" name="split_reference[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Ref">
+            </div>
+            <div class="md:col-span-1 flex items-end">
+                <button type="button" onclick="this.closest('.split-row').remove(); updateSplitSummary();" class="w-full h-10 rounded-md border border-red-200 text-red-600 hover:bg-red-50 bg-transparent transition">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+
+        row.querySelectorAll('.split-amount').forEach((input) => input.addEventListener('input', updateSplitSummary));
+        row.querySelectorAll('select[name="split_method[]"]').forEach((select) => select.addEventListener('change', updateSplitSummary));
+        container.appendChild(row);
+        updateSplitSummary();
+    }
+
+    function updateSplitSummary() {
+        const mode = document.querySelector('input[name="payment_mode"]:checked')?.value;
+        if (mode !== 'split') return;
+
+        const paymentAmount = parseFloat(document.querySelector('[name="amount"]')?.value || '0') || 0;
+        const amounts = Array.from(document.querySelectorAll('.split-amount')).map((inp) => parseFloat(inp.value || '0') || 0);
+        const methods = Array.from(document.querySelectorAll('select[name="split_method[]"]')).map((sel) => (sel.value || '').toLowerCase());
+        const splitTotal = amounts.reduce((acc, value) => acc + value, 0);
+        const diff = Math.abs(splitTotal - paymentAmount);
+
+        let cashSubtotal = 0;
+        let hozaSubtotal = 0;
+        let keSubtotal = 0;
+        let otherSubtotal = 0;
+
+        for (let idx = 0; idx < amounts.length; idx += 1) {
+            const method = methods[idx] || '';
+            const amount = amounts[idx] || 0;
+            if (method === 'cash') {
+                cashSubtotal += amount;
+            } else if (method.endsWith('_hoza')) {
+                hozaSubtotal += amount;
+            } else if (method.endsWith('_ke')) {
+                keSubtotal += amount;
+            } else {
+                otherSubtotal += amount;
+            }
+        }
+
+        const summary = document.getElementById('split-summary');
+        const breakdown = document.getElementById('split-breakdown');
+        const warning = document.getElementById('split-warning');
+
+        if (summary) {
+            summary.textContent = `Split total: KES ${splitTotal.toLocaleString('en-KE', { minimumFractionDigits: 2 })} / Payment: KES ${paymentAmount.toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+        }
+
+        if (breakdown) {
+            breakdown.innerHTML = `
+                <span><strong>Cash:</strong> KES ${cashSubtotal.toLocaleString('en-KE', { minimumFractionDigits: 2 })}</span>
+                <span><strong>HOZA:</strong> KES ${hozaSubtotal.toLocaleString('en-KE', { minimumFractionDigits: 2 })}</span>
+                <span><strong>KE:</strong> KES ${keSubtotal.toLocaleString('en-KE', { minimumFractionDigits: 2 })}</span>
+                <span><strong>Other:</strong> KES ${otherSubtotal.toLocaleString('en-KE', { minimumFractionDigits: 2 })}</span>
+            `;
+        }
+
+        if (warning) {
+            warning.classList.toggle('hidden', diff <= 0.01 || paymentAmount === 0);
+        }
+    }
+
     // Form validation and enhancement
     document.getElementById('paymentForm').addEventListener('submit', function(e) {
         const submitBtn = this.querySelector('button[type="submit"]');
@@ -216,6 +362,7 @@
                 this.value = value.toFixed(2);
             }
         });
+        amountInput.addEventListener('input', updateSplitSummary);
     }
 </script>
 {% endblock %}
