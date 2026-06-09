@@ -454,6 +454,15 @@ class VehicleSearchForm(forms.Form):
         })
     )
     
+    location = forms.ChoiceField(
+        required=False,
+        label='Location',
+        choices=[('', 'All Locations')] + VehicleLocation.CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
+        })
+    )
+    
     make = forms.CharField(
         required=False,
         label='Make',
