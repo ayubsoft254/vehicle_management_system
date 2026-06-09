@@ -595,6 +595,7 @@ def assign_vehicle(request, client_pk):
                 tracker_install_dates = request.POST.getlist('tracker_install_date[]')
                 tracker_buying_prices = request.POST.getlist('tracker_buying_price[]')
                 tracker_selling_prices = request.POST.getlist('tracker_selling_price[]')
+                tracker_deposits = request.POST.getlist('tracker_deposit[]')
                 tracker_payment_types = request.POST.getlist('tracker_payment_type[]')
                 tracker_flex_jsons = request.POST.getlist('tracker_flexible_installments_json[]')
                 tracker_interest_rates = request.POST.getlist('tracker_interest_rate[]')
@@ -816,6 +817,17 @@ def assign_vehicle(request, client_pk):
                                     )
                                     tracker_monthly = total_trk / tracker_months if tracker_months else None
                             
+                            tracker_deposit = Decimal(tracker_deposits[i]) if i < len(tracker_deposits) and tracker_deposits[i] else Decimal('0')
+                            tracker_total_paid = Decimal('0')
+                            tracker_deposit_value = Decimal('0')
+
+                            if payment_type == 'deduct_from_deposit':
+                                tracker_deposit_value = Decimal(tracker_selling_prices[i]) if i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0')
+                                tracker_total_paid = tracker_deposit_value
+                            elif payment_type == 'flexible':
+                                tracker_deposit_value = tracker_deposit
+                                tracker_total_paid = tracker_deposit_value
+
                             VehicleTracker.objects.create(
                                 client_vehicle=client_vehicle,
                                 tracker_name=name,
@@ -826,11 +838,11 @@ def assign_vehicle(request, client_pk):
                                 selling_price=Decimal(tracker_selling_prices[i]) if i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0'),
                                 payment_type=payment_type,
                                 has_payment_plan=has_plan,
-                                deposit=(Decimal(tracker_selling_prices[i]) if payment_type == 'deduct_from_deposit' and i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0')),
+                                deposit=tracker_deposit_value,
                                 installment_months=tracker_months if has_plan else None,
                                 monthly_installment=tracker_monthly if has_plan else None,
                                 interest_rate=Decimal('0'),
-                                total_paid=(Decimal(tracker_selling_prices[i]) if payment_type == 'deduct_from_deposit' and i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0')),
+                                total_paid=tracker_total_paid,
                                 installed_date=install_date,
                                 created_by=request.user,
                             )

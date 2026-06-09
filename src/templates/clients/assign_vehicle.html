@@ -522,6 +522,11 @@
                             <!-- Flexible installment section -->
                             <div class="tracker-flexible-section hidden">
                                 <input type="hidden" name="tracker_flexible_installments_json[]" value="[]">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Paid (KES)</label>
+                                    <input type="number" name="tracker_deposit[]" class="form-input tracker-deposit" placeholder="0.00" step="0.01" min="0" oninput="updateTrackerInstallmentSummary(this.closest('.tracker-item'))">
+                                    <p class="text-xs text-gray-500 mt-2">Optional deposit applied toward the flexible tracker plan.</p>
+                                </div>
                                 <div class="tracker-installments-container space-y-2 mb-2"></div>
                                 <button type="button" onclick="addTrackerInstallmentRow(this)" class="mt-1 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm font-medium rounded-lg border border-orange-200 transition duration-150">
                                     <i class="fas fa-plus mr-1"></i>Add Installment
@@ -954,6 +959,7 @@ function applyInitialTrackerData() {
         setRowValue('input[name="tracker_install_date[]"]', tracker.install_date || '');
         setRowValue('input[name="tracker_buying_price[]"]', tracker.buying_price || '');
         setRowValue('input[name="tracker_selling_price[]"]', tracker.selling_price || '');
+        setRowValue('input[name="tracker_deposit[]"]', tracker.deposit || '');
 
         const paymentType = tracker.payment_type || 'full';
         const radio = item.querySelector(`input[name="tracker_payment_type[]"][value="${paymentType}"]`);
@@ -1205,8 +1211,11 @@ function updateTrackerInstallmentSummary(trackerItem) {
         return sum + (parseFloat(row.querySelector('input[name="trk_installment_amount[]"]')?.value || 0) || 0);
     }, 0);
     const sellingPrice = parseFloat(trackerItem.querySelector('input[name="tracker_selling_price[]"]')?.value || 0);
-    const remaining = sellingPrice - total;
-    summaryEl.textContent = `Installments: ${rows.length} | Total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2,maximumFractionDigits:2})} | Remaining: KES ${remaining.toLocaleString('en-KE', {minimumFractionDigits:2,maximumFractionDigits:2})}`;
+    const deposit = parseFloat(trackerItem.querySelector('input[name="tracker_deposit[]"]')?.value || 0) || 0;
+    const balanceTarget = Math.max(0, sellingPrice - deposit);
+    const remaining = balanceTarget - total;
+    const depositText = deposit > 0 ? `Deposit: KES ${deposit.toLocaleString('en-KE', {minimumFractionDigits:2,maximumFractionDigits:2})} | ` : '';
+    summaryEl.textContent = `${depositText}Installments: ${rows.length} | Total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2,maximumFractionDigits:2})} | Remaining: KES ${remaining.toLocaleString('en-KE', {minimumFractionDigits:2,maximumFractionDigits:2})}`;
     syncTrackerInstallmentsPayload(trackerItem);
 }
 
@@ -1318,6 +1327,11 @@ function addTracker() {
                 </div>
                 <div class="tracker-flexible-section hidden">
                     <input type="hidden" name="tracker_flexible_installments_json[]" value="[]">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Paid (KES)</label>
+                        <input type="number" name="tracker_deposit[]" class="form-input tracker-deposit" placeholder="0.00" step="0.01" min="0" oninput="updateTrackerInstallmentSummary(this.closest('.tracker-item'))">
+                        <p class="text-xs text-gray-500 mt-2">Optional deposit applied toward the flexible tracker plan.</p>
+                    </div>
                     <div class="tracker-installments-container space-y-2 mb-2"></div>
                     <button type="button" onclick="addTrackerInstallmentRow(this)" class="mt-1 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm font-medium rounded-lg border border-orange-200 transition duration-150">
                         <i class="fas fa-plus mr-1"></i>Add Installment
