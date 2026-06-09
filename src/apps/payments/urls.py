@@ -12,6 +12,8 @@ urlpatterns = [
     path('<int:pk>/', views.payment_detail, name='payment_detail'),
     path('quick-record/', views.quick_record_payment, name='quick_record_payment'),
     path('record/<int:client_vehicle_pk>/', views.record_payment, name='record_payment'),
+    path('withdrawals/new/', views.record_account_withdrawal, name='record_account_withdrawal'),
+    path('withdrawals/', views.account_withdrawal_list, name='account_withdrawal_list'),
     path('<int:pk>/receipt/', views.payment_receipt, name='payment_receipt'),
     
     # Installment plans
