@@ -166,12 +166,25 @@ class InstallmentPlanForm(forms.ModelForm):
     """
     Form for creating and updating installment plans
     """
+
+    interest_rate = forms.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        min_value=Decimal('0.00'),
+        max_value=Decimal('100.00'),
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+            'placeholder': '0.00',
+            'step': '0.01'
+        })
+    )
     
     class Meta:
         model = InstallmentPlan
         fields = [
             'total_amount', 'deposit', 'monthly_installment',
-            'number_of_installments', 'interest_rate',
+            'number_of_installments',
             'start_date', 'is_active', 'notes'
         ]
         
@@ -198,12 +211,6 @@ class InstallmentPlanForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '12',
                 'min': '1'
-            }),
-            'interest_rate': forms.NumberInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': '0.00',
-                'step': '0.01',
-                'min': '0.00'
             }),
             'start_date': forms.DateInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
@@ -243,18 +250,6 @@ class InstallmentPlanForm(forms.ModelForm):
             raise ValidationError("Number of installments cannot exceed 120 (10 years).")
         
         return number
-    
-    def clean_interest_rate(self):
-        """Validate interest rate"""
-        rate = self.cleaned_data.get('interest_rate')
-        
-        if rate < 0:
-            raise ValidationError("Interest rate cannot be negative.")
-        
-        if rate > 100:
-            raise ValidationError("Interest rate cannot exceed 100%.")
-        
-        return rate
     
     def clean(self):
         """Additional validation for payment calculations"""
