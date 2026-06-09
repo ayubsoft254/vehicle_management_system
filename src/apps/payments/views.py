@@ -23,6 +23,7 @@ import re
 
 from .models import (
     Payment,
+    AccountWithdrawal,
     InstallmentPlan,
     PaymentSchedule,
     PaymentReminder,
@@ -186,6 +187,20 @@ def payment_list(request):
             else:
                 other_total += amt
 
+    withdrawals = AccountWithdrawal.objects.order_by('-withdrawal_date', '-created_at')
+    hoza_withdrawals_total = Decimal('0.00')
+    ke_withdrawals_total = Decimal('0.00')
+
+    for withdrawal in withdrawals:
+        if withdrawal.is_hoza:
+            hoza_withdrawals_total += withdrawal.amount
+        elif withdrawal.is_ke:
+            ke_withdrawals_total += withdrawal.amount
+
+    adjusted_hoza_total = hoza_total - hoza_withdrawals_total
+    adjusted_ke_total = ke_total - ke_withdrawals_total
+    recent_withdrawals = withdrawals[:5]
+
     due_stats = _build_due_monitor_stats()
     
     # Pagination
@@ -198,17 +213,85 @@ def payment_list(request):
         'total_payments': total_payments,
         'payment_count': payment_count,
         'this_month_payments': this_month_payments,
-        'hoza_total': hoza_total,
-        'ke_total': ke_total,
+        'hoza_total': adjusted_hoza_total,
+        'ke_total': adjusted_ke_total,
+        'hoza_withdrawals_total': hoza_withdrawals_total,
+        'ke_withdrawals_total': ke_withdrawals_total,
         'cash_total': cash_total,
         'other_total': other_total,
         'payment_methods': Payment.PAYMENT_METHOD_CHOICES,
+        'recent_withdrawals': recent_withdrawals,
         **due_stats,
     }
     
     log_audit(request.user, 'view', 'Payment', 'Viewed payment list')
     
     return render(request, 'payments/payment_list.html', context)
+
+
+@login_required
+def record_account_withdrawal(request):
+    """Record a withdrawal from an HOZA or KE account."""
+    from .forms import AccountWithdrawalForm
+
+    if request.method == 'POST':
+        form = AccountWithdrawalForm(request.POST)
+        if form.is_valid():
+            withdrawal = form.save(commit=False)
+            withdrawal.recorded_by = request.user
+            withdrawal.save()
+
+            messages.success(
+                request,
+                f'Account withdrawal recorded: KES {withdrawal.amount:,.2f} from {withdrawal.get_payment_method_display()}.'
+            )
+            log_audit(
+                request.user,
+                'create',
+                'AccountWithdrawal',
+                f'Recorded account withdrawal {withdrawal.get_payment_method_display()} for KES {withdrawal.amount:,.2f}'
+            )
+            return redirect('payments:payment_list')
+    else:
+        form = AccountWithdrawalForm()
+
+    context = {
+        'form': form,
+    }
+
+    return render(request, 'payments/account_withdrawal_form.html', context)
+
+
+@login_required
+def account_withdrawal_list(request):
+    """Display recorded HOZA / KE account withdrawals."""
+    withdrawals = AccountWithdrawal.objects.order_by('-withdrawal_date', '-created_at')
+
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    payment_method = request.GET.get('payment_method')
+
+    if date_from:
+        withdrawals = withdrawals.filter(withdrawal_date__gte=date_from)
+    if date_to:
+        withdrawals = withdrawals.filter(withdrawal_date__lte=date_to)
+    if payment_method:
+        withdrawals = withdrawals.filter(payment_method=payment_method)
+
+    paginator = Paginator(withdrawals, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'withdrawals': page_obj,
+        'payment_methods': AccountWithdrawal.PAYMENT_METHOD_CHOICES,
+        'date_from': date_from,
+        'date_to': date_to,
+        'payment_method': payment_method,
+    }
+
+    log_audit(request.user, 'view', 'AccountWithdrawal', 'Viewed account withdrawals list')
+    return render(request, 'payments/account_withdrawal_list.html', context)
 
 
 @login_required
