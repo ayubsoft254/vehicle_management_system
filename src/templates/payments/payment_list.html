@@ -25,6 +25,11 @@
                 <i class="fas fa-mobile-alt mr-2"></i>
                 Paybill Tracker
             </a>
+            <a href="{% url 'payments:record_account_withdrawal' %}" 
+               class="inline-flex items-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-file-export mr-2"></i>
+                Record Withdrawal
+            </a>
             <a id="exportCsvLink" href="{% url 'payments:export_payments_csv' %}?{{ request.GET.urlencode }}" 
                class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-download mr-2"></i>
@@ -86,8 +91,9 @@
                     <i class="fas fa-layer-group text-xl text-orange-600"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-600">Hoza Total</p>
+                    <p class="text-sm font-medium text-gray-600">Hoza Net Total</p>
                     <p class="text-xl xl:text-2xl font-bold text-gray-900 leading-tight break-words js-payment-money" data-kes="{{ hoza_total|default:'0' }}">KES {{ hoza_total|floatformat:2|default:"0.00" }}</p>
+                    <p class="text-xs text-gray-500 mt-1">Withdrawals: KES {{ hoza_withdrawals_total|floatformat:2|default:"0.00" }}</p>
                 </div>
             </div>
         </div>
@@ -99,8 +105,9 @@
                     <i class="fas fa-university text-xl text-cyan-600"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-600">KE Total</p>
+                    <p class="text-sm font-medium text-gray-600">KE Net Total</p>
                     <p class="text-xl xl:text-2xl font-bold text-gray-900 leading-tight break-words js-payment-money" data-kes="{{ ke_total|default:'0' }}">KES {{ ke_total|floatformat:2|default:"0.00" }}</p>
+                    <p class="text-xs text-gray-500 mt-1">Withdrawals: KES {{ ke_withdrawals_total|floatformat:2|default:"0.00" }}</p>
                 </div>
             </div>
         </div>
@@ -150,6 +157,35 @@
             <p class="text-xs text-gray-500 mt-1">Updated: <span id="dueSnapshot">{{ snapshot_time|date:"M d, H:i:s" }}</span></p>
         </div>
     </div>
+
+    {% if recent_withdrawals %}
+    <div class="bg-white rounded-lg shadow-sm border border-yellow-200 p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">
+                <i class="fas fa-file-export text-yellow-500 mr-2"></i>
+                Recent HOZA / KE Withdrawals
+            </h2>
+            <a href="{% url 'payments:account_withdrawal_list' %}" class="text-sm text-yellow-600 hover:text-yellow-700 font-medium">View all withdrawals</a>
+        </div>
+        <div class="space-y-3">
+            {% for withdrawal in recent_withdrawals %}
+            <div class="rounded-lg border border-gray-200 p-4 hover:border-yellow-300 transition-colors duration-150">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-900">{{ withdrawal.get_payment_method_display }}</p>
+                        <p class="text-xs text-gray-500">{{ withdrawal.withdrawal_date|date:"M d, Y" }}</p>
+                    </div>
+                    <p class="text-sm font-semibold text-red-600">KES {{ withdrawal.amount|floatformat:2 }}</p>
+                </div>
+                {% if withdrawal.reason %}
+                <p class="mt-2 text-sm text-gray-600">{{ withdrawal.reason }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% endif %}
 
     {% if top_defaulters %}
     <div class="bg-white rounded-lg shadow-sm border border-red-200 p-6 mb-6">
