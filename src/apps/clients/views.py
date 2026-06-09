@@ -603,7 +603,7 @@ def assign_vehicle(request, client_pk):
                 commission_addon = parse_money(client_vehicle.commission_amount)
 
                 insurance_addon = Decimal('0')
-                if insurance_provider_id and insurance_policy_number and insurance_start_date and insurance_end_date:
+                if insurance_provider_id and insurance_start_date and insurance_end_date:
                     insurance_addon = parse_money(insurance_selling_price)
 
                 tracker_addon = Decimal('0')
@@ -1137,7 +1137,7 @@ def client_vehicle_update(request, pk):
 
             commission_addon = parse_money(updated_client_vehicle.commission_amount)
             insurance_addon = Decimal('0.00')
-            if insurance_provider_id and insurance_policy_number and insurance_start_date and insurance_end_date:
+            if insurance_provider_id and insurance_start_date and insurance_end_date:
                 insurance_addon = parse_money(insurance_selling_price)
 
             tracker_addon = Decimal('0.00')
