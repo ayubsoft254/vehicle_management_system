@@ -15,6 +15,13 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL(
+            sql=(
+                "DROP TABLE IF EXISTS public.payments_accountwithdrawal CASCADE; "
+                "DROP TYPE IF EXISTS public.payments_accountwithdrawal;"
+            ),
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         migrations.CreateModel(
             name='AccountWithdrawal',
             fields=[
