@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Account Withdrawals{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'payments:payment_list' %}" class="text-gray-700 hover:text-primary-600 inline-flex items-center">
+                    <i class="fas fa-money-bill-wave mr-2"></i>Payments
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">Account Withdrawals</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">HOZA / KE Account Withdrawals</h1>
+            <p class="mt-2 text-gray-600">All recorded account withdrawals for HOZA and KE payment methods.</p>
+        </div>
+        <a href="{% url 'payments:record_account_withdrawal' %}" class="inline-flex items-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg transition duration-150 shadow-sm">
+            <i class="fas fa-file-export mr-2"></i>Record Withdrawal
+        </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label for="payment_method" class="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+                <select id="payment_method" name="payment_method" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    <option value="">All</option>
+                    {% for method_value, method_label in payment_methods %}
+                    <option value="{{ method_value }}" {% if payment_method == method_value %}selected{% endif %}>{{ method_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="date_from" class="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                <input type="date" id="date_from" name="date_from" value="{{ date_from|default:'' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            </div>
+            <div>
+                <label for="date_to" class="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                <input type="date" id="date_to" name="date_to" value="{{ date_to|default:'' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            </div>
+            <div class="md:col-span-3 flex items-end justify-end gap-3">
+                <button type="submit" class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg">Apply</button>
+                <a href="{% url 'payments:account_withdrawal_list' %}" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg">Clear</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recorded By</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for withdrawal in withdrawals %}
+                    <tr class="hover:bg-gray-50 transition-colors duration-150">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ withdrawal.withdrawal_date|date:'M d, Y' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ withdrawal.get_payment_method_display }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600">KES {{ withdrawal.amount|floatformat:2 }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600">{{ withdrawal.reason|default:'—' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{% if withdrawal.recorded_by %}{{ withdrawal.recorded_by.get_full_name }}{% else %}System{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-10 text-center text-sm text-gray-500">No withdrawals recorded yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if withdrawals.has_other_pages %}
+    <div class="mt-4">
+        <div class="flex items-center justify-between">
+            <div class="text-sm text-gray-600">Page {{ withdrawals.number }} of {{ withdrawals.paginator.num_pages }}</div>
+            <div class="space-x-2">
+                {% if withdrawals.has_previous %}
+                <a href="?page={{ withdrawals.previous_page_number }}&payment_method={{ payment_method }}&date_from={{ date_from }}&date_to={{ date_to }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700">Previous</a>
+                {% endif %}
+                {% if withdrawals.has_next %}
+                <a href="?page={{ withdrawals.next_page_number }}&payment_method={{ payment_method }}&date_from={{ date_from }}&date_to={{ date_to }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700">Next</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
