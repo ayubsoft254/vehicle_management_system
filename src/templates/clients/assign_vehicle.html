@@ -414,6 +414,11 @@
                             <span class="text-sm font-medium text-gray-700">Deduct from Deposit</span>
                         </label>
                     </div>
+                    <div id="insurance-deposit-section" class="hidden mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Insurance Deposit Paid (KES)</label>
+                        <input type="number" name="insurance_deposit" id="id_insurance_deposit" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="updateInsuranceInstallmentSummary(); updateProfitLoss(); updateCalculationBreakdown()">
+                        <p class="text-xs text-gray-500 mt-2">Optional deposit applied toward the flexible insurance plan.</p>
+                    </div>
                     <!-- Flexible installment rows -->
                     <div id="insurance-flexible-section" class="hidden">
                         <input type="hidden" name="insurance_flexible_installments_json" id="id_insurance_flexible_installments_json" value="[]">
@@ -822,6 +827,7 @@ function applyInitialInsuranceData() {
     setValue('id_insurance_end_date', initialInsurance.end_date || '');
     setValue('id_insurance_buying_price', initialInsurance.buying_price || '');
     setValue('id_insurance_selling_price', initialInsurance.selling_price || '');
+    setValue('id_insurance_deposit', initialInsurance.insurance_deposit || '');
     setValue('id_insurance_agent_name', initialInsurance.agent_name || '');
     setValue('id_insurance_agent_id', initialInsurance.agent_id || '');
 
@@ -1030,9 +1036,12 @@ function applyInitialFlexibleInstallments() {
 function updateInsurancePaymentUI() {
     const val = document.querySelector('input[name="insurance_payment_type"]:checked')?.value;
     document.getElementById('insurance-flexible-section')?.classList.toggle('hidden', val !== 'flexible');
+    document.getElementById('insurance-deposit-section')?.classList.toggle('hidden', val !== 'flexible');
     document.getElementById('insurance-deduct-section')?.classList.toggle('hidden', val !== 'deduct_from_deposit');
     if (val === 'flexible') {
         ensureInsuranceInstallmentRows();
+        updateInsuranceInstallmentSummary();
+    } else {
         updateInsuranceInstallmentSummary();
     }
 }
@@ -1077,9 +1086,11 @@ function updateInsuranceInstallmentSummary() {
         return sum + (parseFloat(row.querySelector('input[name="ins_installment_amount[]"]')?.value || 0) || 0);
     }, 0);
     const sellingPrice = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0);
-    const remaining = sellingPrice - total;
-    summaryEl.textContent = `Installments: ${rows.length} | Total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2,maximumFractionDigits:2})} | Remaining: KES ${remaining.toLocaleString('en-KE', {minimumFractionDigits:2,maximumFractionDigits:2})}`;
-    if (warningEl) warningEl.classList.toggle('hidden', Math.abs(total - sellingPrice) <= 0.01 || sellingPrice === 0);
+    const deposit = parseFloat(document.getElementById('id_insurance_deposit')?.value || 0) || 0;
+    const balanceTarget = Math.max(0, sellingPrice - deposit);
+    const remaining = balanceTarget - total;
+    summaryEl.textContent = `Installments: ${rows.length} | Total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2,maximumFractionDigits:2})} | Remaining amount: KES ${remaining.toLocaleString('en-KE', {minimumFractionDigits:2,maximumFractionDigits:2})}`;
+    if (warningEl) warningEl.classList.toggle('hidden', Math.abs(total - balanceTarget) <= 0.01 || balanceTarget === 0);
     syncInsuranceInstallmentsPayload();
 }
 
@@ -1735,6 +1746,11 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('id_broker_name')?.addEventListener('blur', syncInsuranceProviderFromBrokerFields);
     document.getElementById('id_broker_phone_no')?.addEventListener('blur', syncInsuranceProviderFromBrokerFields);
     document.getElementById('id_insurance_selling_price')?.addEventListener('input', () => {
+        updateInsuranceInstallmentSummary();
+        updateCalculationBreakdown();
+        updateProfitLoss();
+    });
+    document.getElementById('id_insurance_deposit')?.addEventListener('input', () => {
         updateInsuranceInstallmentSummary();
         updateCalculationBreakdown();
         updateProfitLoss();

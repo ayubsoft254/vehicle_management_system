@@ -5,7 +5,8 @@ Handles insurance providers, policies, claims, and payments
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Q, Sum, Count, Avg
+from django.db.models import Q, Sum, Count, Avg, Value, DecimalField
+from django.db.models.functions import Coalesce
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
@@ -257,6 +258,15 @@ def policy_list(request):
         paid_value=Sum('insurance_total_paid'),
         balance_value=Sum('insurance_balance')
     )
+
+    insurance_agent_totals = policies.annotate(
+        agent_display=Coalesce('agent_name', Value('Unknown'))
+    ).values('agent_display').annotate(
+        policy_count=Count('pk'),
+        total_premium=Coalesce(Sum('selling_price'), Value(Decimal('0.00'), output_field=DecimalField())),
+        total_paid=Coalesce(Sum('insurance_total_paid'), Value(Decimal('0.00'), output_field=DecimalField())),
+        total_balance=Coalesce(Sum('insurance_balance'), Value(Decimal('0.00'), output_field=DecimalField())),
+    ).filter(~Q(agent_display='')).order_by('-total_premium')
     
     # Pagination
     paginator = Paginator(policies, 25)
@@ -298,6 +308,7 @@ def policy_list(request):
         'total_sold_value': sold_totals.get('sold_value') or 0,
         'total_paid_value': sold_totals.get('paid_value') or 0,
         'total_balance_value': sold_totals.get('balance_value') or 0,
+        'insurance_agent_totals': insurance_agent_totals,
     }
     
     log_audit(request.user, 'view', 'InsurancePolicy', 'Viewed policy list')

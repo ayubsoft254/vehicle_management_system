@@ -225,7 +225,7 @@ def generate_sales_agreement_pdf(client_vehicle):
         [
             Paragraph(f'<b>ENGINE CC:</b> {vehicle.engine_size or ""}', normal_small),
             Paragraph(f'<b>COLOUR:</b> {vehicle.color or ""}', normal_small),
-            Paragraph(f'<b>YEAR OF REGISTRATION:</b> {vehicle.year or ""}', normal_small),
+            Paragraph(f'<b>MODEL YEAR:</b> {vehicle.year or ""}', normal_small),
         ],
     ]
     vehicle_table = Table(vehicle_data, colWidths=[6.5*cm, 6.5*cm, 5*cm])
@@ -322,16 +322,38 @@ def generate_sales_agreement_pdf(client_vehicle):
 
     if insurance_policy:
         insurance_lines = [
-            f'<b>INSURANCE SELLING PRICE:</b> KES {float(insurance_policy.selling_price or Decimal("0.00")):,.2f}',
+            f'<b>PRICE:</b> KES {float(insurance_policy.selling_price or Decimal("0.00")):,.2f}',
             f'<b>PAYMENT TYPE:</b> {_payment_type_label(insurance_policy.payment_type)}',
+            f'<b>VEHICLE USAGE:</b> {"Private" if insurance_policy.vehicle_usage == "private" else "PSV"}',
         ]
-        if insurance_policy.has_payment_plan:
-            insurance_lines.append(
-                f'<b>PLAN:</b> Deposit KES {float(insurance_policy.insurance_deposit or Decimal("0.00")):,.2f}, '
-                f'Months {insurance_policy.insurance_installment_months or ""}, '
-                f'Monthly KES {float(insurance_policy.insurance_monthly_installment or Decimal("0.00")):,.2f}, '
-                f'Balance KES {float(insurance_policy.insurance_balance or Decimal("0.00")):,.2f}'
-            )
+
+        if insurance_policy.payment_type == 'full':
+            if insurance_policy.insurance_total_paid and insurance_policy.insurance_total_paid > Decimal('0.00'):
+                insurance_lines.append(
+                    f'<b>PAID:</b> KES {float(insurance_policy.insurance_total_paid):,.2f}'
+                )
+        else:
+            if insurance_policy.insurance_deposit and insurance_policy.insurance_deposit > Decimal('0.00'):
+                insurance_lines.append(
+                    f'<b>PAID:</b> KES {float(insurance_policy.insurance_deposit):,.2f}'
+                )
+            elif insurance_policy.insurance_total_paid and insurance_policy.insurance_total_paid > Decimal('0.00'):
+                insurance_lines.append(
+                    f'<b>TOTAL PAID:</b> KES {float(insurance_policy.insurance_total_paid):,.2f}'
+                )
+
+            if insurance_policy.insurance_balance and insurance_policy.insurance_balance > Decimal('0.00'):
+                insurance_lines.append(
+                    f'<b>BALANCE:</b> KES {float(insurance_policy.insurance_balance):,.2f}'
+                )
+
+            if insurance_policy.has_payment_plan:
+                insurance_lines.append(
+                    f'<b>PLAN:</b> Deposit KES {float(insurance_policy.insurance_deposit or Decimal("0.00")):,.2f}, '
+                    f'Months {insurance_policy.insurance_installment_months or ""}, '
+                    f'Monthly KES {float(insurance_policy.insurance_monthly_installment or Decimal("0.00")):,.2f}, '
+                    f'Balance KES {float(insurance_policy.insurance_balance or Decimal("0.00")):,.2f}'
+                )
 
         insurance_schedules = list(insurance_policy.insurance_payment_schedules.order_by('installment_number'))
         if insurance_schedules:
@@ -356,12 +378,23 @@ def generate_sales_agreement_pdf(client_vehicle):
                 f'<b>{idx}. {tracker.tracker_name or "Tracker"}</b> '
                 f'({tracker.serial_number or "No serial"}) '
                 f'Selling Price KES {float(tracker.selling_price or Decimal("0.00")):,.2f}',
-                f'Payment Type: {_payment_type_label(tracker.payment_type)} | '
-                f'Plan: {"Yes" if tracker.has_payment_plan else "No"} | '
-                f'Months: {tracker.installment_months or ""} | '
-                f'Monthly: KES {float(tracker.monthly_installment or Decimal("0.00")):,.2f} | '
-                f'Balance: KES {float(tracker.balance or Decimal("0.00")):,.2f}',
+                f'<b>Payment Type:</b> {_payment_type_label(tracker.payment_type)}',
             ]
+
+            if tracker.balance <= Decimal('0.00'):
+                tracker_lines.append('<b>Status:</b> Paid in full')
+            else:
+                if tracker.deposit and tracker.deposit > Decimal('0.00'):
+                    tracker_lines.append(f'<b>Deposit Paid:</b> KES {float(tracker.deposit):,.2f}')
+                if tracker.total_paid and tracker.total_paid > Decimal('0.00'):
+                    tracker_lines.append(f'<b>Total Paid:</b> KES {float(tracker.total_paid):,.2f}')
+                tracker_lines.append(f'<b>Balance:</b> KES {float(tracker.balance or Decimal("0.00")):,.2f}')
+
+            if tracker.has_payment_plan:
+                tracker_lines.append(
+                    f'<b>Plan:</b> Months {tracker.installment_months or ""} | Monthly KES {float(tracker.monthly_installment or Decimal("0.00")):,.2f}'
+                )
+
             for line in tracker_lines:
                 elements.append(Paragraph(line, normal_small))
     else:

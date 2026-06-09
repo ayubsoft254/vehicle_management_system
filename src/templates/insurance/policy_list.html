@@ -74,6 +74,41 @@
         </div>
     </div>
 
+    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h2 class="text-lg font-semibold text-gray-900">Insurance Agent Totals</h2>
+            <p class="text-sm text-gray-500 mt-1">Summary of premiums, payments and balances by agent.</p>
+        </div>
+        <div class="overflow-x-auto p-4">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agent</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Policies</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Premium</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Paid</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Balance</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for agent in insurance_agent_totals|slice:":10" %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ agent.agent_display|default:'Unknown' }}</td>
+                            <td class="px-4 py-3 text-right text-sm text-gray-700">{{ agent.policy_count }}</td>
+                            <td class="px-4 py-3 text-right text-sm font-semibold text-gray-900">KES {{ agent.total_premium|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-right text-sm font-semibold text-green-700">KES {{ agent.total_paid|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-right text-sm font-semibold text-red-700">KES {{ agent.total_balance|floatformat:2 }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-4 text-center text-sm text-gray-500">No insurance agent totals available.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- Search & Filter -->
     <div class="bg-white rounded-xl shadow-md p-6 mb-8">
         <form method="get">

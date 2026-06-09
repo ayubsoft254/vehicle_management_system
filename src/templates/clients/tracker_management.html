@@ -81,40 +81,6 @@
                 </table>
             </div>
         </div>
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                <h2 class="text-lg font-semibold text-gray-900">Insurance Agent Totals</h2>
-                <p class="text-sm text-gray-500 mt-1">Payments collected by insurance agent.</p>
-            </div>
-            <div class="overflow-x-auto p-4">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Agent</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Policies</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Premium</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Paid</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Balance</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-100">
-                        {% for agent in insurance_agent_totals|slice:":5" %}
-                        <tr>
-                            <td class="px-3 py-3 text-gray-700">{{ agent.agent_display|default:'Unknown' }}</td>
-                            <td class="px-3 py-3 text-right text-gray-700">{{ agent.policy_count }}</td>
-                            <td class="px-3 py-3 text-right font-semibold text-gray-900">KES {{ agent.total_premium|floatformat:2 }}</td>
-                            <td class="px-3 py-3 text-right font-semibold text-green-700">KES {{ agent.total_paid|floatformat:2 }}</td>
-                            <td class="px-3 py-3 text-right font-semibold text-red-700">KES {{ agent.total_balance|floatformat:2 }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="px-3 py-4 text-center text-gray-500">No insurance agent totals available.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
     </div>
 
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
