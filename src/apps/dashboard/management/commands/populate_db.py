@@ -224,7 +224,7 @@ class Command(BaseCommand):
                 password='admin123',
                 first_name='Admin',
                 last_name='User',
-                phone='+254712345678',
+                phone='+254784170447',
                 is_active=True
             )
             users.append(admin)

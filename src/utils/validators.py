@@ -19,20 +19,20 @@ import magic  # python-magic for file type detection
 def validate_phone_number(value):
     """
     Validate phone number format
-    Accepts: +254712345678, 0712345678, 254712345678
+    Accepts: +254784170447, 0712345678, 254712345678
     """
     # Remove spaces, dashes, and parentheses
     cleaned = re.sub(r'[\s\-\(\)]', '', str(value))
     
     # Kenyan phone number patterns
     patterns = [
-        r'^(\+254|254)[17]\d{8}$',  # +254712345678 or 254712345678
+        r'^(\+254|254)[17]\d{8}$',  # +254784170447 or 254712345678
         r'^0[17]\d{8}$',             # 0712345678
     ]
     
     if not any(re.match(pattern, cleaned) for pattern in patterns):
         raise ValidationError(
-            _('Enter a valid phone number. Format: +254712345678 or 0712345678'),
+            _('Enter a valid phone number. Format: +254784170447 or 0712345678'),
             code='invalid_phone'
         )
     

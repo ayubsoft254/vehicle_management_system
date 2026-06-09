@@ -63,7 +63,7 @@ class User(AbstractUser):
         max_length=20,
         validators=[validate_phone_number],
         blank=True,
-        help_text='Format: +254712345678 or 0712345678'
+        help_text='Format: +254784170447 or 0712345678'
     )
     
     # Role and Status

@@ -24,7 +24,7 @@ class ClientForm(forms.ModelForm):
         max_length=20,
         widget=forms.TextInput(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-            'placeholder': 'e.g. +254712345678 or +447700900123'
+            'placeholder': 'e.g. +254784170447 or +447700900123'
         })
     )
     

@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
                 ('email', models.EmailField(error_messages={'unique': 'A user with this email already exists.'}, max_length=254, unique=True, verbose_name='Email Address')),
                 ('first_name', models.CharField(max_length=150, verbose_name='First Name')),
                 ('last_name', models.CharField(max_length=150, verbose_name='Last Name')),
-                ('phone', models.CharField(blank=True, help_text='Format: +254712345678 or 0712345678', max_length=20, validators=[utils.validators.validate_phone_number], verbose_name='Phone Number')),
+                ('phone', models.CharField(blank=True, help_text='Format: +254784170447 or 0712345678', max_length=20, validators=[utils.validators.validate_phone_number], verbose_name='Phone Number')),
                 ('role', models.CharField(choices=[('admin', 'Administrator'), ('sales', 'Sales Person'), ('accountant', 'Accountant'), ('auctioneer', 'Auctioneer'), ('manager', 'Manager'), ('clerk', 'Clerk')], default='clerk', help_text='User role determines access permissions', max_length=20, verbose_name='User Role')),
                 ('profile_picture', models.ImageField(blank=True, null=True, upload_to='profiles/', verbose_name='Profile Picture')),
                 ('address', models.TextField(blank=True, verbose_name='Address')),

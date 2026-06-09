@@ -37,7 +37,7 @@ def test_client_signal():
             password='testpass123',
             first_name='Test',
             last_name='Client',
-            phone='+254712345678',
+            phone='+254784170447',
             role=UserRole.CLIENT
         )
         print(f"   ✅ User created: {test_user.email}")

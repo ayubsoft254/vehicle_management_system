@@ -27,7 +27,7 @@ class PaymentSignalsIntegrationTests(TestCase):
 			first_name='Jane',
 			last_name='Doe',
 			id_number='ID-TEST-1001',
-			phone_primary='+254712345678',
+			phone_primary='+254784170447',
 			physical_address='Nairobi',
 			registered_by=self.user,
 		)
