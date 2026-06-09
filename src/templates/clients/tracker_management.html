@@ -66,7 +66,7 @@
                     <tbody class="bg-white divide-y divide-gray-100">
                         {% for vendor in tracker_vendor_totals|slice:":5" %}
                         <tr>
-                            <td class="px-3 py-3 text-gray-700">{{ vendor.provider|default:'Unknown' }}</td>
+                            <td class="px-3 py-3 text-gray-700">{{ vendor.provider_display|default:'Unknown' }}</td>
                             <td class="px-3 py-3 text-right text-gray-700">{{ vendor.tracker_count }}</td>
                             <td class="px-3 py-3 text-right font-semibold text-gray-900">KES {{ vendor.total_sold|floatformat:2 }}</td>
                             <td class="px-3 py-3 text-right font-semibold text-green-700">KES {{ vendor.total_paid|floatformat:2 }}</td>
@@ -100,7 +100,7 @@
                     <tbody class="bg-white divide-y divide-gray-100">
                         {% for agent in insurance_agent_totals|slice:":5" %}
                         <tr>
-                            <td class="px-3 py-3 text-gray-700">{{ agent.agent_name|default:'Unknown' }}</td>
+                            <td class="px-3 py-3 text-gray-700">{{ agent.agent_display|default:'Unknown' }}</td>
                             <td class="px-3 py-3 text-right text-gray-700">{{ agent.policy_count }}</td>
                             <td class="px-3 py-3 text-right font-semibold text-gray-900">KES {{ agent.total_premium|floatformat:2 }}</td>
                             <td class="px-3 py-3 text-right font-semibold text-green-700">KES {{ agent.total_paid|floatformat:2 }}</td>

@@ -144,19 +144,22 @@ def tracker_management(request):
     )
 
     from apps.insurance.models import InsurancePolicy
-    tracker_vendor_totals = all_trackers.values(provider=Coalesce('provider', Value('Unknown'))).annotate(
+    tracker_vendor_totals = all_trackers.values('provider').annotate(
+        provider_display=Coalesce('provider', Value('Unknown')),
         tracker_count=Count('pk'),
         total_sold=Coalesce(Sum('selling_price'), Value(Decimal('0.00'), output_field=DecimalField())),
         total_paid=Coalesce(Sum('total_paid'), Value(Decimal('0.00'), output_field=DecimalField())),
         total_balance=Coalesce(Sum('balance'), Value(Decimal('0.00'), output_field=DecimalField())),
     ).order_by('-total_sold')
 
-    insurance_agent_totals = InsurancePolicy.objects.values(agent_name=Coalesce('agent_name', Value('Unknown'))).annotate(
+    insurance_agent_totals = InsurancePolicy.objects.annotate(
+        agent_display=Coalesce('agent_name', Value('Unknown'))
+    ).values('agent_display').annotate(
         policy_count=Count('pk'),
         total_premium=Coalesce(Sum('selling_price'), Value(Decimal('0.00'), output_field=DecimalField())),
         total_paid=Coalesce(Sum('insurance_total_paid'), Value(Decimal('0.00'), output_field=DecimalField())),
         total_balance=Coalesce(Sum('insurance_balance'), Value(Decimal('0.00'), output_field=DecimalField())),
-    ).filter(~Q(agent_name='')).order_by('-total_premium')
+    ).filter(~Q(agent_display='')).order_by('-total_premium')
 
     paginator = Paginator(trackers, 25)
     page_number = request.GET.get('page')
