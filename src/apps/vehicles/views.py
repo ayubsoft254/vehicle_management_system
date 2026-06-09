@@ -114,6 +114,7 @@ def vehicle_list_view(request):
         fuel_type = form.cleaned_data.get('fuel_type')
         transmission = form.cleaned_data.get('transmission')
         body_type = form.cleaned_data.get('body_type')
+        location = form.cleaned_data.get('location')
         
         if search:
             vehicles = vehicles.filter(
@@ -153,6 +154,9 @@ def vehicle_list_view(request):
         
         if body_type:
             vehicles = vehicles.filter(body_type=body_type)
+
+        if location:
+            vehicles = vehicles.filter(location=location)
     
     # Statistics
     total_vehicles = vehicles.count()
