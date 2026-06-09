@@ -371,6 +371,45 @@ class PaymentReminderForm(forms.ModelForm):
         fields = [
             'payment_schedule', 'reminder_type', 'message', 'status'
         ]
+        widgets = {
+            'payment_schedule': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+            }),
+            'reminder_type': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+            }),
+            'status': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+            }),
+            'message': forms.Textarea(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': 'Enter reminder message...',
+                'rows': 4
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Filter to show only unpaid schedules
+        self.fields['payment_schedule'].queryset = PaymentSchedule.objects.filter(
+            is_paid=False
+        ).select_related(
+            'installment_plan__client_vehicle__client',
+            'installment_plan__client_vehicle__vehicle'
+        )
+
+    def clean_message(self):
+        """Validate reminder message"""
+        message = self.cleaned_data.get('message')
+        
+        if len(message) < 10:
+            raise ValidationError("Reminder message must be at least 10 characters long.")
+        
+        if len(message) > 1000:
+            raise ValidationError("Reminder message cannot exceed 1000 characters.")
+        
+        return message
 
 
 # ==================== INSTALLMENT EXTENSION FORM ====================
@@ -410,46 +449,6 @@ class InstallmentExtensionForm(forms.Form):
             'placeholder': 'Optional reason for extension'
         })
     )
-        
-        widgets = {
-            'payment_schedule': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-            }),
-            'reminder_type': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-            }),
-            'status': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-            }),
-            'message': forms.Textarea(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Enter reminder message...',
-                'rows': 4
-            }),
-        }
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        # Filter to show only unpaid schedules
-        self.fields['payment_schedule'].queryset = PaymentSchedule.objects.filter(
-            is_paid=False
-        ).select_related(
-            'installment_plan__client_vehicle__client',
-            'installment_plan__client_vehicle__vehicle'
-        )
-    
-    def clean_message(self):
-        """Validate reminder message"""
-        message = self.cleaned_data.get('message')
-        
-        if len(message) < 10:
-            raise ValidationError("Reminder message must be at least 10 characters long.")
-        
-        if len(message) > 1000:
-            raise ValidationError("Reminder message cannot exceed 1000 characters.")
-        
-        return message
 
 
 # ==================== SEARCH AND FILTER FORMS ====================
