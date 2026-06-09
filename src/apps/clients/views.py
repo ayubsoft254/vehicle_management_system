@@ -1116,12 +1116,23 @@ def client_vehicle_update(request, pk):
             if updated_client_vehicle.payment_type == 'full':
                 updated_client_vehicle.deposit_paid = updated_client_vehicle.purchase_price
 
-            updated_client_vehicle.balance = updated_client_vehicle.purchase_price - (updated_client_vehicle.total_paid or Decimal('0.00'))
+            updated_client_vehicle.total_paid = max(
+                updated_client_vehicle.total_paid or Decimal('0.00'),
+                updated_client_vehicle.deposit_paid or Decimal('0.00')
+            )
+            updated_client_vehicle.balance = updated_client_vehicle.purchase_price - updated_client_vehicle.total_paid
             if updated_client_vehicle.balance < Decimal('0.00'):
                 updated_client_vehicle.balance = Decimal('0.00')
 
             updated_client_vehicle.save()
             client_vehicle = updated_client_vehicle
+
+            flexible_installments = []
+            if updated_client_vehicle.payment_type == 'flexible':
+                try:
+                    flexible_installments = json.loads(request.POST.get('flexible_installments_json', '[]'))
+                except json.JSONDecodeError:
+                    flexible_installments = []
 
             # Keep current vehicle selling price aligned to assignment pricing.
             vehicle = client_vehicle.vehicle
@@ -1154,7 +1165,7 @@ def client_vehicle_update(request, pk):
             
             # Automatically create Installment Plan if there's a balance and payment terms are provided
             if client_vehicle.balance > 0 and client_vehicle.installment_months:
-                from apps.payments.models import InstallmentPlan
+                from apps.payments.models import InstallmentPlan, PaymentSchedule
                 # ClientVehicle no longer stores interest_rate; default to zero when creating/updating plans.
                 default_interest_rate = Decimal('0.00')
                 plan, created = InstallmentPlan.objects.get_or_create(
@@ -1170,18 +1181,35 @@ def client_vehicle_update(request, pk):
                         'created_by': request.user
                     }
                 )
-                
-                # Update existing plan if it exists and hasn't started payments
-                if not created and not plan.payment_schedules.filter(is_paid=True).exists():
+
+                if created or not plan.payment_schedules.filter(is_paid=True).exists():
                     plan.total_amount = client_vehicle.purchase_price
                     plan.deposit = client_vehicle.deposit_paid
                     plan.monthly_installment = client_vehicle.monthly_installment
                     plan.number_of_installments = client_vehicle.installment_months
                     plan.interest_rate = default_interest_rate
                     plan.save()
-                    # Re-generate schedules
+
                     plan.payment_schedules.all().delete()
-                    plan.generate_payment_schedule()
+                    if client_vehicle.payment_type == 'flexible' and flexible_installments:
+                        for idx, installment in enumerate(flexible_installments, start=1):
+                            due_date_raw = str(installment.get('due_date', '')).strip()
+                            amount_raw = str(installment.get('amount', '0')).strip()
+                            if not due_date_raw:
+                                continue
+                            try:
+                                due_date = datetime.strptime(due_date_raw, '%Y-%m-%d').date()
+                                amount_due = Decimal(amount_raw)
+                            except Exception:
+                                continue
+                            PaymentSchedule.objects.create(
+                                installment_plan=plan,
+                                installment_number=idx,
+                                due_date=due_date,
+                                amount_due=amount_due
+                            )
+                    else:
+                        plan.generate_payment_schedule()
             
             log_audit(
                 request.user, 'update', 'ClientVehicle',
@@ -1258,7 +1286,43 @@ def client_vehicle_update(request, pk):
             'payment_type': tracker.payment_type or 'full',
             'flexible_installments': installments,
         })
-    
+
+    initial_deposit_data = {}
+    initial_deposit_splits = []
+    deposit_payment = Payment.objects.filter(
+        client_vehicle=client_vehicle,
+        notes__icontains='Initial deposit'
+    ).order_by('-created_at').first()
+    if deposit_payment:
+        if deposit_payment.payment_method == 'mixed':
+            initial_deposit_splits = [
+                {
+                    'method': split.payment_method,
+                    'amount': str(split.amount),
+                    'location': split.payment_location or '',
+                    'reference': split.transaction_reference or '',
+                }
+                for split in deposit_payment.splits.all()
+            ]
+        else:
+            initial_deposit_data = {
+                'method': deposit_payment.payment_method,
+                'location': deposit_payment.payment_location or '',
+                'reference': deposit_payment.transaction_reference or '',
+            }
+
+    initial_flexible_installments = []
+    try:
+        plan = client_vehicle.installment_plan
+        if client_vehicle.payment_type == 'flexible':
+            for schedule in plan.payment_schedules.order_by('installment_number').values('due_date', 'amount_due'):
+                initial_flexible_installments.append({
+                    'due_date': schedule['due_date'].isoformat() if schedule['due_date'] else '',
+                    'amount': str(schedule['amount_due'] or Decimal('0.00')),
+                })
+    except InstallmentPlan.DoesNotExist:
+        pass
+
     context = {
         'form': form,
         'client': client_vehicle.client,
@@ -1271,6 +1335,9 @@ def client_vehicle_update(request, pk):
         'tracker_companies': tracker_companies,
         'initial_insurance_json': json.dumps(initial_insurance_data),
         'initial_trackers_json': json.dumps(initial_trackers_data),
+        'initial_flexible_installments_json': json.dumps(initial_flexible_installments),
+        'initial_deposit_json': json.dumps(initial_deposit_data),
+        'initial_deposit_splits_json': json.dumps(initial_deposit_splits),
     }
     
     return render(request, 'clients/assign_vehicle.html', context)
