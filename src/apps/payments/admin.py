@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.http import HttpResponse
 from .models import (
     Payment,
+    AccountWithdrawal,
     InstallmentPlan,
     PaymentSchedule,
     PaymentReminder,
@@ -239,6 +240,39 @@ class PaymentAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         """Save model with user tracking"""
         if not change:  # New object
+            obj.recorded_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(AccountWithdrawal)
+class AccountWithdrawalAdmin(admin.ModelAdmin):
+    """Admin interface for account withdrawals."""
+    list_display = [
+        'payment_method', 'amount_display', 'withdrawal_date', 'recorded_by', 'created_at'
+    ]
+    list_filter = [
+        'payment_method',
+        'withdrawal_date',
+        ('withdrawal_date', admin.DateFieldListFilter),
+    ]
+    search_fields = [
+        'reason',
+        'recorded_by__email',
+        'recorded_by__first_name',
+        'recorded_by__last_name',
+    ]
+    readonly_fields = ['created_at', 'updated_at']
+    date_hierarchy = 'withdrawal_date'
+
+    def amount_display(self, obj):
+        return format_html(
+            '<span style="color: #dc3545; font-weight: bold;">KES {:,.2f}</span>',
+            obj.amount
+        )
+    amount_display.short_description = 'Amount'
+
+    def save_model(self, request, obj, form, change):
+        if not change:
             obj.recorded_by = request.user
         super().save_model(request, obj, form, change)
 
