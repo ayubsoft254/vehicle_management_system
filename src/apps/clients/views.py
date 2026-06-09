@@ -239,6 +239,7 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     insurance_agent_name = insurance_data.get('insurance_agent_name', '').strip()
     insurance_agent_id = insurance_data.get('insurance_agent_id', '').strip()
     insurance_payment_type = insurance_data.get('insurance_payment_type', 'full').strip()
+    insurance_deposit_str = insurance_data.get('insurance_deposit', '').strip()
     insurance_flexible_json = insurance_data.get('insurance_flexible_installments_json', '[]')
     insurance_has_plan = insurance_payment_type == 'flexible'
 
@@ -272,15 +273,25 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     insurance_total_paid = Decimal('0.00')
     insurance_balance = parse_money(insurance_selling_price)
 
-    if insurance_payment_type == 'deduct_from_deposit':
+    if insurance_payment_type == 'full':
+        insurance_deposit = Decimal('0.00')
+        insurance_total_paid = parse_money(insurance_selling_price)
+        insurance_balance = Decimal('0.00')
+        insurance_has_plan = False
+    elif insurance_payment_type == 'deduct_from_deposit':
         insurance_deposit = min(client_vehicle.deposit_paid, parse_money(insurance_selling_price))
         insurance_total_paid = insurance_deposit
         insurance_balance = max(Decimal('0.00'), parse_money(insurance_selling_price) - insurance_deposit)
         insurance_has_plan = False
-    elif insurance_has_plan and ins_installments:
-        insurance_months = len(ins_installments)
-        total_ins = sum((Decimal(str(row.get('amount', '0') or '0')) for row in ins_installments), Decimal('0.00'))
-        insurance_monthly = (total_ins / insurance_months).quantize(Decimal('0.01')) if insurance_months else None
+    elif insurance_has_plan:
+        insurance_deposit = min(parse_money(insurance_deposit_str), parse_money(insurance_selling_price))
+        insurance_total_paid = insurance_deposit
+        insurance_balance = max(Decimal('0.00'), parse_money(insurance_selling_price) - insurance_deposit)
+
+        if ins_installments:
+            insurance_months = len(ins_installments)
+            total_ins = sum((Decimal(str(row.get('amount', '0') or '0')) for row in ins_installments), Decimal('0.00'))
+            insurance_monthly = (total_ins / insurance_months).quantize(Decimal('0.01')) if insurance_months else None
 
     if not insurance_policy_number:
         insurance_policy_number = f"AUTO-{vehicle.pk}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
@@ -1285,6 +1296,7 @@ def client_vehicle_update(request, pk):
             'end_date': insurance_policy.end_date.isoformat() if insurance_policy.end_date else '',
             'buying_price': str(insurance_policy.buying_price or Decimal('0.00')),
             'selling_price': str(insurance_policy.selling_price or Decimal('0.00')),
+            'insurance_deposit': str(insurance_policy.insurance_deposit or Decimal('0.00')),
             'agent_name': insurance_policy.agent_name or '',
             'agent_id': insurance_policy.agent_id or '',
             'payment_type': insurance_policy.payment_type or 'full',
