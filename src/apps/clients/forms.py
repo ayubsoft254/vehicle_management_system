@@ -193,7 +193,8 @@ class ClientVehicleForm(forms.ModelForm):
             'allow_flexible_payments',
             'monthly_installment', 'installment_months',
             'commission_amount',
-            'notes'
+            'notes',
+            'other_payment_details'
         ]
         
         widgets = {
@@ -275,6 +276,11 @@ class ClientVehicleForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': 'Additional notes (Optional)',
+                'rows': 3
+            }),
+            'other_payment_details': forms.Textarea(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': 'Other payment details to appear on the agreement (Optional)',
                 'rows': 3
             }),
         }

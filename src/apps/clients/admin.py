@@ -401,6 +401,7 @@ class ClientVehicleAdmin(admin.ModelAdmin):
         ('Additional Information', {
             'fields': (
                 'notes',
+                'other_payment_details',
             )
         }),
         ('System Information', {

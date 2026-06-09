@@ -439,7 +439,12 @@ def generate_sales_agreement_pdf(client_vehicle):
             normal_small
         ))
         elements.append(Spacer(1, 0.15*cm))
-        elements.append(Paragraph('<b>OTHER PAYMENT DETAILS:</b> ' + '_' * 70, normal_small))
+        other_payment_details = getattr(client_vehicle, 'other_payment_details', '') or ''
+        if other_payment_details:
+            payment_details_text = other_payment_details.strip()
+        else:
+            payment_details_text = '_' * 70
+        elements.append(Paragraph(f'<b>OTHER PAYMENT DETAILS:</b> {payment_details_text}', normal_small))
         elements.append(Spacer(1, 0.2*cm))
 
         # Installment table

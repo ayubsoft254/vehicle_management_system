@@ -143,6 +143,21 @@ def tracker_management(request):
         balance_value=Sum('balance')
     )
 
+    from apps.insurance.models import InsurancePolicy
+    tracker_vendor_totals = all_trackers.values(provider=Coalesce('provider', Value('Unknown'))).annotate(
+        tracker_count=Count('pk'),
+        total_sold=Coalesce(Sum('selling_price'), Value(Decimal('0.00'), output_field=DecimalField())),
+        total_paid=Coalesce(Sum('total_paid'), Value(Decimal('0.00'), output_field=DecimalField())),
+        total_balance=Coalesce(Sum('balance'), Value(Decimal('0.00'), output_field=DecimalField())),
+    ).order_by('-total_sold')
+
+    insurance_agent_totals = InsurancePolicy.objects.values(agent_name=Coalesce('agent_name', Value('Unknown'))).annotate(
+        policy_count=Count('pk'),
+        total_premium=Coalesce(Sum('selling_price'), Value(Decimal('0.00'), output_field=DecimalField())),
+        total_paid=Coalesce(Sum('insurance_total_paid'), Value(Decimal('0.00'), output_field=DecimalField())),
+        total_balance=Coalesce(Sum('insurance_balance'), Value(Decimal('0.00'), output_field=DecimalField())),
+    ).filter(~Q(agent_name='')).order_by('-total_premium')
+
     paginator = Paginator(trackers, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -175,6 +190,8 @@ def tracker_management(request):
         'total_sold_value': totals.get('sold_value') or Decimal('0.00'),
         'total_paid_value': totals.get('paid_value') or Decimal('0.00'),
         'total_balance_value': totals.get('balance_value') or Decimal('0.00'),
+        'tracker_vendor_totals': tracker_vendor_totals,
+        'insurance_agent_totals': insurance_agent_totals,
     }
 
     log_audit(request.user, 'view', 'VehicleTracker', 'Viewed tracker management dashboard')
@@ -844,6 +861,18 @@ def assign_vehicle(request, client_pk):
     insurance_providers = InsuranceProvider.objects.filter(is_active=True).order_by('name')
     tracker_companies = TrackerCompany.objects.filter(is_active=True).order_by('name')
     
+    insurance_provider_data = [
+        {
+            'id': provider.pk,
+            'name': provider.name,
+            'contact_person_name': provider.contact_person_name or '',
+            'contact_person_phone': provider.contact_person_phone or provider.phone_primary or provider.phone_secondary or '',
+            'phone_primary': provider.phone_primary or '',
+            'phone_secondary': provider.phone_secondary or '',
+        }
+        for provider in insurance_providers
+    ]
+
     context = {
         'form': form,
         'client': client,
@@ -852,6 +881,7 @@ def assign_vehicle(request, client_pk):
         'vehicle_prices_json': json.dumps(vehicle_prices),
         'vehicle_cost_prices_json': json.dumps(vehicle_cost_prices),
         'insurance_providers': insurance_providers,
+        'insurance_providers_json': json.dumps(insurance_provider_data),
         'tracker_companies': tracker_companies,
     }
     

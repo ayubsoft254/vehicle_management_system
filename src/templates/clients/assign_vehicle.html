@@ -708,10 +708,18 @@
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
                 <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-info-circle mr-2"></i>Additional Information</h2>
             </div>
-            <div class="p-6">
-                <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                {{ form.notes }}
-                {% if form.notes.errors %}<p class="mt-1 text-sm text-red-600">{{ form.notes.errors.0 }}</p>{% endif %}
+            <div class="p-6 space-y-6">
+                <div>
+                    <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}<p class="mt-1 text-sm text-red-600">{{ form.notes.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.other_payment_details.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Other Payment Details</label>
+                    {{ form.other_payment_details }}
+                    {% if form.other_payment_details.errors %}<p class="mt-1 text-sm text-red-600">{{ form.other_payment_details.errors.0 }}</p>{% endif %}
+                    <p class="mt-1 text-xs text-gray-500">Optional payment details to include on the generated agreement.</p>
+                </div>
             </div>
         </div>
 
@@ -755,6 +763,7 @@ const initialTrackers          = {{ initial_trackers_json|safe|default:"[]" }};
 const initialFlexibleInstallments = {{ initial_flexible_installments_json|safe|default:"[]" }};
 const initialDepositData       = {{ initial_deposit_json|safe|default:"{}" }};
 const initialDepositSplits     = {{ initial_deposit_splits_json|safe|default:"[]" }};
+const insuranceProviderData    = {{ insurance_providers_json|safe|default:"[]" }};
 let selectedVehicleBasePrice = 0;
 let finalSellingTouched = false;
 
@@ -835,6 +844,73 @@ function applyInitialInsuranceData() {
 
     updateInsurancePaymentUI();
     syncInsuranceInstallmentsPayload();
+}
+
+function getInsuranceProviderDetails(providerId) {
+    return insuranceProviderData.find(provider => String(provider.id) === String(providerId)) || null;
+}
+
+function autoFillBrokerFieldsFromInsuranceProvider(providerId) {
+    const provider = getInsuranceProviderDetails(providerId);
+    if (!provider) {
+        return;
+    }
+
+    const brokerNameField = document.getElementById('id_broker_name');
+    const brokerPhoneField = document.getElementById('id_broker_phone_no');
+    const agentNameField = document.getElementById('id_insurance_agent_name');
+
+    const preferredName = provider.contact_person_name || provider.name || '';
+    const preferredPhone = provider.contact_person_phone || provider.phone_primary || provider.phone_secondary || '';
+
+    if (brokerNameField && !brokerNameField.value.trim() && preferredName) {
+        brokerNameField.value = preferredName;
+    }
+    if (brokerPhoneField && !brokerPhoneField.value.trim() && preferredPhone) {
+        brokerPhoneField.value = preferredPhone;
+    }
+    if (agentNameField && !agentNameField.value.trim() && preferredName) {
+        agentNameField.value = preferredName;
+    }
+}
+
+function findProviderFromBrokerFields() {
+    const brokerName = (document.getElementById('id_broker_name')?.value || '').trim().toLowerCase();
+    const brokerPhone = (document.getElementById('id_broker_phone_no')?.value || '').trim();
+    if (!brokerName && !brokerPhone) {
+        return null;
+    }
+
+    return insuranceProviderData.find(provider => {
+        const contactName = (provider.contact_person_name || '').trim().toLowerCase();
+        const providerName = (provider.name || '').trim().toLowerCase();
+        const phonePrimary = (provider.contact_person_phone || provider.phone_primary || provider.phone_secondary || '').trim();
+
+        const nameMatches = brokerName && (contactName === brokerName || providerName === brokerName);
+        const phoneMatches = brokerPhone && phonePrimary === brokerPhone;
+
+        return nameMatches || phoneMatches;
+    }) || null;
+}
+
+function syncInsuranceProviderFromBrokerFields() {
+    const providerSelect = document.getElementById('id_insurance_provider_id');
+    if (!providerSelect || providerSelect.value) {
+        return;
+    }
+
+    const matchedProvider = findProviderFromBrokerFields();
+    if (matchedProvider) {
+        providerSelect.value = matchedProvider.id;
+        autoFillBrokerFieldsFromInsuranceProvider(matchedProvider.id);
+    }
+}
+
+function onInsuranceProviderChange() {
+    const providerId = document.getElementById('id_insurance_provider_id')?.value;
+    if (providerId) {
+        autoFillBrokerFieldsFromInsuranceProvider(providerId);
+    }
 }
 
 function applyInitialTrackerData() {
@@ -1654,6 +1730,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize insurance payment type UI
     applyInitialInsuranceData();
     updateInsurancePaymentUI();
+    onInsuranceProviderChange();
+    document.getElementById('id_insurance_provider_id')?.addEventListener('change', onInsuranceProviderChange);
+    document.getElementById('id_broker_name')?.addEventListener('blur', syncInsuranceProviderFromBrokerFields);
+    document.getElementById('id_broker_phone_no')?.addEventListener('blur', syncInsuranceProviderFromBrokerFields);
     document.getElementById('id_insurance_selling_price')?.addEventListener('input', () => {
         updateInsuranceInstallmentSummary();
         updateCalculationBreakdown();

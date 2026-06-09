@@ -548,6 +548,12 @@ class ClientVehicle(models.Model):
         help_text='Additional notes about this purchase'
     )
     
+    other_payment_details = models.TextField(
+        'Other Payment Details',
+        blank=True,
+        help_text='Optional payment details to include in the agreement'
+    )
+    
     # Commission & Sales
     broker_name = models.CharField(
         'Broker Name',
