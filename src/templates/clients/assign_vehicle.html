@@ -748,10 +748,13 @@ textarea { min-height: 100px; resize: vertical; }
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-const vehiclePrices     = {{ vehicle_prices_json|safe|default:"{}" }};
-const vehicleCostPrices = {{ vehicle_cost_prices_json|safe|default:"{}" }};
-const initialInsurance  = {{ initial_insurance_json|safe|default:"{}" }};
-const initialTrackers   = {{ initial_trackers_json|safe|default:"[]" }};
+const vehiclePrices            = {{ vehicle_prices_json|safe|default:"{}" }};
+const vehicleCostPrices        = {{ vehicle_cost_prices_json|safe|default:"{}" }};
+const initialInsurance         = {{ initial_insurance_json|safe|default:"{}" }};
+const initialTrackers          = {{ initial_trackers_json|safe|default:"[]" }};
+const initialFlexibleInstallments = {{ initial_flexible_installments_json|safe|default:"[]" }};
+const initialDepositData       = {{ initial_deposit_json|safe|default:"{}" }};
+const initialDepositSplits     = {{ initial_deposit_splits_json|safe|default:"[]" }};
 let selectedVehicleBasePrice = 0;
 let finalSellingTouched = false;
 
@@ -888,6 +891,64 @@ function applyInitialTrackerData() {
             }
         }
     });
+}
+
+function applyInitialDepositData() {
+    if (!initialDepositData || Object.keys(initialDepositData).length === 0) {
+        return;
+    }
+
+    const setValue = (selector, value) => {
+        const el = document.querySelector(selector);
+        if (el && value !== undefined && value !== null) {
+            el.value = value;
+        }
+    };
+
+    const isSplitMode = Array.isArray(initialDepositSplits) && initialDepositSplits.length > 0;
+    const mode = isSplitMode ? 'split' : 'single';
+    const radio = document.querySelector(`input[name="deposit_payment_mode"][value="${mode}"]`);
+    if (radio) {
+        radio.checked = true;
+        toggleDepositPaymentMode(mode);
+    }
+
+    if (mode === 'single') {
+        setValue('select[name="deposit_payment_method"]', initialDepositData.method || 'cash');
+        setValue('input[name="deposit_payment_location"]', initialDepositData.location || '');
+        setValue('input[name="deposit_transaction_reference"]', initialDepositData.reference || '');
+    } else {
+        const container = document.getElementById('deposit-splits-container');
+        if (!container) return;
+        container.innerHTML = '';
+        initialDepositSplits.forEach(split => {
+            addDepositSplitRow();
+            const lastRow = container.lastElementChild;
+            if (!lastRow) return;
+            const methodSelect = lastRow.querySelector('select[name="deposit_split_method[]"]');
+            const amountInput = lastRow.querySelector('input[name="deposit_split_amount[]"]');
+            const locationInput = lastRow.querySelector('input[name="deposit_split_location[]"]');
+            const referenceInput = lastRow.querySelector('input[name="deposit_split_reference[]"]');
+            if (methodSelect) methodSelect.value = split.method || 'cash';
+            if (amountInput) amountInput.value = split.amount || '';
+            if (locationInput) locationInput.value = split.location || '';
+            if (referenceInput) referenceInput.value = split.reference || '';
+        });
+        updateDepositSplitSummary();
+    }
+}
+
+function applyInitialFlexibleInstallments() {
+    if (!Array.isArray(initialFlexibleInstallments) || initialFlexibleInstallments.length === 0) {
+        return;
+    }
+    const container = document.getElementById('flexible-installments-container');
+    if (!container) {
+        return;
+    }
+    container.innerHTML = '';
+    initialFlexibleInstallments.forEach(inst => addFlexibleInstallmentRow(inst.due_date || '', inst.amount || ''));
+    updateFlexibleInstallmentSummary();
 }
 
 function updateInsurancePaymentUI() {
@@ -1581,10 +1642,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize flexible installments UI
     ensureFlexibleInstallmentRows();
+    applyInitialFlexibleInstallments();
     updateFlexibleInstallmentSummary();
     document.getElementById('add-flex-installment-btn')?.addEventListener('click', () => addFlexibleInstallmentRow());
     document.getElementById('{{ form.purchase_price.id_for_label }}')?.addEventListener('input', updateFlexibleInstallmentSummary);
     document.getElementById('{{ form.deposit_paid.id_for_label }}')?.addEventListener('input', updateFlexibleInstallmentSummary);
+
+    // Initialize deposit payment mode and split data when editing
+    applyInitialDepositData();
 
     // Initialize insurance payment type UI
     applyInitialInsuranceData();
