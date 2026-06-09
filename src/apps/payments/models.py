@@ -240,6 +240,84 @@ class Payment(models.Model):
         return self.splits.exists()
 
 
+class AccountWithdrawal(models.Model):
+    """Record withdrawals from HOZA and KE accounts."""
+
+    HOZA_METHODS = ('equity_hoza', 'dib_hoza', 'coop_hoza')
+    KE_METHODS = ('kcb_ke', 'absa_ke', 'equity_ke')
+    PAYMENT_METHOD_CHOICES = [
+        ('equity_hoza', 'Equity Hoza'),
+        ('dib_hoza', 'DIB Hoza'),
+        ('coop_hoza', 'COOP Hoza'),
+        ('kcb_ke', 'KCB KE'),
+        ('absa_ke', 'ABSA KE'),
+        ('equity_ke', 'EQUITY KE'),
+    ]
+
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        help_text='HOZA or KE account where the withdrawal originated'
+    )
+
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        help_text='Withdrawal amount'
+    )
+
+    withdrawal_date = models.DateField(
+        default=timezone.now,
+        help_text='Date the withdrawal was recorded'
+    )
+
+    reason = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Optional reason for the withdrawal'
+    )
+
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='account_withdrawals',
+        help_text='User who recorded this withdrawal'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-withdrawal_date', '-created_at']
+        verbose_name = 'Account Withdrawal'
+        verbose_name_plural = 'Account Withdrawals'
+        indexes = [
+            models.Index(fields=['withdrawal_date']),
+            models.Index(fields=['payment_method']),
+        ]
+
+    def __str__(self):
+        return f"{self.get_payment_method_display()} withdrawal - KES {self.amount:,.2f} on {self.withdrawal_date}"
+
+    @property
+    def is_hoza(self):
+        return self.payment_method in self.HOZA_METHODS
+
+    @property
+    def is_ke(self):
+        return self.payment_method in self.KE_METHODS
+
+    @property
+    def account_category(self):
+        if self.is_hoza:
+            return 'HOZA'
+        if self.is_ke:
+            return 'KE'
+        return 'Unknown'
+
+
 # ==================== PAYMENT SPLIT MODEL ====================
 
 class PaymentSplit(models.Model):
