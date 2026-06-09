@@ -377,7 +377,7 @@ def generate_sales_agreement_pdf(client_vehicle):
             tracker_lines = [
                 f'<b>{idx}. {tracker.tracker_name or "Tracker"}</b> '
                 f'({tracker.serial_number or "No serial"}) '
-                f'Selling Price KES {float(tracker.selling_price or Decimal("0.00")):,.2f}',
+                f'Price KES {float(tracker.selling_price or Decimal("0.00")):,.2f}',
                 f'<b>Payment Type:</b> {_payment_type_label(tracker.payment_type)}',
             ]
 
