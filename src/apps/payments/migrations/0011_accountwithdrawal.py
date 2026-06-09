@@ -3,6 +3,7 @@
 from decimal import Decimal
 from django.conf import settings
 from django.db import migrations, models
+from django.core.validators import MinValueValidator
 import django.db.models.deletion
 import django.utils.timezone
 
@@ -19,7 +20,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('payment_method', models.CharField(choices=[('equity_hoza', 'Equity Hoza'), ('dib_hoza', 'DIB Hoza'), ('coop_hoza', 'COOP Hoza'), ('kcb_ke', 'KCB KE'), ('absa_ke', 'ABSA KE'), ('equity_ke', 'EQUITY KE')], help_text='HOZA or KE account where the withdrawal originated', max_length=20)),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=12, validators=[models.MinValueValidator(Decimal('0.01'))], help_text='Withdrawal amount')),
+                ('amount', models.DecimalField(decimal_places=2, max_digits=12, validators=[MinValueValidator(Decimal('0.01'))], help_text='Withdrawal amount')),
                 ('withdrawal_date', models.DateField(default=django.utils.timezone.now, help_text='Date the withdrawal was recorded')),
                 ('reason', models.TextField(blank=True, help_text='Optional reason for the withdrawal', null=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
