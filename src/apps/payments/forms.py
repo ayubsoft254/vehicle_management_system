@@ -10,7 +10,7 @@ from decimal import Decimal
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 
-from .models import Payment, InstallmentPlan, PaymentSchedule, PaymentReminder
+from .models import Payment, InstallmentPlan, PaymentSchedule, PaymentReminder, AccountWithdrawal
 from apps.clients.models import ClientVehicle
 
 
@@ -109,6 +109,55 @@ class PaymentForm(forms.ModelForm):
             )
         
         return cleaned_data
+
+
+class AccountWithdrawalForm(forms.ModelForm):
+    """Form for recording HOZA / KE account withdrawals."""
+
+    class Meta:
+        model = AccountWithdrawal
+        fields = [
+            'payment_method', 'amount', 'withdrawal_date', 'reason'
+        ]
+        widgets = {
+            'payment_method': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+            }),
+            'amount': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': '0.00',
+                'step': '0.01',
+                'min': '0.01'
+            }),
+            'withdrawal_date': forms.DateInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'type': 'date'
+            }),
+            'reason': forms.Textarea(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'placeholder': 'Optional reason for the withdrawal',
+                'rows': 3
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['withdrawal_date'].initial = timezone.now().date()
+
+    def clean_amount(self):
+        amount = self.cleaned_data.get('amount')
+        if amount <= 0:
+            raise ValidationError('Withdrawal amount must be greater than zero.')
+        return amount
+
+    def clean_withdrawal_date(self):
+        withdrawal_date = self.cleaned_data.get('withdrawal_date')
+        if withdrawal_date > timezone.now().date():
+            raise ValidationError('Withdrawal date cannot be in the future.')
+        one_year_ago = timezone.now().date() - timedelta(days=365)
+        if withdrawal_date < one_year_ago:
+            raise ValidationError('Withdrawal date cannot be more than 1 year in the past.')
+        return withdrawal_date
 
 
 # ==================== INSTALLMENT PLAN FORM ====================
