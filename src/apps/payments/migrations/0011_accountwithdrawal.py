@@ -8,6 +8,18 @@ import django.db.models.deletion
 import django.utils.timezone
 
 
+def drop_accountwithdrawal_objects(apps, schema_editor):
+    vendor = schema_editor.connection.vendor
+
+    if vendor == 'sqlite':
+        schema_editor.execute("DROP TABLE IF EXISTS payments_accountwithdrawal")
+    elif vendor == 'postgresql':
+        schema_editor.execute("DROP TABLE IF EXISTS public.payments_accountwithdrawal CASCADE")
+        schema_editor.execute("DROP TYPE IF EXISTS public.payments_accountwithdrawal")
+    else:
+        schema_editor.execute("DROP TABLE IF EXISTS payments_accountwithdrawal")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -15,12 +27,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql=(
-                "DROP TABLE IF EXISTS public.payments_accountwithdrawal CASCADE; "
-                "DROP TYPE IF EXISTS public.payments_accountwithdrawal;"
-            ),
-            reverse_sql=migrations.RunSQL.noop,
+        migrations.RunPython(
+            drop_accountwithdrawal_objects,
+            migrations.RunPython.noop,
         ),
         migrations.CreateModel(
             name='AccountWithdrawal',
