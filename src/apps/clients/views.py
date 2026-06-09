@@ -880,7 +880,7 @@ def assign_vehicle(request, client_pk):
     # Get vehicle prices for JavaScript
     vehicles_qs = Vehicle.objects.filter(status='available')
     vehicle_prices = {v.id: float(v.website_display_price or Decimal('0.00')) for v in vehicles_qs}
-    vehicle_cost_prices = {v.id: float(v.purchase_price) for v in vehicles_qs}
+    vehicle_cost_prices = {v.id: float(v.total_program_cost) for v in vehicles_qs}
     
     # Get insurance providers
     from apps.insurance.models import InsuranceProvider
@@ -1282,7 +1282,7 @@ def client_vehicle_update(request, pk):
     # Get vehicle prices for JavaScript (include the currently assigned vehicle)
     vehicles = Vehicle.objects.filter(Q(status='available') | Q(id=client_vehicle.vehicle.id))
     vehicle_prices = {v.id: float(v.website_display_price or Decimal('0.00')) for v in vehicles}
-    vehicle_cost_prices = {v.id: float(v.purchase_price) for v in vehicles}
+    vehicle_cost_prices = {v.id: float(v.total_program_cost) for v in vehicles}
 
     # Prefill insurance and tracker sections for edit mode.
     from apps.insurance.models import InsuranceProvider, InsurancePolicy
