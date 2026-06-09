@@ -14,6 +14,7 @@ from django.db import transaction
 from datetime import datetime, timedelta
 import csv
 import json
+from decimal import Decimal
 
 from .models import InsuranceProvider, InsurancePolicy, InsuranceClaim, InsurancePayment, InsurancePaymentSchedule
 from .forms import (
