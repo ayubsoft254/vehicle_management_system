@@ -1512,13 +1512,22 @@ function updateProfitLoss() {
     const vehicleId = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
     const priceField = document.getElementById('{{ form.purchase_price.id_for_label }}');
     const finalSellingField = document.getElementById('{{ form.final_selling_price.id_for_label }}');
+    
+    console.log('updateProfitLoss called');
+    console.log('vehicleId:', vehicleId);
+    console.log('priceField:', priceField);
+    console.log('vehicleCostPrices:', vehicleCostPrices);
+    
     if (!priceField) {
+        console.error('priceField not found');
         return;
     }
 
     // Vehicle Cost = base cost from vehicle creation only
     const baseVehicleCost = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
+    console.log('baseVehicleCost:', baseVehicleCost);
     priceField.value = Number(baseVehicleCost).toFixed(2);
+    console.log('priceField.value set to:', priceField.value);
 
     // Total Vehicle Cost = base + insurance + tracker + commission
     const totalVehicleCost = calculateEffectivePurchasePrice();
@@ -1552,6 +1561,8 @@ function updateProfitLoss() {
     const totalExpenses = insuranceCost + trackerCost + commissionCost;
     const totalVehicleCost = costPrice + totalExpenses;
     const netProfit = finalSellingPrice - totalVehicleCost;
+
+    console.log('Display values:', {costPrice, totalExpenses, totalVehicleCost, netProfit});
 
     document.getElementById('pl-cost').textContent    = fmt(costPrice);
     document.getElementById('pl-price').textContent   = fmt(costPrice);
@@ -1809,7 +1820,13 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
     const priceInput    = document.getElementById('{{ form.purchase_price.id_for_label }}');
 
     function applyVehicleSelection(vehicleId) {
+        console.log('applyVehicleSelection called with vehicleId:', vehicleId);
+        console.log('vehiclePrices:', vehiclePrices);
+        console.log('vehicleCostPrices:', vehicleCostPrices);
+        console.log('priceInput element:', priceInput);
+        
         if (!priceInput) {
+            console.error('priceInput element not found');
             return;
         }
 
@@ -1819,6 +1836,7 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
             selectedVehicleBasePrice = 0;
         }
 
+        console.log('selectedVehicleBasePrice set to:', selectedVehicleBasePrice);
         updateProfitLoss();
         updateFlexibleInstallmentSummary();
         updateCalculationBreakdown();
@@ -1826,6 +1844,7 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
 
     if (vehicleSelect && priceInput) {
         vehicleSelect.addEventListener('change', function() {
+            console.log('Vehicle select native change event triggered with value:', this.value);
             applyVehicleSelection(this.value);
         });
     }
@@ -1852,6 +1871,13 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
 
         // Ensure Select2 selections always run vehicle auto-population logic
         $('#id_vehicle').on('select2:select select2:clear', function() {
+            console.log('Select2 select/clear event triggered with value:', this.value);
+            applyVehicleSelection(this.value);
+        });
+        
+        // Also listen to the change event
+        $('#id_vehicle').on('change', function() {
+            console.log('Select2 change event triggered with value:', this.value);
             applyVehicleSelection(this.value);
         });
     });
