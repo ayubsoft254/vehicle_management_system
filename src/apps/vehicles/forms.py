@@ -97,7 +97,7 @@ class VehicleForm(forms.ModelForm):
             }),
             'selling_price': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'Selling price in KES',
+                'placeholder': 'Vehicle cost in KES',
                 'step': '0.01',
                 'required': 'required'
             }),
