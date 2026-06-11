@@ -234,11 +234,19 @@ def vehicle_detail_view(request, pk):
     extra_cost_total = vehicle.extra_costs.aggregate(total=Sum('amount'))['total'] or 0
     extra_costs = vehicle.extra_costs.all().order_by('date_added')
     location_history = vehicle.location_history.all()[:10]
+    # Include insurance buying price and tracker-related expenses in totals
+    insurance_total = vehicle.insurance_policies.aggregate(total=Sum('buying_price'))['total'] or Decimal('0.00')
+    tracker_total = vehicle.expenses.filter(
+        Q(category__name__icontains='track') | Q(category__code__icontains='TRACKER')
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
     total_additional_cost = (
         vehicle.duty_cost +
         vehicle.clearance_cost +
         vehicle.commission_cost +
-        extra_cost_total
+        extra_cost_total +
+        insurance_total +
+        tracker_total
     )
     total_cost = vehicle.purchase_price + total_additional_cost
 
@@ -255,6 +263,11 @@ def vehicle_detail_view(request, pk):
     
     latest_sale = vehicle.client_purchases.select_related('client').order_by('-purchase_date', '-created_at').first()
 
+    if vehicle.status == VehicleStatus.SOLD and latest_sale:
+        display_price = latest_sale.final_selling_price
+    else:
+        display_price = vehicle.website_display_price
+
     context = {
         'vehicle': vehicle,
         'history': history,
@@ -266,7 +279,7 @@ def vehicle_detail_view(request, pk):
         'can_view_vin': can_view_vin,
         'can_view_prices': can_view_prices,
         'show_public_prices': show_public_prices,
-        'display_price': vehicle.website_display_price,
+        'display_price': display_price,
         'latest_sale': latest_sale,
     }
     return render(request, 'vehicles/vehicle_detail.html', context)
@@ -295,13 +308,13 @@ def vehicle_create_view(request):
             vehicle = form.save(commit=False)
             vehicle.duty_cost = vehicle.duty_cost or Decimal('0.00')
             vehicle.clearance_cost = vehicle.clearance_cost or Decimal('0.00')
+            # Commission is no longer entered during vehicle creation; assignment-level commission is handled in client assignment.
             vehicle.commission_cost = vehicle.commission_cost or Decimal('0.00')
             if can_view_prices:
                 vehicle.selling_price = (
                     vehicle.purchase_price +
                     vehicle.duty_cost +
                     vehicle.clearance_cost +
-                    vehicle.commission_cost +
                     extra_cost_total
                 )
             else:
@@ -388,7 +401,6 @@ def vehicle_update_view(request, pk):
                     vehicle.purchase_price +
                     vehicle.duty_cost +
                     vehicle.clearance_cost +
-                    vehicle.commission_cost +
                     extra_cost_total
                 )
             vehicle.save()
@@ -886,7 +898,6 @@ def vehicle_purchase_price_assignment_view(request):
             vehicle.purchase_price
             + (vehicle.duty_cost or Decimal('0.00'))
             + (vehicle.clearance_cost or Decimal('0.00'))
-            + (vehicle.commission_cost or Decimal('0.00'))
             + extra_total
         ).quantize(Decimal('0.01'))
         vehicle.save(update_fields=['purchase_price', 'selling_price', 'last_updated'])
