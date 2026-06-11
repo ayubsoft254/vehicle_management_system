@@ -1849,17 +1849,9 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
         });
     }
 
-    // Insurance field changes
-    document.addEventListener('change', function(e) {
-        if (e.target.name === 'insurance_premium' || e.target.name === 'insurance_buying_price' || e.target.name === 'insurance_selling_price') {
-            updateProfitLoss();
-            updateFlexibleInstallmentSummary();
-        }
-    });
-
-    // Initialize Select2 for vehicle dropdown
-    $(document).ready(function() {
-        $('#id_vehicle').select2({
+    // Initialize Select2 for vehicle dropdown and set up its event handlers
+    if (vehicleSelect) {
+        $(vehicleSelect).select2({
             width: '100%',
             placeholder: 'Search by Make, Model, VIN or Registration...',
             allowClear: true,
@@ -1870,17 +1862,17 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
         });
 
         // Ensure Select2 selections always run vehicle auto-population logic
-        $('#id_vehicle').on('select2:select select2:clear', function() {
+        $(vehicleSelect).on('select2:select select2:clear', function() {
             console.log('Select2 select/clear event triggered with value:', this.value);
             applyVehicleSelection(this.value);
         });
         
-        // Also listen to the change event
-        $('#id_vehicle').on('change', function() {
+        // Also listen to the change event from Select2
+        $(vehicleSelect).on('change', function() {
             console.log('Select2 change event triggered with value:', this.value);
             applyVehicleSelection(this.value);
         });
-    });
+    }
     
     // Format vehicle option display
     function formatVehicleOption(option) {
@@ -1914,6 +1906,14 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
         
         return null;
     }
+
+    // Insurance field changes
+    document.addEventListener('change', function(e) {
+        if (e.target.name === 'insurance_premium' || e.target.name === 'insurance_buying_price' || e.target.name === 'insurance_selling_price') {
+            updateProfitLoss();
+            updateFlexibleInstallmentSummary();
+        }
+    });
 
     const depositInput = document.getElementById('{{ form.deposit_paid.id_for_label }}');
     depositInput?.addEventListener('input', () => updateDepositVisibility());
