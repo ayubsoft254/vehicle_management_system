@@ -1516,10 +1516,15 @@ function updateProfitLoss() {
         return;
     }
 
-    const clientPurchasePrice = calculateEffectivePurchasePrice();
-    priceField.value = Number(clientPurchasePrice).toFixed(2);
+    // Vehicle Cost = base cost from vehicle creation only
+    const baseVehicleCost = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
+    priceField.value = Number(baseVehicleCost).toFixed(2);
 
-    const finalSellingPrice = getFinalSellingValue(clientPurchasePrice);
+    // Total Vehicle Cost = base + insurance + tracker + commission
+    const totalVehicleCost = calculateEffectivePurchasePrice();
+    
+    // Final Selling Price defaults to total vehicle cost
+    const finalSellingPrice = getFinalSellingValue(totalVehicleCost);
     const extraCosts = calculateExtraCostsTotal();
     const netClientPrice = Math.max(0, finalSellingPrice);
 
@@ -1529,11 +1534,11 @@ function updateProfitLoss() {
 
     updateCalculationBreakdown();
 
-    const priceInput  = finalSellingPrice;
     const costPrice   = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
+    const finalSellingPrice = getFinalSellingValue(calculateEffectivePurchasePrice());
+    const priceInput  = finalSellingPrice;
     
     // Insurance costs
-    const insurancePaymentType = document.querySelector('input[name="insurance_payment_type"]:checked')?.value || 'full';
     const insuranceCost = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0);
     
     // Tracker costs
@@ -1545,13 +1550,13 @@ function updateProfitLoss() {
     const commissionCost = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
     
     const totalExpenses = insuranceCost + trackerCost + commissionCost;
-    const totalCost = netClientPrice;
-    const netProfit = totalCost - costPrice;
+    const totalVehicleCost = costPrice + totalExpenses;
+    const netProfit = finalSellingPrice - totalVehicleCost;
 
     document.getElementById('pl-cost').textContent    = fmt(costPrice);
-    document.getElementById('pl-price').textContent   = fmt(priceInput);
+    document.getElementById('pl-price').textContent   = fmt(costPrice);
     document.getElementById('pl-expenses').textContent = fmt(totalExpenses);
-    document.getElementById('pl-total-cost').textContent = fmt(totalCost);
+    document.getElementById('pl-total-cost').textContent = fmt(totalVehicleCost);
     document.getElementById('pl-result').textContent  = fmt(Math.abs(netProfit));
 
     const box   = document.getElementById('pl-result-box');
