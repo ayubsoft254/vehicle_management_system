@@ -272,18 +272,6 @@
                         </div>
                         {% if form.clearance_cost.errors %}<p class="mt-1 text-xs text-red-600">{{ form.clearance_cost.errors.0 }}</p>{% endif %}
                     </div>
-                    <div>
-                        <label for="{{ form.commission_cost.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Commission / Agent Fee (KES)
-                        </label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span class="text-gray-400 text-sm font-medium">KES</span>
-                            </div>
-                            {{ form.commission_cost }}
-                        </div>
-                        {% if form.commission_cost.errors %}<p class="mt-1 text-xs text-red-600">{{ form.commission_cost.errors.0 }}</p>{% endif %}
-                    </div>
                 </div>
 
                 <!-- Extra costs table -->
@@ -359,10 +347,6 @@
                                 <div class="flex justify-between">
                                     <span class="text-gray-500 pl-3">+ Clearance</span>
                                     <span class="tabular-nums" id="clearanceDisplay">0.00</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-500 pl-3">+ Commission</span>
-                                    <span class="tabular-nums" id="commissionDisplay">0.00</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-gray-500 pl-3">+ Extra Costs</span>
@@ -622,7 +606,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // KES prefix fields need left padding
-    ['purchase_price', 'selling_price', 'website_price', 'deposit_required', 'duty_cost', 'clearance_cost', 'commission_cost'].forEach(function (name) {
+    ['purchase_price', 'selling_price', 'website_price', 'deposit_required', 'duty_cost', 'clearance_cost'].forEach(function (name) {
         var el = document.querySelector('input[name="' + name + '"]');
         if (el) el.classList.add('pl-12');
     });
@@ -647,12 +631,11 @@ document.addEventListener('DOMContentLoaded', function () {
         var purchase   = val('id_purchase_price');
         var duty       = val('id_duty_cost');
         var clearance  = val('id_clearance_cost');
-        var commission = val('id_commission_cost');
         var extras = 0;
         document.querySelectorAll('[data-extra-cost-amount]').forEach(function (i) {
             extras += parseFloat(i.value) || 0;
         });
-        var total = purchase + duty + clearance + commission + extras;
+        var total = purchase + duty + clearance + extras;
 
         var spInput = document.getElementById('id_selling_price');
         if (spInput) spInput.value = total.toFixed(2);
@@ -665,19 +648,17 @@ document.addEventListener('DOMContentLoaded', function () {
         var purchaseDisplay = document.getElementById('purchaseDisplay');
         var dutyDisplay = document.getElementById('dutyDisplay');
         var clearanceDisplay = document.getElementById('clearanceDisplay');
-        var commissionDisplay = document.getElementById('commissionDisplay');
         var extraCostsDisplay = document.getElementById('extraCostsDisplay');
         var totalCostDisplay = document.getElementById('totalCostDisplay');
 
         if (purchaseDisplay) purchaseDisplay.textContent = fmt(purchase);
         if (dutyDisplay) dutyDisplay.textContent = fmt(duty);
         if (clearanceDisplay) clearanceDisplay.textContent = fmt(clearance);
-        if (commissionDisplay) commissionDisplay.textContent = fmt(commission);
         if (extraCostsDisplay) extraCostsDisplay.textContent = fmt(extras);
         if (totalCostDisplay) totalCostDisplay.textContent = fmt(total);
     }
 
-    ['id_purchase_price', 'id_duty_cost', 'id_clearance_cost', 'id_commission_cost'].forEach(function (id) {
+    ['id_purchase_price', 'id_duty_cost', 'id_clearance_cost'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.addEventListener('input', updatePricing);
     });
