@@ -464,6 +464,4 @@ For issues, questions, or feature requests:
 - [ ] GPS vehicle tracking
 - [ ] Payment gateway integration
 - [ ] Multi-language support
-
-this is a line 
 ---
