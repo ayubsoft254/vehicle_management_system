@@ -598,9 +598,9 @@
             <div class="p-6">
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p class="text-xs text-gray-500 uppercase font-medium">Client Purchase Price</p>
+                        <p class="text-xs text-gray-500 uppercase font-medium">Vehicle Sale Price</p>
                         <p class="text-lg font-bold text-blue-600 mt-1" id="pl-price">KES 0.00</p>
-                        <p class="text-xs text-gray-400 mt-0.5">Base vehicle plus add-ons</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Base vehicle price from website listing</p>
                     </div>
                     <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
                         <p class="text-xs text-gray-500 uppercase font-medium">Insurance + Tracker + Commission</p>
@@ -608,7 +608,7 @@
                         <p class="text-xs text-gray-400 mt-0.5">Additional costs</p>
                     </div>
                     <div class="bg-blue-50 rounded-lg p-4 border-2 border-blue-300">
-                        <p class="text-xs text-blue-700 uppercase font-medium">Final Client Price</p>
+                        <p class="text-xs text-blue-700 uppercase font-medium">Final Selling Price</p>
                         <p class="text-lg font-bold text-blue-700 mt-1" id="pl-total-cost">KES 0.00</p>
                         <p class="text-xs text-blue-600 mt-0.5">Extra costs are stored as records only</p>
                     </div>
@@ -635,7 +635,7 @@
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="{{ form.purchase_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Client Purchase Price (KES) <span class="text-red-500">*</span></label>
+                        <label for="{{ form.purchase_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Vehicle Cost (KES) <span class="text-red-500">*</span></label>
                         <div class="relative">
                             {{ form.purchase_price }}
                             <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -654,7 +654,7 @@
                             {% if form.final_selling_price.errors %}<p class="mt-1 text-sm text-red-600">{{ form.final_selling_price.errors.0 }}</p>{% endif %}
                             <p class="mt-2 text-xs text-gray-600">
                                 <i class="fas fa-pen mr-1 text-purple-600"></i>
-                                Defaults to client purchase price, but you can edit it to increase margin or sell at a loss.
+                                Defaults to vehicle cost, but you can edit it to increase margin or sell at a loss.
                             </p>
                         </div>
 
@@ -692,7 +692,7 @@
                                 <span id="calc-commission" class="font-medium">KES 0.00</span>
                             </div>
                             <div class="border-t border-purple-300 pt-2 mt-2 flex justify-between">
-                                <span class="font-semibold text-purple-900">= Client Purchase Price:</span>
+                                <span class="font-semibold text-purple-900">= Total Vehicle Cost:</span>
                                 <span id="calc-client-purchase" class="font-semibold text-purple-700">KES 0.00</span>
                             </div>
                             <div class="flex justify-between">
@@ -704,7 +704,7 @@
                                 <span id="calc-extra-costs" class="font-medium">KES 0.00</span>
                             </div>
                             <div class="border-t border-purple-300 pt-2 mt-2 flex justify-between font-semibold text-purple-900">
-                                <span>= Final Client Price:</span>
+                                <span>= Final Selling Price:</span>
                                 <span id="calc-total" class="font-bold text-purple-700">KES 0.00</span>
                             </div>
                         </div>
