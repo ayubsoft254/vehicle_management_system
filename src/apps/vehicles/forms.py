@@ -19,7 +19,7 @@ class VehicleForm(forms.ModelForm):
             'color', 'mileage', 'fuel_type', 'transmission',
             'engine_size', 'body_type', 'seats', 'doors',
             'condition', 'purchase_price', 'selling_price', 'website_price', 'deposit_required',
-            'duty_cost', 'clearance_cost', 'commission_cost',
+            'duty_cost', 'clearance_cost',
             'status', 'is_active', 'is_featured',
             'description', 'features', 'location', 'location_moved_date',
             'location_driver_name', 'location_driver_phone', 'location_driver_id_number',
@@ -121,11 +121,6 @@ class VehicleForm(forms.ModelForm):
                 'placeholder': 'Clearance/port cost in KES',
                 'step': '0.01'
             }),
-            'commission_cost': forms.NumberInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'Commission/agent fee in KES',
-                'step': '0.01'
-            }),
             'status': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
             }),
@@ -193,7 +188,7 @@ class VehicleForm(forms.ModelForm):
         # Fields with defaults in the model - make optional in form
         optional_fields = [
             'seats', 'condition', 'deposit_required', 'duty_cost',
-            'clearance_cost', 'commission_cost', 'location',
+            'clearance_cost', 'location',
             'location_moved_date', 'location_driver_name',
             'location_driver_phone', 'location_driver_id_number',
             'website_price'
@@ -279,7 +274,6 @@ class VehicleForm(forms.ModelForm):
         deposit_required = cleaned_data.get('deposit_required') or Decimal('0.00')
         duty_cost = cleaned_data.get('duty_cost') or Decimal('0.00')
         clearance_cost = cleaned_data.get('clearance_cost') or Decimal('0.00')
-        commission_cost = cleaned_data.get('commission_cost') or Decimal('0.00')
         website_price = cleaned_data.get('website_price')
         location = cleaned_data.get('location')
         location_moved_date = cleaned_data.get('location_moved_date')
@@ -300,7 +294,7 @@ class VehicleForm(forms.ModelForm):
                 cleaned_data['deposit_required'] = Decimal('0.00')
 
         if purchase_price is not None:
-            cleaned_data['selling_price'] = purchase_price + duty_cost + clearance_cost + commission_cost
+            cleaned_data['selling_price'] = purchase_price + duty_cost + clearance_cost
 
         selling_price = cleaned_data.get('selling_price')
         if website_price is None:
