@@ -118,14 +118,13 @@ def get_dashboard_overview_data(user=None):
         total_purchase=Sum('vehicle__purchase_price'),
         total_duty=Sum('vehicle__duty_cost'),
         total_clearance=Sum('vehicle__clearance_cost'),
-        total_commission_cost=Sum('vehicle__commission_cost'),
     )
     total_sales_value = profit_data['total_sales'] or Decimal('0.00')
     total_purchase = profit_data['total_purchase'] or Decimal('0.00')
     total_duty = profit_data['total_duty'] or Decimal('0.00')
     total_clearance = profit_data['total_clearance'] or Decimal('0.00')
-    total_comm_cost = profit_data['total_commission_cost'] or Decimal('0.00')
-    total_cost_base = total_purchase + total_duty + total_clearance + total_comm_cost
+    # Commission is now handled at assignment level (ClientVehicle.commission_amount)
+    total_cost_base = total_purchase + total_duty + total_clearance
     total_profit_loss = total_sales_value - total_cost_base
 
     monthly_profit_data = sold_profit_qs.filter(
@@ -135,14 +134,12 @@ def get_dashboard_overview_data(user=None):
         total_purchase=Sum('vehicle__purchase_price'),
         total_duty=Sum('vehicle__duty_cost'),
         total_clearance=Sum('vehicle__clearance_cost'),
-        total_commission_cost=Sum('vehicle__commission_cost'),
     )
     m_sales = monthly_profit_data['total_sales'] or Decimal('0.00')
     m_purchase = monthly_profit_data['total_purchase'] or Decimal('0.00')
     m_duty = monthly_profit_data['total_duty'] or Decimal('0.00')
     m_clearance = monthly_profit_data['total_clearance'] or Decimal('0.00')
-    m_comm = monthly_profit_data['total_commission_cost'] or Decimal('0.00')
-    monthly_profit = m_sales - (m_purchase + m_duty + m_clearance + m_comm)
+    monthly_profit = m_sales - (m_purchase + m_duty + m_clearance)
 
     # ── MOST SOLD CARS (by make) ──────────────────────────────────────
     most_sold_makes = list(
