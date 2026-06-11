@@ -3,6 +3,7 @@ Vehicles Models
 Manage vehicle inventory with complete specifications and history
 """
 from django.db import models
+from django.db.models import Q
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from decimal import Decimal
@@ -435,12 +436,19 @@ class Vehicle(models.Model):
     def total_program_cost(self):
         """Calculate total program cost for this vehicle."""
         extra_cost_total = self.extra_costs.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+        # Include insurance dealer cost (buying_price) and tracker-related expenses
+        insurance_total = self.insurance_policies.aggregate(total=models.Sum('buying_price'))['total'] or Decimal('0.00')
+        tracker_total = self.expenses.filter(
+            Q(category__name__icontains='track') | Q(category__code__icontains='TRACKER')
+        ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+
         return (
             (self.purchase_price or Decimal('0.00'))
             + (self.duty_cost or Decimal('0.00'))
             + (self.clearance_cost or Decimal('0.00'))
-            + (self.commission_cost or Decimal('0.00'))
             + extra_cost_total
+            + insurance_total
+            + tracker_total
         )
     
     @property
