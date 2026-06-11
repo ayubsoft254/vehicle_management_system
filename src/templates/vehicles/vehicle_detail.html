@@ -511,7 +511,7 @@
 
                         <div class="pt-4 border-t border-gray-200 bg-blue-50 rounded p-3">
                             <div class="flex justify-between items-center">
-                                <span class="text-sm font-semibold text-gray-700">Total Cost (Client Price)</span>
+                                <span class="text-sm font-semibold text-gray-700">Total Cost</span>
                                 <span class="text-xl font-bold text-blue-700 js-currency" data-kes="{{ total_cost|unlocalize }}">KES {{ total_cost }}</span>
                             </div>
                         </div>
@@ -531,8 +531,10 @@
                         {% endif %}
 
                         <div class="pt-4 border-t border-gray-200">
-                            <p class="text-sm font-medium text-gray-500 mb-1">Selling Price</p>
-                            <p class="text-3xl font-bold text-blue-600 js-currency" data-kes="{{ vehicle.selling_price|unlocalize }}">KES {{ vehicle.selling_price }}</p>
+                            <p class="text-sm font-medium text-gray-500 mb-1">
+                                {% if vehicle.status == 'sold' and latest_sale %}Final Sale Price{% else %}Website Price{% endif %}
+                            </p>
+                            <p class="text-3xl font-bold text-blue-600 js-currency" data-kes="{{ display_price|unlocalize }}">KES {{ display_price|floatformat:2 }}</p>
                         </div>
 
                         <div class="pt-4 border-t border-gray-200">
