@@ -1,51 +1,51 @@
 {% extends 'base.html' %}
 {% load humanize %}
 
-{% block title %}{{ provider.name }} — Tracker Provider Ledger{% endblock %}
+{% block title %}{{ agent.name }} — Tracker Agent Ledger{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="flex items-center justify-between mb-6">
-        <a href="{% url 'vehicles:tracker_provider_ledger_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
-            <i class="fas fa-arrow-left mr-2"></i>Back to Tracker Providers
+        <a href="{% url 'vehicles:tracker_agent_ledger_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Tracker Agents
         </a>
-        {% if provider.total_owed > 0 %}
+        {% if agent.total_owed > 0 %}
         <button id="mark-all-btn" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
             <i class="fas fa-check-double mr-2"></i>Mark All Paid
         </button>
         {% endif %}
     </div>
 
-    <!-- Provider Header -->
+    <!-- Agent Header -->
     <div class="bg-white rounded-xl shadow-md p-6 mb-8">
         <div class="flex items-center mb-6">
             <div class="h-14 w-14 bg-blue-100 rounded-full flex items-center justify-center mr-4">
                 <i class="fas fa-satellite-dish text-blue-600 text-2xl"></i>
             </div>
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">{{ provider.name }}</h1>
+                <h1 class="text-2xl font-bold text-gray-800">{{ agent.name }}</h1>
                 <p class="text-gray-500 text-sm">
-                    {% if provider.phone %}{{ provider.phone }}{% endif %}
-                    {% if provider.email %} · {{ provider.email }}{% endif %}
+                    {% if agent.phone %}{{ agent.phone }}{% endif %}
+                    {% if agent.email %} · {{ agent.email }}{% endif %}
                 </p>
             </div>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-gray-50 rounded-lg p-4 text-center">
                 <p class="text-xs text-gray-500 mb-1">Records</p>
-                <p class="text-2xl font-bold text-gray-800">{{ provider.total_records }}</p>
+                <p class="text-2xl font-bold text-gray-800">{{ agent.total_records }}</p>
             </div>
             <div class="bg-blue-50 rounded-lg p-4 text-center">
                 <p class="text-xs text-blue-600 mb-1">Buying Total</p>
-                <p class="text-xl font-bold text-blue-800">KES {{ provider.total_buying_price|floatformat:2|intcomma }}</p>
+                <p class="text-xl font-bold text-blue-800">KES {{ agent.total_buying_price|floatformat:2|intcomma }}</p>
             </div>
             <div class="bg-green-50 rounded-lg p-4 text-center">
                 <p class="text-xs text-green-600 mb-1">Selling Total</p>
-                <p class="text-xl font-bold text-green-800">KES {{ provider.total_selling_price|floatformat:2|intcomma }}</p>
+                <p class="text-xl font-bold text-green-800">KES {{ agent.total_selling_price|floatformat:2|intcomma }}</p>
             </div>
             <div class="bg-red-50 rounded-lg p-4 text-center">
                 <p class="text-xs text-red-600 mb-1">Outstanding</p>
-                <p class="text-xl font-bold text-red-800">KES {{ provider.total_owed|floatformat:2|intcomma }}</p>
+                <p class="text-xl font-bold text-red-800">KES {{ agent.total_owed|floatformat:2|intcomma }}</p>
             </div>
         </div>
     </div>
@@ -82,7 +82,7 @@
                             </a>
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-600">
-                            {% if record.client_vehicle.client %}{{ record.client_vehicle.client.get_full_name }}{% else %}—{% endif %}
+                            {% if record.client_vehicle and record.client_vehicle.client %}{{ record.client_vehicle.client.get_full_name }}{% else %}—{% endif %}
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-500">{{ record.installation_date|default:"—" }}</td>
                         <td class="px-4 py-3 text-right text-sm text-gray-800">KES {{ record.buying_price|floatformat:2|intcomma }}</td>
@@ -104,7 +104,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="px-6 py-12 text-center text-gray-500">No tracker records for this provider.</td>
+                        <td colspan="8" class="px-6 py-12 text-center text-gray-500">No tracker records for this agent.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -136,8 +136,8 @@ async function markPaid(recordId) {
 const markAllBtn = document.getElementById('mark-all-btn');
 if (markAllBtn) {
     markAllBtn.addEventListener('click', async () => {
-        if (!confirm('Mark all unpaid records as paid for this provider?')) return;
-        const res = await fetch('{% url "vehicles:tracker_provider_mark_all_paid" provider.pk %}', {
+        if (!confirm('Mark all unpaid records as paid for this agent?')) return;
+        const res = await fetch('{% url "vehicles:tracker_agent_mark_all_paid" agent.pk %}', {
             method: 'POST',
             headers: {'X-CSRFToken': CSRF},
         });
