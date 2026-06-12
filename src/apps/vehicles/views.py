@@ -14,7 +14,8 @@ from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, Tracker
 from apps.clients.models import ClientVehicle, Client
 from .forms import (
     VehicleForm, VehiclePhotoForm, VehicleSearchForm,
-    VehicleStatusChangeForm, BulkVehicleActionForm, VehicleMoveForm
+    VehicleStatusChangeForm, BulkVehicleActionForm, VehicleMoveForm,
+    TrackerAgentForm, ClearingAgentForm,
 )
 from utils.decorators import role_required, module_permission_required
 from utils.constants import UserRole, VehicleStatus, AccessLevel
@@ -976,6 +977,17 @@ def tracker_agent_ledger_list(request):
     """List all tracker agents with totals and outstanding balances."""
     from django.db.models import Q, Sum, Value, DecimalField
     from django.db.models.functions import Coalesce
+    from django.contrib import messages
+
+    if request.method == 'POST':
+        form = TrackerAgentForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Tracker agent added successfully.')
+            return redirect('vehicles:tracker_agent_ledger_list')
+    else:
+        form = TrackerAgentForm()
+
     agents = TrackerAgent.objects.filter(is_active=True).prefetch_related('tracker_records').order_by('name')
     totals = TrackerRecord.objects.aggregate(
         grand_buying=Coalesce(Sum('buying_price'), Value(0, output_field=DecimalField())),
@@ -990,6 +1002,7 @@ def tracker_agent_ledger_list(request):
         'grand_buying': totals['grand_buying'],
         'grand_selling': totals['grand_selling'],
         'grand_owed': totals['grand_owed'],
+        'form': form,
     }
     return render(request, 'vehicles/tracker_agent_ledger_list.html', context)
 
@@ -1034,6 +1047,17 @@ def clearing_agent_ledger_list(request):
     """List all clearing agents with totals and outstanding balances."""
     from django.db.models import Q, Sum, Value, DecimalField
     from django.db.models.functions import Coalesce
+    from django.contrib import messages
+
+    if request.method == 'POST':
+        form = ClearingAgentForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Clearing agent added successfully.')
+            return redirect('vehicles:clearing_agent_ledger_list')
+    else:
+        form = ClearingAgentForm()
+
     agents = ClearingAgent.objects.filter(is_active=True).prefetch_related('clearance_records').order_by('name')
     totals = ClearanceRecord.objects.aggregate(
         grand_billed=Coalesce(Sum('amount'), Value(0, output_field=DecimalField())),
@@ -1046,6 +1070,7 @@ def clearing_agent_ledger_list(request):
         'agents': agents,
         'grand_billed': totals['grand_billed'],
         'grand_owed': totals['grand_owed'],
+        'form': form,
     }
     return render(request, 'vehicles/clearing_agent_ledger_list.html', context)
 
