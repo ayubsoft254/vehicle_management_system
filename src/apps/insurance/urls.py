@@ -8,17 +8,6 @@ from . import views
 app_name = 'insurance'
 
 urlpatterns = [
-    # ==================== INSURANCE PROVIDER URLS ====================
-    
-    # Provider List & Views
-    path('providers/', views.provider_list, name='provider_list'),
-    path('providers/<int:pk>/', views.provider_detail, name='provider_detail'),
-    
-    # Provider CRUD Operations
-    path('providers/create/', views.provider_create, name='provider_create'),
-    path('providers/<int:pk>/update/', views.provider_update, name='provider_update'),
-    path('providers/<int:pk>/delete/', views.provider_delete, name='provider_delete'),
-    
     # ==================== INSURANCE POLICY URLS ====================
     
     # Policy List & Views
@@ -88,9 +77,15 @@ urlpatterns = [
     path('policies/compare/', views.policy_comparison, name='policy_comparison'),
     
     # ==================== AJAX/API URLS ====================
-    
+
     # API Endpoints for AJAX calls
     path('api/policy-stats/', views.policy_stats_api, name='policy_stats_api'),
     path('api/claim-stats/', views.claim_stats_api, name='claim_stats_api'),
     path('api/expiring-policies/', views.expiring_policies_api, name='expiring_policies_api'),
+
+    # ==================== AGENT LEDGER URLS ====================
+    path('agents/', views.agent_ledger_list, name='agent_ledger_list'),
+    path('agents/<int:pk>/', views.agent_ledger_detail, name='agent_ledger_detail'),
+    path('agents/policies/<int:pk>/mark-paid/', views.agent_ledger_mark_paid, name='agent_ledger_mark_paid'),
+    path('agents/<int:agent_pk>/mark-all-paid/', views.agent_ledger_mark_all_paid, name='agent_ledger_mark_all_paid'),
 ]
