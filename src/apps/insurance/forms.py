@@ -995,3 +995,17 @@ class PolicyRenewalForm(forms.Form):
             'type': 'date'
         })
     )
+
+# ==================== INSURANCE AGENT FORM ====================
+
+class InsuranceAgentForm(forms.ModelForm):
+    class Meta:
+        model = InsuranceAgent
+        fields = ['name', 'phone', 'email', 'id_number', 'notes']
+        widgets = {
+            'name':      forms.TextInput(attrs={'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent', 'placeholder': 'Agent name'}),
+            'phone':     forms.TextInput(attrs={'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent', 'placeholder': '+254...'}),
+            'email':     forms.EmailInput(attrs={'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent', 'placeholder': 'agent@example.com'}),
+            'id_number': forms.TextInput(attrs={'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent', 'placeholder': 'ID / License number'}),
+            'notes':     forms.Textarea(attrs={'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent', 'rows': 3, 'placeholder': 'Optional notes'}),
+        }
