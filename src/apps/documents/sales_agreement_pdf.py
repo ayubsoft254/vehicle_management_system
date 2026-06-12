@@ -77,7 +77,7 @@ def generate_sales_agreement_pdf(client_vehicle):
         alignment=TA_LEFT,
         fontName='Helvetica'
     )
-    
+
     # Build the content
     elements = []
 
@@ -291,10 +291,22 @@ def generate_sales_agreement_pdf(client_vehicle):
     ]
 
     if deposit_paid > Decimal('0.00'):
+        if is_full_payment:
+            paid_label = 'AMOUNT PAID IN FULL'
+        else:
+            paid_label = 'AMOUNT PAID (DEPOSIT)'
         price_data.append([
-            Paragraph(f'<b>AMOUNT PAID (DEPOSIT):</b> KES {float(deposit_paid):,.2f}', normal_small),
+            Paragraph(f'<b>{paid_label}:</b> KES {float(deposit_paid):,.2f}', normal_small),
             Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(deposit_paid)}', normal_small),
         ])
+
+    balance_amount = client_vehicle.balance or Decimal('0.00')
+    if not is_full_payment and balance_amount > Decimal('0.00'):
+        price_data.append([
+            Paragraph(f'<b>BALANCE:</b> KES {float(balance_amount):,.2f}', normal_small),
+            Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(balance_amount)}', normal_small),
+        ])
+
     price_table = Table(price_data, colWidths=[9.5*cm, 8.5*cm])
     price_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -381,8 +393,9 @@ def generate_sales_agreement_pdf(client_vehicle):
                 f'<b>Payment Type:</b> {_payment_type_label(tracker.payment_type)}',
             ]
 
-            if tracker.balance <= Decimal('0.00'):
-                tracker_lines.append('<b>Status:</b> Paid in full')
+            tracker_is_paid = tracker.payment_type == 'full' or (tracker.balance or Decimal('0.00')) <= Decimal('0.00')
+            if tracker_is_paid:
+                tracker_lines.append('<b>PAID IN FULL</b>')
             else:
                 if tracker.deposit and tracker.deposit > Decimal('0.00'):
                     tracker_lines.append(f'<b>Deposit Paid:</b> KES {float(tracker.deposit):,.2f}')
@@ -644,14 +657,19 @@ def generate_sales_agreement_pdf(client_vehicle):
     elements.append(Spacer(1, 0.4*cm))
 
     # Full signature block
+    id_no_cell = (
+        Paragraph(f'<b>ID NO:</b> {client_id_display}', normal_small)
+        if client_id_display
+        else Paragraph('<b>ID NO:</b> ___________________________', normal_small)
+    )
     full_sig_data = [
         [
             Paragraph("<b>Buyer's Signature</b>", normal_small),
-            Paragraph('<b>ID NO</b> ___________________________', normal_small),
+            id_no_cell,
         ],
         [
             _signature_flowable(getattr(agreement_signature, 'signature_data', '')),
-            Paragraph(f'{client_id_display}', normal_small),
+            Paragraph('', normal_small),
         ],
         [
             Paragraph(f'{client.get_full_name()}', normal_small),

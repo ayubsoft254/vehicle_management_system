@@ -647,9 +647,11 @@ def assign_vehicle(request, client_pk):
                 
                 client_vehicle.save()
 
-                # Record deposit payment with optional split methods
+                # Record deposit/full payment with optional split methods
                 if client_vehicle.deposit_paid > 0:
                     deposit_date = client_vehicle.purchase_date or timezone.now().date()
+                    is_full = client_vehicle.payment_type == 'full'
+                    payment_note = 'Full payment — vehicle assignment' if is_full else 'Initial deposit — vehicle assignment'
                     deposit_split_methods = request.POST.getlist('deposit_split_method[]')
                     deposit_split_amounts = request.POST.getlist('deposit_split_amount[]')
                     deposit_split_references = request.POST.getlist('deposit_split_reference[]')
@@ -672,7 +674,7 @@ def assign_vehicle(request, client_pk):
                             amount=client_vehicle.deposit_paid,
                             payment_date=deposit_date,
                             payment_method='mixed',
-                            notes='Initial deposit — vehicle assignment',
+                            notes=payment_note,
                             recorded_by=request.user,
                         )
                         for method, amt, ref, loc in valid_splits:
@@ -692,7 +694,7 @@ def assign_vehicle(request, client_pk):
                             payment_method=method,
                             transaction_reference=ref,
                             payment_location=loc,
-                            notes='Initial deposit — vehicle assignment',
+                            notes=payment_note,
                             recorded_by=request.user,
                         )
                     else:
@@ -707,7 +709,7 @@ def assign_vehicle(request, client_pk):
                             payment_method=single_method,
                             transaction_reference=single_ref,
                             payment_location=single_loc,
-                            notes='Initial deposit — vehicle assignment',
+                            notes=payment_note,
                             recorded_by=request.user,
                         )
 
@@ -738,8 +740,6 @@ def assign_vehicle(request, client_pk):
                 # Create Installment Plan based on payment type
                 # Only create plan if payment_type is 'installment' or 'flexible' (not 'full')
                 if client_vehicle.balance > 0 and client_vehicle.payment_type in ['installment', 'flexible']:
-                    from apps.payments.models import InstallmentPlan
-
                     installment_count = client_vehicle.installment_months or 1
                     plan_start_date = timezone.now().date()
                     monthly_amount = client_vehicle.monthly_installment
@@ -821,9 +821,12 @@ def assign_vehicle(request, client_pk):
                             tracker_deposit = Decimal(tracker_deposits[i]) if i < len(tracker_deposits) and tracker_deposits[i] else Decimal('0')
                             tracker_total_paid = Decimal('0')
                             tracker_deposit_value = Decimal('0')
+                            tracker_selling_val = Decimal(tracker_selling_prices[i]) if i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0')
 
-                            if payment_type == 'deduct_from_deposit':
-                                tracker_deposit_value = Decimal(tracker_selling_prices[i]) if i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0')
+                            if payment_type == 'full':
+                                tracker_total_paid = tracker_selling_val
+                            elif payment_type == 'deduct_from_deposit':
+                                tracker_deposit_value = tracker_selling_val
                                 tracker_total_paid = tracker_deposit_value
                             elif payment_type == 'flexible':
                                 tracker_deposit_value = tracker_deposit
@@ -1237,7 +1240,7 @@ def client_vehicle_update(request, pk):
             
             # Automatically create Installment Plan if there's a balance and payment terms are provided
             if client_vehicle.balance > 0 and client_vehicle.installment_months:
-                from apps.payments.models import InstallmentPlan, PaymentSchedule
+                from apps.payments.models import PaymentSchedule
                 # ClientVehicle no longer stores interest_rate; default to zero when creating/updating plans.
                 default_interest_rate = Decimal('0.00')
                 plan, created = InstallmentPlan.objects.get_or_create(

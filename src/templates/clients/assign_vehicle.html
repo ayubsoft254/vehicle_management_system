@@ -180,7 +180,7 @@
                 <!-- Deposit Payment Methods (shown when deposit > 0 and payment is not full) -->
                 <div id="deposit-payment-methods-section" class="hidden mt-6 pt-4 border-t border-gray-200">
                     <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-wallet mr-2 text-green-600"></i>How is the deposit being paid?</h3>
+                        <h3 class="text-sm font-semibold text-gray-800"><i class="fas fa-wallet mr-2 text-green-600"></i><span id="deposit-methods-heading-text">How is the deposit being paid?</span></h3>
                         <div class="flex items-center gap-3">
                             <label class="flex items-center gap-1.5 cursor-pointer">
                                 <input type="radio" name="deposit_payment_mode" value="single" class="h-4 w-4 text-primary-600" checked onchange="toggleDepositPaymentMode(this.value)">
@@ -232,7 +232,7 @@
                             <i class="fas fa-plus mr-1"></i>Add Method
                         </button>
                         <p id="deposit-split-summary" class="text-sm text-gray-600 mt-2"></p>
-                        <p id="deposit-split-warning" class="text-sm text-red-500 hidden mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>Split total must equal the deposit amount.</p>
+                        <p id="deposit-split-warning" class="text-sm text-red-500 hidden mt-1"><i class="fas fa-exclamation-triangle mr-1"></i><span id="deposit-split-warning-text">Split total must equal the deposit amount.</span></p>
                     </div>
                 </div>
             </div>
@@ -1896,11 +1896,22 @@ function updateDepositVisibility(paymentType) {
     const depositFieldSection = document.getElementById('deposit-field-section');
     const depositMethodsSection = document.getElementById('deposit-payment-methods-section');
     const depositValue = parseFloat(depositInput?.value || '0');
-    const showDepositField = currentPaymentType !== 'full';
-    const showDepositMethods = showDepositField && depositValue > 0;
+    const isFullPayment = currentPaymentType === 'full';
+    const showDepositField = !isFullPayment;
+    const showDepositMethods = isFullPayment || (showDepositField && depositValue > 0);
 
     depositFieldSection?.classList.toggle('hidden', !showDepositField);
     depositMethodsSection?.classList.toggle('hidden', !showDepositMethods);
+
+    const headingText = document.getElementById('deposit-methods-heading-text');
+    if (headingText) {
+        headingText.textContent = isFullPayment ? 'How is the full payment being made?' : 'How is the deposit being paid?';
+    }
+    const warningText = document.getElementById('deposit-split-warning-text');
+    if (warningText) {
+        warningText.textContent = isFullPayment ? 'Split total must equal the full payment amount.' : 'Split total must equal the deposit amount.';
+    }
+
     updateDepositSplitSummary();
 }
 
@@ -1965,15 +1976,19 @@ function addDepositSplitRow() {
 function updateDepositSplitSummary() {
     const mode = document.querySelector('input[name="deposit_payment_mode"]:checked')?.value;
     if (mode !== 'split') return;
-    const depositVal = parseFloat(document.getElementById('{{ form.deposit_paid.id_for_label }}')?.value || '0');
+    const isFullPayment = document.querySelector('input[name="payment_type"]:checked')?.value === 'full';
+    const referenceAmount = isFullPayment
+        ? getFinalSellingValue(selectedVehicleBasePrice)
+        : parseFloat(document.getElementById('{{ form.deposit_paid.id_for_label }}')?.value || '0');
     const amounts = Array.from(document.querySelectorAll('.deposit-split-amount'))
         .map(inp => parseFloat(inp.value || '0') || 0);
     const total = amounts.reduce((a, b) => a + b, 0);
-    const diff = Math.abs(total - depositVal);
+    const diff = Math.abs(total - referenceAmount);
+    const label = isFullPayment ? 'Full Payment' : 'Deposit';
     const summary = document.getElementById('deposit-split-summary');
     const warning = document.getElementById('deposit-split-warning');
     if (summary) {
-        summary.textContent = `Split total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2})} / Deposit: KES ${depositVal.toLocaleString('en-KE', {minimumFractionDigits:2})}`;
+        summary.textContent = `Split total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2})} / ${label}: KES ${referenceAmount.toLocaleString('en-KE', {minimumFractionDigits:2})}`;
     }
     if (warning) {
         warning.classList.toggle('hidden', diff <= 0.01);

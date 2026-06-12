@@ -34,7 +34,7 @@
             {% csrf_token %}
             
             <div class="flex items-center justify-center space-x-4">
-                <a href="{% url 'insurance:provider_detail' provider.pk %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                <a href="{% url 'insurance:agent_ledger_list' %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
                     Cancel
                 </a>
                 <button type="submit" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">

@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Count, Sum, Avg, Value, DecimalField
+from django.db.models.deletion import ProtectedError
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
@@ -339,7 +340,7 @@ def vehicle_create_view(request):
                     ClearanceRecord.objects.update_or_create(
                         vehicle=vehicle,
                         agent=clearing_agent,
-                        defaults={'amount': vehicle.clearance_cost, 'date': vehicle.created_at.date() if hasattr(vehicle, 'created_at') else None},
+                        defaults={'amount': vehicle.clearance_cost, 'date': vehicle.date_added.date()},
                     )
                 except ClearingAgent.DoesNotExist:
                     pass
@@ -551,15 +552,24 @@ def vehicle_delete_view(request, pk):
     
     if request.method == 'POST':
         vehicle_name = vehicle.full_name
-        
-        # Log deletion
+
+        try:
+            vehicle.delete()
+        except ProtectedError as e:
+            related = e.protected_objects
+            labels = ', '.join(str(obj) for obj in related)
+            messages.error(
+                request,
+                f'Cannot delete {vehicle_name} because it is referenced by: {labels}. '
+                'Remove or reassign those records first.'
+            )
+            return redirect('vehicles:detail', pk=vehicle.pk)
+
         AuditLog.log_delete(
             user=request.user,
             obj=vehicle,
             ip_address=request.META.get('REMOTE_ADDR')
         )
-        
-        vehicle.delete()
         messages.success(request, f'Vehicle {vehicle_name} deleted successfully!')
         return redirect('vehicles:list')
     
