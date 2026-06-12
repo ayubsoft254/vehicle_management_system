@@ -538,9 +538,11 @@
                         </div>
 
                         <div class="pt-4 border-t border-gray-200">
-                            <p class="text-sm font-medium text-gray-500 mb-1">Potential Profit</p>
-                            <p class="text-2xl font-bold js-currency {% if vehicle.profit >= 0 %}text-green-600{% else %}text-red-600{% endif %}" data-kes="{{ vehicle.profit|unlocalize }}">
-                                KES {{ vehicle.profit }}
+                            <p class="text-sm font-medium text-gray-500 mb-1">
+                                {% if vehicle.status == 'sold' and latest_sale %}Actual Profit{% else %}Potential Profit{% endif %}
+                            </p>
+                            <p class="text-2xl font-bold js-currency {% if vehicle_profit >= 0 %}text-green-600{% else %}text-red-600{% endif %}" data-kes="{{ vehicle_profit|unlocalize }}">
+                                KES {{ vehicle_profit|floatformat:2 }}
                             </p>
                         </div>
                     {% else %}
