@@ -709,9 +709,9 @@ class VehiclePhoto(models.Model):
         super().delete(*args, **kwargs)
 
 
-# ==================== TRACKER PROVIDER MODEL ====================
+# ==================== TRACKER AGENT MODEL ====================
 
-class TrackerProvider(models.Model):
+class TrackerAgent(models.Model):
     """A company or individual that supplies and installs GPS trackers."""
 
     name = models.CharField(max_length=200, unique=True)
@@ -724,8 +724,8 @@ class TrackerProvider(models.Model):
 
     class Meta:
         ordering = ['name']
-        verbose_name = 'Tracker Provider'
-        verbose_name_plural = 'Tracker Providers'
+        verbose_name = 'Tracker Agent'
+        verbose_name_plural = 'Tracker Agents'
 
     def __str__(self):
         return self.name
@@ -748,7 +748,7 @@ class TrackerProvider(models.Model):
 
     @property
     def total_owed(self):
-        """Sum of buying prices for unpaid tracker records from this provider."""
+        """Sum of buying prices for unpaid tracker records from this agent."""
         return (
             self.tracker_records.filter(dealer_payment_status='unpaid')
             .aggregate(total=models.Sum('buying_price'))['total'] or Decimal('0.00')
@@ -777,8 +777,8 @@ class TrackerRecord(models.Model):
         blank=True,
         related_name='tracker_records',
     )
-    provider = models.ForeignKey(
-        TrackerProvider,
+    agent = models.ForeignKey(
+        TrackerAgent,
         on_delete=models.PROTECT,
         related_name='tracker_records',
     )
