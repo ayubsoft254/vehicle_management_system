@@ -7,7 +7,7 @@ from django.utils.safestring import mark_safe
 from django.db.models import Sum, Count
 from .models import (
     Vehicle, VehiclePhoto, VehicleHistory, VehicleLocationHistory,
-    TrackerProvider, TrackerRecord, ClearingAgent, ClearanceRecord,
+    TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord,
 )
 
 
@@ -356,8 +356,8 @@ class TrackerRecordInline(admin.TabularInline):
     fields = ['tracker_name', 'serial_number', 'buying_price', 'selling_price', 'dealer_payment_status', 'installation_date']
 
 
-@admin.register(TrackerProvider)
-class TrackerProviderAdmin(admin.ModelAdmin):
+@admin.register(TrackerAgent)
+class TrackerAgentAdmin(admin.ModelAdmin):
     list_display = ['name', 'phone', 'email', 'total_records', 'total_buying_price', 'total_owed', 'is_active']
     list_filter = ['is_active']
     search_fields = ['name', 'phone', 'email']
@@ -366,11 +366,11 @@ class TrackerProviderAdmin(admin.ModelAdmin):
 
 @admin.register(TrackerRecord)
 class TrackerRecordAdmin(admin.ModelAdmin):
-    list_display = ['tracker_name', 'vehicle', 'provider', 'buying_price', 'selling_price', 'dealer_payment_status', 'installation_date']
-    list_filter = ['dealer_payment_status', 'provider']
+    list_display = ['tracker_name', 'vehicle', 'agent', 'buying_price', 'selling_price', 'dealer_payment_status', 'installation_date']
+    list_filter = ['dealer_payment_status', 'agent']
     search_fields = ['tracker_name', 'serial_number', 'vehicle__make', 'vehicle__model']
     list_editable = ['dealer_payment_status']
-    autocomplete_fields = ['vehicle', 'provider']
+    autocomplete_fields = ['vehicle', 'agent']
 
 
 # ==================== CLEARING AGENT ADMIN ====================
