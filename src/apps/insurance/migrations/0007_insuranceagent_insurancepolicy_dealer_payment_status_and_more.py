@@ -11,33 +11,78 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='InsuranceAgent',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=200)),
-                ('phone', models.CharField(blank=True, max_length=15)),
-                ('email', models.EmailField(blank=True, max_length=254, null=True)),
-                ('id_number', models.CharField(blank=True, help_text='Agent ID or license number', max_length=100, verbose_name='ID / License Number')),
-                ('is_active', models.BooleanField(default=True)),
-                ('notes', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+        # CreateModel wrapped so it skips if the table already exists in the DB
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="""
+                        CREATE TABLE IF NOT EXISTS insurance_insuranceagent (
+                            id bigserial PRIMARY KEY,
+                            name varchar(200) NOT NULL DEFAULT '',
+                            phone varchar(15) NOT NULL DEFAULT '',
+                            email varchar(254) NULL,
+                            id_number varchar(100) NOT NULL DEFAULT '',
+                            is_active boolean NOT NULL DEFAULT true,
+                            notes text NOT NULL DEFAULT '',
+                            created_at timestamp with time zone NOT NULL DEFAULT now(),
+                            updated_at timestamp with time zone NOT NULL DEFAULT now()
+                        )
+                    """,
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
             ],
-            options={
-                'verbose_name': 'Insurance Agent',
-                'verbose_name_plural': 'Insurance Agents',
-                'ordering': ['name'],
-            },
+            state_operations=[
+                migrations.CreateModel(
+                    name='InsuranceAgent',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('name', models.CharField(max_length=200)),
+                        ('phone', models.CharField(blank=True, max_length=15)),
+                        ('email', models.EmailField(blank=True, max_length=254, null=True)),
+                        ('id_number', models.CharField(blank=True, help_text='Agent ID or license number', max_length=100, verbose_name='ID / License Number')),
+                        ('is_active', models.BooleanField(default=True)),
+                        ('notes', models.TextField(blank=True)),
+                        ('created_at', models.DateTimeField(auto_now_add=True)),
+                        ('updated_at', models.DateTimeField(auto_now=True)),
+                    ],
+                    options={
+                        'verbose_name': 'Insurance Agent',
+                        'verbose_name_plural': 'Insurance Agents',
+                        'ordering': ['name'],
+                    },
+                ),
+            ],
         ),
-        migrations.AddField(
-            model_name='insurancepolicy',
-            name='dealer_payment_status',
-            field=models.CharField(choices=[('unpaid', 'Unpaid'), ('paid', 'Paid')], default='unpaid', help_text='Whether we have paid the agent for this policy', max_length=10, verbose_name='Dealer Payment Status'),
+        # AddField wrapped so it skips if the column already exists
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="ALTER TABLE insurance_insurancepolicy ADD COLUMN IF NOT EXISTS dealer_payment_status varchar(10) NOT NULL DEFAULT 'unpaid'",
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name='insurancepolicy',
+                    name='dealer_payment_status',
+                    field=models.CharField(choices=[('unpaid', 'Unpaid'), ('paid', 'Paid')], default='unpaid', help_text='Whether we have paid the agent for this policy', max_length=10, verbose_name='Dealer Payment Status'),
+                ),
+            ],
         ),
-        migrations.AddField(
-            model_name='insurancepolicy',
-            name='insurance_agent',
-            field=models.ForeignKey(blank=True, help_text='Linked insurance agent (ledger)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='policies', to='insurance.insuranceagent'),
+        # AddField for insurance_agent FK, skips if column already exists
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="ALTER TABLE insurance_insurancepolicy ADD COLUMN IF NOT EXISTS insurance_agent_id bigint NULL REFERENCES insurance_insuranceagent(id)",
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name='insurancepolicy',
+                    name='insurance_agent',
+                    field=models.ForeignKey(blank=True, help_text='Linked insurance agent (ledger)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='policies', to='insurance.insuranceagent'),
+                ),
+            ],
         ),
     ]
