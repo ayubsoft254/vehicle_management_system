@@ -21,7 +21,7 @@ from .forms import (
     InsurancePolicyForm, InsuranceClaimForm,
     ClaimUpdateForm, InsurancePaymentForm, InsurancePolicySearchForm,
     InsuranceClaimSearchForm, PolicyRenewalForm, BulkPolicyReminderForm,
-    PolicyCancellationForm, InsuranceQuoteForm
+    PolicyCancellationForm, InsuranceQuoteForm, InsuranceAgentForm,
 )
 from apps.vehicles.models import Vehicle
 from apps.clients.models import Client
@@ -1140,6 +1140,18 @@ def insurance_reports(request):
 @login_required
 def agent_ledger_list(request):
     """List all insurance agents with their policy totals and outstanding balances."""
+    from django.contrib import messages
+
+    if request.method == 'POST':
+        form = InsuranceAgentForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Insurance agent added successfully.')
+            log_audit(request.user, 'create', 'InsuranceAgent', f'Added agent {form.cleaned_data["name"]}')
+            return redirect('insurance:agent_ledger_list')
+    else:
+        form = InsuranceAgentForm()
+
     agents = InsuranceAgent.objects.filter(is_active=True).prefetch_related('policies').order_by('name')
     totals = InsurancePolicy.objects.aggregate(
         grand_buying=Coalesce(Sum('buying_price'), Value(0, output_field=DecimalField())),
@@ -1154,6 +1166,7 @@ def agent_ledger_list(request):
         'grand_buying': totals['grand_buying'],
         'grand_selling': totals['grand_selling'],
         'grand_owed': totals['grand_owed'],
+        'form': form,
     }
     log_audit(request.user, 'view', 'InsuranceAgent', 'Viewed insurance agent ledger')
     return render(request, 'insurance/agent_ledger_list.html', context)
