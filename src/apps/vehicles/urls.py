@@ -39,11 +39,11 @@ urlpatterns = [
     path('export/', views.vehicle_export_view, name='export'),
     path('stats/', views.vehicle_stats_view, name='stats'),
 
-    # Tracker Provider Ledger
-    path('tracker-providers/', views.tracker_provider_ledger_list, name='tracker_provider_ledger_list'),
-    path('tracker-providers/<int:pk>/', views.tracker_provider_ledger_detail, name='tracker_provider_ledger_detail'),
+    # Tracker Agent Ledger
+    path('tracker-agents/', views.tracker_agent_ledger_list, name='tracker_agent_ledger_list'),
+    path('tracker-agents/<int:pk>/', views.tracker_agent_ledger_detail, name='tracker_agent_ledger_detail'),
     path('tracker-records/<int:pk>/mark-paid/', views.tracker_record_mark_paid, name='tracker_record_mark_paid'),
-    path('tracker-providers/<int:provider_pk>/mark-all-paid/', views.tracker_provider_mark_all_paid, name='tracker_provider_mark_all_paid'),
+    path('tracker-agents/<int:agent_pk>/mark-all-paid/', views.tracker_agent_mark_all_paid, name='tracker_agent_mark_all_paid'),
 
     # Clearing Agent Ledger
     path('clearing-agents/', views.clearing_agent_ledger_list, name='clearing_agent_ledger_list'),
