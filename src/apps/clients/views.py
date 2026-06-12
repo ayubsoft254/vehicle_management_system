@@ -17,7 +17,8 @@ import csv
 import json
 from decimal import Decimal
 
-from .models import Client, ClientVehicle, ClientDocument, VehicleTracker, TrackerCompany
+from .models import Client, ClientVehicle, ClientDocument, VehicleTracker
+from apps.vehicles.models import TrackerAgent, TrackerRecord
 from apps.payments.models import Payment, PaymentSplit, InstallmentPlan
 from .forms import (
     ClientForm, ClientVehicleForm, PaymentForm, 
@@ -591,7 +592,7 @@ def assign_vehicle(request, client_pk):
                 tracker_names = request.POST.getlist('tracker_name[]')
                 tracker_serials = request.POST.getlist('tracker_serial[]')
                 tracker_certificate_numbers = request.POST.getlist('tracker_certificate_number[]')
-                tracker_providers = request.POST.getlist('tracker_provider[]')
+                tracker_agent_ids = request.POST.getlist('tracker_agent_id[]')
                 tracker_install_dates = request.POST.getlist('tracker_install_date[]')
                 tracker_buying_prices = request.POST.getlist('tracker_buying_price[]')
                 tracker_selling_prices = request.POST.getlist('tracker_selling_price[]')
@@ -828,12 +829,21 @@ def assign_vehicle(request, client_pk):
                                 tracker_deposit_value = tracker_deposit
                                 tracker_total_paid = tracker_deposit_value
 
-                            VehicleTracker.objects.create(
+                            tracker_agent_id = tracker_agent_ids[i] if i < len(tracker_agent_ids) else ''
+                            tracker_agent_name = ''
+                            if tracker_agent_id:
+                                try:
+                                    ta = TrackerAgent.objects.get(pk=tracker_agent_id)
+                                    tracker_agent_name = ta.name
+                                except TrackerAgent.DoesNotExist:
+                                    tracker_agent_id = ''
+
+                            vt = VehicleTracker.objects.create(
                                 client_vehicle=client_vehicle,
                                 tracker_name=name,
                                 serial_number=tracker_serials[i] if i < len(tracker_serials) else '',
                                 certificate_number=tracker_certificate_numbers[i] if i < len(tracker_certificate_numbers) else '',
-                                provider=tracker_providers[i] if i < len(tracker_providers) else '',
+                                provider=tracker_agent_name,
                                 buying_price=Decimal(tracker_buying_prices[i]) if i < len(tracker_buying_prices) and tracker_buying_prices[i] else Decimal('0'),
                                 selling_price=Decimal(tracker_selling_prices[i]) if i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0'),
                                 payment_type=payment_type,
@@ -846,6 +856,18 @@ def assign_vehicle(request, client_pk):
                                 installed_date=install_date,
                                 created_by=request.user,
                             )
+
+                            if tracker_agent_id:
+                                TrackerRecord.objects.create(
+                                    vehicle=vehicle,
+                                    client_vehicle=client_vehicle,
+                                    agent_id=tracker_agent_id,
+                                    tracker_name=name,
+                                    serial_number=tracker_serials[i] if i < len(tracker_serials) else '',
+                                    buying_price=vt.buying_price,
+                                    selling_price=vt.selling_price,
+                                    installation_date=install_date,
+                                )
                         except Exception as e:
                             messages.warning(request, f'Tracker "{name}" could not be saved: {e}')
                 
@@ -882,17 +904,13 @@ def assign_vehicle(request, client_pk):
     vehicle_prices = {v.id: float(v.website_display_price or Decimal('0.00')) for v in vehicles_qs}
     vehicle_cost_prices = {v.id: float(v.total_program_cost) for v in vehicles_qs}
     
-    # Get insurance agents
+    # Get insurance and tracker agents
     from apps.insurance.models import InsuranceAgent
     insurance_agents = InsuranceAgent.objects.filter(is_active=True).order_by('name')
-    tracker_companies = TrackerCompany.objects.filter(is_active=True).order_by('name')
+    tracker_agents = TrackerAgent.objects.filter(is_active=True).order_by('name')
 
     insurance_agent_data = [
-        {
-            'id': agent.pk,
-            'name': agent.name,
-            'phone': agent.phone or '',
-        }
+        {'id': agent.pk, 'name': agent.name, 'phone': agent.phone or ''}
         for agent in insurance_agents
     ]
 
@@ -905,7 +923,8 @@ def assign_vehicle(request, client_pk):
         'vehicle_cost_prices_json': json.dumps(vehicle_cost_prices),
         'insurance_agents': insurance_agents,
         'insurance_agents_json': json.dumps(insurance_agent_data),
-        'tracker_companies': tracker_companies,
+        'tracker_agents': tracker_agents,
+        'tracker_agents_json': json.dumps([{'id': a.pk, 'name': a.name} for a in tracker_agents]),
     }
     
     return render(request, 'clients/assign_vehicle.html', context)
@@ -1285,7 +1304,7 @@ def client_vehicle_update(request, pk):
     from apps.insurance.models import InsuranceAgent, InsurancePolicy
 
     insurance_agents = InsuranceAgent.objects.filter(is_active=True).order_by('name')
-    tracker_companies = TrackerCompany.objects.filter(is_active=True).order_by('name')
+    tracker_agents = TrackerAgent.objects.filter(is_active=True).order_by('name')
     insurance_policy = InsurancePolicy.objects.filter(
         vehicle=client_vehicle.vehicle,
         client=client_vehicle.client,
@@ -1329,11 +1348,17 @@ def client_vehicle_update(request, pk):
                     'amount': str(tracker.monthly_installment),
                 })
 
+        tracker_record = TrackerRecord.objects.filter(
+            client_vehicle=client_vehicle,
+            serial_number=tracker.serial_number or '',
+            tracker_name=tracker.tracker_name or '',
+        ).select_related('agent').first()
+
         initial_trackers_data.append({
             'tracker_name': tracker.tracker_name or '',
             'serial_number': tracker.serial_number or '',
             'certificate_number': tracker.certificate_number or '',
-            'provider': tracker.provider or '',
+            'tracker_agent_id': tracker_record.agent_id if tracker_record else '',
             'install_date': tracker.installed_date.isoformat() if tracker.installed_date else '',
             'buying_price': str(tracker.buying_price or Decimal('0.00')),
             'selling_price': str(tracker.selling_price or Decimal('0.00')),
@@ -1387,7 +1412,8 @@ def client_vehicle_update(request, pk):
         'vehicle_cost_prices_json': json.dumps(vehicle_cost_prices),
         'insurance_agents': insurance_agents,
         'insurance_agents_json': json.dumps([{'id': a.pk, 'name': a.name, 'phone': a.phone or ''} for a in insurance_agents]),
-        'tracker_companies': tracker_companies,
+        'tracker_agents': tracker_agents,
+        'tracker_agents_json': json.dumps([{'id': a.pk, 'name': a.name} for a in tracker_agents]),
         'initial_insurance_json': json.dumps(initial_insurance_data),
         'initial_trackers_json': json.dumps(initial_trackers_data),
         'initial_flexible_installments_json': json.dumps(initial_flexible_installments),
