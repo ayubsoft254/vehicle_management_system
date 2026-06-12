@@ -447,11 +447,7 @@
                 <p class="text-xs text-orange-600 mt-1">Add one or more GPS trackers for vehicle tracking and monitoring.</p>
             </div>
             <div class="p-6">
-                <datalist id="tracker-companies-list">
-                    {% for company in tracker_companies %}
-                    <option value="{{ company.name }}"></option>
-                    {% endfor %}
-                </datalist>
+                <!-- tracker agents are injected via JS select rows -->
                 <!-- Tracker Container -->
                 <div id="trackers-container" class="space-y-6">
                     <!-- Tracker 1 Template -->
@@ -478,8 +474,13 @@
                                 <input type="text" name="tracker_certificate_number[]" placeholder="Certificate number" class="form-input">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Provider / Vendor</label>
-                                <input type="text" name="tracker_provider[]" placeholder="Vendor name" class="form-input" list="tracker-companies-list">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Agent</label>
+                                <select name="tracker_agent_id[]" class="form-input">
+                                    <option value="">— None / Unknown —</option>
+                                    {% for agent in tracker_agents %}
+                                    <option value="{{ agent.pk }}">{{ agent.name }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Installation Date</label>
@@ -774,6 +775,8 @@ const initialFlexibleInstallments = {{ initial_flexible_installments_json|safe|d
 const initialDepositData       = {{ initial_deposit_json|safe|default:"{}" }};
 const initialDepositSplits     = {{ initial_deposit_splits_json|safe|default:"[]" }};
 const insuranceAgentData       = {{ insurance_agents_json|safe|default:"[]" }};
+const trackerAgentList         = {{ tracker_agents_json|safe|default:"[]" }};
+const trackerAgentOptions      = trackerAgentList.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
 let selectedVehicleBasePrice = 0;
 let finalSellingTouched = false;
 
@@ -954,7 +957,7 @@ function applyInitialTrackerData() {
         setRowValue('input[name="tracker_name[]"]', tracker.tracker_name || '');
         setRowValue('input[name="tracker_serial[]"]', tracker.serial_number || '');
         setRowValue('input[name="tracker_certificate_number[]"]', tracker.certificate_number || '');
-        setRowValue('input[name="tracker_provider[]"]', tracker.provider || '');
+        setRowValue('select[name="tracker_agent_id[]"]', tracker.tracker_agent_id || '');
         setRowValue('input[name="tracker_install_date[]"]', tracker.install_date || '');
         setRowValue('input[name="tracker_buying_price[]"]', tracker.buying_price || '');
         setRowValue('input[name="tracker_selling_price[]"]', tracker.selling_price || '');
@@ -1285,8 +1288,11 @@ function addTracker() {
                     <input type="text" name="tracker_certificate_number[]" placeholder="Certificate number" class="form-input">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Provider / Vendor</label>
-                    <input type="text" name="tracker_provider[]" placeholder="Vendor name" class="form-input" list="tracker-companies-list">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Agent</label>
+                    <select name="tracker_agent_id[]" class="form-input">
+                        <option value="">— None / Unknown —</option>
+                        ${trackerAgentOptions}
+                    </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Installation Date</label>
