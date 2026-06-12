@@ -204,26 +204,26 @@ def tracker_management(request):
 
 def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insurance_data, existing_policy=None):
     """Create or update the insurance policy linked to a client vehicle assignment."""
-    insurance_provider_id = insurance_data.get('insurance_provider_id')
+    insurance_agent_pk = insurance_data.get('insurance_agent_id')
     insurance_policy_number = insurance_data.get('insurance_policy_number', '').strip()
     insurance_start_date = insurance_data.get('insurance_start_date', '').strip()
     insurance_end_date = insurance_data.get('insurance_end_date', '').strip()
 
     has_any_insurance_input = any([
-        insurance_provider_id,
+        insurance_agent_pk,
         insurance_policy_number,
         insurance_start_date,
         insurance_end_date,
         str(insurance_data.get('insurance_buying_price', '')).strip(),
         str(insurance_data.get('insurance_selling_price', '')).strip(),
         str(insurance_data.get('insurance_agent_name', '')).strip(),
-        str(insurance_data.get('insurance_agent_id', '')).strip(),
+        str(insurance_data.get('agent_id', '')).strip(),
     ])
 
     if not has_any_insurance_input:
         return existing_policy
 
-    from apps.insurance.models import InsuranceProvider, InsurancePolicy, InsurancePaymentSchedule
+    from apps.insurance.models import InsuranceAgent, InsurancePolicy, InsurancePaymentSchedule
     from datetime import datetime as dt
 
     def parse_money(value):
@@ -237,14 +237,14 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     insurance_buying_price = insurance_data.get('insurance_buying_price', '').strip()
     insurance_selling_price = insurance_data.get('insurance_selling_price', '').strip()
     insurance_agent_name = insurance_data.get('insurance_agent_name', '').strip()
-    insurance_agent_id = insurance_data.get('insurance_agent_id', '').strip()
+    insurance_agent_id_text = insurance_data.get('agent_id', '').strip()
     insurance_payment_type = insurance_data.get('insurance_payment_type', 'full').strip()
     insurance_deposit_str = insurance_data.get('insurance_deposit', '').strip()
     insurance_flexible_json = insurance_data.get('insurance_flexible_installments_json', '[]')
     insurance_has_plan = insurance_payment_type == 'flexible'
 
-    if not insurance_provider_id:
-        messages.warning(request, 'Insurance details were entered but no provider was selected, so policy was not saved.')
+    if not insurance_agent_pk:
+        messages.warning(request, 'Insurance details were entered but no insurance agent was selected, so policy was not saved.')
         return existing_policy
 
     def parse_date(value):
@@ -260,7 +260,7 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     if not end_date or end_date <= start_date:
         end_date = start_date + timedelta(days=365)
 
-    provider = InsuranceProvider.objects.get(pk=insurance_provider_id)
+    insurance_agent_obj = InsuranceAgent.objects.get(pk=insurance_agent_pk)
 
     try:
         ins_installments = json.loads(insurance_flexible_json or '[]')
@@ -309,7 +309,7 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
         insurance_policy_number = f"{insurance_policy_number}-{vehicle.pk}"
 
     policy.vehicle = vehicle
-    policy.provider = provider
+    policy.insurance_agent = insurance_agent_obj
     policy.client = client
     policy.policy_number = insurance_policy_number
     policy.policy_type = insurance_policy_type
@@ -321,7 +321,7 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     policy.buying_price = parse_money(insurance_buying_price)
     policy.selling_price = parse_money(insurance_selling_price)
     policy.agent_name = insurance_agent_name
-    policy.agent_id = insurance_agent_id
+    policy.agent_id = insurance_agent_id_text
     policy.payment_type = insurance_payment_type
     policy.has_payment_plan = insurance_has_plan
     policy.insurance_deposit = insurance_deposit
@@ -573,7 +573,7 @@ def assign_vehicle(request, client_pk):
 
                 # Parse insurance and tracker inputs early so totals affect the purchase price,
                 # balance, and installment plan calculations.
-                insurance_provider_id = request.POST.get('insurance_provider_id')
+                insurance_agent_id = request.POST.get('insurance_agent_id')
                 insurance_policy_number = request.POST.get('insurance_policy_number', '').strip()
                 insurance_policy_type = request.POST.get('insurance_policy_type', 'comprehensive')
                 insurance_vehicle_usage = request.POST.get('insurance_vehicle_usage', 'private').strip() or 'private'
@@ -582,7 +582,7 @@ def assign_vehicle(request, client_pk):
                 insurance_buying_price = request.POST.get('insurance_buying_price', '').strip()
                 insurance_selling_price = request.POST.get('insurance_selling_price', '').strip()
                 insurance_agent_name = request.POST.get('insurance_agent_name', '').strip()
-                insurance_agent_id = request.POST.get('insurance_agent_id', '').strip()
+                agent_id_text = request.POST.get('agent_id', '').strip()
                 insurance_payment_type = request.POST.get('insurance_payment_type', 'full').strip()
                 insurance_has_plan = (insurance_payment_type == 'flexible')
                 insurance_flexible_json = request.POST.get('insurance_flexible_installments_json', '[]')
@@ -603,7 +603,7 @@ def assign_vehicle(request, client_pk):
                 commission_addon = parse_money(client_vehicle.commission_amount)
 
                 insurance_addon = Decimal('0')
-                if insurance_provider_id and insurance_start_date and insurance_end_date:
+                if insurance_agent_id and insurance_start_date and insurance_end_date:
                     insurance_addon = parse_money(insurance_selling_price)
 
                 tracker_addon = Decimal('0')
@@ -882,21 +882,18 @@ def assign_vehicle(request, client_pk):
     vehicle_prices = {v.id: float(v.website_display_price or Decimal('0.00')) for v in vehicles_qs}
     vehicle_cost_prices = {v.id: float(v.total_program_cost) for v in vehicles_qs}
     
-    # Get insurance providers
-    from apps.insurance.models import InsuranceProvider
-    insurance_providers = InsuranceProvider.objects.filter(is_active=True).order_by('name')
+    # Get insurance agents
+    from apps.insurance.models import InsuranceAgent
+    insurance_agents = InsuranceAgent.objects.filter(is_active=True).order_by('name')
     tracker_companies = TrackerCompany.objects.filter(is_active=True).order_by('name')
-    
-    insurance_provider_data = [
+
+    insurance_agent_data = [
         {
-            'id': provider.pk,
-            'name': provider.name,
-            'contact_person_name': provider.contact_person_name or '',
-            'contact_person_phone': provider.contact_person_phone or provider.phone_primary or provider.phone_secondary or '',
-            'phone_primary': provider.phone_primary or '',
-            'phone_secondary': provider.phone_secondary or '',
+            'id': agent.pk,
+            'name': agent.name,
+            'phone': agent.phone or '',
         }
-        for provider in insurance_providers
+        for agent in insurance_agents
     ]
 
     context = {
@@ -906,8 +903,8 @@ def assign_vehicle(request, client_pk):
         'button_text': 'Assign Vehicle',
         'vehicle_prices_json': json.dumps(vehicle_prices),
         'vehicle_cost_prices_json': json.dumps(vehicle_cost_prices),
-        'insurance_providers': insurance_providers,
-        'insurance_providers_json': json.dumps(insurance_provider_data),
+        'insurance_agents': insurance_agents,
+        'insurance_agents_json': json.dumps(insurance_agent_data),
         'tracker_companies': tracker_companies,
     }
     
@@ -1127,7 +1124,7 @@ def client_vehicle_update(request, pk):
 
                 return parsed_rows, total.quantize(Decimal('0.01'))
 
-            insurance_provider_id = request.POST.get('insurance_provider_id')
+            insurance_agent_id = request.POST.get('insurance_agent_id')
             insurance_policy_number = request.POST.get('insurance_policy_number', '').strip()
             insurance_start_date = request.POST.get('insurance_start_date', '').strip()
             insurance_end_date = request.POST.get('insurance_end_date', '').strip()
@@ -1137,7 +1134,7 @@ def client_vehicle_update(request, pk):
 
             commission_addon = parse_money(updated_client_vehicle.commission_amount)
             insurance_addon = Decimal('0.00')
-            if insurance_provider_id and insurance_start_date and insurance_end_date:
+            if insurance_agent_id and insurance_start_date and insurance_end_date:
                 insurance_addon = parse_money(insurance_selling_price)
 
             tracker_addon = Decimal('0.00')
@@ -1285,9 +1282,9 @@ def client_vehicle_update(request, pk):
     vehicle_cost_prices = {v.id: float(v.total_program_cost) for v in vehicles}
 
     # Prefill insurance and tracker sections for edit mode.
-    from apps.insurance.models import InsuranceProvider, InsurancePolicy
+    from apps.insurance.models import InsuranceAgent, InsurancePolicy
 
-    insurance_providers = InsuranceProvider.objects.filter(is_active=True).order_by('name')
+    insurance_agents = InsuranceAgent.objects.filter(is_active=True).order_by('name')
     tracker_companies = TrackerCompany.objects.filter(is_active=True).order_by('name')
     insurance_policy = InsurancePolicy.objects.filter(
         vehicle=client_vehicle.vehicle,
@@ -1300,7 +1297,7 @@ def client_vehicle_update(request, pk):
             insurance_policy.insurance_payment_schedules.order_by('installment_number').values('due_date', 'amount_due')
         )
         initial_insurance_data = {
-            'provider_id': insurance_policy.provider_id,
+            'insurance_agent_id': insurance_policy.insurance_agent_id,
             'policy_number': insurance_policy.policy_number,
             'policy_type': insurance_policy.policy_type,
             'vehicle_usage': insurance_policy.vehicle_usage or 'private',
@@ -1388,7 +1385,8 @@ def client_vehicle_update(request, pk):
         'button_text': 'Update Assignment',
         'vehicle_prices_json': json.dumps(vehicle_prices),
         'vehicle_cost_prices_json': json.dumps(vehicle_cost_prices),
-        'insurance_providers': insurance_providers,
+        'insurance_agents': insurance_agents,
+        'insurance_agents_json': json.dumps([{'id': a.pk, 'name': a.name, 'phone': a.phone or ''} for a in insurance_agents]),
         'tracker_companies': tracker_companies,
         'initial_insurance_json': json.dumps(initial_insurance_data),
         'initial_trackers_json': json.dumps(initial_trackers_data),
