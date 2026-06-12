@@ -436,11 +436,8 @@ class Vehicle(models.Model):
     def total_program_cost(self):
         """Calculate total program cost for this vehicle."""
         extra_cost_total = self.extra_costs.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
-        # Include insurance dealer cost (buying_price) and tracker-related expenses
         insurance_total = self.insurance_policies.aggregate(total=models.Sum('buying_price'))['total'] or Decimal('0.00')
-        tracker_total = self.expenses.filter(
-            Q(category__name__icontains='track') | Q(category__code__icontains='TRACKER')
-        ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+        tracker_total = self.tracker_records.aggregate(total=models.Sum('buying_price'))['total'] or Decimal('0.00')
 
         return (
             (self.purchase_price or Decimal('0.00'))
@@ -453,8 +450,8 @@ class Vehicle(models.Model):
     
     @property
     def profit(self):
-        """Calculate potential profit from selling price minus total program cost."""
-        return (self.selling_price or Decimal('0.00')) - self.total_program_cost
+        """Calculate potential profit from website display price minus total program cost."""
+        return self.website_display_price - self.total_program_cost
     
     @property
     def profit_percentage(self):
@@ -710,6 +707,192 @@ class VehiclePhoto(models.Model):
             if os.path.isfile(self.image.path):
                 os.remove(self.image.path)
         super().delete(*args, **kwargs)
+
+
+# ==================== TRACKER PROVIDER MODEL ====================
+
+class TrackerProvider(models.Model):
+    """A company or individual that supplies and installs GPS trackers."""
+
+    name = models.CharField(max_length=200, unique=True)
+    phone = models.CharField(max_length=15, blank=True)
+    email = models.EmailField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Tracker Provider'
+        verbose_name_plural = 'Tracker Providers'
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def total_records(self):
+        return self.tracker_records.count()
+
+    @property
+    def total_buying_price(self):
+        return self.tracker_records.aggregate(
+            total=models.Sum('buying_price')
+        )['total'] or Decimal('0.00')
+
+    @property
+    def total_selling_price(self):
+        return self.tracker_records.aggregate(
+            total=models.Sum('selling_price')
+        )['total'] or Decimal('0.00')
+
+    @property
+    def total_owed(self):
+        """Sum of buying prices for unpaid tracker records from this provider."""
+        return (
+            self.tracker_records.filter(dealer_payment_status='unpaid')
+            .aggregate(total=models.Sum('buying_price'))['total'] or Decimal('0.00')
+        )
+
+
+# ==================== TRACKER RECORD MODEL ====================
+
+class TrackerRecord(models.Model):
+    """A GPS tracker installed on a vehicle, linked to a provider for ledger tracking."""
+
+    PAYMENT_STATUS_CHOICES = [
+        ('unpaid', 'Unpaid'),
+        ('paid', 'Paid'),
+    ]
+
+    vehicle = models.ForeignKey(
+        Vehicle,
+        on_delete=models.CASCADE,
+        related_name='tracker_records',
+    )
+    client_vehicle = models.ForeignKey(
+        'clients.ClientVehicle',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tracker_records',
+    )
+    provider = models.ForeignKey(
+        TrackerProvider,
+        on_delete=models.PROTECT,
+        related_name='tracker_records',
+    )
+    tracker_name = models.CharField('Tracker Name', max_length=200)
+    serial_number = models.CharField('Serial Number', max_length=100, blank=True)
+    buying_price = models.DecimalField(
+        'Buying Price (KES)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    selling_price = models.DecimalField(
+        'Selling Price (KES)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    installation_date = models.DateField('Installation Date', null=True, blank=True)
+    dealer_payment_status = models.CharField(
+        'Dealer Payment Status', max_length=10,
+        choices=PAYMENT_STATUS_CHOICES, default='unpaid',
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Tracker Record'
+        verbose_name_plural = 'Tracker Records'
+
+    def __str__(self):
+        return f"{self.tracker_name} — {self.vehicle}"
+
+
+# ==================== CLEARING AGENT MODEL ====================
+
+class ClearingAgent(models.Model):
+    """An agent who handles customs clearance for imported vehicles."""
+
+    name = models.CharField(max_length=200)
+    phone = models.CharField(max_length=15, blank=True)
+    email = models.EmailField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Clearing Agent'
+        verbose_name_plural = 'Clearing Agents'
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def total_records(self):
+        return self.clearance_records.count()
+
+    @property
+    def total_billed(self):
+        return self.clearance_records.aggregate(
+            total=models.Sum('amount')
+        )['total'] or Decimal('0.00')
+
+    @property
+    def total_owed(self):
+        """Sum of clearance amounts not yet paid to this agent."""
+        return (
+            self.clearance_records.filter(payment_status='unpaid')
+            .aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+        )
+
+
+# ==================== CLEARANCE RECORD MODEL ====================
+
+class ClearanceRecord(models.Model):
+    """
+    Links a vehicle's clearance cost to a clearing agent for ledger tracking.
+    Sits alongside the existing clearance_cost field on Vehicle.
+    """
+
+    PAYMENT_STATUS_CHOICES = [
+        ('unpaid', 'Unpaid'),
+        ('paid', 'Paid'),
+    ]
+
+    vehicle = models.ForeignKey(
+        Vehicle,
+        on_delete=models.CASCADE,
+        related_name='clearance_records',
+    )
+    agent = models.ForeignKey(
+        ClearingAgent,
+        on_delete=models.PROTECT,
+        related_name='clearance_records',
+    )
+    amount = models.DecimalField(
+        'Amount (KES)', max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    date = models.DateField('Clearance Date')
+    payment_status = models.CharField(
+        'Payment Status', max_length=10,
+        choices=PAYMENT_STATUS_CHOICES, default='unpaid',
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date']
+        verbose_name = 'Clearance Record'
+        verbose_name_plural = 'Clearance Records'
+
+    def __str__(self):
+        return f"Clearance — {self.vehicle} — KES {self.amount:,.2f}"
 
 
 class VehicleHistory(models.Model):
