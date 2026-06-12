@@ -1,6 +1,6 @@
 """
 Django Management Command to Populate Database with Dummy Data
-Usage: python manage.py populate_db
+Usage: python manage.py populate_db [--clear]
 """
 
 import random
@@ -13,11 +13,14 @@ from django.db import transaction
 
 User = get_user_model()
 
-# Try to import all models (some might not exist or have different names)
 try:
-    from apps.vehicles.models import Vehicle
+    from apps.vehicles.models import Vehicle, TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord
 except ImportError:
     Vehicle = None
+    TrackerAgent = None
+    TrackerRecord = None
+    ClearingAgent = None
+    ClearanceRecord = None
 
 try:
     from apps.clients.models import Client, ClientVehicle, VehicleTracker
@@ -40,11 +43,11 @@ except ImportError:
     ExpenseCategory = None
 
 try:
-    from apps.insurance.models import InsurancePolicy, InsuranceClaim, InsuranceProvider
+    from apps.insurance.models import InsurancePolicy, InsuranceClaim, InsuranceAgent
 except ImportError:
     InsurancePolicy = None
     InsuranceClaim = None
-    InsuranceProvider = None
+    InsuranceAgent = None
 
 try:
     from apps.auctions.models import Auction, Bid
@@ -107,61 +110,68 @@ class Command(BaseCommand):
 
         try:
             with transaction.atomic():
-                # Create data in order of dependencies
                 self.stdout.write('Creating users...')
                 users = self.create_users(options['users'])
-                
+
                 self.stdout.write('Creating clients...')
                 clients = self.create_clients(options['clients'])
-                
+
                 self.stdout.write('Creating vehicles...')
                 vehicles = self.create_vehicles(options['vehicles'])
-                
+
+                self.stdout.write('Creating agent records (insurance / tracker / clearing)...')
+                insurance_agents = self.create_insurance_agents()
+                tracker_agents = self.create_tracker_agents()
+                clearing_agents = self.create_clearing_agents()
+
                 self.stdout.write('Creating installment plans...')
                 installment_plans = self.create_installment_plans(clients, vehicles)
-                
+
                 self.stdout.write('Creating payments...')
                 self.create_payments(installment_plans)
-                
+
                 self.stdout.write('Creating expense categories...')
                 categories = self.create_expense_categories()
-                
+
                 self.stdout.write('Creating expenses...')
                 self.create_expenses(categories, vehicles)
-                
+
                 self.stdout.write('Creating insurance policies...')
-                policies = self.create_insurance_policies(vehicles, clients)
-                
+                policies = self.create_insurance_policies(vehicles, clients, insurance_agents)
+
                 self.stdout.write('Creating insurance claims...')
                 self.create_claims(policies)
-                
-                self.stdout.write('Creating vehicle trackers...')
-                self.create_vehicle_trackers(vehicles)
-                
+
+                self.stdout.write('Creating vehicle trackers and tracker records...')
+                self.create_vehicle_trackers(vehicles, tracker_agents)
+
+                self.stdout.write('Creating clearance records...')
+                self.create_clearance_records(vehicles, clearing_agents)
+
                 self.stdout.write('Creating auctions...')
                 auctions = self.create_auctions(vehicles)
-                
+
                 self.stdout.write('Creating bids...')
                 self.create_bids(auctions, clients)
-                
+
                 self.stdout.write('Creating repossessions...')
                 self.create_repossessions(vehicles, clients)
-                
+
                 self.stdout.write('Creating employees...')
                 employees = self.create_employees()
-                
+
                 self.stdout.write('Creating salaries...')
                 salaries = self.create_salaries(employees)
-                
+
                 self.stdout.write('Creating payslips...')
                 self.create_payslips(salaries)
-                
+
                 self.stdout.write('Creating documents...')
                 self.create_documents(vehicles, clients)
-                
+
                 self.stdout.write(self.style.SUCCESS('\n[SUCCESS] Database populated successfully!'))
                 self.print_summary(users, clients, vehicles)
-                
+
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'Error: {str(e)}'))
             raise
@@ -169,8 +179,7 @@ class Command(BaseCommand):
     def clear_data(self):
         """Clear existing data from all tables"""
         self.stdout.write(self.style.WARNING('Clearing existing data...'))
-        
-        # Clear in reverse order of dependencies
+
         if Document:
             Document.objects.all().delete()
         if PayrollRun:
@@ -179,6 +188,14 @@ class Command(BaseCommand):
             SalaryStructure.objects.all().delete()
         if Employee:
             Employee.objects.all().delete()
+        if ClearanceRecord:
+            ClearanceRecord.objects.all().delete()
+        if ClearingAgent:
+            ClearingAgent.objects.all().delete()
+        if TrackerRecord:
+            TrackerRecord.objects.all().delete()
+        if TrackerAgent:
+            TrackerAgent.objects.all().delete()
         if ClientVehicle:
             ClientVehicle.objects.all().delete()
         if VehicleTracker:
@@ -193,8 +210,8 @@ class Command(BaseCommand):
             InsuranceClaim.objects.all().delete()
         if InsurancePolicy:
             InsurancePolicy.objects.all().delete()
-        if InsuranceProvider:
-            InsuranceProvider.objects.all().delete()
+        if InsuranceAgent:
+            InsuranceAgent.objects.all().delete()
         if Expense:
             Expense.objects.all().delete()
         if ExpenseCategory:
@@ -208,16 +225,81 @@ class Command(BaseCommand):
         if Client:
             Client.objects.all().delete()
         User.objects.filter(is_superuser=False).delete()
-        
+
         self.stdout.write(self.style.SUCCESS('Data cleared!'))
 
+    # ------------------------------------------------------------------ #
+    #  Agent seed helpers                                                  #
+    # ------------------------------------------------------------------ #
+
+    def create_insurance_agents(self):
+        if not InsuranceAgent:
+            return []
+        agents_data = [
+            ('Jubilee Insurance Agency', '+254722100001', 'jubilee@agents.co.ke', 'LIC-001'),
+            ('APA Insurance Brokers', '+254722100002', 'apa@agents.co.ke', 'LIC-002'),
+            ('Britam Direct', '+254722100003', 'britam@agents.co.ke', 'LIC-003'),
+            ('CIC Agents Ltd', '+254722100004', 'cic@agents.co.ke', 'LIC-004'),
+            ('ICEA Lion Brokers', '+254722100005', 'icea@agents.co.ke', 'LIC-005'),
+        ]
+        agents = []
+        for name, phone, email, id_number in agents_data:
+            agent, _ = InsuranceAgent.objects.get_or_create(
+                name=name,
+                defaults={'phone': phone, 'email': email, 'id_number': id_number, 'is_active': True},
+            )
+            agents.append(agent)
+        self.stdout.write(f'  Created/verified {len(agents)} insurance agents')
+        return agents
+
+    def create_tracker_agents(self):
+        if not TrackerAgent:
+            return []
+        agents_data = [
+            ('Saudia Tracking Ltd', '+254733200001', 'info@saudia.co.ke'),
+            ('Trackmatic Kenya', '+254733200002', 'ops@trackmatic.co.ke'),
+            ('AfriCoverage GPS', '+254733200003', 'sales@africoverage.co.ke'),
+            ('TrackerSmart Africa', '+254733200004', 'support@trackersmart.co.ke'),
+            ('GPS Track Africa', '+254733200005', 'info@gpstrack.co.ke'),
+        ]
+        agents = []
+        for name, phone, email in agents_data:
+            agent, _ = TrackerAgent.objects.get_or_create(
+                name=name,
+                defaults={'phone': phone, 'email': email, 'is_active': True},
+            )
+            agents.append(agent)
+        self.stdout.write(f'  Created/verified {len(agents)} tracker agents')
+        return agents
+
+    def create_clearing_agents(self):
+        if not ClearingAgent:
+            return []
+        agents_data = [
+            ('Nairobi Clearing House', '+254744300001', 'ops@nch.co.ke'),
+            ('Mombasa Port Clearance', '+254744300002', 'info@mpc.co.ke'),
+            ('KPA Clearing Agents', '+254744300003', 'kpa@clearance.co.ke'),
+            ('Eastlands Customs Bureau', '+254744300004', 'ecb@customs.co.ke'),
+        ]
+        agents = []
+        for name, phone, email in agents_data:
+            agent, _ = ClearingAgent.objects.get_or_create(
+                name=name,
+                defaults={'phone': phone, 'email': email, 'is_active': True},
+            )
+            agents.append(agent)
+        self.stdout.write(f'  Created/verified {len(agents)} clearing agents')
+        return agents
+
+    # ------------------------------------------------------------------ #
+    #  Core data                                                           #
+    # ------------------------------------------------------------------ #
+
     def create_users(self, count):
-        """Create user accounts"""
         from utils.constants import UserRole
-        
+
         users = []
-        
-        # Create admin user
+
         if not User.objects.filter(email='admin@hozainvestments.co.ke').exists():
             admin = User.objects.create_superuser(
                 email='admin@hozainvestments.co.ke',
@@ -225,14 +307,13 @@ class Command(BaseCommand):
                 first_name='Admin',
                 last_name='User',
                 phone='+254784170447',
-                is_active=True
+                is_active=True,
             )
             users.append(admin)
-            self.stdout.write(f'  Created admin: admin@hozainvestments.co.ke / admin123')
-        
-        # Create staff users
+            self.stdout.write('  Created admin: admin@hozainvestments.co.ke / admin123')
+
         roles = [UserRole.MANAGER, UserRole.SALES, UserRole.ACCOUNTANT, UserRole.CLERK]
-        
+
         for i in range(1, count + 1):
             email = f'user{i}@hozainvestments.co.ke'
             if not User.objects.filter(email=email).exists():
@@ -243,29 +324,27 @@ class Command(BaseCommand):
                     last_name='Staff',
                     phone=f'+25471234{5000 + i}',
                     role=random.choice(roles),
-                    is_active=True
+                    is_active=True,
                 )
                 users.append(user)
-        
+
         self.stdout.write(f'  Created {len(users)} users')
         return users
 
     def create_clients(self, count):
-        """Create client records"""
         if not Client:
-            self.stdout.write('  Skipping (Client model not available)')
             return []
-        
+
         clients = []
-        first_names = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Emma', 'James', 'Olivia', 
-                      'William', 'Sophia', 'Robert', 'Isabella', 'Daniel', 'Mia', 'Joseph']
-        last_names = ['Kamau', 'Wanjiru', 'Ochieng', 'Akinyi', 'Mwangi', 'Njeri', 'Otieno', 
-                     'Wambui', 'Kiprop', 'Chebet', 'Mutua', 'Nduta', 'Karanja', 'Adhiambo']
-        
+        first_names = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Emma', 'James', 'Olivia',
+                       'William', 'Sophia', 'Robert', 'Isabella', 'Daniel', 'Mia', 'Joseph']
+        last_names = ['Kamau', 'Wanjiru', 'Ochieng', 'Akinyi', 'Mwangi', 'Njeri', 'Otieno',
+                      'Wambui', 'Kiprop', 'Chebet', 'Mutua', 'Nduta', 'Karanja', 'Adhiambo']
+
         for i in range(count):
             first_name = random.choice(first_names)
             last_name = random.choice(last_names)
-            
+
             client = Client.objects.create(
                 first_name=first_name,
                 last_name=last_name,
@@ -277,21 +356,18 @@ class Command(BaseCommand):
                 city=random.choice(['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret']),
                 county=random.choice(['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Uasin Gishu']),
                 status=random.choice(['active', 'active', 'active', 'inactive']),
-                notes=f'Client created on {datetime.now().strftime("%Y-%m-%d")}'
             )
             clients.append(client)
-        
+
         self.stdout.write(f'  Created {len(clients)} clients')
         return clients
 
     def create_vehicles(self, count):
-        """Create vehicle records"""
         if not Vehicle:
-            self.stdout.write('  Skipping (Vehicle model not available)')
             return []
-        
+
         vehicles = []
-        
+
         makes_models = {
             'Toyota': ['Corolla', 'Camry', 'RAV4', 'Land Cruiser', 'Hilux', 'Prado', 'Vitz', 'Fielder'],
             'Nissan': ['X-Trail', 'Patrol', 'Note', 'Juke', 'Qashqai', 'Navara'],
@@ -302,30 +378,27 @@ class Command(BaseCommand):
             'BMW': ['3 Series', '5 Series', 'X3', 'X5', 'X1'],
             'Mitsubishi': ['Outlander', 'Pajero', 'L200', 'ASX'],
         }
-        
+
         fuel_types = ['petrol', 'diesel', 'hybrid', 'electric']
         transmission_types = ['automatic', 'manual']
         body_types = ['sedan', 'suv', 'hatchback', 'pickup', 'wagon']
         conditions = ['excellent', 'good', 'fair']
         statuses = ['available', 'sold', 'reserved']
-        
+
         for i in range(count):
             make = random.choice(list(makes_models.keys()))
             model = random.choice(makes_models[make])
             year = random.randint(2015, 2024)
-            
-            # Determine price based on year and make
+
             base_price = random.randint(800000, 5000000)
             if make in ['Mercedes-Benz', 'BMW']:
-                base_price *= 1.5
+                base_price = int(base_price * 1.5)
             if year >= 2022:
-                base_price *= 1.2
-            
+                base_price = int(base_price * 1.2)
+
             purchase_date = datetime.now().date() - timedelta(days=random.randint(30, 730))
-            
-            # Generate unique VIN
             vin = f'VIN{year}{random.randint(1000000, 9999999)}'
-            
+
             vehicle = Vehicle.objects.create(
                 make=make,
                 model=model,
@@ -338,52 +411,41 @@ class Command(BaseCommand):
                 transmission=random.choice(transmission_types),
                 body_type=random.choice(body_types),
                 engine_size=f'{random.choice([1.0, 1.3, 1.5, 1.8, 2.0, 2.5, 3.0, 3.5])}L',
-                purchase_price=Decimal(base_price * 0.8),
+                purchase_price=Decimal(base_price) * Decimal('0.8'),
                 selling_price=Decimal(base_price),
+                clearance_cost=Decimal(random.randint(50000, 300000)),
                 condition=random.choice(conditions),
                 status=random.choice(statuses),
                 location=random.choice(['Main Yard', 'Showroom', 'Service Center', 'Warehouse']),
                 purchase_date=purchase_date,
-                description=f'{year} {make} {model} in {random.choice(conditions).lower()} condition. Well maintained.',
-                features='Air Conditioning, Power Steering, Power Windows, Central Locking, ABS, Airbags'
+                description=f'{year} {make} {model} in {random.choice(conditions)} condition. Well maintained.',
+                features='Air Conditioning, Power Steering, Power Windows, Central Locking, ABS, Airbags',
             )
             vehicles.append(vehicle)
-        
+
         self.stdout.write(f'  Created {len(vehicles)} vehicles')
         return vehicles
 
     def create_installment_plans(self, clients, vehicles):
-        """Create installment plans for clients"""
         if not InstallmentPlan or not clients or not vehicles:
-            self.stdout.write('  Skipping (InstallmentPlan model not available or no data)')
             return []
-        
+
         plans = []
-        # Get some vehicles to mark as sold for installment plans
-        # Since we don't have pre-sold vehicles, we'll just use some from the inventory
         vehicles_for_plans = random.sample(vehicles, min(len(vehicles), len(clients)))
-        
+
         for i, vehicle in enumerate(vehicles_for_plans):
             if i >= len(clients):
                 break
-                
+
             client = clients[i]
-            
-            # Calculate installment details
-            down_payment = vehicle.selling_price * Decimal('0.3')  # 30% down payment
+            down_payment = vehicle.selling_price * Decimal('0.3')
             loan_amount = vehicle.selling_price - down_payment
             duration_months = random.choice([12, 24, 36, 48, 60])
-            
-            # Calculate monthly payment (simple division: balance / months)
             monthly_payment = round(loan_amount / Decimal(str(duration_months)), 2)
-            
             start_date = datetime.now().date() - timedelta(days=random.randint(30, 365))
             end_date = start_date + timedelta(days=duration_months * 30)
-            
-            # First create ClientVehicle
+
             try:
-                from apps.clients.models import ClientVehicle
-                
                 client_vehicle = ClientVehicle.objects.create(
                     client=client,
                     vehicle=vehicle,
@@ -395,9 +457,9 @@ class Command(BaseCommand):
                     monthly_installment=monthly_payment,
                     installment_months=duration_months,
                     is_active=True,
-                    is_paid_off=False
+                    is_paid_off=False,
                 )
-                
+
                 plan = InstallmentPlan.objects.create(
                     client_vehicle=client_vehicle,
                     total_amount=vehicle.selling_price,
@@ -408,124 +470,85 @@ class Command(BaseCommand):
                     end_date=end_date,
                     is_active=True,
                     is_completed=False,
-                    notes=f'Installment plan for {vehicle.make} {vehicle.model}'
+                    notes=f'Installment plan for {vehicle.make} {vehicle.model}',
                 )
                 plans.append(plan)
             except Exception as e:
                 self.stdout.write(f'    Warning: Could not create plan: {e}')
-        
+
         self.stdout.write(f'  Created {len(plans)} installment plans')
         return plans
 
     def create_payments(self, installment_plans):
-        """Create payment records with split payment support"""
         if not Payment or not installment_plans:
-            self.stdout.write('  Skipping (Payment model not available or no plans)')
             return []
-        
+
         payments = []
         today = timezone.now().date()
-        
-        for plan in installment_plans:
-            # Get the client_vehicle from the plan
-            client_vehicle = plan.client_vehicle
 
+        for plan in installment_plans:
+            client_vehicle = plan.client_vehicle
             months_elapsed = (today - plan.start_date).days // 30
             payments_to_create = min(months_elapsed, plan.number_of_installments)
             missed_months = set()
             if payments_to_create > 2 and random.random() > 0.55:
                 missed_count = random.randint(1, min(3, max(1, payments_to_create // 2)))
                 missed_months = set(random.sample(range(payments_to_create), missed_count))
-            
-            # Create deposit payment (can be split between multiple methods)
+
             try:
-                # Randomly decide if this is a split payment (60% chance of split)
                 is_split = random.random() > 0.4
-                
                 if is_split and PaymentSplit:
-                    # Split payment: 50% cash, 50% bank transfer
                     split_amount_1 = plan.deposit / Decimal('2')
                     split_amount_2 = plan.deposit - split_amount_1
-                    
                     payment = Payment.objects.create(
                         client_vehicle=client_vehicle,
                         amount=plan.deposit,
                         payment_date=plan.start_date,
                         payment_method='mixed',
                         transaction_reference=f'DEP{random.randint(100000, 999999)}',
-                        notes='Deposit payment (split)'
+                        notes='Deposit payment (split)',
                     )
-                    
-                    # Create split records
-                    PaymentSplit.objects.create(
-                        payment=payment,
-                        payment_method='cash',
-                        amount=split_amount_1,
-                        transaction_reference=f'CASH{random.randint(100000, 999999)}'
-                    )
-                    PaymentSplit.objects.create(
-                        payment=payment,
-                        payment_method='bank_transfer',
-                        amount=split_amount_2,
-                        transaction_reference=f'BT{random.randint(100000, 999999)}'
-                    )
+                    PaymentSplit.objects.create(payment=payment, payment_method='cash', amount=split_amount_1,
+                                                transaction_reference=f'CASH{random.randint(100000, 999999)}')
+                    PaymentSplit.objects.create(payment=payment, payment_method='bank_transfer', amount=split_amount_2,
+                                                transaction_reference=f'BT{random.randint(100000, 999999)}')
                 else:
-                    # Single payment method
                     payment = Payment.objects.create(
                         client_vehicle=client_vehicle,
                         amount=plan.deposit,
                         payment_date=plan.start_date,
                         payment_method=random.choice(['cash', 'bank_transfer', 'mpesa']),
                         transaction_reference=f'DEP{random.randint(100000, 999999)}',
-                        notes='Deposit payment'
+                        notes='Deposit payment',
                     )
-                
                 payments.append(payment)
             except Exception as e:
-                self.stdout.write(f'    Warning: Could not create payment: {e}')
-            
-            # Create monthly payments
+                self.stdout.write(f'    Warning: Could not create deposit payment: {e}')
+
             for i in range(payments_to_create):
                 if i in missed_months:
                     continue
-
                 payment_date = plan.start_date + timedelta(days=(i + 1) * 30)
                 payment_amount = plan.monthly_installment
-
-                # Seed some partial payments so overdue balances are visible.
                 if random.random() > 0.82:
                     payment_amount = round(plan.monthly_installment / Decimal('2'), 2)
-                
                 try:
-                    # 30% chance of split monthly payment
                     is_split_monthly = random.random() > 0.7
-                    
                     if is_split_monthly and PaymentSplit:
-                        # Split between MPesa and cash
                         split_amount_1 = payment_amount * Decimal('0.6')
                         split_amount_2 = payment_amount - split_amount_1
-                        
                         payment = Payment.objects.create(
                             client_vehicle=client_vehicle,
                             amount=payment_amount,
                             payment_date=payment_date,
                             payment_method='mixed',
                             transaction_reference=f'INST{random.randint(100000, 999999)}',
-                            notes=f'Monthly installment {i + 1} of {plan.number_of_installments} (split)'
+                            notes=f'Monthly installment {i + 1} of {plan.number_of_installments} (split)',
                         )
-                        
-                        PaymentSplit.objects.create(
-                            payment=payment,
-                            payment_method='mpesa',
-                            amount=split_amount_1,
-                            transaction_reference=f'MPESA{random.randint(100000, 999999)}'
-                        )
-                        PaymentSplit.objects.create(
-                            payment=payment,
-                            payment_method='cash',
-                            amount=split_amount_2,
-                            transaction_reference=f'CASH{random.randint(100000, 999999)}'
-                        )
+                        PaymentSplit.objects.create(payment=payment, payment_method='mpesa', amount=split_amount_1,
+                                                    transaction_reference=f'MPESA{random.randint(100000, 999999)}')
+                        PaymentSplit.objects.create(payment=payment, payment_method='cash', amount=split_amount_2,
+                                                    transaction_reference=f'CASH{random.randint(100000, 999999)}')
                     else:
                         payment = Payment.objects.create(
                             client_vehicle=client_vehicle,
@@ -533,29 +556,25 @@ class Command(BaseCommand):
                             payment_date=payment_date,
                             payment_method=random.choice(['bank_transfer', 'mpesa', 'mpesa', 'cash']),
                             transaction_reference=f'INST{random.randint(100000, 999999)}',
-                            notes=f'Monthly installment {i + 1} of {plan.number_of_installments}'
+                            notes=f'Monthly installment {i + 1} of {plan.number_of_installments}',
                         )
-                    
                     payments.append(payment)
                 except Exception as e:
-                    self.stdout.write(f'    Warning: Could not create payment: {e}')
+                    self.stdout.write(f'    Warning: Could not create monthly payment: {e}')
 
-            # Refresh overdue fees for unpaid schedules so overdue pages show penalties.
             try:
                 for schedule in plan.payment_schedules.filter(is_paid=False, due_date__lt=today):
                     schedule.update_late_fees()
-            except Exception as e:
-                self.stdout.write(f'    Warning: Could not update late fees: {e}')
-        
-        self.stdout.write(f'  Created {len(payments)} payments (with splits)')
+            except Exception:
+                pass
+
+        self.stdout.write(f'  Created {len(payments)} payments')
         return payments
 
     def create_expense_categories(self):
-        """Create expense categories"""
         if not ExpenseCategory:
-            self.stdout.write('  Skipping (ExpenseCategory model not available)')
             return []
-        
+
         categories_data = [
             ('Fuel', 'Vehicle fuel expenses', 'FUEL'),
             ('Maintenance', 'Vehicle maintenance and repairs', 'MAINT'),
@@ -568,118 +587,93 @@ class Command(BaseCommand):
             ('Transport', 'Transport and logistics', 'TRANS'),
             ('Legal', 'Legal fees and compliance', 'LEGAL'),
         ]
-        
+
         categories = []
         for name, description, code in categories_data:
-            category, created = ExpenseCategory.objects.get_or_create(
+            category, _ = ExpenseCategory.objects.get_or_create(
                 code=code,
-                defaults={'name': name, 'description': description, 'is_active': True}
+                defaults={'name': name, 'description': description, 'is_active': True},
             )
             categories.append(category)
-        
+
         self.stdout.write(f'  Created/verified {len(categories)} expense categories')
         return categories
 
     def create_expenses(self, categories, vehicles):
-        """Create expense records"""
         if not Expense or not categories:
-            self.stdout.write('  Skipping (Expense model not available or no categories)')
             return []
-        
+
         expenses = []
-        
-        for i in range(200):
+        amount_ranges = {
+            'FUEL': (2000, 10000),
+            'MAINT': (5000, 50000),
+            'INSUR': (10000, 100000),
+            'SAL': (30000, 100000),
+            'RENT': (50000, 200000),
+            'UTIL': (5000, 30000),
+            'MKTG': (10000, 100000),
+            'OFFIC': (2000, 20000),
+            'TRANS': (3000, 15000),
+            'LEGAL': (10000, 50000),
+        }
+
+        submitter = User.objects.filter(is_superuser=True).first() or User.objects.first()
+        if not submitter:
+            return []
+
+        for _ in range(200):
             category = random.choice(categories)
-            
-            # Some expenses are vehicle-specific
-            related_vehicle = random.choice(vehicles) if category.code in ['fuel', 'maintenance', 'insurance'] and vehicles else None
-            
-            # Generate amount based on category
-            amount_ranges = {
-                'fuel': (2000, 10000),
-                'maintenance': (5000, 50000),
-                'insurance': (10000, 100000),
-                'salary': (30000, 100000),
-                'rent': (50000, 200000),
-                'utilities': (5000, 30000),
-                'marketing': (10000, 100000),
-                'supplies': (2000, 20000),
-                'transport': (3000, 15000),
-                'legal': (10000, 50000),
-            }
-            
-            amount_range = amount_ranges.get(category.code, (5000, 50000))
-            amount = Decimal(random.randint(amount_range[0], amount_range[1]))
-            
-            expense_date = datetime.now().date() - timedelta(days=random.randint(1, 365))
-            
-            # Get a user to be the submitter
-            users = User.objects.all()
-            submitter = users.first() if users.exists() else None
-            
-            if not submitter:
-                continue
-            
-            expense = Expense.objects.create(
-                title=f'{category.name} expense',
-                category=category,
-                related_vehicle=related_vehicle,
-                amount=amount,
-                expense_date=expense_date,
-                payment_method=random.choice(['CASH', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CHECK']),
-                submitted_by=submitter,
-                status=random.choice(['APPROVED', 'PAID', 'PAID']),
-                vendor_name=f'{random.choice(["ABC", "XYZ", "Best", "Top"])} {random.choice(["Services", "Suppliers", "Company"])}',
-                invoice_number=f'INV{random.randint(1000, 9999)}',
-                description=f'{category.name} expense for {expense_date.strftime("%B %Y")}',
-                notes=f'Recorded on {datetime.now().strftime("%Y-%m-%d")}'
+            related_vehicle = (
+                random.choice(vehicles) if vehicles and category.code in ['FUEL', 'MAINT', 'INSUR'] else None
             )
-            expenses.append(expense)
-        
+            lo, hi = amount_ranges.get(category.code, (5000, 50000))
+            amount = Decimal(random.randint(lo, hi))
+            expense_date = datetime.now().date() - timedelta(days=random.randint(1, 365))
+            try:
+                expense = Expense.objects.create(
+                    title=f'{category.name} expense',
+                    category=category,
+                    related_vehicle=related_vehicle,
+                    amount=amount,
+                    expense_date=expense_date,
+                    payment_method=random.choice(['CASH', 'BANK_TRANSFER', 'MOBILE_MONEY', 'CHECK']),
+                    submitted_by=submitter,
+                    status=random.choice(['APPROVED', 'PAID', 'PAID']),
+                    vendor_name=f'{random.choice(["ABC", "XYZ", "Best", "Top"])} {random.choice(["Services", "Suppliers", "Company"])}',
+                    invoice_number=f'INV{random.randint(1000, 9999)}',
+                    description=f'{category.name} expense for {expense_date.strftime("%B %Y")}',
+                )
+                expenses.append(expense)
+            except Exception as e:
+                self.stdout.write(f'    Warning: Could not create expense: {e}')
+
         self.stdout.write(f'  Created {len(expenses)} expenses')
         return expenses
 
-    def create_insurance_policies(self, vehicles, clients=None):
-        """Create insurance policies with pricing and payment plan support"""
-        if not InsurancePolicy or not InsuranceProvider or not vehicles:
+    def create_insurance_policies(self, vehicles, clients, insurance_agents):
+        if not InsurancePolicy or not vehicles:
             return []
-        
+
         policies = []
-        
-        # First create insurance providers if they don't exist
-        insurance_companies = [
-            'Jubilee Insurance', 'APA Insurance', 'Britam', 'CIC Insurance', 
-            'GA Insurance', 'ICEA Lion', 'Cooperative Insurance', 'Madison Insurance'
-        ]
-        
-        providers = []
-        for company_name in insurance_companies:
-            provider, created = InsuranceProvider.objects.get_or_create(
-                name=company_name,
-                defaults={
-                    'phone_primary': f'+2547{random.randint(10000000, 99999999)}',
-                    'physical_address': f'{random.randint(1, 999)} {random.choice(["Kimathi", "Kenyatta", "Moi"])} Avenue, Nairobi',
-                    'is_active': True
-                }
-            )
-            providers.append(provider)
-        
-        agent_names = ['Jane Smith', 'Peter Kipchoge', 'Alice Omondi', 'David Mureithi', 'Grace Karwai']
-        
+
+        if not insurance_agents:
+            insurance_agents = list(InsuranceAgent.objects.filter(is_active=True)) if InsuranceAgent else []
+
+        agent_names_fallback = ['Jane Smith', 'Peter Kipchoge', 'Alice Omondi', 'David Mureithi', 'Grace Karwai']
+
         for vehicle in random.sample(vehicles, min(len(vehicles), 40)):
             start_date = datetime.now().date() - timedelta(days=random.randint(0, 365))
-            linked_client_vehicle = None
+            linked_cv = None
             if ClientVehicle:
-                linked_client_vehicle = ClientVehicle.objects.select_related('client').filter(vehicle=vehicle).order_by('-purchase_date').first()
+                linked_cv = ClientVehicle.objects.filter(vehicle=vehicle).order_by('-purchase_date').first()
 
-            sold_policy = linked_client_vehicle is not None and random.random() > 0.2
-            policy_client = linked_client_vehicle.client if sold_policy else None
-            
-            # New fields: pricing and agent details
-            buying_price = vehicle.purchase_price if hasattr(vehicle, 'purchase_price') else vehicle.selling_price * Decimal('0.8')
+            sold = linked_cv is not None and random.random() > 0.2
+            policy_client = linked_cv.client if sold else None
+
+            buying_price = (vehicle.purchase_price if hasattr(vehicle, 'purchase_price') else vehicle.selling_price * Decimal('0.8'))
             selling_price = Decimal(random.randint(15000, 90000))
 
-            if sold_policy:
+            if sold:
                 payment_state = random.choice(['full', 'partial', 'unpaid'])
                 if payment_state == 'full':
                     paid_amount = selling_price
@@ -693,10 +687,12 @@ class Command(BaseCommand):
                 paid_amount = Decimal('0.00')
                 balance_amount = Decimal('0.00')
                 has_plan = False
-            
+
+            insurance_agent = random.choice(insurance_agents) if insurance_agents else None
+
             policy_data = {
                 'vehicle': vehicle,
-                'provider': random.choice(providers),
+                'insurance_agent': insurance_agent,
                 'policy_number': f'POL{random.randint(100000, 999999)}',
                 'policy_type': random.choice(['comprehensive', 'third_party', 'third_party_fire_theft']),
                 'premium_amount': Decimal(random.randint(30000, 150000)),
@@ -707,234 +703,249 @@ class Command(BaseCommand):
                 'buying_price': buying_price,
                 'selling_price': selling_price,
                 'client': policy_client,
-                'agent_name': random.choice(agent_names),
+                'agent_name': insurance_agent.name if insurance_agent else random.choice(agent_names_fallback),
                 'agent_id': f'AG{random.randint(10000, 99999)}',
                 'has_payment_plan': has_plan,
                 'insurance_deposit': paid_amount,
                 'insurance_total_paid': paid_amount,
                 'insurance_balance': balance_amount,
+                'dealer_payment_status': random.choice(['unpaid', 'unpaid', 'paid']),
             }
-            
-            # Add payment plan fields if applicable
+
             if has_plan:
                 policy_data.update({
                     'insurance_installment_months': random.choice([6, 12, 24]),
                     'insurance_interest_rate': Decimal(random.choice([0, 5, 10])),
                 })
-            
+
             try:
                 policy = InsurancePolicy.objects.create(**policy_data)
-                if not policy.client and sold_policy:
-                    policy.client = policy_client
-                    policy.save(update_fields=['client'])
                 policies.append(policy)
             except Exception as e:
                 self.stdout.write(f'    Warning: Could not create policy: {e}')
-        
-        self.stdout.write(f'  Created {len(policies)} insurance policies with pricing/plans')
+
+        self.stdout.write(f'  Created {len(policies)} insurance policies')
         return policies
 
     def create_claims(self, policies):
-        """Create insurance claims"""
         if not InsuranceClaim or not policies:
             return []
-        
+
         claims = []
-        
         for policy in random.sample(policies, min(len(policies), 10)):
-            claim = InsuranceClaim.objects.create(
-                policy=policy,
-                claim_number=f'CLM{random.randint(100000, 999999)}',
-                claim_date=policy.start_date + timedelta(days=random.randint(30, 300)),
-                incident_date=policy.start_date + timedelta(days=random.randint(30, 290)),
-                claim_type=random.choice(['accident', 'theft', 'fire', 'vandalism']),
-                claimed_amount=Decimal(random.randint(50000, 500000)),
-                status=random.choice(['pending', 'approved', 'rejected', 'settled']),
-                incident_description='Claim filed for vehicle incident',
-                incident_location='Nairobi',
-                notes='Claim in process'
-            )
-            claims.append(claim)
-        
+            try:
+                claim = InsuranceClaim.objects.create(
+                    policy=policy,
+                    claim_number=f'CLM{random.randint(100000, 999999)}',
+                    claim_date=policy.start_date + timedelta(days=random.randint(30, 300)),
+                    incident_date=policy.start_date + timedelta(days=random.randint(30, 290)),
+                    claim_type=random.choice(['accident', 'theft', 'fire', 'vandalism']),
+                    claimed_amount=Decimal(random.randint(50000, 500000)),
+                    status=random.choice(['pending', 'approved', 'rejected', 'settled']),
+                    incident_description='Claim filed for vehicle incident',
+                    incident_location='Nairobi',
+                    notes='Claim in process',
+                )
+                claims.append(claim)
+            except Exception as e:
+                self.stdout.write(f'    Warning: Could not create claim: {e}')
+
         self.stdout.write(f'  Created {len(claims)} insurance claims')
         return claims
 
-    def create_vehicle_trackers(self, vehicles):
-        """Create vehicle trackers for sold vehicles"""
-        try:
-            from apps.clients.models import ClientVehicle, VehicleTracker
-        except ImportError:
-            self.stdout.write('  Skipping (VehicleTracker model not available)')
+    def create_vehicle_trackers(self, vehicles, tracker_agents):
+        if not ClientVehicle:
             return []
-        
+
+        if not tracker_agents:
+            tracker_agents = list(TrackerAgent.objects.filter(is_active=True)) if TrackerAgent else []
+
         trackers = []
-        
-        # Get sold vehicles with ClientVehicle entries
-        client_vehicles = ClientVehicle.objects.filter(is_active=True)[:30]
-        
+        client_vehicles = list(ClientVehicle.objects.filter(is_active=True)[:30])
         if not client_vehicles:
             self.stdout.write('  No sold vehicles found for trackers')
             return []
-        
-        tracker_providers = ['Saudia Tracking', 'Trackmatic', 'AfriCoverage', 'TrackerSmart', 'GPS Track Africa']
-        
-        for cv in client_vehicles:
-            # 70% of vehicles have trackers
-            if random.random() > 0.3:
-                # Most vehicles have 1 tracker, some have 2
-                num_trackers = random.choice([1, 1, 1, 2])
-                
-                for i in range(num_trackers):
-                    has_plan = random.random() > 0.6  # 40% have payment plans
-                    selling_price = Decimal(random.randint(8000, 20000))
-                    payment_state = random.choice(['full', 'partial', 'unpaid'])
 
+        for cv in client_vehicles:
+            if random.random() > 0.3:
+                num_trackers = random.choice([1, 1, 1, 2])
+                for i in range(num_trackers):
+                    has_plan = random.random() > 0.6
+                    selling_price = Decimal(random.randint(8000, 20000))
+                    buying_price = Decimal(random.randint(5000, 15000))
+                    payment_state = random.choice(['full', 'partial', 'unpaid'])
                     if payment_state == 'full':
                         total_paid = selling_price
                     elif payment_state == 'partial':
                         total_paid = round(selling_price * Decimal(random.choice(['0.3', '0.5', '0.7'])), 2)
                     else:
                         total_paid = Decimal('0.00')
-                    
+
+                    agent = random.choice(tracker_agents) if tracker_agents else None
+                    agent_name = agent.name if agent else f'Tracker Agent {i+1}'
+                    installed_date = datetime.now().date() - timedelta(days=random.randint(30, 365))
+                    tracker_name = f'{agent_name} Unit {i+1}'
+                    serial_number = f'TRK{random.randint(100000, 999999)}'
+
                     tracker_data = {
                         'client_vehicle': cv,
-                        'tracker_name': f'{random.choice(tracker_providers)} Tracker {i+1}',
-                        'serial_number': f'TRK{random.randint(100000, 999999)}',
-                        'provider': random.choice(tracker_providers),
-                        'buying_price': Decimal(random.randint(5000, 15000)),
+                        'tracker_name': tracker_name,
+                        'serial_number': serial_number,
+                        'provider': agent_name,
+                        'buying_price': buying_price,
                         'selling_price': selling_price,
                         'has_payment_plan': has_plan,
-                        'installed_date': datetime.now().date() - timedelta(days=random.randint(30, 365)),
+                        'installed_date': installed_date,
                         'created_by_id': User.objects.first().id if User.objects.exists() else None,
-                        'notes': f'Tracker installed for {cv.vehicle.registration_number}',
                         'total_paid': total_paid,
                     }
-                    
-                    # Add payment plan fields if applicable
                     if has_plan:
                         tracker_data.update({
                             'deposit': total_paid,
                             'installment_months': random.choice([6, 12]),
                             'monthly_installment': Decimal(random.randint(500, 2000)),
                         })
-                    
+
                     try:
                         tracker = VehicleTracker.objects.create(**tracker_data)
                         trackers.append(tracker)
+
+                        if agent and TrackerRecord:
+                            TrackerRecord.objects.create(
+                                vehicle=cv.vehicle,
+                                client_vehicle=cv,
+                                agent=agent,
+                                tracker_name=tracker_name,
+                                serial_number=serial_number,
+                                buying_price=buying_price,
+                                selling_price=selling_price,
+                                installation_date=installed_date,
+                                dealer_payment_status=random.choice(['unpaid', 'unpaid', 'paid']),
+                            )
                     except Exception as e:
                         self.stdout.write(f'    Warning: Could not create tracker: {e}')
-        
-        self.stdout.write(f'  Created {len(trackers)} vehicle trackers with payment plans')
+
+        self.stdout.write(f'  Created {len(trackers)} vehicle trackers with tracker records')
         return trackers
 
-    def create_auctions(self, vehicles):
-        """Create auction records"""
-        if not Auction or not vehicles:
-            self.stdout.write('  Skipping (Auction model not available or no vehicles)')
+    def create_clearance_records(self, vehicles, clearing_agents):
+        if not ClearanceRecord or not clearing_agents or not vehicles:
             return []
-        
+
+        records = []
+        vehicles_with_clearance = [v for v in vehicles if getattr(v, 'clearance_cost', None) and v.clearance_cost > 0]
+        sample = random.sample(vehicles_with_clearance, min(len(vehicles_with_clearance), 35))
+
+        for vehicle in sample:
+            agent = random.choice(clearing_agents)
+            clearance_date = getattr(vehicle, 'purchase_date', None) or datetime.now().date() - timedelta(days=random.randint(30, 365))
+            try:
+                record, _ = ClearanceRecord.objects.get_or_create(
+                    vehicle=vehicle,
+                    agent=agent,
+                    defaults={
+                        'amount': vehicle.clearance_cost,
+                        'date': clearance_date,
+                        'payment_status': random.choice(['unpaid', 'unpaid', 'paid']),
+                    },
+                )
+                records.append(record)
+            except Exception as e:
+                self.stdout.write(f'    Warning: Could not create clearance record: {e}')
+
+        self.stdout.write(f'  Created {len(records)} clearance records')
+        return records
+
+    def create_auctions(self, vehicles):
+        if not Auction or not vehicles:
+            return []
+
         auctions = []
         available_vehicles = [v for v in vehicles if v.status == 'available']
-        
-        if not available_vehicles:
-            self.stdout.write('  No available vehicles for auction')
-            return []
-        
+
         for vehicle in random.sample(available_vehicles, min(len(available_vehicles), 15)):
             start_date = timezone.now() - timedelta(days=random.randint(1, 30))
             end_date = start_date + timedelta(days=random.randint(7, 30))
-            
-            auction = Auction.objects.create(
-                vehicle=vehicle,
-                title=f'{vehicle.year} {vehicle.make} {vehicle.model} Auction',
-                description=f'Auction for {vehicle.make} {vehicle.model}. {vehicle.description}',
-                starting_price=vehicle.selling_price * Decimal('0.8'),
-                reserve_price=vehicle.selling_price * Decimal('0.9'),
-                current_bid=vehicle.selling_price * Decimal('0.85'),
-                start_date=start_date,
-                end_date=end_date,
-                status=random.choice(['active', 'active', 'completed', 'cancelled'])
-            )
-            auctions.append(auction)
-        
+            try:
+                auction = Auction.objects.create(
+                    vehicle=vehicle,
+                    title=f'{vehicle.year} {vehicle.make} {vehicle.model} Auction',
+                    description=f'Auction for {vehicle.make} {vehicle.model}.',
+                    starting_price=vehicle.selling_price * Decimal('0.8'),
+                    reserve_price=vehicle.selling_price * Decimal('0.9'),
+                    current_bid=vehicle.selling_price * Decimal('0.85'),
+                    start_date=start_date,
+                    end_date=end_date,
+                    status=random.choice(['active', 'active', 'completed', 'cancelled']),
+                )
+                auctions.append(auction)
+            except Exception as e:
+                self.stdout.write(f'    Warning: Could not create auction: {e}')
+
         self.stdout.write(f'  Created {len(auctions)} auctions')
         return auctions
 
     def create_bids(self, auctions, clients):
-        """Create bid records"""
         if not Bid or not auctions:
-            self.stdout.write('  Skipping (Bid model not available or no auctions)')
             return []
-        
+
         bids = []
-        
-        # Get users to act as bidders
-        users = User.objects.all()
-        if not users.exists():
-            self.stdout.write('  No users available for bidding')
+        users = list(User.objects.all())
+        if not users:
             return []
-        
+
         for auction in auctions:
             num_bids = random.randint(2, 8)
-            bid_users = random.sample(list(users), min(num_bids, users.count()))
-            
+            bid_users = random.sample(users, min(num_bids, len(users)))
             for i, user in enumerate(bid_users):
-                bid_amount = auction.starting_price + (auction.reserve_price - auction.starting_price) * Decimal(i / num_bids) if auction.reserve_price else auction.starting_price * Decimal(1 + i * 0.05)
-                
+                bid_amount = (
+                    auction.starting_price + (auction.reserve_price - auction.starting_price) * Decimal(i / num_bids)
+                    if auction.reserve_price else auction.starting_price * Decimal(1 + i * 0.05)
+                )
                 try:
                     bid = Bid.objects.create(
                         auction=auction,
                         bidder=user,
                         bid_amount=bid_amount,
-                        is_active=random.choice([True, True, False])
+                        is_active=random.choice([True, True, False]),
                     )
                     bids.append(bid)
                 except Exception as e:
                     self.stdout.write(f'    Warning: Could not create bid: {e}')
-        
+
         self.stdout.write(f'  Created {len(bids)} bids')
         return bids
 
     def create_repossessions(self, vehicles, clients):
-        """Create repossession records"""
         if not Repossession or not vehicles or not clients:
-            self.stdout.write('  Skipping (Repossession model not available or no data)')
             return []
-        
-        repossessions = []
-        try:
-            from apps.clients.models import ClientVehicle
-        except ImportError:
-            ClientVehicle = None
 
+        repossessions = []
         defaulted_sales = []
         if ClientVehicle:
             defaulted_sales = list(
-                ClientVehicle.objects.select_related('client', 'vehicle')
-                .filter(is_paid_off=False)
-                .order_by('-purchase_date')[:20]
+                ClientVehicle.objects.select_related('client', 'vehicle').filter(is_paid_off=False).order_by('-purchase_date')[:20]
             )
 
         if not defaulted_sales:
             sold_vehicles = [v for v in vehicles if v.status == 'sold']
             if not sold_vehicles:
-                self.stdout.write('  No sold vehicles for repossession')
                 return []
-
             defaulted_sales = [
                 type('FallbackSale', (), {
                     'vehicle': vehicle,
                     'client': random.choice(clients),
-                    'balance': vehicle.selling_price * Decimal('0.35')
+                    'balance': vehicle.selling_price * Decimal('0.35'),
                 })()
                 for vehicle in random.sample(sold_vehicles, min(len(sold_vehicles), 5))
             ]
+
+        assigned_user = User.objects.filter(is_superuser=True).first() or User.objects.first()
 
         for sale in random.sample(defaulted_sales, min(len(defaulted_sales), 5)):
             vehicle = sale.vehicle
             client = sale.client
             outstanding_amount = getattr(sale, 'balance', None) or vehicle.selling_price * Decimal('0.35')
-            additional_costs = Decimal(random.randint(10000, 40000))
             status = random.choice(['PENDING', 'NOTICE_SENT', 'IN_PROGRESS', 'VEHICLE_RECOVERED', 'COMPLETED'])
             recovery_date = None
             completion_date = None
@@ -945,14 +956,12 @@ class Command(BaseCommand):
             if status in ['VEHICLE_RECOVERED', 'COMPLETED']:
                 recovery_date = datetime.now().date() - timedelta(days=random.randint(1, 30))
                 completion_date = recovery_date + timedelta(days=random.randint(1, 10)) if status == 'COMPLETED' else None
-                current_location = f'{random.randint(1, 999)} {random.choice(["Industrial", "Mombasa", "Ngong"])} Area, {random.choice(["Nairobi", "Mombasa", "Kisumu"])}'
+                current_location = f'{random.randint(1, 999)} Industrial Area, Nairobi'
                 recovery_method = random.choice(['Tow truck recovery', 'Voluntary surrender', 'Police-assisted recovery'])
                 resolution_type = random.choice(['AUCTIONED', 'RETURNED', 'PAID_IN_FULL'])
 
-            assigned_user = User.objects.filter(is_superuser=True).first() or User.objects.first()
-            
             try:
-                repossession = Repossession.objects.create(
+                repo = Repossession.objects.create(
                     vehicle=vehicle,
                     client=client,
                     reason=random.choice(['PAYMENT_DEFAULT', 'BREACH_OF_CONTRACT', 'INSURANCE_LAPSE']),
@@ -961,36 +970,34 @@ class Command(BaseCommand):
                     payments_missed=random.randint(2, 8),
                     last_payment_date=datetime.now().date() - timedelta(days=random.randint(30, 180)),
                     initiated_date=datetime.now().date() - timedelta(days=random.randint(1, 90)),
-                    notice_sent_date=datetime.now().date() - timedelta(days=random.randint(1, 60)) if status in ['NOTICE_SENT', 'IN_PROGRESS', 'VEHICLE_RECOVERED', 'COMPLETED'] else None,
+                    notice_sent_date=datetime.now().date() - timedelta(days=random.randint(1, 60)) if status != 'PENDING' else None,
                     recovery_date=recovery_date,
                     completion_date=completion_date,
                     assigned_to=assigned_user,
                     recovery_cost=Decimal(random.randint(10000, 50000)),
-                    last_known_location=f'{random.randint(1, 999)} {random.choice(["Mombasa", "Thika", "Ngong"])} Road, {random.choice(["Nairobi", "Mombasa", "Kisumu"])}',
+                    last_known_location=f'{random.randint(1, 999)} Mombasa Road, Nairobi',
                     current_location=current_location,
                     recovery_method=recovery_method,
                     legal_notice_sent=status != 'PENDING',
                     court_order_obtained=status in ['VEHICLE_RECOVERED', 'COMPLETED'] and random.random() > 0.6,
-                    additional_costs=additional_costs,
+                    additional_costs=Decimal(random.randint(10000, 40000)),
                     resolution_type=resolution_type,
-                    notes='Seeded repossession record for dashboard testing'
+                    notes='Seeded repossession record for dashboard testing',
                 )
-                repossessions.append(repossession)
+                repossessions.append(repo)
             except Exception as e:
                 self.stdout.write(f'    Warning: Could not create repossession: {e}')
-        
+
         self.stdout.write(f'  Created {len(repossessions)} repossessions')
         return repossessions
 
     def create_employees(self):
-        """Create employee records"""
         if not Employee:
             return []
-        
+
         from utils.constants import UserRole
-        
+
         employees = []
-        
         positions = [
             ('Sales Manager', 'FULL_TIME'),
             ('Sales Executive', 'FULL_TIME'),
@@ -1001,16 +1008,13 @@ class Command(BaseCommand):
             ('Security Guard', 'CONTRACT'),
             ('Cleaner', 'PART_TIME'),
         ]
-        
         first_names = ['Peter', 'Mary', 'John', 'Grace', 'Paul', 'Faith', 'Joseph', 'Lucy']
         last_names = ['Kamau', 'Wanjiru', 'Otieno', 'Akinyi', 'Kiprop', 'Chebet', 'Mwangi']
-        
+
         for i, (position, employment_type) in enumerate(positions):
-            # Create a user for this employee
             email = f'employee{i+1}@hozainvestments.co.ke'
             if User.objects.filter(email=email).exists():
                 continue
-                
             user = User.objects.create_user(
                 email=email,
                 password='password123',
@@ -1018,9 +1022,8 @@ class Command(BaseCommand):
                 last_name=random.choice(last_names),
                 phone=f'+2547{random.randint(10000000, 99999999)}',
                 role=UserRole.CLERK,
-                is_active=True
+                is_active=True,
             )
-            
             try:
                 employee = Employee.objects.create(
                     user=user,
@@ -1040,45 +1043,32 @@ class Command(BaseCommand):
                     emergency_contact_name=f'{random.choice(first_names)} {random.choice(last_names)}',
                     emergency_contact_phone=f'+2547{random.randint(10000000, 99999999)}',
                     emergency_contact_relationship='Spouse',
-                    address_line1=f'{random.randint(1, 999)} {random.choice(["Mombasa", "Thika", "Ngong"])} Road',
+                    address_line1=f'{random.randint(1, 999)} Mombasa Road',
                     city=random.choice(['Nairobi', 'Mombasa', 'Kisumu']),
-                    country='Kenya'
+                    country='Kenya',
                 )
                 employees.append(employee)
             except Exception as e:
                 self.stdout.write(f'    Warning: Could not create employee: {e}')
-        
+
         self.stdout.write(f'  Created {len(employees)} employees')
         return employees
 
     def create_salaries(self, employees):
-        """Create salary records"""
-        if not SalaryStructure or not employees:
-            return []
-        
-        # This is just a placeholder - adjust based on actual SalaryStructure model
         self.stdout.write('  Skipping salary creation (model structure unknown)')
         return []
 
     def create_payslips(self, salaries):
-        """Create payslip records"""
-        if not PayrollRun:
-            return []
-        
-        # This is just a placeholder - adjust based on actual PayrollRun model
         self.stdout.write('  Skipping payslip creation (model structure unknown)')
         return []
 
     def create_documents(self, vehicles, clients):
-        """Create document records"""
         if not Document or not DocumentCategory:
             return []
-        
+
         documents = []
-        
-        # Create document categories with slugs
         from django.utils.text import slugify
-        
+
         categories_data = [
             ('Vehicle Documents', 'vehicle-documents', 'Documents related to vehicles'),
             ('Client Documents', 'client-documents', 'Documents related to clients'),
@@ -1086,98 +1076,101 @@ class Command(BaseCommand):
             ('Insurance', 'insurance', 'Insurance related documents'),
             ('Legal', 'legal', 'Legal documents'),
         ]
-        
+
         categories = []
         for name, slug, desc in categories_data:
-            category, created = DocumentCategory.objects.get_or_create(
+            category, _ = DocumentCategory.objects.get_or_create(
                 slug=slug,
-                defaults={'name': name, 'description': desc, 'is_active': True}
+                defaults={'name': name, 'description': desc, 'is_active': True},
             )
             categories.append(category)
-        
+
         vehicle_category = next((c for c in categories if c.slug == 'vehicle-documents'), categories[0])
         client_category = next((c for c in categories if c.slug == 'client-documents'), categories[0])
-        
-        # Create documents for vehicles
+
         if vehicles and Vehicle:
             from django.contrib.contenttypes.models import ContentType
             vehicle_ct = ContentType.objects.get_for_model(Vehicle)
-            
             for vehicle in random.sample(vehicles, min(len(vehicles), 20)):
                 try:
-                    document = Document.objects.create(
+                    doc = Document.objects.create(
                         title=f'{vehicle.make} {vehicle.model} - Logbook',
                         description=f'Logbook for {vehicle.registration_number}',
                         category=vehicle_category,
                         content_type=vehicle_ct,
                         object_id=vehicle.id,
                         document_number=f'LOG{random.randint(100000, 999999)}',
-                        issue_date=datetime.now().date() - timedelta(days=random.randint(1, 365))
+                        issue_date=datetime.now().date() - timedelta(days=random.randint(1, 365)),
                     )
-                    documents.append(document)
+                    documents.append(doc)
                 except Exception as e:
-                    self.stdout.write(f'    Warning: Could not create document: {e}')
-        
-        # Create documents for clients  
+                    self.stdout.write(f'    Warning: Could not create vehicle document: {e}')
+
         if clients and Client:
             from django.contrib.contenttypes.models import ContentType
             client_ct = ContentType.objects.get_for_model(Client)
-            
             for client in random.sample(clients, min(len(clients), 20)):
                 try:
-                    document = Document.objects.create(
+                    doc = Document.objects.create(
                         title=f'{client.first_name} {client.last_name} - ID Copy',
-                        description=f'ID document for client',
+                        description='ID document for client',
                         category=client_category,
                         content_type=client_ct,
                         object_id=client.id,
                         document_number=client.id_number,
-                        issue_date=datetime.now().date() - timedelta(days=random.randint(1, 365))
+                        issue_date=datetime.now().date() - timedelta(days=random.randint(1, 365)),
                     )
-                    documents.append(document)
+                    documents.append(doc)
                 except Exception as e:
-                    self.stdout.write(f'    Warning: Could not create document: {e}')
-        
+                    self.stdout.write(f'    Warning: Could not create client document: {e}')
+
         self.stdout.write(f'  Created {len(documents)} documents')
         return documents
 
     def print_summary(self, users, clients, vehicles):
-        """Print summary of created data"""
         self.stdout.write('\n' + '='*60)
         self.stdout.write(self.style.SUCCESS('DATABASE POPULATION SUMMARY'))
         self.stdout.write('='*60)
-        self.stdout.write(f'[USERS] {User.objects.count()}')
-        
+        self.stdout.write(f'[USERS]       {User.objects.count()}')
         if Client:
-            self.stdout.write(f'[CLIENTS] {Client.objects.count()}')
+            self.stdout.write(f'[CLIENTS]     {Client.objects.count()}')
         if Vehicle:
-            self.stdout.write(f'[VEHICLES] {Vehicle.objects.count()}')
+            self.stdout.write(f'[VEHICLES]    {Vehicle.objects.count()}')
+        if InsuranceAgent:
+            self.stdout.write(f'[INS AGENTS]  {InsuranceAgent.objects.count()}')
+        if TrackerAgent:
+            self.stdout.write(f'[TRK AGENTS]  {TrackerAgent.objects.count()}')
+        if ClearingAgent:
+            self.stdout.write(f'[CLR AGENTS]  {ClearingAgent.objects.count()}')
         if InstallmentPlan:
-            self.stdout.write(f'[PLANS] Installment Plans: {InstallmentPlan.objects.count()}')
+            self.stdout.write(f'[PLANS]       {InstallmentPlan.objects.count()}')
         if Payment:
-            self.stdout.write(f'[PAYMENTS] {Payment.objects.count()}')
+            self.stdout.write(f'[PAYMENTS]    {Payment.objects.count()}')
         if Expense:
-            self.stdout.write(f'[EXPENSES] {Expense.objects.count()}')
+            self.stdout.write(f'[EXPENSES]    {Expense.objects.count()}')
         if InsurancePolicy:
-            self.stdout.write(f'[INSURANCE] Insurance Policies: {InsurancePolicy.objects.count()}')
+            self.stdout.write(f'[POLICIES]    {InsurancePolicy.objects.count()}')
+        if TrackerRecord:
+            self.stdout.write(f'[TRK RECORDS] {TrackerRecord.objects.count()}')
+        if ClearanceRecord:
+            self.stdout.write(f'[CLR RECORDS] {ClearanceRecord.objects.count()}')
         if InsuranceClaim:
-            self.stdout.write(f'[CLAIMS] Insurance Claims: {InsuranceClaim.objects.count()}')
+            self.stdout.write(f'[CLAIMS]      {InsuranceClaim.objects.count()}')
         if Auction:
-            self.stdout.write(f'[AUCTIONS] {Auction.objects.count()}')
+            self.stdout.write(f'[AUCTIONS]    {Auction.objects.count()}')
         if Bid:
-            self.stdout.write(f'[BIDS] {Bid.objects.count()}')
+            self.stdout.write(f'[BIDS]        {Bid.objects.count()}')
         if Repossession:
-            self.stdout.write(f'[REPOSSESSIONS] {Repossession.objects.count()}')
+            self.stdout.write(f'[REPOSSESS]   {Repossession.objects.count()}')
         if Employee:
-            self.stdout.write(f'[EMPLOYEES] {Employee.objects.count()}')
+            self.stdout.write(f'[EMPLOYEES]   {Employee.objects.count()}')
         if Document:
-            self.stdout.write(f'[DOCUMENTS] {Document.objects.count()}')
-            
+            self.stdout.write(f'[DOCUMENTS]   {Document.objects.count()}')
         self.stdout.write('='*60)
         self.stdout.write('\n[ADMIN LOGIN]')
         self.stdout.write('   Email: admin@hozainvestments.co.ke')
         self.stdout.write('   Password: admin123')
         self.stdout.write('\n[STAFF LOGIN]')
-        self.stdout.write('   Email: user1@hozainvestments.co.ke (or user2, user3, etc.)')
+        self.stdout.write('   Email: user1@hozainvestments.co.ke')
         self.stdout.write('   Password: password123')
         self.stdout.write('='*60 + '\n')
