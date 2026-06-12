@@ -70,141 +70,55 @@ class InsuranceClaimManager(models.Manager):
         return self.filter(status='settled')
 
 
-# ==================== INSURANCE PROVIDER MODEL ====================
+# ==================== INSURANCE AGENT MODEL ====================
 
-class InsuranceProvider(models.Model):
+class InsuranceAgent(models.Model):
     """
-    Model for insurance companies/providers
+    An individual agent who sells insurance policies on behalf of a provider.
+    Used to track how many policies we've taken through each agent and what we owe them.
     """
-    
-    # Provider Details
-    name = models.CharField(
-        max_length=200,
-        unique=True,
-        help_text="Insurance provider name"
+    name = models.CharField(max_length=200)
+    phone = models.CharField(max_length=15, blank=True)
+    email = models.EmailField(blank=True, null=True)
+    id_number = models.CharField(
+        'ID / License Number', max_length=100, blank=True,
+        help_text='Agent ID or license number'
     )
-    
-    registration_number = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True,
-        help_text="Company registration number"
-    )
-    
-    # Contact Information
-    phone_primary = models.CharField(
-        max_length=15,
-        blank=True,
-        null=True,
-        help_text="Primary contact phone"
-    )
-    
-    phone_secondary = models.CharField(
-        max_length=15,
-        blank=True,
-        null=True,
-        help_text="Secondary contact phone"
-    )
-    
-    email = models.EmailField(
-        blank=True,
-        null=True,
-        help_text="Email address"
-    )
-    
-    website = models.URLField(
-        blank=True,
-        null=True,
-        help_text="Website URL"
-    )
-    
-    # Address
-    physical_address = models.TextField(
-        blank=True,
-        null=True,
-        help_text="Physical office address"
-    )
-    
-    postal_address = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True,
-        help_text="Postal address"
-    )
-    
-    city = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True,
-        help_text="City"
-    )
-    
-    # Contact Person
-    contact_person_name = models.CharField(
-        max_length=200,
-        blank=True,
-        null=True,
-        help_text="Contact person name"
-    )
-    
-    contact_person_phone = models.CharField(
-        max_length=15,
-        blank=True,
-        null=True,
-        help_text="Contact person phone"
-    )
-    
-    contact_person_email = models.EmailField(
-        blank=True,
-        null=True,
-        help_text="Contact person email"
-    )
-    
-    # Additional Information
-    notes = models.TextField(
-        blank=True,
-        null=True,
-        help_text="Additional notes"
-    )
-    
-    is_active = models.BooleanField(
-        default=True,
-        help_text="Whether this provider is active"
-    )
-    
-    # System Fields
-    created_by = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='created_insurance_providers',
-        help_text="User who created this provider"
-    )
-    
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         ordering = ['name']
-        verbose_name = 'Insurance Provider'
-        verbose_name_plural = 'Insurance Providers'
-        indexes = [
-            models.Index(fields=['name']),
-            models.Index(fields=['is_active']),
-        ]
-    
+        verbose_name = 'Insurance Agent'
+        verbose_name_plural = 'Insurance Agents'
+
     def __str__(self):
         return self.name
-    
+
     @property
-    def active_policies_count(self):
-        """Get count of active policies with this provider"""
-        return self.policies.filter(status='active').count()
-    
-    @property
-    def total_policies_count(self):
-        """Get total count of policies with this provider"""
+    def total_policies(self):
         return self.policies.count()
+
+    @property
+    def total_buying_price(self):
+        from django.db.models import Sum
+        return self.policies.aggregate(total=Sum('buying_price'))['total'] or Decimal('0.00')
+
+    @property
+    def total_selling_price(self):
+        from django.db.models import Sum
+        return self.policies.aggregate(total=Sum('selling_price'))['total'] or Decimal('0.00')
+
+    @property
+    def total_owed(self):
+        """Sum of buying prices for all unpaid policies through this agent."""
+        from django.db.models import Sum
+        return (
+            self.policies.filter(dealer_payment_status='unpaid')
+            .aggregate(total=Sum('buying_price'))['total'] or Decimal('0.00')
+        )
 
 
 # ==================== INSURANCE POLICY MODEL ====================
@@ -238,13 +152,6 @@ class InsurancePolicy(models.Model):
         on_delete=models.CASCADE,
         related_name='insurance_policies',
         help_text="Vehicle covered by this policy"
-    )
-    
-    provider = models.ForeignKey(
-        InsuranceProvider,
-        on_delete=models.PROTECT,
-        related_name='policies',
-        help_text="Insurance provider"
     )
     
     client = models.ForeignKey(
@@ -348,6 +255,29 @@ class InsurancePolicy(models.Model):
         max_length=100,
         blank=True,
         help_text='Agent ID, license number, or phone'
+    )
+
+    insurance_agent = models.ForeignKey(
+        'InsuranceAgent',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='policies',
+        help_text='Linked insurance agent (ledger)',
+    )
+
+    # Dealer payment to agent
+    DEALER_PAYMENT_STATUS_CHOICES = [
+        ('unpaid', 'Unpaid'),
+        ('paid', 'Paid'),
+    ]
+
+    dealer_payment_status = models.CharField(
+        'Dealer Payment Status',
+        max_length=10,
+        choices=DEALER_PAYMENT_STATUS_CHOICES,
+        default='unpaid',
+        help_text='Whether we have paid the agent for this policy',
     )
 
     # Payment type for insurance
@@ -849,10 +779,10 @@ class InsuranceClaim(models.Model):
         return self.policy.client
     
     @property
-    def provider(self):
-        """Get provider from policy"""
-        return self.policy.provider
-    
+    def agent(self):
+        """Get insurance agent from policy"""
+        return self.policy.insurance_agent
+
     @property
     def days_since_filed(self):
         """Calculate days since claim was filed"""
