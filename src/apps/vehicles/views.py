@@ -9,7 +9,7 @@ from django.db.models import Q, Count, Sum, Avg, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
-from .models import Vehicle, VehiclePhoto, VehicleHistory
+from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerProvider, TrackerRecord, ClearingAgent, ClearanceRecord
 from apps.clients.models import ClientVehicle, Client
 from .forms import (
     VehicleForm, VehiclePhotoForm, VehicleSearchForm,
@@ -265,8 +265,10 @@ def vehicle_detail_view(request, pk):
 
     if vehicle.status == VehicleStatus.SOLD and latest_sale:
         display_price = latest_sale.final_selling_price
+        vehicle_profit = latest_sale.final_selling_price - vehicle.total_program_cost
     else:
         display_price = vehicle.website_display_price
+        vehicle_profit = vehicle.website_display_price - vehicle.total_program_cost
 
     context = {
         'vehicle': vehicle,
@@ -281,6 +283,7 @@ def vehicle_detail_view(request, pk):
         'show_public_prices': show_public_prices,
         'display_price': display_price,
         'latest_sale': latest_sale,
+        'vehicle_profit': vehicle_profit,
     }
     return render(request, 'vehicles/vehicle_detail.html', context)
 
@@ -921,3 +924,116 @@ def vehicle_purchase_price_assignment_view(request):
         'can_view_prices': True,
     }
     return render(request, 'vehicles/vehicle_purchase_price_assignment.html', context)
+
+# ==================== TRACKER PROVIDER LEDGER VIEWS ====================
+
+@login_required
+def tracker_provider_ledger_list(request):
+    """List all tracker providers with totals and outstanding balances."""
+    from django.db.models import Q, Sum, Value, DecimalField
+    from django.db.models.functions import Coalesce
+    providers = TrackerProvider.objects.filter(is_active=True).prefetch_related('tracker_records').order_by('name')
+    totals = TrackerRecord.objects.aggregate(
+        grand_buying=Coalesce(Sum('buying_price'), Value(0, output_field=DecimalField())),
+        grand_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+        grand_owed=Coalesce(
+            Sum('buying_price', filter=Q(dealer_payment_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    )
+    context = {
+        'providers': providers,
+        'grand_buying': totals['grand_buying'],
+        'grand_selling': totals['grand_selling'],
+        'grand_owed': totals['grand_owed'],
+    }
+    return render(request, 'vehicles/tracker_provider_ledger_list.html', context)
+
+
+@login_required
+def tracker_provider_ledger_detail(request, pk):
+    """Show all tracker records for a provider and allow marking them paid."""
+    provider = get_object_or_404(TrackerProvider, pk=pk)
+    records = provider.tracker_records.select_related('vehicle', 'client_vehicle__client').order_by('-created_at')
+    context = {
+        'provider': provider,
+        'records': records,
+    }
+    return render(request, 'vehicles/tracker_provider_ledger_detail.html', context)
+
+
+@login_required
+def tracker_record_mark_paid(request, pk):
+    """Mark a single tracker record as paid to the provider."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    record = get_object_or_404(TrackerRecord, pk=pk)
+    record.dealer_payment_status = 'paid'
+    record.save(update_fields=['dealer_payment_status'])
+    return JsonResponse({'status': 'paid', 'record_id': pk})
+
+
+@login_required
+def tracker_provider_mark_all_paid(request, provider_pk):
+    """Mark all unpaid tracker records for a provider as paid."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    provider = get_object_or_404(TrackerProvider, pk=provider_pk)
+    updated = provider.tracker_records.filter(dealer_payment_status='unpaid').update(dealer_payment_status='paid')
+    return JsonResponse({'status': 'ok', 'updated': updated})
+
+
+# ==================== CLEARING AGENT LEDGER VIEWS ====================
+
+@login_required
+def clearing_agent_ledger_list(request):
+    """List all clearing agents with totals and outstanding balances."""
+    from django.db.models import Q, Sum, Value, DecimalField
+    from django.db.models.functions import Coalesce
+    agents = ClearingAgent.objects.filter(is_active=True).prefetch_related('clearance_records').order_by('name')
+    totals = ClearanceRecord.objects.aggregate(
+        grand_billed=Coalesce(Sum('amount'), Value(0, output_field=DecimalField())),
+        grand_owed=Coalesce(
+            Sum('amount', filter=Q(payment_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    )
+    context = {
+        'agents': agents,
+        'grand_billed': totals['grand_billed'],
+        'grand_owed': totals['grand_owed'],
+    }
+    return render(request, 'vehicles/clearing_agent_ledger_list.html', context)
+
+
+@login_required
+def clearing_agent_ledger_detail(request, pk):
+    """Show all clearance records for an agent and allow marking them paid."""
+    agent = get_object_or_404(ClearingAgent, pk=pk)
+    records = agent.clearance_records.select_related('vehicle').order_by('-date')
+    context = {
+        'agent': agent,
+        'records': records,
+    }
+    return render(request, 'vehicles/clearing_agent_ledger_detail.html', context)
+
+
+@login_required
+def clearance_record_mark_paid(request, pk):
+    """Mark a single clearance record as paid to the agent."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    record = get_object_or_404(ClearanceRecord, pk=pk)
+    record.payment_status = 'paid'
+    record.save(update_fields=['payment_status'])
+    return JsonResponse({'status': 'paid', 'record_id': pk})
+
+
+@login_required
+def clearing_agent_mark_all_paid(request, agent_pk):
+    """Mark all unpaid clearance records for an agent as paid."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    agent = get_object_or_404(ClearingAgent, pk=agent_pk)
+    updated = agent.clearance_records.filter(payment_status='unpaid').update(payment_status='paid')
+    return JsonResponse({'status': 'ok', 'updated': updated})
