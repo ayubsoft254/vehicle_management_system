@@ -3,7 +3,7 @@ Vehicles Forms
 """
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Vehicle, VehiclePhoto, VehicleHistory
+from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, ClearingAgent
 from utils.constants import VehicleStatus, VehicleLocation
 from decimal import Decimal
 from django.forms import HiddenInput
@@ -606,3 +606,33 @@ class BulkVehicleActionForm(forms.Form):
     vehicle_ids = forms.CharField(
         widget=forms.HiddenInput()
     )
+
+# ==================== TRACKER AGENT FORM ====================
+
+_FC = 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent'
+
+
+class TrackerAgentForm(forms.ModelForm):
+    class Meta:
+        model = TrackerAgent
+        fields = ['name', 'phone', 'email', 'notes']
+        widgets = {
+            'name':  forms.TextInput(attrs={'class': _FC, 'placeholder': 'Agent name'}),
+            'phone': forms.TextInput(attrs={'class': _FC, 'placeholder': '+254...'}),
+            'email': forms.EmailInput(attrs={'class': _FC, 'placeholder': 'agent@example.com'}),
+            'notes': forms.Textarea(attrs={'class': _FC, 'rows': 3, 'placeholder': 'Optional notes'}),
+        }
+
+
+# ==================== CLEARING AGENT FORM ====================
+
+class ClearingAgentForm(forms.ModelForm):
+    class Meta:
+        model = ClearingAgent
+        fields = ['name', 'phone', 'email', 'notes']
+        widgets = {
+            'name':  forms.TextInput(attrs={'class': _FC, 'placeholder': 'Agent name'}),
+            'phone': forms.TextInput(attrs={'class': _FC, 'placeholder': '+254...'}),
+            'email': forms.EmailInput(attrs={'class': _FC, 'placeholder': 'agent@example.com'}),
+            'notes': forms.Textarea(attrs={'class': _FC, 'rows': 3, 'placeholder': 'Optional notes'}),
+        }
