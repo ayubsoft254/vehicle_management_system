@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.http import HttpResponse
-from .models import InsuranceProvider, InsurancePolicy, InsuranceClaim, InsurancePayment
+from .models import InsuranceAgent, InsurancePolicy, InsuranceClaim, InsurancePayment
 import csv
 
 
@@ -56,140 +56,6 @@ class InsurancePaymentInline(admin.TabularInline):
     can_delete = False
 
 
-# ==================== INSURANCE PROVIDER ADMIN ====================
-
-@admin.register(InsuranceProvider)
-class InsuranceProviderAdmin(admin.ModelAdmin):
-    """
-    Admin interface for InsuranceProvider model
-    """
-    list_display = [
-        'name', 'phone_primary', 'email', 'city',
-        'active_policies_display', 'total_policies_display',
-        'is_active_badge', 'created_at'
-    ]
-    
-    list_filter = [
-        'is_active',
-        'city',
-        'created_at',
-    ]
-    
-    search_fields = [
-        'name',
-        'registration_number',
-        'phone_primary',
-        'phone_secondary',
-        'email',
-        'contact_person_name'
-    ]
-    
-    readonly_fields = [
-        'created_by', 'created_at', 'updated_at',
-        'active_policies_count', 'total_policies_count'
-    ]
-    
-    fieldsets = (
-        ('Provider Information', {
-            'fields': (
-                ('name', 'registration_number'),
-                ('is_active',),
-            )
-        }),
-        ('Contact Information', {
-            'fields': (
-                ('phone_primary', 'phone_secondary'),
-                'email',
-                'website',
-            )
-        }),
-        ('Address', {
-            'fields': (
-                'physical_address',
-                ('postal_address', 'city'),
-            )
-        }),
-        ('Contact Person', {
-            'fields': (
-                'contact_person_name',
-                ('contact_person_phone', 'contact_person_email'),
-            ),
-            'classes': ('collapse',)
-        }),
-        ('Additional Information', {
-            'fields': (
-                'notes',
-            )
-        }),
-        ('Statistics', {
-            'fields': (
-                ('active_policies_count', 'total_policies_count'),
-            ),
-            'classes': ('collapse',)
-        }),
-        ('System Information', {
-            'fields': (
-                'created_by',
-                ('created_at', 'updated_at'),
-            ),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    inlines = [InsurancePolicyInline]
-    
-    list_per_page = 25
-    date_hierarchy = 'created_at'
-    
-    actions = ['activate_providers', 'deactivate_providers']
-    
-    def active_policies_display(self, obj):
-        """Display count of active policies"""
-        count = obj.active_policies_count
-        return format_html(
-            '<span style="color: #28a745; font-weight: bold;">{}</span>',
-            count
-        )
-    active_policies_display.short_description = 'Active Policies'
-    
-    def total_policies_display(self, obj):
-        """Display total policies count"""
-        return format_html('<strong>{}</strong>', obj.total_policies_count)
-    total_policies_display.short_description = 'Total Policies'
-    
-    def is_active_badge(self, obj):
-        """Display active status as badge"""
-        if obj.is_active:
-            return format_html(
-                '<span style="background-color: #28a745; color: white; padding: 4px 10px; '
-                'border-radius: 4px; font-size: 11px; font-weight: bold;">ACTIVE</span>'
-            )
-        return format_html(
-            '<span style="background-color: #dc3545; color: white; padding: 4px 10px; '
-            'border-radius: 4px; font-size: 11px; font-weight: bold;">INACTIVE</span>'
-        )
-    is_active_badge.short_description = 'Status'
-    is_active_badge.admin_order_field = 'is_active'
-    
-    def activate_providers(self, request, queryset):
-        """Bulk action to activate providers"""
-        updated = queryset.update(is_active=True)
-        self.message_user(request, f'{updated} provider(s) activated successfully.')
-    activate_providers.short_description = 'Activate selected providers'
-    
-    def deactivate_providers(self, request, queryset):
-        """Bulk action to deactivate providers"""
-        updated = queryset.update(is_active=False)
-        self.message_user(request, f'{updated} provider(s) deactivated successfully.')
-    deactivate_providers.short_description = 'Deactivate selected providers'
-    
-    def save_model(self, request, obj, form, change):
-        """Save model with user tracking"""
-        if not change:  # New object
-            obj.created_by = request.user
-        super().save_model(request, obj, form, change)
-
-
 # ==================== INSURANCE POLICY ADMIN ====================
 
 @admin.register(InsurancePolicy)
@@ -198,20 +64,20 @@ class InsurancePolicyAdmin(admin.ModelAdmin):
     Admin interface for InsurancePolicy model
     """
     list_display = [
-        'policy_number', 'vehicle_link', 'provider_link', 'client_link',
+        'policy_number', 'vehicle_link', 'agent_link', 'client_link',
         'policy_type_badge', 'start_date', 'end_date',
         'premium_display', 'status_badge', 'expiry_indicator'
     ]
-    
+
     list_filter = [
         'status',
         'policy_type',
-        'provider',
+        'insurance_agent',
         'start_date',
         'end_date',
         ('start_date', admin.DateFieldListFilter),
     ]
-    
+
     search_fields = [
         'policy_number',
         'vehicle__registration_number',
@@ -219,7 +85,7 @@ class InsurancePolicyAdmin(admin.ModelAdmin):
         'vehicle__model',
         'client__first_name',
         'client__last_name',
-        'provider__name'
+        'insurance_agent__name',
     ]
     
     readonly_fields = [
@@ -231,7 +97,7 @@ class InsurancePolicyAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Policy Information', {
             'fields': (
-                ('vehicle', 'provider'),
+                ('vehicle', 'insurance_agent'),
                 'client',
                 'policy_number',
                 ('policy_type', 'status'),
@@ -290,23 +156,21 @@ class InsurancePolicyAdmin(admin.ModelAdmin):
     actions = ['mark_as_expired', 'send_reminders', 'export_to_csv']
     
     def get_queryset(self, request):
-        """Optimize queryset with select_related"""
         qs = super().get_queryset(request)
-        return qs.select_related('vehicle', 'provider', 'client', 'created_by')
-    
+        return qs.select_related('vehicle', 'insurance_agent', 'client', 'created_by')
+
     def vehicle_link(self, obj):
-        """Display vehicle with link"""
         url = reverse('admin:vehicles_vehicle_change', args=[obj.vehicle.pk])
         return format_html('<a href="{}">{}</a>', url, obj.vehicle)
     vehicle_link.short_description = 'Vehicle'
     vehicle_link.admin_order_field = 'vehicle__registration_number'
-    
-    def provider_link(self, obj):
-        """Display provider with link"""
-        url = reverse('admin:insurance_insuranceprovider_change', args=[obj.provider.pk])
-        return format_html('<a href="{}">{}</a>', url, obj.provider.name)
-    provider_link.short_description = 'Provider'
-    provider_link.admin_order_field = 'provider__name'
+
+    def agent_link(self, obj):
+        if obj.insurance_agent:
+            return format_html('<span>{}</span>', obj.insurance_agent.name)
+        return '-'
+    agent_link.short_description = 'Agent'
+    agent_link.admin_order_field = 'insurance_agent__name'
     
     def client_link(self, obj):
         """Display client with link"""
@@ -404,7 +268,7 @@ class InsurancePolicyAdmin(admin.ModelAdmin):
             writer.writerow([
                 policy.policy_number,
                 str(policy.vehicle),
-                policy.provider.name,
+                policy.insurance_agent.name if policy.insurance_agent else '',
                 policy.get_policy_type_display(),
                 policy.start_date,
                 policy.end_date,
@@ -454,7 +318,7 @@ class InsuranceClaimAdmin(admin.ModelAdmin):
     
     readonly_fields = [
         'claim_number', 'filed_by', 'created_at', 'updated_at',
-        'days_since_filed', 'vehicle', 'client', 'provider',
+        'days_since_filed', 'vehicle', 'client', 'agent',
         'approval_percentage'
     ]
     
@@ -463,7 +327,7 @@ class InsuranceClaimAdmin(admin.ModelAdmin):
             'fields': (
                 'claim_number',
                 'policy',
-                ('vehicle', 'client', 'provider'),
+                ('vehicle', 'client', 'agent'),
                 ('claim_type', 'status'),
                 ('claim_date', 'days_since_filed'),
             )
@@ -525,7 +389,7 @@ class InsuranceClaimAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         return qs.select_related(
             'policy__vehicle',
-            'policy__provider',
+            'policy__insurance_agent',
             'policy__client',
             'filed_by'
         )
@@ -745,3 +609,12 @@ class InsurancePaymentAdmin(admin.ModelAdmin):
         if not change:  # New object
             obj.recorded_by = request.user
         super().save_model(request, obj, form, change)
+
+# ==================== INSURANCE AGENT ADMIN ====================
+
+@admin.register(InsuranceAgent)
+class InsuranceAgentAdmin(admin.ModelAdmin):
+    list_display = ['name', 'phone', 'email', 'id_number', 'total_policies', 'total_buying_price', 'total_owed', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['name', 'phone', 'email', 'id_number']
+    list_editable = ['is_active']

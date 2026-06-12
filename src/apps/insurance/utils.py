@@ -41,7 +41,7 @@ def send_expiry_reminder_sms(policy):
         f"for {policy.vehicle} expires in {days_left} days on "
         f"{policy.end_date.strftime('%d/%m/%Y')}. "
         f"Please renew to maintain coverage. "
-        f"Contact {policy.provider.name} at {policy.provider.phone_primary}."
+        f"Contact {policy.insurance_agent.name if policy.insurance_agent else 'N/A'} at {policy.insurance_agent.phone if policy.insurance_agent else 'N/A'}."
     )
     
     # TODO: Integrate with SMS service (Twilio, Africa's Talking, etc.)
@@ -83,16 +83,16 @@ def send_expiry_reminder_email(policy):
     Policy Details:
     - Policy Number: {policy.policy_number}
     - Vehicle: {policy.vehicle}
-    - Provider: {policy.provider.name}
+    - Provider: {policy.insurance_agent.name if policy.insurance_agent else 'N/A'}
     - Expiry Date: {policy.end_date.strftime('%d %B %Y')}
     - Days Remaining: {days_left} days
     
     Please renew your policy to maintain continuous coverage.
     
     Contact Details:
-    {policy.provider.name}
-    Phone: {policy.provider.phone_primary}
-    Email: {policy.provider.email or 'N/A'}
+    {policy.insurance_agent.name if policy.insurance_agent else 'N/A'}
+    Phone: {policy.insurance_agent.phone if policy.insurance_agent else 'N/A'}
+    Email: {policy.insurance_agent.email or 'N/A' if policy.insurance_agent else 'N/A'}
     
     Best regards,
     Vehicle Management System
@@ -356,7 +356,7 @@ def get_claim_approval_rate(provider=None, claim_type=None):
     Calculate claim approval rate
     
     Args:
-        provider: InsuranceProvider instance (optional)
+        provider: InsuranceAgent instance (optional)
         claim_type: Type of claim (optional)
     
     Returns:
@@ -497,12 +497,12 @@ def generate_policy_certificate_pdf(policy):
     elements.append(Spacer(1, 0.3*inch))
     
     # Provider details
-    elements.append(Paragraph("<b>INSURANCE PROVIDER:</b>", styles['Heading2']))
+    elements.append(Paragraph("<b>INSURANCE AGENT:</b>", styles['Heading2']))
+    agent = policy.insurance_agent
     provider_text = f"""
-    {policy.provider.name}<br/>
-    Phone: {policy.provider.phone_primary}<br/>
-    Email: {policy.provider.email or 'N/A'}<br/>
-    {policy.provider.physical_address}
+    {agent.name if agent else 'N/A'}<br/>
+    Phone: {agent.phone if agent else 'N/A'}<br/>
+    Email: {agent.email or 'N/A' if agent else 'N/A'}<br/>
     """
     elements.append(Paragraph(provider_text, styles['Normal']))
     elements.append(Spacer(1, 0.5*inch))
@@ -572,7 +572,7 @@ def generate_claim_report_pdf(claim):
     policy_vehicle_data = [
         ['Policy Number:', claim.policy.policy_number],
         ['Vehicle:', str(claim.vehicle)],
-        ['Provider:', claim.provider.name],
+        ['Agent:', claim.agent.name if claim.agent else 'N/A'],
     ]
     
     pv_table = Table(policy_vehicle_data, colWidths=[2.5*inch, 4*inch])

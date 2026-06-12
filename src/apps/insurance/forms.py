@@ -10,104 +10,9 @@ from decimal import Decimal
 from datetime import date, timedelta
 import calendar
 
-from .models import InsuranceProvider, InsurancePolicy, InsuranceClaim, InsurancePayment
+from .models import InsuranceAgent, InsurancePolicy, InsuranceClaim, InsurancePayment
 from apps.vehicles.models import Vehicle
 from apps.clients.models import Client
-
-
-# ==================== INSURANCE PROVIDER FORM ====================
-
-class InsuranceProviderForm(forms.ModelForm):
-    """
-    Form for creating and updating insurance providers
-    """
-    
-    # Phone validator
-    phone_regex = forms.RegexField(
-        regex=r'^(\+?254|0)[17]\d{8}$',
-        required=False,
-        error_messages={'invalid': "Phone number must be in format: '0712345678' or '+254784170447'"}
-    )
-    
-    class Meta:
-        model = InsuranceProvider
-        fields = [
-            'name', 'registration_number',
-            'phone_primary', 'phone_secondary', 'email', 'website',
-            'physical_address', 'postal_address', 'city',
-            'contact_person_name', 'contact_person_phone', 'contact_person_email',
-            'notes', 'is_active'
-        ]
-        
-        widgets = {
-            'name': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Insurance Provider Name'
-            }),
-            'registration_number': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Registration Number (Optional)'
-            }),
-            'phone_primary': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': '0712345678'
-            }),
-            'phone_secondary': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': '0723456789 (Optional)'
-            }),
-            'email': forms.EmailInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'email@provider.com'
-            }),
-            'website': forms.URLInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'https://www.provider.com'
-            }),
-            'physical_address': forms.Textarea(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Physical Office Address',
-                'rows': 3
-            }),
-            'postal_address': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'P.O. Box (Optional)'
-            }),
-            'city': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'City'
-            }),
-            'contact_person_name': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Contact Person Name (Optional)'
-            }),
-            'contact_person_phone': forms.TextInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': '0712345678 (Optional)'
-            }),
-            'contact_person_email': forms.EmailInput(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'contact@provider.com (Optional)'
-            }),
-            'notes': forms.Textarea(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                'placeholder': 'Additional notes (Optional)',
-                'rows': 3
-            }),
-            'is_active': forms.CheckboxInput(attrs={
-                'class': 'w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500'
-            }),
-        }
-    
-    def clean_name(self):
-        """Validate provider name uniqueness"""
-        name = self.cleaned_data.get('name')
-        provider_id = self.instance.pk
-        
-        if InsuranceProvider.objects.filter(name__iexact=name).exclude(pk=provider_id).exists():
-            raise ValidationError("An insurance provider with this name already exists.")
-        
-        return name
 
 
 # ==================== INSURANCE POLICY FORM ====================
@@ -155,21 +60,21 @@ class InsurancePolicyForm(forms.ModelForm):
     class Meta:
         model = InsurancePolicy
         fields = [
-            'vehicle', 'provider', 'client',
+            'vehicle', 'insurance_agent', 'client',
             'policy_number', 'policy_type', 'vehicle_usage', 'status',
             'start_date', 'end_date',
             'premium_amount', 'sum_insured', 'excess_amount',
             'buying_price', 'selling_price',
             'agent_name', 'agent_id',
-            'has_payment_plan', 'insurance_deposit', 'insurance_installment_months', 
+            'has_payment_plan', 'insurance_deposit', 'insurance_installment_months',
             'insurance_interest_rate',
         ]
-        
+
         widgets = {
             'vehicle': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
             }),
-            'provider': forms.Select(attrs={
+            'insurance_agent': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
             }),
             'client': forms.Select(attrs={
@@ -251,9 +156,8 @@ class InsurancePolicyForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Filter active providers
-        self.fields['provider'].queryset = InsuranceProvider.objects.filter(is_active=True)
-        
+        self.fields['insurance_agent'].queryset = InsuranceAgent.objects.filter(is_active=True)
+
         # Set default dates
         if not self.instance.pk:
             self.fields['start_date'].initial = timezone.now().date()
@@ -1008,10 +912,10 @@ class InsurancePolicySearchForm(forms.Form):
         })
     )
     
-    provider = forms.ModelChoiceField(
+    insurance_agent = forms.ModelChoiceField(
         required=False,
-        queryset=InsuranceProvider.objects.filter(is_active=True),
-        empty_label='All Providers',
+        queryset=InsuranceAgent.objects.filter(is_active=True),
+        empty_label='All Agents',
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
         })
