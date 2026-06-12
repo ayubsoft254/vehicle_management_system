@@ -316,11 +316,11 @@
                 <!-- Policy Basics -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Insurance Provider</label>
-                        <select name="insurance_provider_id" id="id_insurance_provider_id" class="form-input">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Insurance Agent</label>
+                        <select name="insurance_agent_id" id="id_insurance_agent_id" class="form-input">
                             <option value="">-- None / Skip --</option>
-                            {% for provider in insurance_providers %}
-                            <option value="{{ provider.pk }}">{{ provider.name }}</option>
+                            {% for agent in insurance_agents %}
+                            <option value="{{ agent.pk }}">{{ agent.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -391,8 +391,8 @@
                             <input type="text" name="insurance_agent_name" id="id_insurance_agent_name" placeholder="e.g. John Doe" class="form-input">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Agent ID</label>
-                            <input type="text" name="insurance_agent_id" id="id_insurance_agent_id" placeholder="e.g. AG001234" class="form-input">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Agent ID / License No.</label>
+                            <input type="text" name="agent_id" id="id_agent_id" placeholder="e.g. AG001234" class="form-input">
                         </div>
                     </div>
                 </div>
@@ -598,24 +598,24 @@
             <div class="p-6">
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p class="text-xs text-gray-500 uppercase font-medium">Vehicle Sale Price</p>
-                        <p class="text-lg font-bold text-blue-600 mt-1" id="pl-price">KES 0.00</p>
-                        <p class="text-xs text-gray-400 mt-0.5">Base vehicle price from website listing</p>
+                        <p class="text-xs text-gray-500 uppercase font-medium">Vehicle Cost</p>
+                        <p class="text-lg font-bold text-gray-700 mt-1" id="pl-cost">KES 0.00</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Dealer program cost</p>
                     </div>
                     <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
                         <p class="text-xs text-gray-500 uppercase font-medium">Insurance + Tracker + Commission</p>
                         <p class="text-lg font-bold text-orange-500 mt-1" id="pl-expenses">KES 0.00</p>
-                        <p class="text-xs text-gray-400 mt-0.5">Additional costs</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Added to vehicle cost</p>
+                    </div>
+                    <div class="bg-orange-50 rounded-lg p-4 border-2 border-orange-300">
+                        <p class="text-xs text-orange-700 uppercase font-medium">Total Cost</p>
+                        <p class="text-lg font-bold text-orange-700 mt-1" id="pl-total-cost">KES 0.00</p>
+                        <p class="text-xs text-orange-600 mt-0.5">Vehicle cost + all expenses</p>
                     </div>
                     <div class="bg-blue-50 rounded-lg p-4 border-2 border-blue-300">
                         <p class="text-xs text-blue-700 uppercase font-medium">Final Selling Price</p>
-                        <p class="text-lg font-bold text-blue-700 mt-1" id="pl-total-cost">KES 0.00</p>
-                        <p class="text-xs text-blue-600 mt-0.5">Extra costs are stored as records only</p>
-                    </div>
-                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <p class="text-xs text-gray-500 uppercase font-medium">Vehicle Cost</p>
-                        <p class="text-lg font-bold text-gray-700 mt-1" id="pl-cost">KES 0.00</p>
-                        <p class="text-xs text-gray-400 mt-0.5">Dealer cost</p>
+                        <p class="text-lg font-bold text-blue-700 mt-1" id="pl-price">KES 0.00</p>
+                        <p class="text-xs text-blue-600 mt-0.5">What the client pays</p>
                     </div>
                     <div class="rounded-lg p-4 border-2" id="pl-result-box">
                         <p class="text-xs uppercase font-medium" id="pl-result-label">Net Profit</p>
@@ -676,7 +676,7 @@
                         <h3 class="text-sm font-semibold text-purple-900 mb-3"><i class="fas fa-list mr-2"></i>Calculation Breakdown</h3>
                         <div class="space-y-2 text-xs text-gray-700">
                             <div class="flex justify-between">
-                                <span>Vehicle Sale Price:</span>
+                                <span>Vehicle Cost:</span>
                                 <span id="calc-vehicle-price" class="font-medium">KES 0.00</span>
                             </div>
                             <div class="flex justify-between">
@@ -692,7 +692,7 @@
                                 <span id="calc-commission" class="font-medium">KES 0.00</span>
                             </div>
                             <div class="border-t border-purple-300 pt-2 mt-2 flex justify-between">
-                                <span class="font-semibold text-purple-900">= Total Vehicle Cost:</span>
+                                <span class="font-semibold text-purple-900">= Total Cost:</span>
                                 <span id="calc-client-purchase" class="font-semibold text-purple-700">KES 0.00</span>
                             </div>
                             <div class="flex justify-between">
@@ -704,7 +704,7 @@
                                 <span id="calc-extra-costs" class="font-medium">KES 0.00</span>
                             </div>
                             <div class="border-t border-purple-300 pt-2 mt-2 flex justify-between font-semibold text-purple-900">
-                                <span>= Final Selling Price:</span>
+                                <span>= Net Profit / Loss:</span>
                                 <span id="calc-total" class="font-bold text-purple-700">KES 0.00</span>
                             </div>
                         </div>
@@ -773,7 +773,7 @@ const initialTrackers          = {{ initial_trackers_json|safe|default:"[]" }};
 const initialFlexibleInstallments = {{ initial_flexible_installments_json|safe|default:"[]" }};
 const initialDepositData       = {{ initial_deposit_json|safe|default:"{}" }};
 const initialDepositSplits     = {{ initial_deposit_splits_json|safe|default:"[]" }};
-const insuranceProviderData    = {{ insurance_providers_json|safe|default:"[]" }};
+const insuranceAgentData       = {{ insurance_agents_json|safe|default:"[]" }};
 let selectedVehicleBasePrice = 0;
 let finalSellingTouched = false;
 
@@ -824,7 +824,7 @@ function applyInitialInsuranceData() {
         }
     };
 
-    setValue('id_insurance_provider_id', initialInsurance.provider_id || '');
+    setValue('id_insurance_agent_id', initialInsurance.insurance_agent_id || '');
     setValue('id_insurance_policy_number', initialInsurance.policy_number || '');
     setValue('id_insurance_policy_type', initialInsurance.policy_type || 'comprehensive');
     setValue('id_insurance_vehicle_usage', initialInsurance.vehicle_usage || 'private');
@@ -834,7 +834,7 @@ function applyInitialInsuranceData() {
     setValue('id_insurance_selling_price', initialInsurance.selling_price || '');
     setValue('id_insurance_deposit', initialInsurance.insurance_deposit || '');
     setValue('id_insurance_agent_name', initialInsurance.agent_name || '');
-    setValue('id_insurance_agent_id', initialInsurance.agent_id || '');
+    setValue('id_agent_id', initialInsurance.agent_id || '');
 
     const paymentType = initialInsurance.payment_type || 'full';
     const paymentRadio = document.querySelector(`input[name="insurance_payment_type"][value="${paymentType}"]`);
@@ -857,13 +857,13 @@ function applyInitialInsuranceData() {
     syncInsuranceInstallmentsPayload();
 }
 
-function getInsuranceProviderDetails(providerId) {
-    return insuranceProviderData.find(provider => String(provider.id) === String(providerId)) || null;
+function getInsuranceAgentDetails(agentId) {
+    return insuranceAgentData.find(agent => String(agent.id) === String(agentId)) || null;
 }
 
-function autoFillBrokerFieldsFromInsuranceProvider(providerId) {
-    const provider = getInsuranceProviderDetails(providerId);
-    if (!provider) {
+function autoFillBrokerFieldsFromInsuranceAgent(agentId) {
+    const agent = getInsuranceAgentDetails(agentId);
+    if (!agent) {
         return;
     }
 
@@ -871,8 +871,8 @@ function autoFillBrokerFieldsFromInsuranceProvider(providerId) {
     const brokerPhoneField = document.getElementById('id_broker_phone_no');
     const agentNameField = document.getElementById('id_insurance_agent_name');
 
-    const preferredName = provider.contact_person_name || provider.name || '';
-    const preferredPhone = provider.contact_person_phone || provider.phone_primary || provider.phone_secondary || '';
+    const preferredName = agent.name || '';
+    const preferredPhone = agent.phone || '';
 
     if (brokerNameField && !brokerNameField.value.trim() && preferredName) {
         brokerNameField.value = preferredName;
@@ -885,42 +885,41 @@ function autoFillBrokerFieldsFromInsuranceProvider(providerId) {
     }
 }
 
-function findProviderFromBrokerFields() {
+function findAgentFromBrokerFields() {
     const brokerName = (document.getElementById('id_broker_name')?.value || '').trim().toLowerCase();
     const brokerPhone = (document.getElementById('id_broker_phone_no')?.value || '').trim();
     if (!brokerName && !brokerPhone) {
         return null;
     }
 
-    return insuranceProviderData.find(provider => {
-        const contactName = (provider.contact_person_name || '').trim().toLowerCase();
-        const providerName = (provider.name || '').trim().toLowerCase();
-        const phonePrimary = (provider.contact_person_phone || provider.phone_primary || provider.phone_secondary || '').trim();
+    return insuranceAgentData.find(agent => {
+        const agentName = (agent.name || '').trim().toLowerCase();
+        const agentPhone = (agent.phone || '').trim();
 
-        const nameMatches = brokerName && (contactName === brokerName || providerName === brokerName);
-        const phoneMatches = brokerPhone && phonePrimary === brokerPhone;
+        const nameMatches = brokerName && agentName === brokerName;
+        const phoneMatches = brokerPhone && agentPhone === brokerPhone;
 
         return nameMatches || phoneMatches;
     }) || null;
 }
 
-function syncInsuranceProviderFromBrokerFields() {
-    const providerSelect = document.getElementById('id_insurance_provider_id');
-    if (!providerSelect || providerSelect.value) {
+function syncInsuranceAgentFromBrokerFields() {
+    const agentSelect = document.getElementById('id_insurance_agent_id');
+    if (!agentSelect || agentSelect.value) {
         return;
     }
 
-    const matchedProvider = findProviderFromBrokerFields();
-    if (matchedProvider) {
-        providerSelect.value = matchedProvider.id;
-        autoFillBrokerFieldsFromInsuranceProvider(matchedProvider.id);
+    const matchedAgent = findAgentFromBrokerFields();
+    if (matchedAgent) {
+        agentSelect.value = matchedAgent.id;
+        autoFillBrokerFieldsFromInsuranceAgent(matchedAgent.id);
     }
 }
 
-function onInsuranceProviderChange() {
-    const providerId = document.getElementById('id_insurance_provider_id')?.value;
-    if (providerId) {
-        autoFillBrokerFieldsFromInsuranceProvider(providerId);
+function onInsuranceAgentChange() {
+    const agentId = document.getElementById('id_insurance_agent_id')?.value;
+    if (agentId) {
+        autoFillBrokerFieldsFromInsuranceAgent(agentId);
     }
 }
 
@@ -1487,23 +1486,23 @@ function hydrateExtraCostsFromHidden() {
 
 function updateCalculationBreakdown() {
     const vehicleId = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
-    const priceInput = vehicleId ? selectedVehicleBasePrice : 0;
+    const dealerCost = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
     const insuranceSelling = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0) || 0;
     const trackerSelling = calculateTrackerSellingTotal();
     const commission = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
-    const clientPurchasePrice = calculateEffectivePurchasePrice();
-    const finalSelling = getFinalSellingValue(clientPurchasePrice);
+    const totalCost = dealerCost + insuranceSelling + trackerSelling + commission;
+    const finalSelling = getFinalSellingValue(selectedVehicleBasePrice);
     const extraCosts = calculateExtraCostsTotal();
-    const total = Math.max(0, finalSelling);
-    
-    document.getElementById('calc-vehicle-price').textContent = fmt(priceInput);
+    const netProfit = finalSelling - totalCost;
+
+    document.getElementById('calc-vehicle-price').textContent = fmt(dealerCost);
     document.getElementById('calc-insurance').textContent = fmt(insuranceSelling);
     document.getElementById('calc-trackers').textContent = fmt(trackerSelling);
     document.getElementById('calc-commission').textContent = fmt(commission);
-    document.getElementById('calc-client-purchase').textContent = fmt(clientPurchasePrice);
+    document.getElementById('calc-client-purchase').textContent = fmt(totalCost);
     document.getElementById('calc-final-selling').textContent = fmt(finalSelling);
     document.getElementById('calc-extra-costs').textContent = fmt(extraCosts);
-    document.getElementById('calc-total').textContent = fmt(total);
+    document.getElementById('calc-total').textContent = fmt(netProfit);
 
     syncExtraCostsPayload();
 }
@@ -1512,63 +1511,38 @@ function updateProfitLoss() {
     const vehicleId = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
     const priceField = document.getElementById('{{ form.purchase_price.id_for_label }}');
     const finalSellingField = document.getElementById('{{ form.final_selling_price.id_for_label }}');
-    
-    console.log('updateProfitLoss called');
-    console.log('vehicleId:', vehicleId);
-    console.log('priceField:', priceField);
-    console.log('vehicleCostPrices:', vehicleCostPrices);
-    
-    if (!priceField) {
-        console.error('priceField not found');
-        return;
-    }
 
-    // Vehicle Cost = base cost from vehicle creation only
+    if (!priceField) return;
+
+    // Base program cost of the vehicle (purchase + duty + clearance + extras)
     const baseVehicleCost = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
-    console.log('baseVehicleCost:', baseVehicleCost);
     priceField.value = Number(baseVehicleCost).toFixed(2);
-    console.log('priceField.value set to:', priceField.value);
 
-    // Total Vehicle Cost = base + insurance + tracker + commission
-    const totalVehicleCost = calculateEffectivePurchasePrice();
-    
-    // Final Selling Price defaults to total vehicle cost
-    const finalSellingPrice = getFinalSellingValue(totalVehicleCost);
-    const extraCosts = calculateExtraCostsTotal();
-    const netClientPrice = Math.max(0, finalSellingPrice);
-
-    if (finalSellingField && finalSellingField.value === '') {
-        finalSellingField.value = Number(finalSellingPrice).toFixed(2);
-    }
+    // Final selling price auto-fills from the vehicle listing price only
+    const finalSellingPrice = getFinalSellingValue(selectedVehicleBasePrice);
 
     updateCalculationBreakdown();
 
-    const costPrice   = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
-    const finalSellingPrice = getFinalSellingValue(calculateEffectivePurchasePrice());
-    const priceInput  = finalSellingPrice;
-    
-    // Insurance costs
+    // P&L breakdown: compare final selling price against total program cost
+    const costPrice = baseVehicleCost;
     const insuranceCost = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0);
-    
-    // Tracker costs
+
     let trackerCost = 0;
     document.querySelectorAll('.tracker-item').forEach(tracker => {
         trackerCost += parseFloat(tracker.querySelector('.tracker-selling-price')?.value || 0);
     });
 
     const commissionCost = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
-    
+
     const totalExpenses = insuranceCost + trackerCost + commissionCost;
-    const totalVehicleCost = costPrice + totalExpenses;
-    const netProfit = finalSellingPrice - totalVehicleCost;
+    const totalCostForPL = costPrice + totalExpenses;
+    const netProfit = finalSellingPrice - totalCostForPL;
 
-    console.log('Display values:', {costPrice, totalExpenses, totalVehicleCost, netProfit});
-
-    document.getElementById('pl-cost').textContent    = fmt(costPrice);
-    document.getElementById('pl-price').textContent   = fmt(costPrice);
-    document.getElementById('pl-expenses').textContent = fmt(totalExpenses);
-    document.getElementById('pl-total-cost').textContent = fmt(totalVehicleCost);
-    document.getElementById('pl-result').textContent  = fmt(Math.abs(netProfit));
+    document.getElementById('pl-cost').textContent       = fmt(costPrice);
+    document.getElementById('pl-expenses').textContent   = fmt(totalExpenses);
+    document.getElementById('pl-total-cost').textContent = fmt(totalCostForPL);
+    document.getElementById('pl-price').textContent      = fmt(finalSellingPrice);
+    document.getElementById('pl-result').textContent    = fmt(Math.abs(netProfit));
 
     const box   = document.getElementById('pl-result-box');
     const label = document.getElementById('pl-result-label');
@@ -1621,8 +1595,7 @@ function updatePaymentFields() {
 }
 
 function getRemainingBalanceForFlexible() {
-    const clientPurchasePrice = calculateEffectivePurchasePrice();
-    const finalSellingPrice = getFinalSellingValue(clientPurchasePrice);
+    const finalSellingPrice = getFinalSellingValue(selectedVehicleBasePrice);
     const price = Math.max(0, finalSellingPrice - calculateExtraCostsTotal());
     const deposit = parseFloat(document.getElementById('{{ form.deposit_paid.id_for_label }}')?.value || 0);
     return Math.max(0, price - deposit);
@@ -1771,10 +1744,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize insurance payment type UI
     applyInitialInsuranceData();
     updateInsurancePaymentUI();
-    onInsuranceProviderChange();
-    document.getElementById('id_insurance_provider_id')?.addEventListener('change', onInsuranceProviderChange);
-    document.getElementById('id_broker_name')?.addEventListener('blur', syncInsuranceProviderFromBrokerFields);
-    document.getElementById('id_broker_phone_no')?.addEventListener('blur', syncInsuranceProviderFromBrokerFields);
+    onInsuranceAgentChange();
+    document.getElementById('id_insurance_agent_id')?.addEventListener('change', onInsuranceAgentChange);
+    document.getElementById('id_broker_name')?.addEventListener('blur', syncInsuranceAgentFromBrokerFields);
+    document.getElementById('id_broker_phone_no')?.addEventListener('blur', syncInsuranceAgentFromBrokerFields);
     document.getElementById('id_insurance_selling_price')?.addEventListener('input', () => {
         updateInsuranceInstallmentSummary();
         updateCalculationBreakdown();
@@ -1820,15 +1793,7 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
     const priceInput    = document.getElementById('{{ form.purchase_price.id_for_label }}');
 
     function applyVehicleSelection(vehicleId) {
-        console.log('applyVehicleSelection called with vehicleId:', vehicleId);
-        console.log('vehiclePrices:', vehiclePrices);
-        console.log('vehicleCostPrices:', vehicleCostPrices);
-        console.log('priceInput element:', priceInput);
-        
-        if (!priceInput) {
-            console.error('priceInput element not found');
-            return;
-        }
+        if (!priceInput) return;
 
         if (vehicleId && vehiclePrices[vehicleId] !== undefined) {
             selectedVehicleBasePrice = Number(vehiclePrices[vehicleId]) || 0;
@@ -1836,7 +1801,9 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
             selectedVehicleBasePrice = 0;
         }
 
-        console.log('selectedVehicleBasePrice set to:', selectedVehicleBasePrice);
+        // Reset so final selling price auto-fills from the newly selected vehicle
+        finalSellingTouched = false;
+
         updateProfitLoss();
         updateFlexibleInstallmentSummary();
         updateCalculationBreakdown();
@@ -1844,7 +1811,6 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
 
     if (vehicleSelect && priceInput) {
         vehicleSelect.addEventListener('change', function() {
-            console.log('Vehicle select native change event triggered with value:', this.value);
             applyVehicleSelection(this.value);
         });
     }
@@ -1863,13 +1829,11 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
 
         // Ensure Select2 selections always run vehicle auto-population logic
         $(vehicleSelect).on('select2:select select2:clear', function() {
-            console.log('Select2 select/clear event triggered with value:', this.value);
             applyVehicleSelection(this.value);
         });
-        
+
         // Also listen to the change event from Select2
         $(vehicleSelect).on('change', function() {
-            console.log('Select2 change event triggered with value:', this.value);
             applyVehicleSelection(this.value);
         });
     }
