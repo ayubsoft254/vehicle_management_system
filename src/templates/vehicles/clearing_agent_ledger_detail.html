@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}{{ agent.name }} — Clearing Agent Ledger{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex items-center justify-between mb-6">
+        <a href="{% url 'vehicles:clearing_agent_ledger_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Clearing Agents
+        </a>
+        {% if agent.total_owed > 0 %}
+        <button id="mark-all-btn" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+            <i class="fas fa-check-double mr-2"></i>Mark All Paid
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Agent Header -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+        <div class="flex items-center mb-6">
+            <div class="h-14 w-14 bg-yellow-100 rounded-full flex items-center justify-center mr-4">
+                <i class="fas fa-file-invoice-dollar text-yellow-600 text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">{{ agent.name }}</h1>
+                <p class="text-gray-500 text-sm">
+                    {% if agent.phone %}{{ agent.phone }}{% endif %}
+                    {% if agent.email %} · {{ agent.email }}{% endif %}
+                </p>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-gray-50 rounded-lg p-4 text-center">
+                <p class="text-xs text-gray-500 mb-1">Clearance Records</p>
+                <p class="text-2xl font-bold text-gray-800">{{ agent.total_records }}</p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-4 text-center">
+                <p class="text-xs text-blue-600 mb-1">Total Billed</p>
+                <p class="text-xl font-bold text-blue-800">KES {{ agent.total_billed|floatformat:2|intcomma }}</p>
+            </div>
+            <div class="bg-red-50 rounded-lg p-4 text-center">
+                <p class="text-xs text-red-600 mb-1">Outstanding</p>
+                <p class="text-xl font-bold text-red-800">KES {{ agent.total_owed|floatformat:2|intcomma }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Records Table -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h2 class="text-lg font-semibold text-gray-900">Clearance Records ({{ records|length }})</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vehicle</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Pay</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for record in records %}
+                    <tr id="row-{{ record.pk }}" class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm">
+                            <a href="{% url 'vehicles:detail' record.vehicle.pk %}" class="text-primary-600 hover:underline font-medium">
+                                {{ record.vehicle.make }} {{ record.vehicle.model }} {{ record.vehicle.year }}
+                            </a>
+                            {% if record.vehicle.registration_number %}
+                            <p class="text-xs text-gray-400">{{ record.vehicle.registration_number }}</p>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-500">{{ record.date|default:"—" }}</td>
+                        <td class="px-4 py-3 text-right text-sm font-medium text-gray-800">KES {{ record.amount|floatformat:2|intcomma }}</td>
+                        <td class="px-4 py-3 text-center">
+                            <span id="status-{{ record.pk }}" class="px-2 py-1 rounded-full text-xs font-semibold
+                                {% if record.payment_status == 'paid' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+                                {{ record.get_payment_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-500">{{ record.notes|truncatechars:60|default:"—" }}</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if record.payment_status == 'unpaid' %}
+                            <button onclick="markPaid({{ record.pk }})"
+                                class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition">
+                                Mark Paid
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">No clearance records for this agent.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const CSRF = '{{ csrf_token }}';
+
+async function markPaid(recordId) {
+    const res = await fetch(`{% url 'vehicles:clearance_record_mark_paid' 0 %}`.replace('/0/', `/${recordId}/`), {
+        method: 'POST',
+        headers: {'X-CSRFToken': CSRF},
+    });
+    if (!res.ok) return;
+    const statusEl = document.getElementById(`status-${recordId}`);
+    if (statusEl) {
+        statusEl.textContent = 'Paid';
+        statusEl.className = 'px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700';
+    }
+    const row = document.getElementById(`row-${recordId}`);
+    const btn = row?.querySelector('button');
+    if (btn) btn.remove();
+    location.reload();
+}
+
+const markAllBtn = document.getElementById('mark-all-btn');
+if (markAllBtn) {
+    markAllBtn.addEventListener('click', async () => {
+        if (!confirm('Mark all unpaid clearance records as paid for this agent?')) return;
+        const res = await fetch('{% url "vehicles:clearing_agent_mark_all_paid" agent.pk %}', {
+            method: 'POST',
+            headers: {'X-CSRFToken': CSRF},
+        });
+        if (res.ok) location.reload();
+    });
+}
+</script>
+{% endblock %}

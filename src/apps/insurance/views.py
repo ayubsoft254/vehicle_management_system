@@ -16,9 +16,9 @@ import csv
 import json
 from decimal import Decimal
 
-from .models import InsuranceProvider, InsurancePolicy, InsuranceClaim, InsurancePayment, InsurancePaymentSchedule
+from .models import InsuranceAgent, InsurancePolicy, InsuranceClaim, InsurancePayment, InsurancePaymentSchedule
 from .forms import (
-    InsuranceProviderForm, InsurancePolicyForm, InsuranceClaimForm,
+    InsurancePolicyForm, InsuranceClaimForm,
     ClaimUpdateForm, InsurancePaymentForm, InsurancePolicySearchForm,
     InsuranceClaimSearchForm, PolicyRenewalForm, BulkPolicyReminderForm,
     PolicyCancellationForm, InsuranceQuoteForm
@@ -26,165 +26,6 @@ from .forms import (
 from apps.vehicles.models import Vehicle
 from apps.clients.models import Client
 from apps.audit.utils import log_audit
-
-
-# ==================== INSURANCE PROVIDER VIEWS ====================
-
-@login_required
-def provider_list(request):
-    """
-    Display list of all insurance providers
-    """
-    providers = InsuranceProvider.objects.annotate(
-        total_policies=Count('policies'),
-        active_policies=Count('policies', filter=Q(policies__status='active'))
-    ).order_by('name')
-    
-    # Filter by active status
-    is_active = request.GET.get('is_active')
-    if is_active:
-        providers = providers.filter(is_active=(is_active == 'true'))
-    
-    # Search
-    search = request.GET.get('search')
-    if search:
-        providers = providers.filter(
-            Q(name__icontains=search) |
-            Q(phone_primary__icontains=search) |
-            Q(email__icontains=search)
-        )
-    
-    # Pagination
-    paginator = Paginator(providers, 20)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    context = {
-        'providers': page_obj,
-        'total_providers': providers.count(),
-        'active_providers': providers.filter(is_active=True).count(),
-    }
-    
-    log_audit(request.user, 'view', 'InsuranceProvider', 'Viewed provider list')
-    
-    return render(request, 'insurance/provider_list.html', context)
-
-
-@login_required
-def provider_detail(request, pk):
-    """
-    Display detailed information about a provider
-    """
-    provider = get_object_or_404(InsuranceProvider, pk=pk)
-    
-    # Get provider's policies
-    policies = InsurancePolicy.objects.filter(provider=provider).select_related(
-        'vehicle', 'client'
-    ).order_by('-start_date')
-    
-    # Statistics
-    total_policies = policies.count()
-    active_policies = policies.filter(status='active').count()
-    total_premium = policies.filter(status='active').aggregate(
-        Sum('premium_amount')
-    )['premium_amount__sum'] or 0
-    
-    context = {
-        'provider': provider,
-        'policies': policies[:10],  # Recent 10
-        'total_policies': total_policies,
-        'active_policies': active_policies,
-        'total_premium': total_premium,
-    }
-    
-    log_audit(request.user, 'view', 'InsuranceProvider', f'Viewed provider: {provider.name}')
-    
-    return render(request, 'insurance/provider_detail.html', context)
-
-
-@login_required
-def provider_create(request):
-    """
-    Create a new insurance provider
-    """
-    if request.method == 'POST':
-        form = InsuranceProviderForm(request.POST)
-        if form.is_valid():
-            provider = form.save(commit=False)
-            provider.created_by = request.user
-            provider.save()
-            
-            log_audit(request.user, 'create', 'InsuranceProvider', f'Created provider: {provider.name}')
-            
-            messages.success(request, f'Insurance provider "{provider.name}" created successfully!')
-            return redirect('insurance:provider_detail', pk=provider.pk)
-        else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        form = InsuranceProviderForm()
-    
-    context = {
-        'form': form,
-        'title': 'Add Insurance Provider',
-        'button_text': 'Create Provider'
-    }
-    
-    return render(request, 'insurance/provider_form.html', context)
-
-
-@login_required
-def provider_update(request, pk):
-    """
-    Update an existing provider
-    """
-    provider = get_object_or_404(InsuranceProvider, pk=pk)
-    
-    if request.method == 'POST':
-        form = InsuranceProviderForm(request.POST, instance=provider)
-        if form.is_valid():
-            form.save()
-            
-            log_audit(request.user, 'update', 'InsuranceProvider', f'Updated provider: {provider.name}')
-            
-            messages.success(request, f'Provider "{provider.name}" updated successfully!')
-            return redirect('insurance:provider_detail', pk=provider.pk)
-        else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        form = InsuranceProviderForm(instance=provider)
-    
-    context = {
-        'form': form,
-        'provider': provider,
-        'title': f'Update Provider: {provider.name}',
-        'button_text': 'Update Provider'
-    }
-    
-    return render(request, 'insurance/provider_form.html', context)
-
-
-@login_required
-def provider_delete(request, pk):
-    """
-    Deactivate an insurance provider
-    """
-    provider = get_object_or_404(InsuranceProvider, pk=pk)
-    
-    if request.method == 'POST':
-        provider_name = provider.name
-        provider.is_active = False
-        provider.save()
-        
-        log_audit(request.user, 'delete', 'InsuranceProvider', f'Deactivated provider: {provider_name}')
-        
-        messages.success(request, f'Provider "{provider_name}" has been deactivated.')
-        return redirect('insurance:provider_list')
-    
-    context = {
-        'provider': provider
-    }
-    
-    return render(request, 'insurance/provider_confirm_delete.html', context)
 
 
 # ==================== INSURANCE POLICY VIEWS ====================
@@ -195,10 +36,9 @@ def policy_list(request):
     Display list of all insurance policies with filtering
     """
     policies = InsurancePolicy.objects.select_related(
-        'vehicle', 'provider', 'client', 'created_by'
+        'vehicle', 'insurance_agent', 'client', 'created_by'
     ).order_by('-start_date')
-    
-    # Apply filters from search form
+
     search_form = InsurancePolicySearchForm(request.GET)
     payment_status = request.GET.get('payment_status', '').strip()
 
@@ -206,9 +46,9 @@ def policy_list(request):
         search = search_form.cleaned_data.get('search')
         policy_type = search_form.cleaned_data.get('policy_type')
         status = search_form.cleaned_data.get('status')
-        provider = search_form.cleaned_data.get('provider')
+        insurance_agent = search_form.cleaned_data.get('insurance_agent')
         expiring_soon = search_form.cleaned_data.get('expiring_soon')
-        
+
         if search:
             policies = policies.filter(
                 Q(policy_number__icontains=search) |
@@ -216,15 +56,15 @@ def policy_list(request):
                 Q(client__first_name__icontains=search) |
                 Q(client__last_name__icontains=search)
             )
-        
+
         if policy_type:
             policies = policies.filter(policy_type=policy_type)
-        
+
         if status:
             policies = policies.filter(status=status)
-        
-        if provider:
-            policies = policies.filter(provider=provider)
+
+        if insurance_agent:
+            policies = policies.filter(insurance_agent=insurance_agent)
         
         if expiring_soon:
             policies = policies.filter(
@@ -324,7 +164,7 @@ def policy_detail(request, pk):
     """
     policy = get_object_or_404(
         InsurancePolicy.objects.select_related(
-            'vehicle', 'provider', 'client', 'created_by'
+            'vehicle', 'insurance_agent', 'client', 'created_by'
         ),
         pk=pk
     )
@@ -1276,20 +1116,80 @@ def insurance_reports(request):
             'total_claimed': total_claimed
         })
     
-    # Provider statistics
-    provider_stats = InsuranceProvider.objects.annotate(
+    # Agent statistics
+    agent_stats = InsuranceAgent.objects.annotate(
         policy_count=Count('policies'),
         total_premium=Sum('policies__premium_amount', filter=Q(policies__status='active'))
     ).filter(is_active=True).order_by('-policy_count')[:10]
-    
+
     context = {
         'policy_type_stats': policy_type_stats,
         'claim_type_stats': claim_type_stats,
-        'provider_stats': provider_stats,
+        'agent_stats': agent_stats,
         'date_from': date_from,
         'date_to': date_to,
     }
     
     log_audit(request.user, 'view', 'Insurance', 'Viewed insurance reports')
-    
+
     return render(request, 'insurance/reports.html', context)
+
+
+# ==================== INSURANCE AGENT LEDGER VIEWS ====================
+
+@login_required
+def agent_ledger_list(request):
+    """List all insurance agents with their policy totals and outstanding balances."""
+    agents = InsuranceAgent.objects.filter(is_active=True).prefetch_related('policies').order_by('name')
+    totals = InsurancePolicy.objects.aggregate(
+        grand_buying=Coalesce(Sum('buying_price'), Value(0, output_field=DecimalField())),
+        grand_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+        grand_owed=Coalesce(
+            Sum('buying_price', filter=Q(dealer_payment_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    )
+    context = {
+        'agents': agents,
+        'grand_buying': totals['grand_buying'],
+        'grand_selling': totals['grand_selling'],
+        'grand_owed': totals['grand_owed'],
+    }
+    log_audit(request.user, 'view', 'InsuranceAgent', 'Viewed insurance agent ledger')
+    return render(request, 'insurance/agent_ledger_list.html', context)
+
+
+@login_required
+def agent_ledger_detail(request, pk):
+    """Show all policies for an insurance agent and allow marking them paid."""
+    agent = get_object_or_404(InsuranceAgent, pk=pk)
+    policies = agent.policies.select_related('vehicle', 'client').order_by('-start_date')
+    context = {
+        'agent': agent,
+        'policies': policies,
+    }
+    log_audit(request.user, 'view', 'InsuranceAgent', f'Viewed ledger for agent {agent.name}')
+    return render(request, 'insurance/agent_ledger_detail.html', context)
+
+
+@login_required
+def agent_ledger_mark_paid(request, pk):
+    """Mark a single insurance policy as paid to the agent."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    policy = get_object_or_404(InsurancePolicy, pk=pk)
+    policy.dealer_payment_status = 'paid'
+    policy.save(update_fields=['dealer_payment_status'])
+    log_audit(request.user, 'update', 'InsurancePolicy', f'Marked policy {policy.policy_number} as paid to agent')
+    return JsonResponse({'status': 'paid', 'policy_id': pk})
+
+
+@login_required
+def agent_ledger_mark_all_paid(request, agent_pk):
+    """Mark all unpaid policies for an agent as paid."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    agent = get_object_or_404(InsuranceAgent, pk=agent_pk)
+    updated = agent.policies.filter(dealer_payment_status='unpaid').update(dealer_payment_status='paid')
+    log_audit(request.user, 'update', 'InsuranceAgent', f'Marked all {updated} unpaid policies as paid for agent {agent.name}')
+    return JsonResponse({'status': 'ok', 'updated': updated})

@@ -272,6 +272,18 @@
                         </div>
                         {% if form.clearance_cost.errors %}<p class="mt-1 text-xs text-red-600">{{ form.clearance_cost.errors.0 }}</p>{% endif %}
                     </div>
+                    <div>
+                        <label for="clearing_agent_id" class="block text-sm font-medium text-gray-700 mb-1">
+                            Clearing Agent <span class="text-gray-400 font-normal">(optional)</span>
+                        </label>
+                        <select name="clearing_agent_id" id="clearing_agent_id" class="form-input">
+                            <option value="">— No Agent / Unknown —</option>
+                            {% for agent in clearing_agents %}
+                            <option value="{{ agent.pk }}" {% if existing_clearing_agent_id == agent.pk %}selected{% endif %}>{{ agent.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">Link the clearance cost to a clearing agent for ledger tracking.</p>
+                    </div>
                 </div>
 
                 <!-- Extra costs table -->

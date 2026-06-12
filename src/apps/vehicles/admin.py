@@ -5,7 +5,10 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db.models import Sum, Count
-from .models import Vehicle, VehiclePhoto, VehicleHistory, VehicleLocationHistory
+from .models import (
+    Vehicle, VehiclePhoto, VehicleHistory, VehicleLocationHistory,
+    TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord,
+)
 
 
 class VehiclePhotoInline(admin.TabularInline):
@@ -343,6 +346,55 @@ class VehicleHistoryAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """Only superusers can delete history"""
         return request.user.is_superuser
+
+
+# ==================== TRACKER ADMIN ====================
+
+class TrackerRecordInline(admin.TabularInline):
+    model = TrackerRecord
+    extra = 0
+    fields = ['tracker_name', 'serial_number', 'buying_price', 'selling_price', 'dealer_payment_status', 'installation_date']
+
+
+@admin.register(TrackerAgent)
+class TrackerAgentAdmin(admin.ModelAdmin):
+    list_display = ['name', 'phone', 'email', 'total_records', 'total_buying_price', 'total_owed', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['name', 'phone', 'email']
+    inlines = [TrackerRecordInline]
+
+
+@admin.register(TrackerRecord)
+class TrackerRecordAdmin(admin.ModelAdmin):
+    list_display = ['tracker_name', 'vehicle', 'agent', 'buying_price', 'selling_price', 'dealer_payment_status', 'installation_date']
+    list_filter = ['dealer_payment_status', 'agent']
+    search_fields = ['tracker_name', 'serial_number', 'vehicle__make', 'vehicle__model']
+    list_editable = ['dealer_payment_status']
+    autocomplete_fields = ['vehicle', 'agent']
+
+
+# ==================== CLEARING AGENT ADMIN ====================
+
+class ClearanceRecordInline(admin.TabularInline):
+    model = ClearanceRecord
+    extra = 0
+    fields = ['vehicle', 'amount', 'date', 'payment_status']
+
+
+@admin.register(ClearingAgent)
+class ClearingAgentAdmin(admin.ModelAdmin):
+    list_display = ['name', 'phone', 'email', 'total_records', 'total_billed', 'total_owed', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['name', 'phone', 'email']
+    inlines = [ClearanceRecordInline]
+
+
+@admin.register(ClearanceRecord)
+class ClearanceRecordAdmin(admin.ModelAdmin):
+    list_display = ['vehicle', 'agent', 'amount', 'date', 'payment_status']
+    list_filter = ['payment_status', 'agent']
+    search_fields = ['vehicle__make', 'vehicle__model', 'agent__name']
+    list_editable = ['payment_status']
 
 
 @admin.register(VehicleLocationHistory)

@@ -6,10 +6,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Count, Sum, Avg, Value, DecimalField
+from django.db.models.deletion import ProtectedError
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
-from .models import Vehicle, VehiclePhoto, VehicleHistory
+from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord
 from apps.clients.models import ClientVehicle, Client
 from .forms import (
     VehicleForm, VehiclePhotoForm, VehicleSearchForm,
@@ -265,8 +266,10 @@ def vehicle_detail_view(request, pk):
 
     if vehicle.status == VehicleStatus.SOLD and latest_sale:
         display_price = latest_sale.final_selling_price
+        vehicle_profit = latest_sale.final_selling_price - vehicle.total_program_cost
     else:
         display_price = vehicle.website_display_price
+        vehicle_profit = vehicle.website_display_price - vehicle.total_program_cost
 
     context = {
         'vehicle': vehicle,
@@ -281,6 +284,7 @@ def vehicle_detail_view(request, pk):
         'show_public_prices': show_public_prices,
         'display_price': display_price,
         'latest_sale': latest_sale,
+        'vehicle_profit': vehicle_profit,
     }
     return render(request, 'vehicles/vehicle_detail.html', context)
 
@@ -322,12 +326,25 @@ def vehicle_create_view(request):
                 vehicle.deposit_required = Decimal('0.00')
             vehicle.added_by = request.user
             vehicle.save()
-            
+
             # Handle extra costs
             _sync_vehicle_extra_costs(vehicle, extra_cost_entries, request.user)
             for description, amount in extra_cost_entries:
                 print(f"✓ Created extra cost: {description} - {amount}")
-            
+
+            # Link clearance cost to a clearing agent ledger record
+            clearing_agent_id = request.POST.get('clearing_agent_id')
+            if clearing_agent_id and vehicle.clearance_cost:
+                try:
+                    clearing_agent = ClearingAgent.objects.get(pk=clearing_agent_id)
+                    ClearanceRecord.objects.update_or_create(
+                        vehicle=vehicle,
+                        agent=clearing_agent,
+                        defaults={'amount': vehicle.clearance_cost, 'date': vehicle.date_added.date()},
+                    )
+                except ClearingAgent.DoesNotExist:
+                    pass
+
             # Log creation
             AuditLog.log_create(
                 user=request.user,
@@ -368,6 +385,8 @@ def vehicle_create_view(request):
         'title': 'Add New Vehicle',
         'can_view_prices': can_view_prices,
         'extra_cost_entries': extra_cost_entries,
+        'clearing_agents': ClearingAgent.objects.filter(is_active=True).order_by('name'),
+        'existing_clearing_agent_id': None,
     }
     return render(request, 'vehicles/vehicle_form.html', context)
 
@@ -404,10 +423,26 @@ def vehicle_update_view(request, pk):
                     extra_cost_total
                 )
             vehicle.save()
-            
+
             # Handle extra costs
             _sync_vehicle_extra_costs(vehicle, extra_cost_entries, request.user)
-            
+
+            # Link clearance cost to a clearing agent ledger record
+            clearing_agent_id = request.POST.get('clearing_agent_id')
+            if clearing_agent_id and vehicle.clearance_cost:
+                try:
+                    clearing_agent = ClearingAgent.objects.get(pk=clearing_agent_id)
+                    ClearanceRecord.objects.update_or_create(
+                        vehicle=vehicle,
+                        agent=clearing_agent,
+                        defaults={'amount': vehicle.clearance_cost},
+                    )
+                except ClearingAgent.DoesNotExist:
+                    pass
+            elif not clearing_agent_id:
+                # If agent was removed, leave existing record as-is
+                pass
+
             # Detect changes
             changes = {}
             if old_values['status'] != vehicle.status:
@@ -437,12 +472,15 @@ def vehicle_update_view(request, pk):
     else:
         extra_cost_entries = list(vehicle.extra_costs.values('description', 'amount'))
     
+    existing_clearance = vehicle.clearance_records.select_related('agent').first()
     context = {
         'form': form,
         'vehicle': vehicle,
         'can_view_prices': can_view_prices,
         'title': f'Edit Vehicle: {vehicle.full_name}',
         'extra_cost_entries': extra_cost_entries,
+        'clearing_agents': ClearingAgent.objects.filter(is_active=True).order_by('name'),
+        'existing_clearing_agent_id': existing_clearance.agent_id if existing_clearance else None,
     }
     return render(request, 'vehicles/vehicle_form.html', context)
 
@@ -514,15 +552,24 @@ def vehicle_delete_view(request, pk):
     
     if request.method == 'POST':
         vehicle_name = vehicle.full_name
-        
-        # Log deletion
+
+        try:
+            vehicle.delete()
+        except ProtectedError as e:
+            related = e.protected_objects
+            labels = ', '.join(str(obj) for obj in related)
+            messages.error(
+                request,
+                f'Cannot delete {vehicle_name} because it is referenced by: {labels}. '
+                'Remove or reassign those records first.'
+            )
+            return redirect('vehicles:detail', pk=vehicle.pk)
+
         AuditLog.log_delete(
             user=request.user,
             obj=vehicle,
             ip_address=request.META.get('REMOTE_ADDR')
         )
-        
-        vehicle.delete()
         messages.success(request, f'Vehicle {vehicle_name} deleted successfully!')
         return redirect('vehicles:list')
     
@@ -921,3 +968,116 @@ def vehicle_purchase_price_assignment_view(request):
         'can_view_prices': True,
     }
     return render(request, 'vehicles/vehicle_purchase_price_assignment.html', context)
+
+# ==================== TRACKER AGENT LEDGER VIEWS ====================
+
+@login_required
+def tracker_agent_ledger_list(request):
+    """List all tracker agents with totals and outstanding balances."""
+    from django.db.models import Q, Sum, Value, DecimalField
+    from django.db.models.functions import Coalesce
+    agents = TrackerAgent.objects.filter(is_active=True).prefetch_related('tracker_records').order_by('name')
+    totals = TrackerRecord.objects.aggregate(
+        grand_buying=Coalesce(Sum('buying_price'), Value(0, output_field=DecimalField())),
+        grand_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+        grand_owed=Coalesce(
+            Sum('buying_price', filter=Q(dealer_payment_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    )
+    context = {
+        'agents': agents,
+        'grand_buying': totals['grand_buying'],
+        'grand_selling': totals['grand_selling'],
+        'grand_owed': totals['grand_owed'],
+    }
+    return render(request, 'vehicles/tracker_agent_ledger_list.html', context)
+
+
+@login_required
+def tracker_agent_ledger_detail(request, pk):
+    """Show all tracker records for an agent and allow marking them paid."""
+    agent = get_object_or_404(TrackerAgent, pk=pk)
+    records = agent.tracker_records.select_related('vehicle', 'client_vehicle__client').order_by('-created_at')
+    context = {
+        'agent': agent,
+        'records': records,
+    }
+    return render(request, 'vehicles/tracker_agent_ledger_detail.html', context)
+
+
+@login_required
+def tracker_record_mark_paid(request, pk):
+    """Mark a single tracker record as paid to the agent."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    record = get_object_or_404(TrackerRecord, pk=pk)
+    record.dealer_payment_status = 'paid'
+    record.save(update_fields=['dealer_payment_status'])
+    return JsonResponse({'status': 'paid', 'record_id': pk})
+
+
+@login_required
+def tracker_agent_mark_all_paid(request, agent_pk):
+    """Mark all unpaid tracker records for an agent as paid."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    agent = get_object_or_404(TrackerAgent, pk=agent_pk)
+    updated = agent.tracker_records.filter(dealer_payment_status='unpaid').update(dealer_payment_status='paid')
+    return JsonResponse({'status': 'ok', 'updated': updated})
+
+
+# ==================== CLEARING AGENT LEDGER VIEWS ====================
+
+@login_required
+def clearing_agent_ledger_list(request):
+    """List all clearing agents with totals and outstanding balances."""
+    from django.db.models import Q, Sum, Value, DecimalField
+    from django.db.models.functions import Coalesce
+    agents = ClearingAgent.objects.filter(is_active=True).prefetch_related('clearance_records').order_by('name')
+    totals = ClearanceRecord.objects.aggregate(
+        grand_billed=Coalesce(Sum('amount'), Value(0, output_field=DecimalField())),
+        grand_owed=Coalesce(
+            Sum('amount', filter=Q(payment_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    )
+    context = {
+        'agents': agents,
+        'grand_billed': totals['grand_billed'],
+        'grand_owed': totals['grand_owed'],
+    }
+    return render(request, 'vehicles/clearing_agent_ledger_list.html', context)
+
+
+@login_required
+def clearing_agent_ledger_detail(request, pk):
+    """Show all clearance records for an agent and allow marking them paid."""
+    agent = get_object_or_404(ClearingAgent, pk=pk)
+    records = agent.clearance_records.select_related('vehicle').order_by('-date')
+    context = {
+        'agent': agent,
+        'records': records,
+    }
+    return render(request, 'vehicles/clearing_agent_ledger_detail.html', context)
+
+
+@login_required
+def clearance_record_mark_paid(request, pk):
+    """Mark a single clearance record as paid to the agent."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    record = get_object_or_404(ClearanceRecord, pk=pk)
+    record.payment_status = 'paid'
+    record.save(update_fields=['payment_status'])
+    return JsonResponse({'status': 'paid', 'record_id': pk})
+
+
+@login_required
+def clearing_agent_mark_all_paid(request, agent_pk):
+    """Mark all unpaid clearance records for an agent as paid."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    agent = get_object_or_404(ClearingAgent, pk=agent_pk)
+    updated = agent.clearance_records.filter(payment_status='unpaid').update(payment_status='paid')
+    return JsonResponse({'status': 'ok', 'updated': updated})

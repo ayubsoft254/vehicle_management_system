@@ -147,12 +147,12 @@
         </div>
     </div>
 
-    <!-- Top Insurance Providers -->
+    <!-- Top Insurance Agents -->
     <div class="bg-white rounded-xl shadow-md overflow-hidden">
         <div class="p-6 border-b border-gray-200">
             <h2 class="text-xl font-bold text-gray-800 flex items-center">
                 <i class="fas fa-trophy text-primary-600 mr-2"></i>
-                Top Insurance Providers
+                Top Insurance Agents
             </h2>
         </div>
         <div class="p-6">
@@ -161,14 +161,14 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Provider</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agent</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Active Policies</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Premium Value</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Market Share</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Share</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        {% for provider in provider_stats %}
+                        {% for agent in agent_stats %}
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                                     {% if forloop.counter == 1 %}
@@ -178,24 +178,24 @@
                                     {% endif %}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <a href="{% url 'insurance:provider_detail' provider.pk %}" class="text-sm font-medium text-primary-600 hover:text-primary-900">
-                                        {{ provider.name }}
+                                    <a href="{% url 'insurance:agent_ledger_detail' agent.pk %}" class="text-sm font-medium text-primary-600 hover:text-primary-900">
+                                        {{ agent.name }}
                                     </a>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ provider.policy_count }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">KES {{ provider.total_premium|floatformat:0|default:"0" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ agent.policy_count }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">KES {{ agent.total_premium|floatformat:0|default:"0" }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         <div class="flex-1 bg-gray-200 rounded-full h-2 mr-2">
-                                            <div class="bg-green-600 h-2 rounded-full" style="width: {% if provider_stats.0.policy_count > 0 %}{% widthratio provider.policy_count 100 provider_stats.0.policy_count %}{% else %}0{% endif %}%"></div>
+                                            <div class="bg-green-600 h-2 rounded-full" style="width: {% if agent_stats.0.policy_count > 0 %}{% widthratio agent.policy_count 100 agent_stats.0.policy_count %}{% else %}0{% endif %}%"></div>
                                         </div>
-                                        <span class="text-xs text-gray-600">{% if provider_stats.0.policy_count > 0 %}{% widthratio provider.policy_count 100 provider_stats.0.policy_count %}{% else %}0{% endif %}%</span>
+                                        <span class="text-xs text-gray-600">{% if agent_stats.0.policy_count > 0 %}{% widthratio agent.policy_count 100 agent_stats.0.policy_count %}{% else %}0{% endif %}%</span>
                                     </div>
                                 </td>
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">No provider data available</td>
+                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">No agent data available</td>
                             </tr>
                         {% endfor %}
                     </tbody>
