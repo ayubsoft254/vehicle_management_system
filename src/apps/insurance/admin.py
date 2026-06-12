@@ -199,8 +199,7 @@ class InsurancePolicyAdmin(admin.ModelAdmin):
     policy_type_badge.admin_order_field = 'policy_type'
     
     def premium_display(self, obj):
-        """Display premium amount formatted"""
-        return format_html('KES {:,.2f}', obj.premium_amount)
+        return format_html('KES {}', '{:,.2f}'.format(obj.premium_amount or 0))
     premium_display.short_description = 'Premium'
     premium_display.admin_order_field = 'premium_amount'
     
