@@ -185,10 +185,6 @@
                         <i class="fas fa-file-alt w-6"></i>
                         <span class="font-medium">Templates</span>
                     </a>
-                    <a href="{% url 'reports:widget_list' %}" class="flex items-center p-3 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition text-indigo-700">
-                        <i class="fas fa-th w-6"></i>
-                        <span class="font-medium">Widgets</span>
-                    </a>
                     <a href="{% url 'reports:analytics' %}" class="flex items-center p-3 bg-red-50 hover:bg-red-100 rounded-lg transition text-red-700">
                         <i class="fas fa-chart-pie w-6"></i>
                         <span class="font-medium">Analytics</span>
@@ -196,37 +192,38 @@
                 </div>
             </div>
 
-            <!-- Report Types -->
+            <!-- Report Categories (live links) -->
             <div class="bg-white rounded-xl shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Report Categories</h3>
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Analytics Reports</h3>
                 <div class="space-y-2">
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-600"><i class="fas fa-dollar-sign w-5 text-green-600"></i>Financial</span>
-                    </div>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-600"><i class="fas fa-car w-5 text-blue-600"></i>Vehicle</span>
-                    </div>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-600"><i class="fas fa-users w-5 text-purple-600"></i>Client</span>
-                    </div>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-600"><i class="fas fa-gavel w-5 text-orange-600"></i>Auction</span>
-                    </div>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-600"><i class="fas fa-credit-card w-5 text-indigo-600"></i>Payment</span>
-                    </div>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-600"><i class="fas fa-receipt w-5 text-red-600"></i>Expense</span>
-                    </div>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-600"><i class="fas fa-money-check-alt w-5 text-teal-600"></i>Payroll</span>
-                    </div>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-600"><i class="fas fa-shield-alt w-5 text-cyan-600"></i>Insurance</span>
-                    </div>
-                    <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-600"><i class="fas fa-truck-loading w-5 text-yellow-600"></i>Repossession</span>
-                    </div>
+                    <a href="{% url 'reports:financial_reports' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-green-50 transition text-sm group">
+                        <span class="text-gray-700 group-hover:text-green-700"><i class="fas fa-dollar-sign w-5 text-green-600 mr-1"></i>Financial Overview</span>
+                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-green-500"></i>
+                    </a>
+                    <a href="{% url 'vehicles:vehicle_reports' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-blue-50 transition text-sm group">
+                        <span class="text-gray-700 group-hover:text-blue-700"><i class="fas fa-car w-5 text-blue-600 mr-1"></i>Vehicle Inventory</span>
+                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-blue-500"></i>
+                    </a>
+                    <a href="{% url 'insurance:insurance_reports' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-cyan-50 transition text-sm group">
+                        <span class="text-gray-700 group-hover:text-cyan-700"><i class="fas fa-shield-alt w-5 text-cyan-600 mr-1"></i>Insurance Analytics</span>
+                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-cyan-500"></i>
+                    </a>
+                    <a href="{% url 'repossessions:repossession_reports' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-orange-50 transition text-sm group">
+                        <span class="text-gray-700 group-hover:text-orange-700"><i class="fas fa-truck-loading w-5 text-orange-600 mr-1"></i>Repossessions</span>
+                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-orange-500"></i>
+                    </a>
+                    <a href="{% url 'vehicles:tracker_agent_ledger_list' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-blue-50 transition text-sm group">
+                        <span class="text-gray-700 group-hover:text-blue-700"><i class="fas fa-satellite-dish w-5 text-blue-500 mr-1"></i>Tracker Ledger</span>
+                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-blue-500"></i>
+                    </a>
+                    <a href="{% url 'vehicles:clearing_agent_ledger_list' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-teal-50 transition text-sm group">
+                        <span class="text-gray-700 group-hover:text-teal-700"><i class="fas fa-ship w-5 text-teal-500 mr-1"></i>Clearance Ledger</span>
+                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-teal-500"></i>
+                    </a>
+                    <a href="{% url 'insurance:agent_ledger_list' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-indigo-50 transition text-sm group">
+                        <span class="text-gray-700 group-hover:text-indigo-700"><i class="fas fa-handshake w-5 text-indigo-500 mr-1"></i>Insurance Ledger</span>
+                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-indigo-500"></i>
+                    </a>
                 </div>
             </div>
 
