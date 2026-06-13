@@ -1,0 +1,368 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+
+{% block title %}Vehicle Reports & Analytics{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-1">Vehicle Reports &amp; Analytics</h1>
+            <p class="text-gray-500 text-sm">Full inventory breakdown — status, make, fuel, location and pricing</p>
+        </div>
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            <a href="{% url 'vehicles:export' %}"
+               class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition">
+                <i class="fas fa-file-csv mr-2"></i>Export CSV
+            </a>
+            <button onclick="window.print()"
+                    class="inline-flex items-center px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition">
+                <i class="fas fa-print mr-2"></i>Print
+            </button>
+            <a href="{% url 'vehicles:list' %}"
+               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
+                <i class="fas fa-arrow-left mr-2"></i>Vehicles
+            </a>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Fleet</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1">{{ total_count }}</p>
+            <p class="text-xs text-gray-400 mt-1">all vehicles</p>
+        </div>
+        <div class="bg-white rounded-xl border border-green-100 shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Available</p>
+            <p class="text-2xl font-bold text-green-700 mt-1">{{ available_count }}</p>
+            <p class="text-xs text-gray-400 mt-1">ready to sell</p>
+        </div>
+        <div class="bg-white rounded-xl border border-blue-100 shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Sold</p>
+            <p class="text-2xl font-bold text-blue-700 mt-1">{{ sold_count }}</p>
+            <p class="text-xs text-gray-400 mt-1">completed sales</p>
+        </div>
+        <div class="bg-white rounded-xl border border-yellow-100 shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Featured</p>
+            <p class="text-2xl font-bold text-yellow-600 mt-1">{{ featured_count }}</p>
+            <p class="text-xs text-gray-400 mt-1">highlighted</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Added This Month</p>
+            <p class="text-2xl font-bold text-indigo-700 mt-1">{{ added_this_month }}</p>
+            <p class="text-xs text-gray-400 mt-1">new arrivals</p>
+        </div>
+        {% if can_see_prices %}
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Avg Mileage</p>
+            <p class="text-2xl font-bold text-gray-700 mt-1">{{ all_agg.avg_mileage|floatformat:0|intcomma }}</p>
+            <p class="text-xs text-gray-400 mt-1">km average</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Pricing overview (staff only) -->
+    {% if can_see_prices %}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Available Stock Value</p>
+            <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Purchase cost</span>
+                    <span class="font-semibold text-blue-700">KES {{ inv_agg.total_purchase|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Selling value</span>
+                    <span class="font-semibold text-green-700">KES {{ inv_agg.total_selling|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="flex justify-between text-sm border-t pt-2">
+                    <span class="text-gray-500">Avg selling price</span>
+                    <span class="font-semibold text-gray-800">KES {{ inv_agg.avg_selling|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="flex justify-between text-xs text-gray-400">
+                    <span>Min: KES {{ inv_agg.min_price|floatformat:0|intcomma }}</span>
+                    <span>Max: KES {{ inv_agg.max_price|floatformat:0|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Sold Vehicles Revenue</p>
+            <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Purchase cost</span>
+                    <span class="font-semibold text-blue-700">KES {{ sold_agg.total_purchase|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Selling value</span>
+                    <span class="font-semibold text-green-700">KES {{ sold_agg.total_selling|floatformat:0|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Total Portfolio</p>
+            <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Total purchase cost</span>
+                    <span class="font-semibold text-blue-700">KES {{ all_agg.total_purchase|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Total selling value</span>
+                    <span class="font-semibold text-green-700">KES {{ all_agg.total_selling|floatformat:0|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Status + Make -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+
+        <!-- Status Breakdown -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-layer-group text-indigo-500 mr-2"></i>Fleet by Status
+                </h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Count</th>
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Share</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for s in status_breakdown %}
+                        {% if s.count > 0 %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-5 py-3">
+                                <span class="inline-flex items-center">
+                                    {% if s.value == 'available' %}<span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                                    {% elif s.value == 'sold' %}<span class="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
+                                    {% elif s.value == 'reserved' %}<span class="w-2 h-2 rounded-full bg-yellow-400 mr-2"></span>
+                                    {% elif s.value == 'repossessed' %}<span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
+                                    {% elif s.value == 'auctioned' %}<span class="w-2 h-2 rounded-full bg-orange-500 mr-2"></span>
+                                    {% else %}<span class="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>{% endif %}
+                                    <span class="font-medium text-gray-700">{{ s.status }}</span>
+                                </span>
+                            </td>
+                            <td class="px-5 py-3 text-right font-semibold text-gray-800">{{ s.count }}</td>
+                            <td class="px-5 py-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="flex-1 bg-gray-100 rounded-full h-2">
+                                        {% if total_count %}
+                                        <div class="h-2 rounded-full
+                                            {% if s.value == 'available' %}bg-green-500{% elif s.value == 'sold' %}bg-blue-500{% elif s.value == 'reserved' %}bg-yellow-400{% elif s.value == 'repossessed' %}bg-red-500{% elif s.value == 'auctioned' %}bg-orange-500{% else %}bg-gray-400{% endif %}"
+                                            style="width: {% widthratio s.count total_count 100 %}%"></div>
+                                        {% endif %}
+                                    </div>
+                                    <span class="text-xs text-gray-400 w-8 text-right">{% if total_count %}{% widthratio s.count total_count 100 %}%{% else %}0%{% endif %}</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-gray-50 border-t-2 border-gray-200">
+                        <tr>
+                            <td class="px-5 py-3 font-semibold text-gray-700">Total</td>
+                            <td class="px-5 py-3 text-right font-bold text-gray-800">{{ total_count }}</td>
+                            <td class="px-5 py-3 text-xs text-gray-400">100%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Top Makes -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-car text-blue-500 mr-2"></i>Top Makes
+                </h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Make</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Total</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Available</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Sold</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for m in by_make %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-5 py-3 font-medium text-gray-800">{{ m.make }}</td>
+                            <td class="px-5 py-3 text-right font-semibold text-gray-700">{{ m.count }}</td>
+                            <td class="px-5 py-3 text-right text-green-600">{{ m.available }}</td>
+                            <td class="px-5 py-3 text-right text-blue-600">{{ m.sold }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="px-5 py-8 text-center text-gray-400">No data</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fuel, Body, Location, Year -->
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
+
+        <!-- Fuel Type -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-5 py-3 border-b border-gray-100">
+                <h3 class="text-sm font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-gas-pump text-orange-500 mr-2"></i>Fuel Type
+                </h3>
+            </div>
+            <div class="p-4 space-y-2">
+                {% for f in by_fuel %}{% if f.count > 0 %}
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-gray-600">{{ f.label }}</span>
+                    <span class="font-semibold text-gray-800">{{ f.count }}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-1.5">
+                    {% if total_count %}<div class="h-1.5 rounded-full bg-orange-400" style="width: {% widthratio f.count total_count 100 %}%"></div>{% endif %}
+                </div>
+                {% endif %}{% endfor %}
+            </div>
+        </div>
+
+        <!-- Body Type -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-5 py-3 border-b border-gray-100">
+                <h3 class="text-sm font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-car-side text-indigo-500 mr-2"></i>Body Type
+                </h3>
+            </div>
+            <div class="p-4 space-y-2">
+                {% for b in by_body %}
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-gray-600">{{ b.label }}</span>
+                    <span class="font-semibold text-gray-800">{{ b.count }}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-1.5">
+                    {% if total_count %}<div class="h-1.5 rounded-full bg-indigo-400" style="width: {% widthratio b.count total_count 100 %}%"></div>{% endif %}
+                </div>
+                {% empty %}
+                <p class="text-sm text-gray-400 py-4 text-center">No data</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Location -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-5 py-3 border-b border-gray-100">
+                <h3 class="text-sm font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-map-marker-alt text-red-500 mr-2"></i>Location
+                </h3>
+            </div>
+            <div class="p-4 space-y-2">
+                {% for l in by_location %}
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-gray-600">{{ l.label }}</span>
+                    <span class="font-semibold text-gray-800">{{ l.count }}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-1.5">
+                    {% if total_count %}<div class="h-1.5 rounded-full bg-red-400" style="width: {% widthratio l.count total_count 100 %}%"></div>{% endif %}
+                </div>
+                {% empty %}
+                <p class="text-sm text-gray-400 py-4 text-center">No data</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Condition -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-5 py-3 border-b border-gray-100">
+                <h3 class="text-sm font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-star text-yellow-500 mr-2"></i>Condition
+                </h3>
+            </div>
+            <div class="p-4 space-y-2">
+                {% for c in by_condition %}{% if c.count > 0 %}
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-gray-600">{{ c.label }}</span>
+                    <span class="font-semibold text-gray-800">{{ c.count }}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-1.5">
+                    {% if total_count %}<div class="h-1.5 rounded-full bg-yellow-400" style="width: {% widthratio c.count total_count 100 %}%"></div>{% endif %}
+                </div>
+                {% endif %}{% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Year breakdown -->
+    {% if by_year %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-gray-100">
+            <h2 class="text-base font-semibold text-gray-800 flex items-center">
+                <i class="fas fa-calendar-alt text-teal-500 mr-2"></i>Fleet by Model Year (last 10 years)
+            </h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Year</th>
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Count</th>
+                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Distribution</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for y in by_year %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-5 py-3 font-medium text-gray-800">{{ y.year }}</td>
+                        <td class="px-5 py-3 text-right font-semibold text-gray-700">{{ y.count }}</td>
+                        <td class="px-5 py-3">
+                            <div class="flex items-center gap-2">
+                                <div class="flex-1 bg-gray-100 rounded-full h-2 max-w-xs">
+                                    {% if total_count %}<div class="h-2 rounded-full bg-teal-400" style="width: {% widthratio y.count total_count 100 %}%"></div>{% endif %}
+                                </div>
+                                <span class="text-xs text-gray-400">{% if total_count %}{% widthratio y.count total_count 100 %}%{% endif %}</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Links -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <a href="{% url 'vehicles:list' %}"
+           class="flex items-center p-4 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl text-white shadow-sm hover:shadow-md transition">
+            <i class="fas fa-car text-2xl mr-3 opacity-80"></i>
+            <div><p class="text-xs opacity-75">Browse</p><p class="font-semibold">All Vehicles</p></div>
+        </a>
+        <a href="{% url 'vehicles:tracker_agent_ledger_list' %}"
+           class="flex items-center p-4 bg-gradient-to-br from-violet-500 to-violet-700 rounded-xl text-white shadow-sm hover:shadow-md transition">
+            <i class="fas fa-satellite-dish text-2xl mr-3 opacity-80"></i>
+            <div><p class="text-xs opacity-75">View</p><p class="font-semibold">Tracker Agents</p></div>
+        </a>
+        <a href="{% url 'vehicles:clearing_agent_ledger_list' %}"
+           class="flex items-center p-4 bg-gradient-to-br from-teal-500 to-teal-700 rounded-xl text-white shadow-sm hover:shadow-md transition">
+            <i class="fas fa-ship text-2xl mr-3 opacity-80"></i>
+            <div><p class="text-xs opacity-75">View</p><p class="font-semibold">Clearing Agents</p></div>
+        </a>
+        <a href="{% url 'vehicles:export' %}"
+           class="flex items-center p-4 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-xl text-white shadow-sm hover:shadow-md transition">
+            <i class="fas fa-download text-2xl mr-3 opacity-80"></i>
+            <div><p class="text-xs opacity-75">Download</p><p class="font-semibold">Export Data</p></div>
+        </a>
+    </div>
+
+</div>
+<style>@media print { nav,aside,button,.no-print{display:none!important} .container{max-width:100%!important} }</style>
+{% endblock %}
