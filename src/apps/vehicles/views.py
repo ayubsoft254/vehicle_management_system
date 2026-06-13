@@ -948,7 +948,19 @@ def vehicle_purchase_price_assignment_view(request):
             + (vehicle.clearance_cost or Decimal('0.00'))
             + extra_total
         ).quantize(Decimal('0.01'))
-        vehicle.save(update_fields=['purchase_price', 'selling_price', 'last_updated'])
+
+        usd_price_raw = (request.POST.get('purchase_price_usd') or '').strip()
+        usd_rate_raw = (request.POST.get('purchase_usd_rate') or '').strip()
+        try:
+            vehicle.purchase_price_usd = Decimal(usd_price_raw).quantize(Decimal('0.01')) if usd_price_raw else None
+        except Exception:
+            vehicle.purchase_price_usd = None
+        try:
+            vehicle.purchase_usd_rate = Decimal(usd_rate_raw).quantize(Decimal('0.0001')) if usd_rate_raw else None
+        except Exception:
+            vehicle.purchase_usd_rate = None
+
+        vehicle.save(update_fields=['purchase_price', 'selling_price', 'purchase_price_usd', 'purchase_usd_rate', 'last_updated'])
 
         messages.success(request, f'Updated purchase price for {vehicle.full_name}.')
         if selected_vehicle_id:
