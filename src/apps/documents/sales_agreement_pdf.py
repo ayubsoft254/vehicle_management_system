@@ -656,54 +656,99 @@ def generate_sales_agreement_pdf(client_vehicle):
     ))
     elements.append(Spacer(1, 0.4*cm))
 
-    # Full signature block
-    id_no_cell = (
-        Paragraph(f'<b>ID NO:</b> {client_id_display}', normal_small)
+    # ── Page 3 full signature block ──────────────────────────────────────────
+    # Helper values
+    id_no_text = (
+        f'<b>ID NO:</b> {client_id_display}'
         if client_id_display
-        else Paragraph('<b>ID NO:</b> ___________________________', normal_small)
+        else '<b>ID NO:</b> ___________________________'
     )
+    witness_name_val = getattr(agreement_signature, 'witness_name', '') or '___________________________'
+    witness_phone_val = getattr(agreement_signature, 'witness_phone', '') or '___________________________'
+    seller_name_val = getattr(agreement_signature, 'seller_name', '') or 'For HOZA INVESTMENT (K) LTD'
+
+    # Row heights: label rows are short, signature rows are taller, name rows medium
+    col_l = 9.5 * cm
+    col_r = 8.5 * cm
+    sig_h = 2.0 * cm   # height hint for signature image rows
+
     full_sig_data = [
+        # ── Buyer block ──────────────────────────────────────────────────────
         [
             Paragraph("<b>Buyer's Signature</b>", normal_small),
-            id_no_cell,
+            Paragraph(id_no_text, normal_small),
         ],
         [
-            _signature_flowable(getattr(agreement_signature, 'signature_data', '')),
+            _signature_flowable(
+                getattr(agreement_signature, 'signature_data', ''),
+                width=col_l - 0.4*cm, height=sig_h,
+            ),
             Paragraph('', normal_small),
         ],
         [
-            Paragraph(f'{client.get_full_name()}', normal_small),
+            Paragraph(f'<b>{client.get_full_name()}</b>', normal_small),
             Paragraph('', normal_small),
         ],
+        # ── Divider row ──────────────────────────────────────────────────────
+        [
+            Paragraph('', normal_small),
+            Paragraph('', normal_small),
+        ],
+        # ── Witness + Seller block ───────────────────────────────────────────
         [
             Paragraph('<b>WITNESS NAME</b>', normal_small),
-            Paragraph('<b>MOBILE</b> ___________________________', normal_small),
+            Paragraph('<b>MOBILE</b>', normal_small),
         ],
         [
-            Paragraph(getattr(agreement_signature, 'witness_name', '') or '___________________________', normal_small),
-            Paragraph(getattr(agreement_signature, 'witness_id_number', '') or '___________________________', normal_small),
+            Paragraph(witness_name_val, normal_small),
+            Paragraph(witness_phone_val, normal_small),
         ],
         [
             Paragraph('<b>WITNESS Signature</b>', normal_small),
             Paragraph("<b>SELLER'S SIGNATURE</b>", normal_small),
         ],
         [
-            _signature_flowable(getattr(agreement_signature, 'witness_signature_data', '')),
-            _signature_flowable(getattr(agreement_signature, 'seller_signature_data', '')),
+            _signature_flowable(
+                getattr(agreement_signature, 'witness_signature_data', ''),
+                width=col_l - 0.4*cm, height=sig_h,
+            ),
+            _signature_flowable(
+                getattr(agreement_signature, 'seller_signature_data', ''),
+                width=col_r - 0.4*cm, height=sig_h,
+            ),
         ],
         [
             Paragraph('', normal_small),
-            Paragraph(getattr(agreement_signature, 'seller_name', '') or 'For HOZA INVESTMENT (K) LTD', normal_small),
+            Paragraph(f'<b>{seller_name_val}</b>', normal_small),
         ],
     ]
-    full_sig_table = Table(full_sig_data, colWidths=[9.5*cm, 8.5*cm])
+
+    row_heights = [
+        0.4 * cm,   # labels: buyer / id-no
+        sig_h,      # buyer signature image
+        0.4 * cm,   # buyer name
+        0.25 * cm,  # spacer divider
+        0.4 * cm,   # labels: witness / mobile
+        0.4 * cm,   # witness name / mobile value
+        0.4 * cm,   # labels: witness sig / seller sig
+        sig_h,      # sig images
+        0.4 * cm,   # seller name
+    ]
+
+    full_sig_table = Table(full_sig_data, colWidths=[col_l, col_r], rowHeights=row_heights)
     full_sig_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 2),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        # Light bottom border under buyer block (below buyer name row)
+        ('LINEBELOW', (0, 2), (-1, 2), 0.5, colors.HexColor('#d1d5db')),
+        # Light bottom border under witness name row
+        ('LINEBELOW', (0, 5), (-1, 5), 0.5, colors.HexColor('#d1d5db')),
+        # Vertical divider between the two columns in sig rows
+        ('LINEBEFORE', (1, 0), (1, -1), 0.5, colors.HexColor('#e5e7eb')),
     ]))
     elements.append(full_sig_table)
 
@@ -759,9 +804,37 @@ def generate_sales_agreement_pdf(client_vehicle):
     elements.append(Paragraph('<b>NOTE: WE DO NOT ACCEPT THIRD PARTY PAYMENTS.</b>', paybill_note_style))
 
     elements.append(Spacer(1, 0.8*cm))
-    elements.append(Paragraph('<b>RECEIVED BY:</b> ___________________________', normal_style))
-    elements.append(Spacer(1, 0.25*cm))
-    elements.append(Paragraph('<b>SIGNATURE:</b> ___________________________', normal_style))
+
+    # RECEIVED BY — show client name & signature if the agreement has been signed
+    received_by_name = ''
+    if agreement_signature:
+        received_by_name = getattr(agreement_signature, 'signer_name', '') or client.get_full_name()
+    else:
+        received_by_name = client.get_full_name()
+
+    received_sig_data = [
+        [
+            Paragraph('<b>RECEIVED BY:</b>', normal_style),
+            Paragraph(f'<b>{received_by_name}</b>', normal_style),
+        ],
+        [
+            Paragraph('<b>SIGNATURE:</b>', normal_style),
+            _signature_flowable(
+                getattr(agreement_signature, 'signature_data', '') if agreement_signature else '',
+                width=6 * cm, height=1.8 * cm,
+            ),
+        ],
+    ]
+    received_table = Table(received_sig_data, colWidths=[4 * cm, 13.5 * cm])
+    received_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    elements.append(received_table)
     elements.append(Spacer(1, 1.0*cm))
     elements.append(HRFlowable(width='100%', thickness=0.6, color=colors.grey, spaceBefore=4, spaceAfter=4))
     elements.append(Spacer(1, 0.1*cm))

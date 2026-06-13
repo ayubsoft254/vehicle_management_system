@@ -1461,6 +1461,7 @@ def sign_agreement_online(request, pk):
         signer_id_number = request.POST.get('signer_id_number', '').strip()
         witness_name = request.POST.get('witness_name', '').strip()
         witness_id_number = request.POST.get('witness_id_number', '').strip()
+        witness_phone = request.POST.get('witness_phone', '').strip()
         seller_name = request.POST.get('seller_name', '').strip()
 
         errors = []
@@ -1489,6 +1490,7 @@ def sign_agreement_online(request, pk):
                     existing_sig.signature_data = signature_data
                 existing_sig.witness_name = witness_name
                 existing_sig.witness_id_number = witness_id_number
+                existing_sig.witness_phone = witness_phone
                 if witness_signature_data and witness_signature_data != 'data:,':
                     existing_sig.witness_signature_data = witness_signature_data
                 elif not witness_name and not witness_id_number:
@@ -1508,6 +1510,7 @@ def sign_agreement_online(request, pk):
                     signature_data=signature_data,
                     witness_name=witness_name,
                     witness_id_number=witness_id_number,
+                    witness_phone=witness_phone,
                     witness_signature_data='' if witness_signature_data == 'data:,' else witness_signature_data,
                     seller_name=seller_name or seller_default_name,
                     seller_signature_data='' if seller_signature_data == 'data:,' else seller_signature_data,

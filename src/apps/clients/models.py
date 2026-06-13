@@ -1064,6 +1064,13 @@ class AgreementSignature(models.Model):
         help_text='Witness ID or passport number',
     )
 
+    witness_phone = models.CharField(
+        'Witness Phone / Mobile',
+        max_length=20,
+        blank=True,
+        help_text='Witness phone or mobile number',
+    )
+
     seller_name = models.CharField(
         'Seller Full Name',
         max_length=200,
