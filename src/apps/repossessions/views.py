@@ -853,53 +853,114 @@ def recovery_attempt_create(request, repossession_pk):
 @login_required
 def repossession_reports(request):
     """Display repossession reports and analytics."""
-    # Summary statistics
-    total_repos = Repossession.objects.count()
-    active_repos = Repossession.objects.exclude(
-        status__in=['COMPLETED', 'CANCELLED']
-    ).count()
-    
-    # By status
+    today = date.today()
+
+    all_repos = Repossession.objects.all()
+    total_repos = all_repos.count()
+    completed_repos = all_repos.filter(status='COMPLETED')
+    cancelled_repos = all_repos.filter(status='CANCELLED')
+    active_repos = all_repos.exclude(status__in=['COMPLETED', 'CANCELLED'])
+
+    # Recovery rate: cases where vehicle was actually recovered (status VEHICLE_RECOVERED or COMPLETED with recovery_date)
+    recovered_count = all_repos.filter(
+        status__in=['VEHICLE_RECOVERED', 'COMPLETED']
+    ).exclude(recovery_date=None).count()
+
+    # By status with outstanding amounts
     by_status = []
     for status, label in Repossession.STATUS_CHOICES:
-        count = Repossession.objects.filter(status=status).count()
+        qs = all_repos.filter(status=status)
+        agg = qs.aggregate(
+            count=Count('id'),
+            total_outstanding=Sum('outstanding_amount'),
+        )
         by_status.append({
             'status': label,
-            'count': count,
+            'value': status,
+            'count': agg['count'] or 0,
+            'total_outstanding': agg['total_outstanding'] or 0,
         })
-    
+
     # By reason
     by_reason = []
     for reason, label in Repossession.REASON_CHOICES:
-        count = Repossession.objects.filter(reason=reason).count()
-        by_reason.append({
-            'reason': label,
-            'count': count,
-        })
-    
+        count = all_repos.filter(reason=reason).count()
+        by_reason.append({'reason': label, 'count': count})
+
     # Financial summary
-    financial_summary = Repossession.objects.aggregate(
+    financial_summary = all_repos.aggregate(
         total_outstanding=Sum('outstanding_amount'),
         total_costs=Sum('total_cost'),
         avg_outstanding=Avg('outstanding_amount'),
+        total_recovery_cost=Sum('recovery_cost'),
+        total_legal_cost=Sum('legal_cost'),
+        total_storage_cost=Sum('storage_cost'),
     )
-    
+
+    # Active outstanding by age bucket
+    age_buckets = [
+        {'label': '0–30 days', 'min': 0, 'max': 30, 'count': 0, 'outstanding': 0},
+        {'label': '31–60 days', 'min': 31, 'max': 60, 'count': 0, 'outstanding': 0},
+        {'label': '61–90 days', 'min': 61, 'max': 90, 'count': 0, 'outstanding': 0},
+        {'label': '91+ days', 'min': 91, 'max': None, 'count': 0, 'outstanding': 0},
+    ]
+    for repo in active_repos.only('initiated_date', 'outstanding_amount'):
+        age = (today - repo.initiated_date).days
+        for bucket in age_buckets:
+            if bucket['max'] is None and age >= bucket['min']:
+                bucket['count'] += 1
+                bucket['outstanding'] += float(repo.outstanding_amount or 0)
+                break
+            elif bucket['max'] is not None and bucket['min'] <= age <= bucket['max']:
+                bucket['count'] += 1
+                bucket['outstanding'] += float(repo.outstanding_amount or 0)
+                break
+
+    # Agent breakdown (assigned_to)
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    agent_breakdown = (
+        all_repos.filter(assigned_to__isnull=False)
+        .values('assigned_to__first_name', 'assigned_to__last_name', 'assigned_to__id')
+        .annotate(
+            total=Count('id'),
+            completed=Count('id', filter=Q(status='COMPLETED')),
+            active=Count('id', filter=~Q(status__in=['COMPLETED', 'CANCELLED'])),
+            outstanding=Sum('outstanding_amount', filter=~Q(status__in=['COMPLETED', 'CANCELLED'])),
+        )
+        .order_by('-total')[:10]
+    )
+
     # Average days to completion
-    completed = Repossession.objects.filter(status='COMPLETED')
     avg_days = 0
-    if completed.exists():
-        total_days = sum([r.get_days_in_process() for r in completed])
-        avg_days = total_days / completed.count()
-    
+    if completed_repos.exists():
+        total_days = sum([r.get_days_in_process() for r in completed_repos])
+        avg_days = total_days / completed_repos.count()
+
+    # Recent active cases (latest 10)
+    recent_cases = active_repos.select_related('client', 'vehicle', 'assigned_to').order_by('-initiated_date')[:10]
+
+    # This month new cases
+    month_start = today.replace(day=1)
+    this_month_count = all_repos.filter(initiated_date__gte=month_start).count()
+
     context = {
         'total_repos': total_repos,
-        'active_repos': active_repos,
+        'active_repos': active_repos.count(),
+        'completed_count': completed_repos.count(),
+        'cancelled_count': cancelled_repos.count(),
+        'recovered_count': recovered_count,
         'by_status': by_status,
         'by_reason': by_reason,
         'financial_summary': financial_summary,
         'avg_days': round(avg_days, 1),
+        'age_buckets': age_buckets,
+        'agent_breakdown': agent_breakdown,
+        'recent_cases': recent_cases,
+        'this_month_count': this_month_count,
+        'today': today,
     }
-    
+
     return render(request, 'repossessions/reports.html', context)
 
 
