@@ -1065,11 +1065,16 @@ def clearing_agent_ledger_list(request):
             Sum('amount', filter=Q(payment_status='unpaid')),
             Value(0, output_field=DecimalField()),
         ),
+        grand_settled=Coalesce(
+            Sum('amount', filter=Q(payment_status='paid')),
+            Value(0, output_field=DecimalField()),
+        ),
     )
     context = {
         'agents': agents,
         'grand_billed': totals['grand_billed'],
         'grand_owed': totals['grand_owed'],
+        'grand_settled': totals['grand_settled'],
         'form': form,
     }
     return render(request, 'vehicles/clearing_agent_ledger_list.html', context)

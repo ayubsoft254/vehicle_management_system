@@ -1073,65 +1073,201 @@ def insurance_reports(request):
     """
     Insurance reports and analytics page
     """
-    # Date range filtering
-    date_from = request.GET.get('date_from')
-    date_to = request.GET.get('date_to')
-    
+    from apps.vehicles.models import TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord
+    from datetime import date
+
+    # --- Date range ---
+    preset = request.GET.get('preset', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    today = date.today()
+
+    if preset == 'this_month':
+        date_from = today.replace(day=1).isoformat()
+        date_to = today.isoformat()
+    elif preset == 'last_3_months':
+        date_from = (today - timedelta(days=90)).isoformat()
+        date_to = today.isoformat()
+    elif preset == 'this_year':
+        date_from = today.replace(month=1, day=1).isoformat()
+        date_to = today.isoformat()
+
     policies = InsurancePolicy.objects.all()
     claims = InsuranceClaim.objects.all()
-    
+
     if date_from:
         policies = policies.filter(start_date__gte=date_from)
         claims = claims.filter(claim_date__gte=date_from)
-    
     if date_to:
         policies = policies.filter(start_date__lte=date_to)
         claims = claims.filter(claim_date__lte=date_to)
-    
-    # Policy statistics by type
+
+    # --- Top-level KPIs ---
+    policy_agg = policies.aggregate(
+        total_count=Count('id'),
+        total_buying=Coalesce(Sum('buying_price'), Value(0, output_field=DecimalField())),
+        total_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+        total_premium=Coalesce(Sum('premium_amount'), Value(0, output_field=DecimalField())),
+        unpaid_buying=Coalesce(
+            Sum('buying_price', filter=Q(dealer_payment_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    )
+    total_profit = policy_agg['total_selling'] - policy_agg['total_buying']
+    profit_margin_pct = (
+        round((total_profit / policy_agg['total_selling']) * 100, 1)
+        if policy_agg['total_selling'] else 0
+    )
+
+    active_count = policies.filter(status='active').count()
+    expired_count = policies.filter(status='expired').count()
+    cancelled_count = policies.filter(status='cancelled').count()
+
+    claim_agg = claims.aggregate(
+        total_claims=Count('id'),
+        total_claimed=Coalesce(Sum('claimed_amount'), Value(0, output_field=DecimalField())),
+        total_approved=Coalesce(Sum('approved_amount'), Value(0, output_field=DecimalField())),
+        total_settled=Coalesce(Sum('settled_amount'), Value(0, output_field=DecimalField())),
+    )
+
+    # --- Policy statistics by type ---
     policy_type_stats = []
     for policy_type, label in InsurancePolicy.POLICY_TYPE_CHOICES:
-        count = policies.filter(policy_type=policy_type).count()
-        total_premium = policies.filter(policy_type=policy_type).aggregate(
-            Sum('premium_amount')
-        )['premium_amount__sum'] or 0
-        
+        qs = policies.filter(policy_type=policy_type)
+        agg = qs.aggregate(
+            count=Count('id'),
+            total_buying=Coalesce(Sum('buying_price'), Value(0, output_field=DecimalField())),
+            total_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+            total_premium=Coalesce(Sum('premium_amount'), Value(0, output_field=DecimalField())),
+        )
+        profit = agg['total_selling'] - agg['total_buying']
         policy_type_stats.append({
             'type': label,
-            'count': count,
-            'total_premium': total_premium
+            'count': agg['count'],
+            'total_buying': agg['total_buying'],
+            'total_selling': agg['total_selling'],
+            'total_premium': agg['total_premium'],
+            'profit': profit,
         })
-    
-    # Claim statistics by type
+
+    # --- Policy status breakdown ---
+    policy_status_stats = []
+    for status_val, label in InsurancePolicy.STATUS_CHOICES:
+        count = policies.filter(status=status_val).count()
+        policy_status_stats.append({'status': label, 'value': status_val, 'count': count})
+
+    # --- Claim statistics by type ---
     claim_type_stats = []
     for claim_type, label in InsuranceClaim.CLAIM_TYPE_CHOICES:
-        count = claims.filter(claim_type=claim_type).count()
-        total_claimed = claims.filter(claim_type=claim_type).aggregate(
-            Sum('claimed_amount')
-        )['claimed_amount__sum'] or 0
-        
+        qs = claims.filter(claim_type=claim_type)
+        agg = qs.aggregate(
+            count=Count('id'),
+            total_claimed=Coalesce(Sum('claimed_amount'), Value(0, output_field=DecimalField())),
+            total_approved=Coalesce(Sum('approved_amount'), Value(0, output_field=DecimalField())),
+            total_settled=Coalesce(Sum('settled_amount'), Value(0, output_field=DecimalField())),
+        )
         claim_type_stats.append({
             'type': label,
-            'count': count,
-            'total_claimed': total_claimed
+            'count': agg['count'],
+            'total_claimed': agg['total_claimed'],
+            'total_approved': agg['total_approved'],
+            'total_settled': agg['total_settled'],
         })
-    
-    # Agent statistics
-    agent_stats = InsuranceAgent.objects.annotate(
+
+    # --- Claim status breakdown ---
+    claim_status_stats = []
+    for status_val, label in InsuranceClaim.STATUS_CHOICES:
+        count = claims.filter(status=status_val).count()
+        claim_status_stats.append({'status': label, 'value': status_val, 'count': count})
+
+    # --- Agent performance ---
+    agent_stats = InsuranceAgent.objects.filter(is_active=True).annotate(
         policy_count=Count('policies'),
-        total_premium=Sum('policies__premium_amount', filter=Q(policies__status='active'))
-    ).filter(is_active=True).order_by('-policy_count')[:10]
+        total_buying=Coalesce(Sum('policies__buying_price'), Value(0, output_field=DecimalField())),
+        total_selling=Coalesce(Sum('policies__selling_price'), Value(0, output_field=DecimalField())),
+        total_owed_ann=Coalesce(
+            Sum('policies__buying_price', filter=Q(policies__dealer_payment_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    ).order_by('-policy_count')[:15]
+
+    # --- Tracker agent summary ---
+    tracker_summary = TrackerAgent.objects.filter(is_active=True).annotate(
+        record_count=Count('tracker_records'),
+        total_buying=Coalesce(Sum('tracker_records__buying_price'), Value(0, output_field=DecimalField())),
+        total_selling=Coalesce(Sum('tracker_records__selling_price'), Value(0, output_field=DecimalField())),
+        total_owed_ann=Coalesce(
+            Sum('tracker_records__buying_price',
+                filter=Q(tracker_records__dealer_payment_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    ).order_by('-record_count')[:10]
+
+    tracker_totals = TrackerRecord.objects.aggregate(
+        grand_buying=Coalesce(Sum('buying_price'), Value(0, output_field=DecimalField())),
+        grand_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+        grand_owed=Coalesce(
+            Sum('buying_price', filter=Q(dealer_payment_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    )
+
+    # --- Clearing agent summary ---
+    clearing_summary = ClearingAgent.objects.filter(is_active=True).annotate(
+        record_count=Count('clearance_records'),
+        total_billed=Coalesce(Sum('clearance_records__amount'), Value(0, output_field=DecimalField())),
+        total_owed_ann=Coalesce(
+            Sum('clearance_records__amount',
+                filter=Q(clearance_records__payment_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    ).order_by('-record_count')[:10]
+
+    clearing_totals = ClearanceRecord.objects.aggregate(
+        grand_billed=Coalesce(Sum('amount'), Value(0, output_field=DecimalField())),
+        grand_owed=Coalesce(
+            Sum('amount', filter=Q(payment_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    )
 
     context = {
+        # KPIs
+        'total_count': policy_agg['total_count'],
+        'total_buying': policy_agg['total_buying'],
+        'total_selling': policy_agg['total_selling'],
+        'total_premium': policy_agg['total_premium'],
+        'total_profit': total_profit,
+        'profit_margin_pct': profit_margin_pct,
+        'unpaid_buying': policy_agg['unpaid_buying'],
+        'active_count': active_count,
+        'expired_count': expired_count,
+        'cancelled_count': cancelled_count,
+        # Claims KPIs
+        'total_claims': claim_agg['total_claims'],
+        'total_claimed': claim_agg['total_claimed'],
+        'total_approved': claim_agg['total_approved'],
+        'total_settled': claim_agg['total_settled'],
+        # Breakdowns
         'policy_type_stats': policy_type_stats,
+        'policy_status_stats': policy_status_stats,
         'claim_type_stats': claim_type_stats,
+        'claim_status_stats': claim_status_stats,
+        # Agents
         'agent_stats': agent_stats,
+        # Tracker
+        'tracker_summary': tracker_summary,
+        'tracker_totals': tracker_totals,
+        # Clearing
+        'clearing_summary': clearing_summary,
+        'clearing_totals': clearing_totals,
+        # Filters
         'date_from': date_from,
         'date_to': date_to,
+        'preset': preset,
     }
-    
-    log_audit(request.user, 'view', 'Insurance', 'Viewed insurance reports')
 
+    log_audit(request.user, 'view', 'Insurance', 'Viewed insurance reports')
     return render(request, 'insurance/reports.html', context)
 
 

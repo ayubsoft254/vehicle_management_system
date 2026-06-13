@@ -1,202 +1,470 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static humanize %}
 
-{% block title %}Insurance Reports - Vehicle Management System{% endblock %}
+{% block title %}Insurance Reports & Analytics{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <!-- Page Header -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+
+    <!-- ===== PAGE HEADER ===== -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Insurance Reports & Analytics</h1>
-            <p class="text-gray-600">Comprehensive insurance statistics and analysis</p>
+            <h1 class="text-3xl font-bold text-gray-800 mb-1">Insurance Reports &amp; Analytics</h1>
+            <p class="text-gray-500 text-sm">Comprehensive overview of policies, claims, and agent performance</p>
         </div>
-        <div class="mt-4 md:mt-0 space-x-3">
-            <a href="{% url 'insurance:export_policies_csv' %}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            <a href="{% url 'insurance:export_policies_csv' %}{% if date_from or date_to %}?date_from={{ date_from }}&date_to={{ date_to }}{% endif %}"
+               class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition">
                 <i class="fas fa-file-csv mr-2"></i>Export Policies
             </a>
-            <a href="{% url 'insurance:export_claims_csv' %}" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+            <a href="{% url 'insurance:export_claims_csv' %}{% if date_from or date_to %}?date_from={{ date_from }}&date_to={{ date_to }}{% endif %}"
+               class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
                 <i class="fas fa-file-csv mr-2"></i>Export Claims
             </a>
+            <button onclick="window.print()"
+                    class="inline-flex items-center px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition">
+                <i class="fas fa-print mr-2"></i>Print
+            </button>
         </div>
     </div>
 
-    <!-- Date Range Filter -->
-    <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+    <!-- ===== DATE FILTER ===== -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+            <span class="text-sm font-medium text-gray-600 mr-1">Quick filter:</span>
+            <a href="?preset=this_month"
+               class="px-3 py-1 rounded-full text-xs font-medium border transition
+                      {% if preset == 'this_month' %}bg-primary-600 text-white border-primary-600{% else %}bg-white text-gray-600 border-gray-300 hover:border-primary-400{% endif %}">
+                This Month
+            </a>
+            <a href="?preset=last_3_months"
+               class="px-3 py-1 rounded-full text-xs font-medium border transition
+                      {% if preset == 'last_3_months' %}bg-primary-600 text-white border-primary-600{% else %}bg-white text-gray-600 border-gray-300 hover:border-primary-400{% endif %}">
+                Last 3 Months
+            </a>
+            <a href="?preset=this_year"
+               class="px-3 py-1 rounded-full text-xs font-medium border transition
+                      {% if preset == 'this_year' %}bg-primary-600 text-white border-primary-600{% else %}bg-white text-gray-600 border-gray-300 hover:border-primary-400{% endif %}">
+                This Year
+            </a>
+            <a href="{% url 'insurance:insurance_reports' %}"
+               class="px-3 py-1 rounded-full text-xs font-medium border border-gray-300 text-gray-500 hover:border-red-400 hover:text-red-500 transition">
+                <i class="fas fa-times mr-1"></i>Clear
+            </a>
+        </div>
         <form method="get" class="flex flex-wrap items-end gap-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Date From</label>
-                <input type="date" name="date_from" value="{{ date_from }}" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                <label class="block text-xs font-medium text-gray-500 mb-1">From</label>
+                <input type="date" name="date_from" value="{{ date_from }}"
+                       class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Date To</label>
-                <input type="date" name="date_to" value="{{ date_to }}" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                <label class="block text-xs font-medium text-gray-500 mb-1">To</label>
+                <input type="date" name="date_to" value="{{ date_to }}"
+                       class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
             </div>
-            <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
-                <i class="fas fa-filter mr-2"></i>Apply Filter
+            <button type="submit"
+                    class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition">
+                <i class="fas fa-filter mr-2"></i>Apply
             </button>
-            <a href="{% url 'insurance:insurance_reports' %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
-                Clear
-            </a>
         </form>
+        {% if date_from or date_to %}
+        <p class="text-xs text-gray-400 mt-2">
+            Showing data {% if date_from %}from <strong>{{ date_from }}</strong>{% endif %}
+            {% if date_to %}to <strong>{{ date_to }}</strong>{% endif %}
+        </p>
+        {% endif %}
     </div>
 
-    <!-- Policy Statistics by Type -->
-    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-        <div class="p-6 border-b border-gray-200">
-            <h2 class="text-xl font-bold text-gray-800 flex items-center">
-                <i class="fas fa-chart-pie text-primary-600 mr-2"></i>
-                Policy Statistics by Type
-            </h2>
+    <!-- ===== KPI CARDS ===== -->
+    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Policies</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1">{{ total_count }}</p>
+            <p class="text-xs text-gray-400 mt-1">
+                <span class="text-green-600 font-medium">{{ active_count }} active</span> &bull;
+                <span class="text-yellow-600">{{ expired_count }} expired</span>
+            </p>
         </div>
-        <div class="p-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Revenue</p>
+            <p class="text-2xl font-bold text-green-700 mt-1">{{ total_selling|floatformat:0|intcomma }}</p>
+            <p class="text-xs text-gray-400 mt-1">KES selling price</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Cost</p>
+            <p class="text-2xl font-bold text-blue-700 mt-1">{{ total_buying|floatformat:0|intcomma }}</p>
+            <p class="text-xs text-gray-400 mt-1">KES buying price</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Net Profit</p>
+            <p class="text-2xl font-bold {% if total_profit >= 0 %}text-emerald-700{% else %}text-red-700{% endif %} mt-1">
+                {{ total_profit|floatformat:0|intcomma }}
+            </p>
+            <p class="text-xs text-gray-400 mt-1">{{ profit_margin_pct }}% margin</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-red-100 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Outstanding</p>
+            <p class="text-2xl font-bold text-red-700 mt-1">{{ unpaid_buying|floatformat:0|intcomma }}</p>
+            <p class="text-xs text-gray-400 mt-1">KES unpaid to agents</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Claims</p>
+            <p class="text-2xl font-bold text-orange-700 mt-1">{{ total_claims }}</p>
+            <p class="text-xs text-gray-400 mt-1">KES {{ total_claimed|floatformat:0|intcomma }} claimed</p>
+        </div>
+    </div>
+
+    <!-- ===== POLICY BREAKDOWN ===== -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+
+        <!-- Policy by Type -->
+        <div class="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-chart-pie text-primary-500 mr-2"></i>Policy Breakdown by Type
+                </h2>
+                <span class="text-xs text-gray-400">{{ total_count }} total</span>
+            </div>
             <div class="overflow-x-auto">
-                <table class="w-full">
+                <table class="w-full text-sm">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Policy Type</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Count</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Premium</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Average Premium</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Share</th>
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Count</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Buying (KES)</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Selling (KES)</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Profit (KES)</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-100">
                         {% for stat in policy_type_stats %}
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ stat.type }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ stat.count }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">KES {{ stat.total_premium|floatformat:0 }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {% if stat.count > 0 %}
-                                        KES {% widthratio stat.total_premium stat.count 1 %}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        <div class="flex-1 bg-gray-200 rounded-full h-2 mr-2">
-                                            <div class="bg-primary-600 h-2 rounded-full" style="width: {% widthratio stat.count 100 policy_type_stats.0.count %}%"></div>
-                                        </div>
-                                        <span class="text-xs text-gray-600">{% widthratio stat.count 1 1 %}%</span>
-                                    </div>
-                                </td>
-                            </tr>
+                        {% if stat.count > 0 %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-5 py-3 font-medium text-gray-800">{{ stat.type }}</td>
+                            <td class="px-5 py-3 text-right text-gray-700">{{ stat.count }}</td>
+                            <td class="px-5 py-3 text-right text-gray-700">{{ stat.total_buying|floatformat:0|intcomma }}</td>
+                            <td class="px-5 py-3 text-right text-gray-700">{{ stat.total_selling|floatformat:0|intcomma }}</td>
+                            <td class="px-5 py-3 text-right font-semibold {% if stat.profit >= 0 %}text-emerald-600{% else %}text-red-600{% endif %}">
+                                {{ stat.profit|floatformat:0|intcomma }}
+                            </td>
+                        </tr>
+                        {% endif %}
                         {% empty %}
-                            <tr>
-                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">No data available</td>
-                            </tr>
+                        <tr><td colspan="5" class="px-5 py-8 text-center text-gray-400">No policy data</td></tr>
                         {% endfor %}
                     </tbody>
+                    {% if total_count %}
+                    <tfoot class="bg-gray-50 border-t-2 border-gray-200">
+                        <tr>
+                            <td class="px-5 py-3 font-semibold text-gray-700">Total</td>
+                            <td class="px-5 py-3 text-right font-semibold text-gray-700">{{ total_count }}</td>
+                            <td class="px-5 py-3 text-right font-semibold text-gray-700">{{ total_buying|floatformat:0|intcomma }}</td>
+                            <td class="px-5 py-3 text-right font-semibold text-gray-700">{{ total_selling|floatformat:0|intcomma }}</td>
+                            <td class="px-5 py-3 text-right font-bold {% if total_profit >= 0 %}text-emerald-600{% else %}text-red-600{% endif %}">
+                                {{ total_profit|floatformat:0|intcomma }}
+                            </td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
                 </table>
+            </div>
+        </div>
+
+        <!-- Policy Status -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-layer-group text-indigo-500 mr-2"></i>Policy Status
+                </h2>
+            </div>
+            <div class="p-4 space-y-3">
+                {% for s in policy_status_stats %}
+                {% if s.count > 0 %}
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-700 capitalize">
+                        {% if s.value == 'active' %}<span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                        {% elif s.value == 'expired' %}<span class="inline-block w-2 h-2 rounded-full bg-yellow-500 mr-2"></span>
+                        {% elif s.value == 'cancelled' %}<span class="inline-block w-2 h-2 rounded-full bg-red-400 mr-2"></span>
+                        {% else %}<span class="inline-block w-2 h-2 rounded-full bg-gray-400 mr-2"></span>{% endif %}
+                        {{ s.status }}
+                    </span>
+                    <span class="text-sm font-semibold text-gray-800">{{ s.count }}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-1.5">
+                    {% if total_count %}
+                    <div class="h-1.5 rounded-full
+                        {% if s.value == 'active' %}bg-green-500{% elif s.value == 'expired' %}bg-yellow-400{% elif s.value == 'cancelled' %}bg-red-400{% else %}bg-gray-400{% endif %}"
+                        style="width: {% widthratio s.count total_count 100 %}%"></div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% endfor %}
+                {% if not total_count %}
+                <p class="text-sm text-gray-400 text-center py-6">No data</p>
+                {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Claim Statistics by Type -->
-    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-        <div class="p-6 border-b border-gray-200">
-            <h2 class="text-xl font-bold text-gray-800 flex items-center">
-                <i class="fas fa-chart-bar text-primary-600 mr-2"></i>
-                Claim Statistics by Type
-            </h2>
-        </div>
-        <div class="p-6">
+    <!-- ===== CLAIMS SECTION ===== -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+
+        <!-- Claims by Type -->
+        <div class="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-file-medical text-red-500 mr-2"></i>Claims by Type
+                </h2>
+                <span class="text-xs text-gray-400">{{ total_claims }} total</span>
+            </div>
             <div class="overflow-x-auto">
-                <table class="w-full">
+                <table class="w-full text-sm">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Claim Type</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Count</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Claimed</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Average Claim</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Frequency</th>
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Count</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Claimed (KES)</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Approved (KES)</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Settled (KES)</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-100">
                         {% for stat in claim_type_stats %}
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ stat.type }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ stat.count }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">KES {{ stat.total_claimed|floatformat:0 }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {% if stat.count > 0 %}
-                                        KES {% widthratio stat.total_claimed stat.count 1 %}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        <div class="flex-1 bg-gray-200 rounded-full h-2 mr-2">
-                                            <div class="bg-red-600 h-2 rounded-full" style="width: {% if claim_type_stats.0.count > 0 %}{% widthratio stat.count 100 claim_type_stats.0.count %}{% else %}0{% endif %}%"></div>
-                                        </div>
-                                        <span class="text-xs text-gray-600">{{ stat.count }}x</span>
-                                    </div>
-                                </td>
-                            </tr>
+                        {% if stat.count > 0 %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-5 py-3 font-medium text-gray-800">{{ stat.type }}</td>
+                            <td class="px-5 py-3 text-right text-gray-700">{{ stat.count }}</td>
+                            <td class="px-5 py-3 text-right text-gray-700">{{ stat.total_claimed|floatformat:0|intcomma }}</td>
+                            <td class="px-5 py-3 text-right text-blue-700">{{ stat.total_approved|floatformat:0|intcomma }}</td>
+                            <td class="px-5 py-3 text-right text-emerald-600 font-medium">{{ stat.total_settled|floatformat:0|intcomma }}</td>
+                        </tr>
+                        {% endif %}
                         {% empty %}
-                            <tr>
-                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">No claims data available</td>
-                            </tr>
+                        <tr><td colspan="5" class="px-5 py-8 text-center text-gray-400">No claims data</td></tr>
                         {% endfor %}
                     </tbody>
+                    {% if total_claims %}
+                    <tfoot class="bg-gray-50 border-t-2 border-gray-200">
+                        <tr>
+                            <td class="px-5 py-3 font-semibold text-gray-700">Total</td>
+                            <td class="px-5 py-3 text-right font-semibold text-gray-700">{{ total_claims }}</td>
+                            <td class="px-5 py-3 text-right font-semibold text-gray-700">{{ total_claimed|floatformat:0|intcomma }}</td>
+                            <td class="px-5 py-3 text-right font-semibold text-blue-700">{{ total_approved|floatformat:0|intcomma }}</td>
+                            <td class="px-5 py-3 text-right font-bold text-emerald-600">{{ total_settled|floatformat:0|intcomma }}</td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
                 </table>
+            </div>
+        </div>
+
+        <!-- Claim Status Pipeline -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-stream text-orange-500 mr-2"></i>Claim Pipeline
+                </h2>
+            </div>
+            <div class="p-4 space-y-3">
+                {% for s in claim_status_stats %}
+                {% if s.count > 0 %}
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-700">
+                        {% if s.value == 'pending' %}<span class="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-2"></span>
+                        {% elif s.value == 'under_review' %}<span class="inline-block w-2 h-2 rounded-full bg-blue-400 mr-2"></span>
+                        {% elif s.value == 'approved' %}<span class="inline-block w-2 h-2 rounded-full bg-indigo-500 mr-2"></span>
+                        {% elif s.value == 'settled' %}<span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                        {% elif s.value == 'rejected' %}<span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-2"></span>
+                        {% else %}<span class="inline-block w-2 h-2 rounded-full bg-gray-400 mr-2"></span>{% endif %}
+                        {{ s.status }}
+                    </span>
+                    <span class="text-sm font-semibold text-gray-800">{{ s.count }}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-1.5">
+                    {% if total_claims %}
+                    <div class="h-1.5 rounded-full
+                        {% if s.value == 'pending' %}bg-yellow-400{% elif s.value == 'under_review' %}bg-blue-400{% elif s.value == 'approved' %}bg-indigo-500{% elif s.value == 'settled' %}bg-green-500{% elif s.value == 'rejected' %}bg-red-500{% else %}bg-gray-400{% endif %}"
+                        style="width: {% widthratio s.count total_claims 100 %}%"></div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% endfor %}
+                {% if not total_claims %}
+                <p class="text-sm text-gray-400 text-center py-6">No claims data</p>
+                {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Top Insurance Agents -->
-    <div class="bg-white rounded-xl shadow-md overflow-hidden">
-        <div class="p-6 border-b border-gray-200">
-            <h2 class="text-xl font-bold text-gray-800 flex items-center">
-                <i class="fas fa-trophy text-primary-600 mr-2"></i>
-                Top Insurance Agents
+    <!-- ===== INSURANCE AGENT PERFORMANCE ===== -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 class="text-base font-semibold text-gray-800 flex items-center">
+                <i class="fas fa-user-tie text-primary-500 mr-2"></i>Insurance Agent Performance
             </h2>
+            <a href="{% url 'insurance:agent_ledger_list' %}" class="text-xs text-primary-600 hover:underline">View full ledger &rarr;</a>
         </div>
-        <div class="p-6">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-8">#</th>
+                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Agent</th>
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Policies</th>
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Cost (KES)</th>
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Revenue (KES)</th>
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Profit (KES)</th>
+                        <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Outstanding (KES)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for agent in agent_stats %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-5 py-3 text-gray-400 font-medium">
+                            {% if forloop.counter == 1 %}<span class="text-yellow-500"><i class="fas fa-crown"></i></span>
+                            {% else %}{{ forloop.counter }}{% endif %}
+                        </td>
+                        <td class="px-5 py-3">
+                            <a href="{% url 'insurance:agent_ledger_detail' agent.pk %}"
+                               class="font-medium text-primary-600 hover:text-primary-800">{{ agent.name }}</a>
+                            {% if agent.phone %}<p class="text-xs text-gray-400">{{ agent.phone }}</p>{% endif %}
+                        </td>
+                        <td class="px-5 py-3 text-right text-gray-700">{{ agent.policy_count }}</td>
+                        <td class="px-5 py-3 text-right text-gray-700">{{ agent.total_buying|floatformat:0|intcomma }}</td>
+                        <td class="px-5 py-3 text-right text-gray-700">{{ agent.total_selling|floatformat:0|intcomma }}</td>
+                        {% with profit=agent.total_selling|add:"-"|add:agent.total_buying %}
+                        <td class="px-5 py-3 text-right font-semibold text-emerald-600">
+                            {{ agent.total_selling|floatformat:0|intcomma }}
+                        </td>
+                        {% endwith %}
+                        <td class="px-5 py-3 text-right">
+                            {% if agent.total_owed_ann > 0 %}
+                            <span class="font-semibold text-red-600">{{ agent.total_owed_ann|floatformat:0|intcomma }}</span>
+                            {% else %}
+                            <span class="text-green-600 text-xs font-medium">Settled</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="px-5 py-10 text-center text-gray-400">No agent data available</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ===== TRACKER & CLEARING AGENTS ===== -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+
+        <!-- Tracker Agents -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-satellite-dish text-violet-500 mr-2"></i>Tracker Agent Summary
+                </h2>
+                <a href="{% url 'vehicles:tracker_agent_ledger_list' %}" class="text-xs text-primary-600 hover:underline">Full ledger &rarr;</a>
+            </div>
+            <!-- Totals row -->
+            <div class="grid grid-cols-3 divide-x divide-gray-100 bg-gray-50 border-b border-gray-100">
+                <div class="px-4 py-3">
+                    <p class="text-xs text-gray-500">Total Cost</p>
+                    <p class="text-sm font-bold text-blue-700">KES {{ tracker_totals.grand_buying|floatformat:0|intcomma }}</p>
+                </div>
+                <div class="px-4 py-3">
+                    <p class="text-xs text-gray-500">Total Revenue</p>
+                    <p class="text-sm font-bold text-green-700">KES {{ tracker_totals.grand_selling|floatformat:0|intcomma }}</p>
+                </div>
+                <div class="px-4 py-3">
+                    <p class="text-xs text-gray-500">Outstanding</p>
+                    <p class="text-sm font-bold text-red-600">KES {{ tracker_totals.grand_owed|floatformat:0|intcomma }}</p>
+                </div>
+            </div>
             <div class="overflow-x-auto">
-                <table class="w-full">
+                <table class="w-full text-sm">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agent</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Active Policies</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Premium Value</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Share</th>
+                            <th class="px-5 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Agent</th>
+                            <th class="px-5 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Records</th>
+                            <th class="px-5 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Revenue</th>
+                            <th class="px-5 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Owed</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {% for agent in agent_stats %}
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                                    {% if forloop.counter == 1 %}
-                                        <span class="text-yellow-500"><i class="fas fa-crown"></i> #1</span>
-                                    {% else %}
-                                        #{{ forloop.counter }}
-                                    {% endif %}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <a href="{% url 'insurance:agent_ledger_detail' agent.pk %}" class="text-sm font-medium text-primary-600 hover:text-primary-900">
-                                        {{ agent.name }}
-                                    </a>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ agent.policy_count }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">KES {{ agent.total_premium|floatformat:0|default:"0" }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        <div class="flex-1 bg-gray-200 rounded-full h-2 mr-2">
-                                            <div class="bg-green-600 h-2 rounded-full" style="width: {% if agent_stats.0.policy_count > 0 %}{% widthratio agent.policy_count 100 agent_stats.0.policy_count %}{% else %}0{% endif %}%"></div>
-                                        </div>
-                                        <span class="text-xs text-gray-600">{% if agent_stats.0.policy_count > 0 %}{% widthratio agent.policy_count 100 agent_stats.0.policy_count %}{% else %}0{% endif %}%</span>
-                                    </div>
-                                </td>
-                            </tr>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for agent in tracker_summary %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-5 py-2 font-medium text-gray-800">
+                                <a href="{% url 'vehicles:tracker_agent_ledger_detail' agent.pk %}"
+                                   class="text-primary-600 hover:text-primary-800">{{ agent.name }}</a>
+                            </td>
+                            <td class="px-5 py-2 text-right text-gray-600">{{ agent.record_count }}</td>
+                            <td class="px-5 py-2 text-right text-green-700 font-medium">{{ agent.total_selling|floatformat:0|intcomma }}</td>
+                            <td class="px-5 py-2 text-right">
+                                {% if agent.total_owed_ann > 0 %}
+                                <span class="text-red-600 font-semibold">{{ agent.total_owed_ann|floatformat:0|intcomma }}</span>
+                                {% else %}<span class="text-green-500 text-xs">Settled</span>{% endif %}
+                            </td>
+                        </tr>
                         {% empty %}
-                            <tr>
-                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">No agent data available</td>
-                            </tr>
+                        <tr><td colspan="4" class="px-5 py-6 text-center text-gray-400">No tracker agents</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Clearing Agents -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="text-base font-semibold text-gray-800 flex items-center">
+                    <i class="fas fa-ship text-teal-500 mr-2"></i>Clearing Agent Summary
+                </h2>
+                <a href="{% url 'vehicles:clearing_agent_ledger_list' %}" class="text-xs text-primary-600 hover:underline">Full ledger &rarr;</a>
+            </div>
+            <!-- Totals row -->
+            <div class="grid grid-cols-3 divide-x divide-gray-100 bg-gray-50 border-b border-gray-100">
+                <div class="px-4 py-3">
+                    <p class="text-xs text-gray-500">Total Billed</p>
+                    <p class="text-sm font-bold text-blue-700">KES {{ clearing_totals.grand_billed|floatformat:0|intcomma }}</p>
+                </div>
+                <div class="px-4 py-3">
+                    <p class="text-xs text-gray-500">Outstanding</p>
+                    <p class="text-sm font-bold text-red-600">KES {{ clearing_totals.grand_owed|floatformat:0|intcomma }}</p>
+                </div>
+                <div class="px-4 py-3">
+                    <p class="text-xs text-gray-500">Settled</p>
+                    <p class="text-sm font-bold text-green-700">
+                        KES {% with settled=clearing_totals.grand_billed|add:"-"|add:clearing_totals.grand_owed %}{{ clearing_totals.grand_billed|floatformat:0|intcomma }}{% endwith %}
+                    </p>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-5 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Agent</th>
+                            <th class="px-5 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Jobs</th>
+                            <th class="px-5 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Billed</th>
+                            <th class="px-5 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Owed</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for agent in clearing_summary %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-5 py-2 font-medium text-gray-800">
+                                <a href="{% url 'vehicles:clearing_agent_ledger_detail' agent.pk %}"
+                                   class="text-primary-600 hover:text-primary-800">{{ agent.name }}</a>
+                            </td>
+                            <td class="px-5 py-2 text-right text-gray-600">{{ agent.record_count }}</td>
+                            <td class="px-5 py-2 text-right text-blue-700 font-medium">{{ agent.total_billed|floatformat:0|intcomma }}</td>
+                            <td class="px-5 py-2 text-right">
+                                {% if agent.total_owed_ann > 0 %}
+                                <span class="text-red-600 font-semibold">{{ agent.total_owed_ann|floatformat:0|intcomma }}</span>
+                                {% else %}<span class="text-green-500 text-xs">Settled</span>{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="px-5 py-6 text-center text-gray-400">No clearing agents</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -204,31 +472,36 @@
         </div>
     </div>
 
-    <!-- Quick Links -->
-    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <a href="{% url 'insurance:insurance_dashboard' %}" class="flex items-center p-6 bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl hover:from-primary-600 hover:to-primary-700 text-white transition shadow-md">
-            <i class="fas fa-tachometer-alt text-3xl mr-4"></i>
-            <div>
-                <p class="text-sm opacity-90">Go to</p>
-                <p class="text-lg font-semibold">Dashboard</p>
-            </div>
+    <!-- ===== QUICK LINKS ===== -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <a href="{% url 'insurance:insurance_dashboard' %}"
+           class="flex items-center p-4 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl text-white shadow-sm hover:shadow-md transition">
+            <i class="fas fa-tachometer-alt text-2xl mr-3 opacity-80"></i>
+            <div><p class="text-xs opacity-75">Go to</p><p class="font-semibold">Dashboard</p></div>
         </a>
-        
-        <a href="{% url 'insurance:policy_list' %}" class="flex items-center p-6 bg-gradient-to-r from-green-500 to-green-600 rounded-xl hover:from-green-600 hover:to-green-700 text-white transition shadow-md">
-            <i class="fas fa-shield-alt text-3xl mr-4"></i>
-            <div>
-                <p class="text-sm opacity-90">View All</p>
-                <p class="text-lg font-semibold">Policies</p>
-            </div>
+        <a href="{% url 'insurance:policy_list' %}"
+           class="flex items-center p-4 bg-gradient-to-br from-green-500 to-green-700 rounded-xl text-white shadow-sm hover:shadow-md transition">
+            <i class="fas fa-shield-alt text-2xl mr-3 opacity-80"></i>
+            <div><p class="text-xs opacity-75">Manage</p><p class="font-semibold">Policies</p></div>
         </a>
-        
-        <a href="{% url 'insurance:claim_list' %}" class="flex items-center p-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl hover:from-blue-600 hover:to-blue-700 text-white transition shadow-md">
-            <i class="fas fa-file-invoice-dollar text-3xl mr-4"></i>
-            <div>
-                <p class="text-sm opacity-90">View All</p>
-                <p class="text-lg font-semibold">Claims</p>
-            </div>
+        <a href="{% url 'insurance:claim_list' %}"
+           class="flex items-center p-4 bg-gradient-to-br from-orange-500 to-orange-700 rounded-xl text-white shadow-sm hover:shadow-md transition">
+            <i class="fas fa-file-invoice-dollar text-2xl mr-3 opacity-80"></i>
+            <div><p class="text-xs opacity-75">Manage</p><p class="font-semibold">Claims</p></div>
+        </a>
+        <a href="{% url 'insurance:agent_ledger_list' %}"
+           class="flex items-center p-4 bg-gradient-to-br from-violet-500 to-violet-700 rounded-xl text-white shadow-sm hover:shadow-md transition">
+            <i class="fas fa-user-tie text-2xl mr-3 opacity-80"></i>
+            <div><p class="text-xs opacity-75">View</p><p class="font-semibold">Agent Ledger</p></div>
         </a>
     </div>
+
 </div>
+
+<style>
+@media print {
+    nav, aside, button, .no-print { display: none !important; }
+    .container { max-width: 100% !important; }
+}
+</style>
 {% endblock %}
