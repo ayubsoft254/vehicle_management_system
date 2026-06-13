@@ -1152,7 +1152,7 @@ def vehicle_reports(request):
         all_agg = vehicles.aggregate(
             total_purchase=Coalesce(Sum('purchase_price'), Value(0, output_field=DecimalField())),
             total_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
-            avg_mileage=Coalesce(Avg('mileage'), Value(0, output_field=DecimalField())),
+            avg_mileage=Coalesce(Avg('mileage'), Value(0.0)),
         )
     else:
         inv_agg = sold_agg = all_agg = {

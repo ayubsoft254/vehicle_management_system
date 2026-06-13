@@ -679,7 +679,8 @@ def report_analytics(request):
 @login_required
 def financial_reports(request):
     """Cross-app financial analytics dashboard."""
-    from django.db.models import Coalesce, DecimalField, Value, F
+    from django.db.models import DecimalField, Value, F
+    from django.db.models.functions import Coalesce
     from apps.clients.models import ClientVehicle
     from apps.vehicles.models import Vehicle, TrackerRecord, ClearanceRecord
     from apps.insurance.models import InsurancePolicy
