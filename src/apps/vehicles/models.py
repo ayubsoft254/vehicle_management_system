@@ -179,6 +179,24 @@ class Vehicle(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
         help_text='Price at which vehicle was purchased'
     )
+
+    purchase_price_usd = models.DecimalField(
+        'Purchase Price (USD)',
+        max_digits=12,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text='Purchase price in USD at time of acquisition'
+    )
+
+    purchase_usd_rate = models.DecimalField(
+        'Exchange Rate at Purchase (KES per USD)',
+        max_digits=10,
+        decimal_places=4,
+        blank=True,
+        null=True,
+        help_text='KES/USD exchange rate recorded at time of purchase'
+    )
     
     selling_price = models.DecimalField(
         'Selling Price',
