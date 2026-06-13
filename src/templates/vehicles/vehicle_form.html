@@ -244,7 +244,49 @@
                     </div>
                     {% endif %}
                 </div>
-
+                {% if can_view_prices %}
+                <!-- USD Purchase Price Panel -->
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="text-sm font-semibold text-amber-800">USD Purchase Tracking</p>
+                        <button type="button" id="fetchRateBtn"
+                            class="px-3 py-1 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition flex items-center gap-1">
+                            <i class="fas fa-sync-alt"></i> Fetch Live Rate
+                        </button>
+                    </div>
+                    <p class="text-xs text-amber-600 mb-3">Record the USD value at purchase so you can track profitability when selling at a later exchange rate.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Rate (KES per 1 USD)</label>
+                            <div class="relative">
+                                <input type="number" id="id_purchase_usd_rate" name="purchase_usd_rate"
+                                    value="{{ form.purchase_usd_rate.value|default:'' }}"
+                                    step="0.0001" min="0" placeholder="e.g. 130.00"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm">
+                            </div>
+                            <p id="rateStatus" class="text-xs text-gray-400 mt-1"></p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Purchase Price (USD)</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span class="text-gray-400 text-xs font-medium">$</span>
+                                </div>
+                                <input type="number" id="id_purchase_price_usd" name="purchase_price_usd"
+                                    value="{{ form.purchase_price_usd.value|default:'' }}"
+                                    step="0.01" min="0" placeholder="e.g. 8500"
+                                    class="w-full pl-8 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm">
+                            </div>
+                        </div>
+                        <div class="flex items-end">
+                            <div class="bg-white border border-gray-200 rounded-lg p-3 w-full text-center">
+                                <p class="text-xs text-gray-500 mb-1">KES Equivalent</p>
+                                <p id="usdKesEquivalent" class="text-sm font-bold text-gray-800">—</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
                 <!-- Additional cost components -->
                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Additional Cost Components</p>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
@@ -741,6 +783,70 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ── Initial calculation on page load ────────────────────────────────
     updatePricing();
+
+    // ── USD Purchase Price Tracking ──────────────────────────────────────
+    (function () {
+        var rateEl = document.getElementById('id_purchase_usd_rate');
+        var usdEl  = document.getElementById('id_purchase_price_usd');
+        var kesEl  = document.getElementById('id_purchase_price');
+        var equivEl = document.getElementById('usdKesEquivalent');
+        var statusEl = document.getElementById('rateStatus');
+        var fetchBtn = document.getElementById('fetchRateBtn');
+
+        if (!rateEl) return;
+
+        function updateEquiv() {
+            var rate = parseFloat(rateEl.value) || 0;
+            var usd  = parseFloat(usdEl.value) || 0;
+            if (rate > 0 && usd > 0 && equivEl) {
+                equivEl.textContent = 'KES ' + (rate * usd).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            } else if (equivEl) {
+                equivEl.textContent = '—';
+            }
+        }
+
+        function autoFillUsdFromKes() {
+            var rate = parseFloat(rateEl.value) || 0;
+            var kes  = parseFloat(kesEl ? kesEl.value : 0) || 0;
+            if (rate > 0 && kes > 0 && usdEl && !usdEl.value) {
+                usdEl.value = (kes / rate).toFixed(2);
+                updateEquiv();
+            }
+        }
+
+        if (rateEl) rateEl.addEventListener('input', function () { updateEquiv(); autoFillUsdFromKes(); });
+        if (usdEl)  usdEl.addEventListener('input', updateEquiv);
+
+        if (fetchBtn) {
+            fetchBtn.addEventListener('click', function () {
+                fetchBtn.disabled = true;
+                fetchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching...';
+                if (statusEl) statusEl.textContent = 'Fetching live rate…';
+                fetch('https://open.er-api.com/v6/latest/USD')
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        var rate = data && data.rates && data.rates.KES ? data.rates.KES : null;
+                        if (rate) {
+                            rateEl.value = rate.toFixed(4);
+                            if (statusEl) statusEl.textContent = 'Live: 1 USD = KES ' + rate.toFixed(2) + ' (as of ' + (data.time_last_update_utc || 'now') + ')';
+                            updateEquiv();
+                            autoFillUsdFromKes();
+                        } else {
+                            if (statusEl) statusEl.textContent = 'Could not read rate from API response.';
+                        }
+                    })
+                    .catch(function () {
+                        if (statusEl) statusEl.textContent = 'Failed to fetch rate. Enter manually.';
+                    })
+                    .finally(function () {
+                        fetchBtn.disabled = false;
+                        fetchBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Fetch Live Rate';
+                    });
+            });
+        }
+
+        updateEquiv();
+    })();
 });
 </script>
 
