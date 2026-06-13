@@ -673,6 +673,139 @@ def report_analytics(request):
 
 
 # ============================================================================
+# FINANCIAL REPORTS
+# ============================================================================
+
+@login_required
+def financial_reports(request):
+    """Cross-app financial analytics dashboard."""
+    from django.db.models import Coalesce, DecimalField, Value, F
+    from apps.clients.models import ClientVehicle
+    from apps.vehicles.models import Vehicle, TrackerRecord, ClearanceRecord
+    from apps.insurance.models import InsurancePolicy
+
+    can_see_prices = request.user.is_staff
+
+    # ---- Sales revenue (sold vehicles via ClientVehicle) ----
+    sales_qs = ClientVehicle.objects.filter(vehicle__status='sold')
+    sales_agg = sales_qs.aggregate(
+        total_revenue=Coalesce(Sum('purchase_price'), Value(0, output_field=DecimalField())),
+        total_collected=Coalesce(Sum('total_paid'), Value(0, output_field=DecimalField())),
+        total_outstanding=Coalesce(Sum('balance'), Value(0, output_field=DecimalField())),
+        total_deposit=Coalesce(Sum('deposit_paid'), Value(0, output_field=DecimalField())),
+        total_count=Count('id'),
+    )
+
+    # ---- Vehicle inventory cost ----
+    vehicles_qs = Vehicle.objects.all()
+    inventory_agg = vehicles_qs.aggregate(
+        total_purchase_cost=Coalesce(Sum('purchase_price'), Value(0, output_field=DecimalField())),
+        total_selling_value=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+    )
+
+    # ---- Insurance revenue ----
+    insurance_agg = InsurancePolicy.objects.aggregate(
+        total_buying=Coalesce(Sum('buying_price'), Value(0, output_field=DecimalField())),
+        total_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+        policy_count=Count('id'),
+    )
+    insurance_profit = (insurance_agg['total_selling'] or 0) - (insurance_agg['total_buying'] or 0)
+    insurance_unpaid = InsurancePolicy.objects.filter(dealer_payment_status='unpaid').aggregate(
+        total=Coalesce(Sum('buying_price'), Value(0, output_field=DecimalField()))
+    )['total'] or 0
+
+    # ---- Tracker revenue ----
+    tracker_agg = TrackerRecord.objects.aggregate(
+        total_buying=Coalesce(Sum('buying_price'), Value(0, output_field=DecimalField())),
+        total_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+        record_count=Count('id'),
+    )
+    tracker_profit = (tracker_agg['total_selling'] or 0) - (tracker_agg['total_buying'] or 0)
+    tracker_unpaid = TrackerRecord.objects.filter(dealer_payment_status='unpaid').aggregate(
+        total=Coalesce(Sum('buying_price'), Value(0, output_field=DecimalField()))
+    )['total'] or 0
+
+    # ---- Clearance revenue ----
+    clearance_agg = ClearanceRecord.objects.aggregate(
+        total_billed=Coalesce(Sum('amount'), Value(0, output_field=DecimalField())),
+        record_count=Count('id'),
+    )
+    clearance_unpaid = ClearanceRecord.objects.filter(payment_status='unpaid').aggregate(
+        total=Coalesce(Sum('amount'), Value(0, output_field=DecimalField()))
+    )['total'] or 0
+    clearance_settled = (clearance_agg['total_billed'] or 0) - clearance_unpaid
+
+    # ---- Payment type breakdown ----
+    payment_type_data = []
+    for pt_val, pt_label in ClientVehicle.PAYMENT_TYPE_CHOICES:
+        qs = sales_qs.filter(payment_type=pt_val)
+        agg = qs.aggregate(
+            count=Count('id'),
+            revenue=Coalesce(Sum('purchase_price'), Value(0, output_field=DecimalField())),
+            collected=Coalesce(Sum('total_paid'), Value(0, output_field=DecimalField())),
+            outstanding=Coalesce(Sum('balance'), Value(0, output_field=DecimalField())),
+        )
+        payment_type_data.append({'label': pt_label, **agg})
+
+    # ---- Paid-off vs active ----
+    paid_off_count = sales_qs.filter(is_paid_off=True).count()
+    active_count = sales_qs.filter(is_paid_off=False, is_active=True).count()
+
+    # ---- This month's collections ----
+    today = timezone.now().date()
+    month_start = today.replace(day=1)
+    this_month_revenue = ClientVehicle.objects.filter(
+        vehicle__status='sold',
+        purchase_date__gte=month_start,
+    ).aggregate(
+        count=Count('id'),
+        revenue=Coalesce(Sum('purchase_price'), Value(0, output_field=DecimalField())),
+    )
+
+    # ---- Top clients by purchase price ----
+    top_clients = (
+        ClientVehicle.objects.filter(vehicle__status='sold')
+        .select_related('client')
+        .values('client__first_name', 'client__last_name', 'client__id')
+        .annotate(
+            total_purchase=Coalesce(Sum('purchase_price'), Value(0, output_field=DecimalField())),
+            total_paid=Coalesce(Sum('total_paid'), Value(0, output_field=DecimalField())),
+            balance=Coalesce(Sum('balance'), Value(0, output_field=DecimalField())),
+            vehicle_count=Count('id'),
+        )
+        .order_by('-total_purchase')[:10]
+    )
+
+    # ---- Gross profit estimate (sales revenue - vehicle purchase cost) ----
+    gross_profit = (sales_agg['total_revenue'] or 0) - (inventory_agg['total_purchase_cost'] or 0)
+
+    context = {
+        'can_see_prices': can_see_prices,
+        'sales_agg': sales_agg,
+        'inventory_agg': inventory_agg,
+        'insurance_agg': insurance_agg,
+        'insurance_profit': insurance_profit,
+        'insurance_unpaid': insurance_unpaid,
+        'tracker_agg': tracker_agg,
+        'tracker_profit': tracker_profit,
+        'tracker_unpaid': tracker_unpaid,
+        'clearance_agg': clearance_agg,
+        'clearance_settled': clearance_settled,
+        'clearance_unpaid': clearance_unpaid,
+        'payment_type_data': payment_type_data,
+        'paid_off_count': paid_off_count,
+        'active_count': active_count,
+        'this_month_revenue': this_month_revenue,
+        'top_clients': top_clients,
+        'gross_profit': gross_profit,
+        'today': today,
+        'month_start': month_start,
+    }
+
+    return render(request, 'reports/financial_reports.html', context)
+
+
+# ============================================================================
 # EXPORT & SHARING
 # ============================================================================
 
