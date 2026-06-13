@@ -22,6 +22,8 @@
         </div>
     </div>
 
+    {% include "includes/_currency_switcher.html" %}
+
     <!-- KPI Cards -->
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white shadow">
@@ -59,15 +61,15 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
         <div class="bg-red-50 border border-red-200 rounded-xl p-5">
             <p class="text-sm text-gray-500 mb-1">Total Outstanding (Active)</p>
-            <p class="text-2xl font-bold text-red-600">KES {{ financial_summary.total_outstanding|floatformat:0|intcomma|default:"0" }}</p>
+            <p class="text-2xl font-bold text-red-600"><span class="kes-amount" data-kes="{{ financial_summary.total_outstanding|default:0 }}">KES {{ financial_summary.total_outstanding|floatformat:0|intcomma|default:"0" }}</span></p>
         </div>
         <div class="bg-orange-50 border border-orange-200 rounded-xl p-5">
             <p class="text-sm text-gray-500 mb-1">Total Repossession Costs</p>
-            <p class="text-2xl font-bold text-orange-600">KES {{ financial_summary.total_costs|floatformat:0|intcomma|default:"0" }}</p>
+            <p class="text-2xl font-bold text-orange-600"><span class="kes-amount" data-kes="{{ financial_summary.total_costs|default:0 }}">KES {{ financial_summary.total_costs|floatformat:0|intcomma|default:"0" }}</span></p>
         </div>
         <div class="bg-blue-50 border border-blue-200 rounded-xl p-5">
             <p class="text-sm text-gray-500 mb-1">Average Outstanding</p>
-            <p class="text-2xl font-bold text-blue-600">KES {{ financial_summary.avg_outstanding|floatformat:0|intcomma|default:"0" }}</p>
+            <p class="text-2xl font-bold text-blue-600"><span class="kes-amount" data-kes="{{ financial_summary.avg_outstanding|default:0 }}">KES {{ financial_summary.avg_outstanding|floatformat:0|intcomma|default:"0" }}</span></p>
         </div>
     </div>
 
@@ -109,7 +111,7 @@
                             </td>
                             <td class="px-5 py-3 text-right font-semibold text-gray-700">{{ item.count }}</td>
                             <td class="px-5 py-3 text-right text-gray-600">
-                                {% if item.total_outstanding %}KES {{ item.total_outstanding|floatformat:0|intcomma }}{% else %}—{% endif %}
+                                {% if item.total_outstanding %}<span class="kes-amount" data-kes="{{ item.total_outstanding }}">KES {{ item.total_outstanding|floatformat:0|intcomma }}</span>{% else %}—{% endif %}
                             </td>
                             <td class="px-5 py-3">
                                 {% if total_repos > 0 %}
@@ -181,7 +183,7 @@
             <div class="p-5 {% if forloop.counter == 4 %}bg-red-50{% elif forloop.counter == 3 %}bg-orange-50{% else %}bg-white{% endif %}">
                 <p class="text-xs text-gray-500 uppercase mb-1">{{ bucket.label }}</p>
                 <p class="text-2xl font-bold {% if forloop.counter >= 3 %}text-red-600{% else %}text-gray-800{% endif %}">{{ bucket.count }}</p>
-                <p class="text-xs text-gray-500 mt-1">KES {{ bucket.outstanding|floatformat:0|intcomma }}</p>
+                <p class="text-xs text-gray-500 mt-1"><span class="kes-amount" data-kes="{{ bucket.outstanding }}">KES {{ bucket.outstanding|floatformat:0|intcomma }}</span></p>
             </div>
             {% endfor %}
         </div>
@@ -197,19 +199,19 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-5">
             <div class="text-center p-4 bg-gray-50 rounded-lg">
                 <p class="text-xs text-gray-500 mb-1">Recovery</p>
-                <p class="text-lg font-bold text-gray-700">KES {{ financial_summary.total_recovery_cost|floatformat:0|intcomma|default:"0" }}</p>
+                <p class="text-lg font-bold text-gray-700"><span class="kes-amount" data-kes="{{ financial_summary.total_recovery_cost|default:0 }}">KES {{ financial_summary.total_recovery_cost|floatformat:0|intcomma|default:"0" }}</span></p>
             </div>
             <div class="text-center p-4 bg-gray-50 rounded-lg">
                 <p class="text-xs text-gray-500 mb-1">Legal</p>
-                <p class="text-lg font-bold text-gray-700">KES {{ financial_summary.total_legal_cost|floatformat:0|intcomma|default:"0" }}</p>
+                <p class="text-lg font-bold text-gray-700"><span class="kes-amount" data-kes="{{ financial_summary.total_legal_cost|default:0 }}">KES {{ financial_summary.total_legal_cost|floatformat:0|intcomma|default:"0" }}</span></p>
             </div>
             <div class="text-center p-4 bg-gray-50 rounded-lg">
                 <p class="text-xs text-gray-500 mb-1">Storage</p>
-                <p class="text-lg font-bold text-gray-700">KES {{ financial_summary.total_storage_cost|floatformat:0|intcomma|default:"0" }}</p>
+                <p class="text-lg font-bold text-gray-700"><span class="kes-amount" data-kes="{{ financial_summary.total_storage_cost|default:0 }}">KES {{ financial_summary.total_storage_cost|floatformat:0|intcomma|default:"0" }}</span></p>
             </div>
             <div class="text-center p-4 bg-orange-50 rounded-lg">
                 <p class="text-xs text-gray-500 mb-1">Total Costs</p>
-                <p class="text-lg font-bold text-orange-600">KES {{ financial_summary.total_costs|floatformat:0|intcomma|default:"0" }}</p>
+                <p class="text-lg font-bold text-orange-600"><span class="kes-amount" data-kes="{{ financial_summary.total_costs|default:0 }}">KES {{ financial_summary.total_costs|floatformat:0|intcomma|default:"0" }}</span></p>
             </div>
         </div>
     </div>
@@ -244,7 +246,7 @@
                         <td class="px-5 py-3 text-right text-orange-600">{{ agent.active }}</td>
                         <td class="px-5 py-3 text-right text-emerald-600">{{ agent.completed }}</td>
                         <td class="px-5 py-3 text-right text-red-600">
-                            {% if agent.outstanding %}KES {{ agent.outstanding|floatformat:0|intcomma }}{% else %}—{% endif %}
+                            {% if agent.outstanding %}<span class="kes-amount" data-kes="{{ agent.outstanding }}">KES {{ agent.outstanding|floatformat:0|intcomma }}</span>{% else %}—{% endif %}
                         </td>
                         <td class="px-5 py-3">
                             {% if agent.total > 0 %}
@@ -306,7 +308,7 @@
                             </span>
                         </td>
                         <td class="px-5 py-3 text-right font-semibold text-red-600">
-                            KES {{ repo.outstanding_amount|floatformat:0|intcomma }}
+                            <span class="kes-amount" data-kes="{{ repo.outstanding_amount }}">KES {{ repo.outstanding_amount|floatformat:0|intcomma }}</span>
                         </td>
                         <td class="px-5 py-3 text-right text-gray-600">
                             {% with days=repo.get_days_in_process %}
