@@ -9,11 +9,17 @@
         <a href="{% url 'vehicles:tracker_agent_ledger_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
             <i class="fas fa-arrow-left mr-2"></i>Back to Tracker Agents
         </a>
-        {% if agent.total_owed > 0 %}
-        <button id="mark-all-btn" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
-            <i class="fas fa-check-double mr-2"></i>Mark All Paid
-        </button>
-        {% endif %}
+        <div class="flex items-center space-x-3">
+            {% if agent.total_owed > 0 %}
+            <button id="mark-all-btn" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition text-sm">
+                <i class="fas fa-check-double mr-2"></i>Mark All Paid
+            </button>
+            {% endif %}
+            <button onclick="document.getElementById('payment-modal').classList.remove('hidden')"
+                class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition text-sm">
+                <i class="fas fa-hand-holding-usd mr-2"></i>Record Payment
+            </button>
+        </div>
     </div>
 
     <!-- Agent Header -->
@@ -30,28 +36,32 @@
                 </p>
             </div>
         </div>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div class="bg-gray-50 rounded-lg p-4 text-center">
                 <p class="text-xs text-gray-500 mb-1">Records</p>
                 <p class="text-2xl font-bold text-gray-800">{{ agent.total_records }}</p>
             </div>
             <div class="bg-blue-50 rounded-lg p-4 text-center">
                 <p class="text-xs text-blue-600 mb-1">Buying Total</p>
-                <p class="text-xl font-bold text-blue-800">KES {{ agent.total_buying_price|floatformat:2|intcomma }}</p>
+                <p class="text-lg font-bold text-blue-800">KES {{ agent.total_buying_price|floatformat:0|intcomma }}</p>
             </div>
             <div class="bg-green-50 rounded-lg p-4 text-center">
                 <p class="text-xs text-green-600 mb-1">Selling Total</p>
-                <p class="text-xl font-bold text-green-800">KES {{ agent.total_selling_price|floatformat:2|intcomma }}</p>
+                <p class="text-lg font-bold text-green-800">KES {{ agent.total_selling_price|floatformat:0|intcomma }}</p>
+            </div>
+            <div class="bg-indigo-50 rounded-lg p-4 text-center">
+                <p class="text-xs text-indigo-600 mb-1">Payments Made</p>
+                <p class="text-lg font-bold text-indigo-800">KES {{ agent.total_payments_made|floatformat:0|intcomma }}</p>
             </div>
             <div class="bg-red-50 rounded-lg p-4 text-center">
                 <p class="text-xs text-red-600 mb-1">Outstanding</p>
-                <p class="text-xl font-bold text-red-800">KES {{ agent.total_owed|floatformat:2|intcomma }}</p>
+                <p class="text-lg font-bold text-red-800">KES {{ agent.total_owed|floatformat:0|intcomma }}</p>
             </div>
         </div>
     </div>
 
     <!-- Records Table -->
-    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
         <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
             <h2 class="text-lg font-semibold text-gray-900">Tracker Records ({{ records|length }})</h2>
         </div>
@@ -85,8 +95,8 @@
                             {% if record.client_vehicle and record.client_vehicle.client %}{{ record.client_vehicle.client.get_full_name }}{% else %}—{% endif %}
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-500">{{ record.installation_date|default:"—" }}</td>
-                        <td class="px-4 py-3 text-right text-sm text-gray-800">KES {{ record.buying_price|floatformat:2|intcomma }}</td>
-                        <td class="px-4 py-3 text-right text-sm text-gray-800">KES {{ record.selling_price|floatformat:2|intcomma }}</td>
+                        <td class="px-4 py-3 text-right text-sm text-gray-800">KES {{ record.buying_price|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right text-sm text-gray-800">KES {{ record.selling_price|floatformat:0|intcomma }}</td>
                         <td class="px-4 py-3 text-center">
                             <span id="status-{{ record.pk }}" class="px-2 py-1 rounded-full text-xs font-semibold
                                 {% if record.dealer_payment_status == 'paid' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
@@ -110,6 +120,124 @@
                 </tbody>
             </table>
         </div>
+    </div>
+
+    <!-- Payment History -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                <i class="fas fa-history text-indigo-600 mr-2"></i>Payment History
+                <span class="ml-2 bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full">{{ payments|length }}</span>
+            </h2>
+            <button onclick="document.getElementById('payment-modal').classList.remove('hidden')"
+                class="inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition text-sm">
+                <i class="fas fa-plus mr-1"></i>Record Payment
+            </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recorded By</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for payment in payments %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ payment.payment_date|date:"M d, Y" }}</td>
+                        <td class="px-4 py-3 text-right text-sm font-semibold text-indigo-700">KES {{ payment.amount|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-sm">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">{{ payment.get_payment_method_display }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-500 font-mono">{{ payment.reference_number|default:"—" }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-500">{{ payment.notes|truncatechars:50|default:"—" }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-500">
+                            {% if payment.recorded_by %}{{ payment.recorded_by.get_full_name|default:payment.recorded_by.username }}{% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-gray-400">
+                            <i class="fas fa-receipt text-3xl mb-2 block opacity-30"></i>
+                            No payments recorded yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if payments %}
+                <tfoot class="bg-indigo-50">
+                    <tr>
+                        <td class="px-4 py-3 text-sm font-semibold text-gray-700">Total Paid</td>
+                        <td class="px-4 py-3 text-right text-sm font-bold text-indigo-700">KES {{ agent.total_payments_made|floatformat:0|intcomma }}</td>
+                        <td colspan="4"></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Record Payment Modal -->
+<div id="payment-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                <i class="fas fa-hand-holding-usd text-indigo-600 mr-2"></i>Record Payment to {{ agent.name }}
+            </h3>
+            <button onclick="document.getElementById('payment-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form method="post" action="{% url 'vehicles:record_tracker_agent_payment' agent.pk %}" class="p-6 space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Amount (KES) <span class="text-red-500">*</span></label>
+                <input type="number" name="amount" step="0.01" min="0.01" required placeholder="e.g. 15000"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
+                    <input type="date" name="payment_date" value="{% now 'Y-m-d' %}"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                    <select name="payment_method" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="mpesa">M-Pesa</option>
+                        <option value="cash">Cash</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Reference / Receipt No.</label>
+                <input type="text" name="reference_number" placeholder="e.g. TRN123456"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea name="notes" rows="2" placeholder="Optional notes about this payment"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"></textarea>
+            </div>
+            <div class="flex items-center justify-end space-x-3 pt-2">
+                <button type="button" onclick="document.getElementById('payment-modal').classList.add('hidden')"
+                    class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition">
+                    <i class="fas fa-save mr-1"></i>Record Payment
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -144,5 +272,9 @@ if (markAllBtn) {
         if (res.ok) location.reload();
     });
 }
+
+document.getElementById('payment-modal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.add('hidden');
+});
 </script>
 {% endblock %}
