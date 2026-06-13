@@ -1,0 +1,64 @@
+<div id="currency-switcher" class="bg-white border border-gray-200 rounded-xl shadow-sm px-4 py-3 mb-6 flex flex-wrap items-center gap-4">
+  <span class="text-sm font-medium text-gray-600 shrink-0"><i class="fas fa-exchange-alt mr-1"></i>Currency:</span>
+  <div class="flex rounded-lg border border-gray-300 overflow-hidden text-sm">
+    <button data-cur="KES" class="cur-btn px-3 py-1.5 font-semibold bg-primary-600 text-white">KES</button>
+    <button data-cur="USD" class="cur-btn px-3 py-1.5 font-semibold bg-white text-gray-700 hover:bg-gray-50">USD</button>
+    <button data-cur="EUR" class="cur-btn px-3 py-1.5 font-semibold bg-white text-gray-700 hover:bg-gray-50">EUR</button>
+  </div>
+  <div class="flex items-center gap-3 text-sm text-gray-500">
+    <label class="flex items-center gap-1">1 USD = <input id="usd-rate-input" type="number" step="0.0001" min="0.0001" value="130" class="w-20 border border-gray-300 rounded px-2 py-1 text-gray-700 text-sm"> KES</label>
+    <label class="flex items-center gap-1">1 EUR = <input id="eur-rate-input" type="number" step="0.0001" min="0.0001" value="142" class="w-20 border border-gray-300 rounded px-2 py-1 text-gray-700 text-sm"> KES</label>
+  </div>
+</div>
+
+<script>
+(function() {
+  const LS_CUR = 'vms_currency', LS_USD = 'vms_usd_rate', LS_EUR = 'vms_eur_rate';
+
+  const usdInput = document.getElementById('usd-rate-input');
+  const eurInput = document.getElementById('eur-rate-input');
+
+  // Restore stored rates
+  if (localStorage.getItem(LS_USD)) usdInput.value = localStorage.getItem(LS_USD);
+  if (localStorage.getItem(LS_EUR)) eurInput.value = localStorage.getItem(LS_EUR);
+
+  function getRate(cur) {
+    if (cur === 'USD') return parseFloat(usdInput.value) || 130;
+    if (cur === 'EUR') return parseFloat(eurInput.value) || 142;
+    return 1;
+  }
+
+  function applyConversion(cur) {
+    const rate = getRate(cur);
+    document.querySelectorAll('.kes-amount[data-kes]').forEach(el => {
+      const kes = parseFloat(el.dataset.kes) || 0;
+      const converted = cur === 'KES' ? kes : kes / rate;
+      const formatted = converted.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+      el.textContent = cur + ' ' + formatted;
+    });
+    // Update active button styles
+    document.querySelectorAll('.cur-btn').forEach(btn => {
+      const active = btn.dataset.cur === cur;
+      btn.className = 'cur-btn px-3 py-1.5 font-semibold ' + (active ? 'bg-primary-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50');
+    });
+    localStorage.setItem(LS_CUR, cur);
+  }
+
+  document.querySelectorAll('.cur-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyConversion(btn.dataset.cur));
+  });
+
+  [usdInput, eurInput].forEach(inp => {
+    inp.addEventListener('change', () => {
+      localStorage.setItem(LS_USD, usdInput.value);
+      localStorage.setItem(LS_EUR, eurInput.value);
+      const cur = localStorage.getItem(LS_CUR) || 'KES';
+      applyConversion(cur);
+    });
+  });
+
+  // Restore on load
+  const savedCur = localStorage.getItem(LS_CUR) || 'KES';
+  applyConversion(savedCur);
+})();
+</script>
