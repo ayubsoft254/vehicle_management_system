@@ -545,6 +545,56 @@
                                 KES {{ vehicle_profit|floatformat:2 }}
                             </p>
                         </div>
+
+                        {% if vehicle.purchase_price_usd %}
+                        <div class="pt-4 border-t border-amber-200">
+                            <div class="bg-amber-50 rounded-lg p-4">
+                                <h4 class="text-sm font-bold text-amber-800 mb-3 flex items-center gap-2">
+                                    <i class="fas fa-dollar-sign text-amber-600"></i> USD Profitability Tracker
+                                </h4>
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Purchase price (USD)</span>
+                                        <span class="font-semibold text-amber-800">$ {{ vehicle.purchase_price_usd|floatformat:2 }}</span>
+                                    </div>
+                                    {% if vehicle.purchase_usd_rate %}
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Rate at purchase</span>
+                                        <span class="font-semibold text-gray-700">{{ vehicle.purchase_usd_rate }} KES/USD</span>
+                                    </div>
+                                    {% endif %}
+                                    <div class="flex justify-between border-t border-amber-200 pt-2">
+                                        <span class="text-gray-600">Min sell price to break even</span>
+                                        <span id="usdBreakEvenKes" class="font-bold text-amber-700">—</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Current sell price in USD</span>
+                                        <span id="usdCurrentSellUsd" class="font-bold text-gray-700">—</span>
+                                    </div>
+                                    <div id="usdWarning" class="hidden mt-2 px-3 py-2 bg-red-100 border border-red-300 text-red-700 text-xs rounded-lg">
+                                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                                        Selling at current price may result in a USD loss at the live exchange rate.
+                                    </div>
+                                    <div id="usdOk" class="hidden mt-2 px-3 py-2 bg-green-100 border border-green-300 text-green-700 text-xs rounded-lg">
+                                        <i class="fas fa-check-circle mr-1"></i>
+                                        Selling price covers USD purchase cost at current rate.
+                                    </div>
+                                </div>
+                                <div class="mt-3 pt-3 border-t border-amber-200">
+                                    <div class="flex items-center gap-2">
+                                        <label class="text-xs text-gray-600 whitespace-nowrap">Live rate (KES/USD)</label>
+                                        <input type="number" id="liveRateInput" step="0.01" min="0" placeholder="e.g. 130"
+                                            class="w-28 text-sm border border-gray-300 rounded px-2 py-1 focus:ring-amber-400 focus:border-amber-400">
+                                        <button type="button" id="fetchLiveRateDetailBtn"
+                                            class="px-2 py-1 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded transition">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+                                    </div>
+                                    <p id="liveRateStatus" class="text-xs text-gray-400 mt-1"></p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                     {% else %}
                         {% if show_public_prices %}
                         <div>
@@ -1013,6 +1063,55 @@ document.addEventListener('click', function(e) {
         document.getElementById('clientSearchResults').classList.add('hidden');
     }
 });
+
+// ── USD Profitability Panel ─────────────────────────────────────────────────
+(function () {
+    const purchaseUsd = parseFloat('{{ vehicle.purchase_price_usd|unlocalize|default:"0" }}') || 0;
+    const sellKes = parseFloat('{{ display_price|unlocalize|default:"0" }}') || 0;
+    if (!purchaseUsd) return;
+
+    const liveRateInput = document.getElementById('liveRateInput');
+    const fetchBtn      = document.getElementById('fetchLiveRateDetailBtn');
+    const statusEl      = document.getElementById('liveRateStatus');
+    const breakEvenEl   = document.getElementById('usdBreakEvenKes');
+    const currentSellEl = document.getElementById('usdCurrentSellUsd');
+    const warningEl     = document.getElementById('usdWarning');
+    const okEl          = document.getElementById('usdOk');
+
+    function updatePanel(rate) {
+        if (!rate || rate <= 0) return;
+        const breakEvenKes = purchaseUsd * rate;
+        const currentUsd   = sellKes / rate;
+        if (breakEvenEl) breakEvenEl.textContent = 'KES ' + breakEvenKes.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        if (currentSellEl) currentSellEl.textContent = '$ ' + currentUsd.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        const isLoss = currentUsd < purchaseUsd;
+        if (warningEl) warningEl.classList.toggle('hidden', !isLoss);
+        if (okEl) okEl.classList.toggle('hidden', isLoss);
+    }
+
+    if (liveRateInput) liveRateInput.addEventListener('input', function () { updatePanel(parseFloat(this.value) || 0); });
+
+    if (fetchBtn) {
+        fetchBtn.addEventListener('click', function () {
+            fetchBtn.disabled = true;
+            if (statusEl) statusEl.textContent = 'Fetching…';
+            fetch('https://open.er-api.com/v6/latest/USD')
+                .then(r => r.json())
+                .then(data => {
+                    const rate = data && data.rates && data.rates.KES ? data.rates.KES : null;
+                    if (rate && liveRateInput) {
+                        liveRateInput.value = rate.toFixed(2);
+                        if (statusEl) statusEl.textContent = '1 USD = KES ' + rate.toFixed(2) + ' (live)';
+                        updatePanel(rate);
+                    } else {
+                        if (statusEl) statusEl.textContent = 'Could not retrieve rate.';
+                    }
+                })
+                .catch(() => { if (statusEl) statusEl.textContent = 'Fetch failed. Enter rate manually.'; })
+                .finally(() => { fetchBtn.disabled = false; });
+        });
+    }
+})();
 </script>
 
 {% endblock %}
