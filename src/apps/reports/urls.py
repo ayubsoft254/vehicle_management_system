@@ -48,6 +48,9 @@ urlpatterns = [
     
     # Analytics
     path('analytics/', views.report_analytics, name='analytics'),
+
+    # Financial Reports
+    path('financial/', views.financial_reports, name='financial_reports'),
     
     # Export & Sharing
     path('<uuid:pk>/export-config/', views.export_report_config, name='export_config'),
