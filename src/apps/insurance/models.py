@@ -120,6 +120,11 @@ class InsuranceAgent(models.Model):
             .aggregate(total=Sum('buying_price'))['total'] or Decimal('0.00')
         )
 
+    @property
+    def total_payments_made(self):
+        from django.db.models import Sum
+        return self.payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
 
 # ==================== INSURANCE POLICY MODEL ====================
 
@@ -1110,5 +1115,45 @@ class InsurancePaymentSchedule(models.Model):
         
         if self.amount_paid >= self.amount_due:
             self.is_paid = True
-        
+
         self.save()
+
+
+# ==================== INSURANCE AGENT PAYMENT MODEL ====================
+
+class InsuranceAgentPayment(models.Model):
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('mpesa', 'M-Pesa'),
+        ('cheque', 'Cheque'),
+        ('other', 'Other'),
+    ]
+    agent = models.ForeignKey(
+        InsuranceAgent, on_delete=models.CASCADE, related_name='payments'
+    )
+    amount = models.DecimalField(
+        'Amount (KES)', max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
+    payment_date = models.DateField('Payment Date', default=timezone.now)
+    payment_method = models.CharField(
+        'Payment Method', max_length=20,
+        choices=PAYMENT_METHOD_CHOICES, default='bank_transfer'
+    )
+    reference_number = models.CharField('Reference / Receipt No.', max_length=100, blank=True)
+    notes = models.TextField('Notes', blank=True)
+    recorded_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True,
+        related_name='insurance_agent_payments'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-payment_date', '-created_at']
+        verbose_name = 'Insurance Agent Payment'
+        verbose_name_plural = 'Insurance Agent Payments'
+        db_table = 'insurance_agent_payments'
+
+    def __str__(self):
+        return f"Payment KES {self.amount:,.0f} to {self.agent.name} on {self.payment_date}"
