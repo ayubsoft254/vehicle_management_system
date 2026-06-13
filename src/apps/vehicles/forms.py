@@ -18,7 +18,8 @@ class VehicleForm(forms.ModelForm):
             'make', 'model', 'year', 'vin', 'engine_number', 'registration_number',
             'color', 'mileage', 'fuel_type', 'transmission',
             'engine_size', 'body_type', 'seats', 'doors',
-            'condition', 'purchase_price', 'selling_price', 'website_price', 'deposit_required',
+            'condition', 'purchase_price', 'purchase_price_usd', 'purchase_usd_rate',
+            'selling_price', 'website_price', 'deposit_required',
             'duty_cost', 'clearance_cost',
             'status', 'is_active', 'is_featured',
             'description', 'features', 'location', 'location_moved_date',
@@ -94,6 +95,18 @@ class VehicleForm(forms.ModelForm):
                 'placeholder': 'Purchase price in KES',
                 'step': '0.01',
                 'required': 'required'
+            }),
+            'purchase_price_usd': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'e.g. 8500',
+                'step': '0.01',
+                'id': 'id_purchase_price_usd',
+            }),
+            'purchase_usd_rate': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'e.g. 130.00',
+                'step': '0.0001',
+                'id': 'id_purchase_usd_rate',
             }),
             'selling_price': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
@@ -191,7 +204,7 @@ class VehicleForm(forms.ModelForm):
             'clearance_cost', 'location',
             'location_moved_date', 'location_driver_name',
             'location_driver_phone', 'location_driver_id_number',
-            'website_price'
+            'website_price', 'purchase_price_usd', 'purchase_usd_rate',
         ]
         for field_name in optional_fields:
             self.fields[field_name].required = False
