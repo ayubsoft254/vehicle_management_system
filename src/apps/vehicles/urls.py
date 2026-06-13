@@ -51,4 +51,6 @@ urlpatterns = [
     path('clearing-agents/<int:pk>/', views.clearing_agent_ledger_detail, name='clearing_agent_ledger_detail'),
     path('clearance-records/<int:pk>/mark-paid/', views.clearance_record_mark_paid, name='clearance_record_mark_paid'),
     path('clearing-agents/<int:agent_pk>/mark-all-paid/', views.clearing_agent_mark_all_paid, name='clearing_agent_mark_all_paid'),
+    path('tracker-agents/<int:agent_pk>/record-payment/', views.record_tracker_agent_payment, name='record_tracker_agent_payment'),
+    path('clearing-agents/<int:agent_pk>/record-payment/', views.record_clearing_agent_payment, name='record_clearing_agent_payment'),
 ]

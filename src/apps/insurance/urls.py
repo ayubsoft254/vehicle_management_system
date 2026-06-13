@@ -88,4 +88,5 @@ urlpatterns = [
     path('agents/<int:pk>/', views.agent_ledger_detail, name='agent_ledger_detail'),
     path('agents/policies/<int:pk>/mark-paid/', views.agent_ledger_mark_paid, name='agent_ledger_mark_paid'),
     path('agents/<int:agent_pk>/mark-all-paid/', views.agent_ledger_mark_all_paid, name='agent_ledger_mark_all_paid'),
+    path('agents/<int:agent_pk>/record-payment/', views.record_insurance_agent_payment, name='record_insurance_agent_payment'),
 ]
