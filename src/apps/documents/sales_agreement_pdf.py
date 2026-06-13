@@ -387,8 +387,7 @@ def generate_sales_agreement_pdf(client_vehicle):
         elements.append(Paragraph('<b>TRACKER(S):</b>', normal_small))
         for idx, tracker in enumerate(trackers, start=1):
             tracker_lines = [
-                f'<b>{idx}. {tracker.tracker_name or "Tracker"}</b> '
-                f'({tracker.serial_number or "No serial"}) '
+                f'<b>{idx}. Tracker</b> — '
                 f'Price KES {float(tracker.selling_price or Decimal("0.00")):,.2f}',
                 f'<b>Payment Type:</b> {_payment_type_label(tracker.payment_type)}',
             ]
