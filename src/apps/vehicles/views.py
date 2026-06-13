@@ -1012,9 +1012,12 @@ def tracker_agent_ledger_detail(request, pk):
     """Show all tracker records for an agent and allow marking them paid."""
     agent = get_object_or_404(TrackerAgent, pk=pk)
     records = agent.tracker_records.select_related('vehicle', 'client_vehicle__client').order_by('-created_at')
+    from .models import TrackerAgentPayment
+    payments = agent.payments.select_related('recorded_by').order_by('-payment_date')
     context = {
         'agent': agent,
         'records': records,
+        'payments': payments,
     }
     return render(request, 'vehicles/tracker_agent_ledger_detail.html', context)
 
@@ -1085,9 +1088,12 @@ def clearing_agent_ledger_detail(request, pk):
     """Show all clearance records for an agent and allow marking them paid."""
     agent = get_object_or_404(ClearingAgent, pk=pk)
     records = agent.clearance_records.select_related('vehicle').order_by('-date')
+    from .models import ClearingAgentPayment
+    payments = agent.payments.select_related('recorded_by').order_by('-payment_date')
     context = {
         'agent': agent,
         'records': records,
+        'payments': payments,
     }
     return render(request, 'vehicles/clearing_agent_ledger_detail.html', context)
 
@@ -1111,6 +1117,86 @@ def clearing_agent_mark_all_paid(request, agent_pk):
     agent = get_object_or_404(ClearingAgent, pk=agent_pk)
     updated = agent.clearance_records.filter(payment_status='unpaid').update(payment_status='paid')
     return JsonResponse({'status': 'ok', 'updated': updated})
+
+
+@login_required
+def record_tracker_agent_payment(request, agent_pk):
+    """Record a lump-sum payment to a tracker agent."""
+    if request.method != 'POST':
+        messages.error(request, 'Method not allowed.')
+        return redirect('vehicles:tracker_agent_ledger_detail', pk=agent_pk)
+    agent = get_object_or_404(TrackerAgent, pk=agent_pk)
+    from .models import TrackerAgentPayment
+    amount_str = request.POST.get('amount', '').strip()
+    payment_method = request.POST.get('payment_method', 'bank_transfer')
+    reference_number = request.POST.get('reference_number', '').strip()
+    notes = request.POST.get('notes', '').strip()
+    payment_date_str = request.POST.get('payment_date', '').strip()
+    try:
+        amount = Decimal(amount_str)
+        if amount <= 0:
+            raise ValueError
+    except Exception:
+        messages.error(request, 'Invalid payment amount.')
+        return redirect('vehicles:tracker_agent_ledger_detail', pk=agent_pk)
+    from datetime import date as date_type, datetime as datetime_type
+    payment_date = date_type.today()
+    if payment_date_str:
+        try:
+            payment_date = datetime_type.strptime(payment_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    TrackerAgentPayment.objects.create(
+        agent=agent,
+        amount=amount,
+        payment_method=payment_method,
+        reference_number=reference_number,
+        notes=notes,
+        payment_date=payment_date,
+        recorded_by=request.user,
+    )
+    messages.success(request, f'Payment of KES {amount:,.2f} recorded for {agent.name}.')
+    return redirect('vehicles:tracker_agent_ledger_detail', pk=agent_pk)
+
+
+@login_required
+def record_clearing_agent_payment(request, agent_pk):
+    """Record a lump-sum payment to a clearing agent."""
+    if request.method != 'POST':
+        messages.error(request, 'Method not allowed.')
+        return redirect('vehicles:clearing_agent_ledger_detail', pk=agent_pk)
+    agent = get_object_or_404(ClearingAgent, pk=agent_pk)
+    from .models import ClearingAgentPayment
+    amount_str = request.POST.get('amount', '').strip()
+    payment_method = request.POST.get('payment_method', 'bank_transfer')
+    reference_number = request.POST.get('reference_number', '').strip()
+    notes = request.POST.get('notes', '').strip()
+    payment_date_str = request.POST.get('payment_date', '').strip()
+    try:
+        amount = Decimal(amount_str)
+        if amount <= 0:
+            raise ValueError
+    except Exception:
+        messages.error(request, 'Invalid payment amount.')
+        return redirect('vehicles:clearing_agent_ledger_detail', pk=agent_pk)
+    from datetime import date as date_type, datetime as datetime_type
+    payment_date = date_type.today()
+    if payment_date_str:
+        try:
+            payment_date = datetime_type.strptime(payment_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    ClearingAgentPayment.objects.create(
+        agent=agent,
+        amount=amount,
+        payment_method=payment_method,
+        reference_number=reference_number,
+        notes=notes,
+        payment_date=payment_date,
+        recorded_by=request.user,
+    )
+    messages.success(request, f'Payment of KES {amount:,.2f} recorded for {agent.name}.')
+    return redirect('vehicles:clearing_agent_ledger_detail', pk=agent_pk)
 
 
 # ==================== VEHICLE REPORTS ====================
