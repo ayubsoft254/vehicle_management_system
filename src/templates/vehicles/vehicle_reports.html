@@ -28,6 +28,8 @@
         </div>
     </div>
 
+    {% include "includes/_currency_switcher.html" %}
+
     <!-- KPI Cards -->
     <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
@@ -72,19 +74,19 @@
             <div class="space-y-2">
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-500">Purchase cost</span>
-                    <span class="font-semibold text-blue-700">KES {{ inv_agg.total_purchase|floatformat:0|intcomma }}</span>
+                    <span class="font-semibold text-blue-700"><span class="kes-amount" data-kes="{{ inv_agg.total_purchase }}">KES {{ inv_agg.total_purchase|floatformat:0|intcomma }}</span></span>
                 </div>
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-500">Selling value</span>
-                    <span class="font-semibold text-green-700">KES {{ inv_agg.total_selling|floatformat:0|intcomma }}</span>
+                    <span class="font-semibold text-green-700"><span class="kes-amount" data-kes="{{ inv_agg.total_selling }}">KES {{ inv_agg.total_selling|floatformat:0|intcomma }}</span></span>
                 </div>
                 <div class="flex justify-between text-sm border-t pt-2">
                     <span class="text-gray-500">Avg selling price</span>
-                    <span class="font-semibold text-gray-800">KES {{ inv_agg.avg_selling|floatformat:0|intcomma }}</span>
+                    <span class="font-semibold text-gray-800"><span class="kes-amount" data-kes="{{ inv_agg.avg_selling }}">KES {{ inv_agg.avg_selling|floatformat:0|intcomma }}</span></span>
                 </div>
                 <div class="flex justify-between text-xs text-gray-400">
-                    <span>Min: KES {{ inv_agg.min_price|floatformat:0|intcomma }}</span>
-                    <span>Max: KES {{ inv_agg.max_price|floatformat:0|intcomma }}</span>
+                    <span>Min: <span class="kes-amount" data-kes="{{ inv_agg.min_price }}">KES {{ inv_agg.min_price|floatformat:0|intcomma }}</span></span>
+                    <span>Max: <span class="kes-amount" data-kes="{{ inv_agg.max_price }}">KES {{ inv_agg.max_price|floatformat:0|intcomma }}</span></span>
                 </div>
             </div>
         </div>
@@ -93,11 +95,11 @@
             <div class="space-y-2">
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-500">Purchase cost</span>
-                    <span class="font-semibold text-blue-700">KES {{ sold_agg.total_purchase|floatformat:0|intcomma }}</span>
+                    <span class="font-semibold text-blue-700"><span class="kes-amount" data-kes="{{ sold_agg.total_purchase }}">KES {{ sold_agg.total_purchase|floatformat:0|intcomma }}</span></span>
                 </div>
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-500">Selling value</span>
-                    <span class="font-semibold text-green-700">KES {{ sold_agg.total_selling|floatformat:0|intcomma }}</span>
+                    <span class="font-semibold text-green-700"><span class="kes-amount" data-kes="{{ sold_agg.total_selling }}">KES {{ sold_agg.total_selling|floatformat:0|intcomma }}</span></span>
                 </div>
             </div>
         </div>
@@ -106,11 +108,11 @@
             <div class="space-y-2">
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-500">Total purchase cost</span>
-                    <span class="font-semibold text-blue-700">KES {{ all_agg.total_purchase|floatformat:0|intcomma }}</span>
+                    <span class="font-semibold text-blue-700"><span class="kes-amount" data-kes="{{ all_agg.total_purchase }}">KES {{ all_agg.total_purchase|floatformat:0|intcomma }}</span></span>
                 </div>
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-500">Total selling value</span>
-                    <span class="font-semibold text-green-700">KES {{ all_agg.total_selling|floatformat:0|intcomma }}</span>
+                    <span class="font-semibold text-green-700"><span class="kes-amount" data-kes="{{ all_agg.total_selling }}">KES {{ all_agg.total_selling|floatformat:0|intcomma }}</span></span>
                 </div>
             </div>
         </div>
