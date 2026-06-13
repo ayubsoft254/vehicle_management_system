@@ -1313,9 +1313,12 @@ def agent_ledger_detail(request, pk):
     """Show all policies for an insurance agent and allow marking them paid."""
     agent = get_object_or_404(InsuranceAgent, pk=pk)
     policies = agent.policies.select_related('vehicle', 'client').order_by('-start_date')
+    from .models import InsuranceAgentPayment
+    payments = agent.payments.select_related('recorded_by').order_by('-payment_date')
     context = {
         'agent': agent,
         'policies': policies,
+        'payments': payments,
     }
     log_audit(request.user, 'view', 'InsuranceAgent', f'Viewed ledger for agent {agent.name}')
     return render(request, 'insurance/agent_ledger_detail.html', context)
@@ -1342,3 +1345,44 @@ def agent_ledger_mark_all_paid(request, agent_pk):
     updated = agent.policies.filter(dealer_payment_status='unpaid').update(dealer_payment_status='paid')
     log_audit(request.user, 'update', 'InsuranceAgent', f'Marked all {updated} unpaid policies as paid for agent {agent.name}')
     return JsonResponse({'status': 'ok', 'updated': updated})
+
+
+@login_required
+def record_insurance_agent_payment(request, agent_pk):
+    """Record a lump-sum payment to an insurance agent."""
+    from django.views.decorators.http import require_POST
+    if request.method != 'POST':
+        messages.error(request, 'Method not allowed.')
+        return redirect('insurance:agent_ledger_detail', pk=agent_pk)
+    agent = get_object_or_404(InsuranceAgent, pk=agent_pk)
+    from .models import InsuranceAgentPayment
+    amount_str = request.POST.get('amount', '').strip()
+    payment_method = request.POST.get('payment_method', 'bank_transfer')
+    reference_number = request.POST.get('reference_number', '').strip()
+    notes = request.POST.get('notes', '').strip()
+    payment_date_str = request.POST.get('payment_date', '').strip()
+    try:
+        amount = Decimal(amount_str)
+        if amount <= 0:
+            raise ValueError
+    except Exception:
+        messages.error(request, 'Invalid payment amount.')
+        return redirect('insurance:agent_ledger_detail', pk=agent_pk)
+    from datetime import date as date_type
+    payment_date = date_type.today()
+    if payment_date_str:
+        try:
+            payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    InsuranceAgentPayment.objects.create(
+        agent=agent,
+        amount=amount,
+        payment_method=payment_method,
+        reference_number=reference_number,
+        notes=notes,
+        payment_date=payment_date,
+        recorded_by=request.user,
+    )
+    messages.success(request, f'Payment of KES {amount:,.2f} recorded for {agent.name}.')
+    return redirect('insurance:agent_ledger_detail', pk=agent_pk)
