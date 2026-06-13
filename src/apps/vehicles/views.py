@@ -1111,3 +1111,132 @@ def clearing_agent_mark_all_paid(request, agent_pk):
     agent = get_object_or_404(ClearingAgent, pk=agent_pk)
     updated = agent.clearance_records.filter(payment_status='unpaid').update(payment_status='paid')
     return JsonResponse({'status': 'ok', 'updated': updated})
+
+
+# ==================== VEHICLE REPORTS ====================
+
+@login_required
+def vehicle_reports(request):
+    """Comprehensive vehicle inventory and financial analytics."""
+    from django.db.models import Min, Max
+    from datetime import date
+
+    can_see_prices = _can_view_vehicle_prices(request.user)
+    vehicles = Vehicle.objects.all()
+    today = date.today()
+
+    # ── Status breakdown ─────────────────────────────────────────────────────
+    status_breakdown = []
+    total_count = vehicles.count()
+    for val, label in VehicleStatus.CHOICES:
+        count = vehicles.filter(status=val).count()
+        status_breakdown.append({'status': label, 'value': val, 'count': count})
+
+    available_qs = vehicles.filter(status=VehicleStatus.AVAILABLE)
+    sold_qs = vehicles.filter(status=VehicleStatus.SOLD)
+
+    # ── Inventory value (available stock) ────────────────────────────────────
+    if can_see_prices:
+        inv_agg = available_qs.aggregate(
+            total_purchase=Coalesce(Sum('purchase_price'), Value(0, output_field=DecimalField())),
+            total_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+            avg_purchase=Coalesce(Avg('purchase_price'), Value(0, output_field=DecimalField())),
+            avg_selling=Coalesce(Avg('selling_price'), Value(0, output_field=DecimalField())),
+            min_price=Min('selling_price'),
+            max_price=Max('selling_price'),
+        )
+        sold_agg = sold_qs.aggregate(
+            total_purchase=Coalesce(Sum('purchase_price'), Value(0, output_field=DecimalField())),
+            total_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+        )
+        all_agg = vehicles.aggregate(
+            total_purchase=Coalesce(Sum('purchase_price'), Value(0, output_field=DecimalField())),
+            total_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+            avg_mileage=Coalesce(Avg('mileage'), Value(0, output_field=DecimalField())),
+        )
+    else:
+        inv_agg = sold_agg = all_agg = {
+            'total_purchase': 0, 'total_selling': 0,
+            'avg_purchase': 0, 'avg_selling': 0,
+            'min_price': 0, 'max_price': 0, 'avg_mileage': 0,
+        }
+
+    # ── Make breakdown (top 10) ──────────────────────────────────────────────
+    by_make = list(
+        vehicles.values('make').annotate(
+            count=Count('id'),
+            available=Count('id', filter=Q(status=VehicleStatus.AVAILABLE)),
+            sold=Count('id', filter=Q(status=VehicleStatus.SOLD)),
+        ).order_by('-count')[:10]
+    )
+
+    # ── Fuel type breakdown ──────────────────────────────────────────────────
+    fuel_choices = [('petrol', 'Petrol'), ('diesel', 'Diesel'), ('electric', 'Electric'),
+                    ('hybrid', 'Hybrid'), ('other', 'Other')]
+    by_fuel = [
+        {'label': label, 'count': vehicles.filter(fuel_type=val).count()}
+        for val, label in fuel_choices
+    ]
+
+    # ── Body type breakdown ──────────────────────────────────────────────────
+    body_choices = [('sedan', 'Sedan'), ('suv', 'SUV'), ('hatchback', 'Hatchback'),
+                    ('pickup', 'Pickup Truck'), ('van', 'Van'), ('coupe', 'Coupe'),
+                    ('wagon', 'Station Wagon'), ('other', 'Other')]
+    by_body = [
+        {'label': label, 'count': vehicles.filter(body_type=val).count()}
+        for val, label in body_choices if vehicles.filter(body_type=val).exists()
+    ]
+
+    # ── Location breakdown ───────────────────────────────────────────────────
+    from utils.constants import VehicleLocation
+    by_location = [
+        {'label': label, 'count': vehicles.filter(location=val).count()}
+        for val, label in VehicleLocation.CHOICES
+        if vehicles.filter(location=val).exists()
+    ]
+    unlocated = vehicles.filter(location='').count()
+    if unlocated:
+        by_location.append({'label': 'Unassigned', 'count': unlocated})
+
+    # ── Year breakdown (last 10 model years) ─────────────────────────────────
+    current_year = today.year
+    by_year = list(
+        vehicles.filter(year__gte=current_year - 9)
+        .values('year').annotate(count=Count('id'))
+        .order_by('-year')
+    )
+
+    # ── Condition breakdown ──────────────────────────────────────────────────
+    cond_choices = [('excellent', 'Excellent'), ('good', 'Good'), ('fair', 'Fair'), ('poor', 'Poor')]
+    by_condition = [
+        {'label': label, 'count': vehicles.filter(condition=val).count()}
+        for val, label in cond_choices
+    ]
+
+    # ── This month additions ─────────────────────────────────────────────────
+    added_this_month = vehicles.filter(
+        date_added__year=today.year, date_added__month=today.month
+    ).count()
+    sold_this_month = sold_qs.filter(
+        date_sold__year=today.year, date_sold__month=today.month
+    ).count() if hasattr(Vehicle, 'date_sold') else 0
+
+    context = {
+        'can_see_prices': can_see_prices,
+        'total_count': total_count,
+        'status_breakdown': status_breakdown,
+        'available_count': available_qs.count(),
+        'sold_count': sold_qs.count(),
+        'featured_count': vehicles.filter(is_featured=True).count(),
+        'added_this_month': added_this_month,
+        'inv_agg': inv_agg,
+        'sold_agg': sold_agg,
+        'all_agg': all_agg,
+        'by_make': by_make,
+        'by_fuel': by_fuel,
+        'by_body': by_body,
+        'by_location': by_location,
+        'by_year': by_year,
+        'by_condition': by_condition,
+    }
+    return render(request, 'vehicles/vehicle_reports.html', context)
