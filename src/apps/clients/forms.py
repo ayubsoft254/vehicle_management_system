@@ -394,6 +394,7 @@ class ClientVehicleForm(forms.ModelForm):
                 raise ValidationError("Please specify the day of month for monthly payments.")
             if remainder_payment_type == 'weekly' and weekly_payment_day is None:
                 raise ValidationError("Please select the day of week for weekly payments.")
+            cleaned_data['allow_flexible_payments'] = False
         
         elif payment_type == 'flexible':
             raw_schedule = self.data.get('flexible_installments_json', '[]')
