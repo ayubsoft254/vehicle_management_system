@@ -1602,9 +1602,8 @@ function updatePaymentFields() {
 
 function getRemainingBalanceForFlexible() {
     const finalSellingPrice = getFinalSellingValue(selectedVehicleBasePrice);
-    const price = Math.max(0, finalSellingPrice - calculateExtraCostsTotal());
     const deposit = parseFloat(document.getElementById('{{ form.deposit_paid.id_for_label }}')?.value || 0);
-    return Math.max(0, price - deposit);
+    return Math.max(0, finalSellingPrice - deposit);
 }
 
 function getFlexibleInstallmentRows() {
@@ -1888,6 +1887,38 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
     const depositInput = document.getElementById('{{ form.deposit_paid.id_for_label }}');
     depositInput?.addEventListener('input', () => updateDepositVisibility());
     updateDepositVisibility();
+});
+
+// When the global draft-restore banner is used, rebuild dynamic UI elements
+// (extra cost rows and flexible installment rows) from the restored hidden inputs.
+document.addEventListener('draft-restored', function () {
+    // Rebuild extra cost rows from restored JSON
+    hydrateExtraCostsFromHidden();
+
+    // Re-read payment type and show the correct section
+    updatePaymentFields();
+
+    // Rebuild flexible installment rows from the restored hidden JSON
+    var flexInput = document.getElementById('id_flexible_installments_json');
+    if (flexInput && flexInput.value && flexInput.value !== '[]') {
+        try {
+            var installments = JSON.parse(flexInput.value);
+            if (Array.isArray(installments) && installments.length > 0) {
+                var container = document.getElementById('flexible-installments-container');
+                if (container) {
+                    container.innerHTML = '';
+                    installments.forEach(function (inst) {
+                        addFlexibleInstallmentRow(inst.due_date || '', inst.amount || '');
+                    });
+                    updateFlexibleInstallmentSummary();
+                }
+            }
+        } catch (e) {}
+    }
+
+    // Recalculate totals after restore
+    updateCalculationBreakdown();
+    updateProfitLoss();
 });
 
 function updateDepositVisibility(paymentType) {
