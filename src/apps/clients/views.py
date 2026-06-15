@@ -888,25 +888,28 @@ def assign_vehicle(request, client_pk):
         else:
             print("Form errors:", form.errors)
             messages.error(request, 'Please correct the errors below.')
+            # Preserve flexible installments so the UI can rebuild after validation errors
+            initial_flexible_installments_json = request.POST.get('flexible_installments_json', '[]')
     else:
+        initial_flexible_installments_json = '[]'
         # Check if vehicle_id is provided via query parameter (from quick-sell feature)
         vehicle_id = request.GET.get('vehicle_id')
         initial_data = {}
-        
+
         if vehicle_id:
             try:
                 vehicle = Vehicle.objects.get(pk=vehicle_id, status='available')
                 initial_data['vehicle'] = vehicle
             except Vehicle.DoesNotExist:
                 messages.warning(request, 'Selected vehicle is not available.')
-        
+
         form = ClientVehicleForm(client=client, initial=initial_data)
-    
+
     # Get vehicle prices for JavaScript
     vehicles_qs = Vehicle.objects.filter(status='available')
     vehicle_prices = {v.id: float(v.website_display_price or Decimal('0.00')) for v in vehicles_qs}
     vehicle_cost_prices = {v.id: float(v.total_program_cost) for v in vehicles_qs}
-    
+
     # Get insurance and tracker agents
     from apps.insurance.models import InsuranceAgent
     insurance_agents = InsuranceAgent.objects.filter(is_active=True).order_by('name')
@@ -928,8 +931,9 @@ def assign_vehicle(request, client_pk):
         'insurance_agents_json': json.dumps(insurance_agent_data),
         'tracker_agents': tracker_agents,
         'tracker_agents_json': json.dumps([{'id': a.pk, 'name': a.name} for a in tracker_agents]),
+        'initial_flexible_installments_json': initial_flexible_installments_json,
     }
-    
+
     return render(request, 'clients/assign_vehicle.html', context)
 
 
