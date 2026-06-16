@@ -369,13 +369,12 @@ def generate_sales_agreement_pdf(client_vehicle):
 
         insurance_schedules = list(insurance_policy.insurance_payment_schedules.order_by('installment_number'))
         if insurance_schedules:
-            schedule_parts = []
+            insurance_lines.append('<b>INSURANCE PAYMENT SCHEDULE:</b>')
             for sch in insurance_schedules:
-                schedule_parts.append(
-                    f'#{sch.installment_number}: {sch.due_date.strftime("%d-%m-%Y") if sch.due_date else ""} '
-                    f'(KES {float(sch.amount_due):,.2f})'
+                due_str = sch.due_date.strftime('%d-%m-%Y') if sch.due_date else '___'
+                insurance_lines.append(
+                    f'  #{sch.installment_number}: {due_str} — KES {float(sch.amount_due):,.2f}'
                 )
-            insurance_lines.append(f'<b>INSURANCE PAYMENT SCHEDULE:</b> {"; ".join(schedule_parts)}')
 
         for line in insurance_lines:
             elements.append(Paragraph(line, normal_small))
