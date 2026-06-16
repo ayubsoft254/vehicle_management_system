@@ -1,0 +1,9 @@
+# Ignore all backup files — never commit database dumps
+*.sql
+*.sql.gz
+*.tar.gz
+*.dump
+
+# Keep the backup log in git history (optional — remove next line to ignore it too)
+!backup.log
+backup.log
