@@ -282,10 +282,13 @@ def generate_sales_agreement_pdf(client_vehicle):
     # ---- PRICING DETAILS ----
     client_final_price = client_vehicle.purchase_price or Decimal('0.00')
     deposit_paid = client_vehicle.deposit_paid or Decimal('0.00')
+    # Always derive balance from price minus deposit so the PDF is correct
+    # even when the stored balance field is stale.
+    balance_amount = max(Decimal('0.00'), client_final_price - deposit_paid)
 
     price_data = [
         [
-            Paragraph(f'<b>CLIENT FINAL PRICE IN KSHS:</b> {float(client_final_price):,.2f}', normal_small),
+            Paragraph(f'<b>PRICE (KES):</b> {float(client_final_price):,.2f}', normal_small),
             Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(client_final_price)}', normal_small),
         ],
     ]
@@ -300,7 +303,6 @@ def generate_sales_agreement_pdf(client_vehicle):
             Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(deposit_paid)}', normal_small),
         ])
 
-    balance_amount = client_vehicle.balance or Decimal('0.00')
     if not is_full_payment and balance_amount > Decimal('0.00'):
         price_data.append([
             Paragraph(f'<b>BALANCE:</b> KES {float(balance_amount):,.2f}', normal_small),
@@ -478,7 +480,7 @@ def generate_sales_agreement_pdf(client_vehicle):
         months_str = str(selected_months) if selected_months else '___'
         end_date_text = end_date_str if end_date_str else '___________'
         elements.append(Paragraph(
-            f'<b>BALANCE TO PAY:</b> KES {float(client_vehicle.balance):,.2f}  '
+            f'<b>BALANCE TO PAY:</b> KES {float(balance_amount):,.2f}  '
             f'<b>IN</b> {months_str} <b>MONTHS FROM AGREEMENT DATE UPTO</b> {end_date_text}',
             normal_small
         ))
