@@ -244,10 +244,6 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     insurance_flexible_json = insurance_data.get('insurance_flexible_installments_json', '[]')
     insurance_has_plan = insurance_payment_type == 'flexible'
 
-    if not insurance_agent_pk:
-        messages.warning(request, 'Insurance details were entered but no insurance agent was selected, so policy was not saved.')
-        return existing_policy
-
     def parse_date(value):
         if not value:
             return None
@@ -261,12 +257,20 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     if not end_date or end_date <= start_date:
         end_date = start_date + timedelta(days=365)
 
-    insurance_agent_obj = InsuranceAgent.objects.get(pk=insurance_agent_pk)
+    insurance_agent_obj = None
+    if insurance_agent_pk:
+        try:
+            insurance_agent_obj = InsuranceAgent.objects.get(pk=insurance_agent_pk)
+        except InsuranceAgent.DoesNotExist:
+            pass
 
     try:
         ins_installments = json.loads(insurance_flexible_json or '[]')
     except Exception:
         ins_installments = []
+
+    if insurance_has_plan and not ins_installments:
+        insurance_has_plan = False
 
     insurance_months = None
     insurance_monthly = None
@@ -797,14 +801,14 @@ def assign_vehicle(request, client_pk):
                             from datetime import datetime as dt
                             
                             payment_type = tracker_payment_types[i] if i < len(tracker_payment_types) else 'full'
-                            has_plan = (payment_type == 'flexible')
                             install_date = tracker_install_dates[i] if i < len(tracker_install_dates) and tracker_install_dates[i] else timezone.now().date()
 
                             # Parse flexible installments from JSON
                             import json as _json
                             tracker_months = None
                             tracker_monthly = None
-                            if has_plan:
+                            trk_installments = []
+                            if payment_type == 'flexible':
                                 flex_json = tracker_flex_jsons[i] if i < len(tracker_flex_jsons) else '[]'
                                 try:
                                     trk_installments = _json.loads(flex_json or '[]')
@@ -817,6 +821,8 @@ def assign_vehicle(request, client_pk):
                                         for row in trk_installments
                                     )
                                     tracker_monthly = total_trk / tracker_months if tracker_months else None
+
+                            has_plan = (payment_type == 'flexible') and bool(trk_installments)
                             
                             tracker_deposit = Decimal(tracker_deposits[i]) if i < len(tracker_deposits) and tracker_deposits[i] else Decimal('0')
                             tracker_total_paid = Decimal('0')
