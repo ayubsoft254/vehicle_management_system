@@ -1916,6 +1916,24 @@ document.addEventListener('draft-restored', function () {
         } catch (e) {}
     }
 
+    // Rebuild insurance flexible installment rows from the restored hidden JSON
+    var insFlexInput = document.getElementById('id_insurance_flexible_installments_json');
+    if (insFlexInput && insFlexInput.value && insFlexInput.value !== '[]') {
+        try {
+            var insInstallments = JSON.parse(insFlexInput.value);
+            if (Array.isArray(insInstallments) && insInstallments.length > 0) {
+                var insContainer = document.getElementById('insurance-installments-container');
+                if (insContainer) {
+                    insContainer.innerHTML = '';
+                    insInstallments.forEach(function (inst) {
+                        addInsuranceInstallmentRow(inst.due_date || '', inst.amount || '');
+                    });
+                    updateInsuranceInstallmentSummary();
+                }
+            }
+        } catch (e) {}
+    }
+
     // Recalculate totals after restore
     updateCalculationBreakdown();
     updateProfitLoss();
