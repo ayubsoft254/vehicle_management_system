@@ -213,7 +213,6 @@
                             {% endif %}
                             {% endcomment %}
                             
-                            {% comment %}
                             <!-- Payroll -->
                             {% if user.is_superuser or user|can_access:'payroll' %}
                             <a href="{% url 'payroll:payroll_dashboard' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
@@ -221,7 +220,6 @@
                                 <span class="ml-3 font-medium">Payroll</span>
                             </a>
                             {% endif %}
-                            {% endcomment %}
                             
                             <!-- Divider -->
                             {% if user.is_superuser or user|can_access:'auctions' or user|can_access:'insurance' or user|can_access:'repossessions' %}

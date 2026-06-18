@@ -452,18 +452,14 @@ class Vehicle(models.Model):
 
     @property
     def total_program_cost(self):
-        """Calculate total program cost for this vehicle."""
+        """Calculate total program cost for this vehicle (excludes insurance and tracker costs)."""
         extra_cost_total = self.extra_costs.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
-        insurance_total = self.insurance_policies.aggregate(total=models.Sum('buying_price'))['total'] or Decimal('0.00')
-        tracker_total = self.tracker_records.aggregate(total=models.Sum('buying_price'))['total'] or Decimal('0.00')
 
         return (
             (self.purchase_price or Decimal('0.00'))
             + (self.duty_cost or Decimal('0.00'))
             + (self.clearance_cost or Decimal('0.00'))
             + extra_cost_total
-            + insurance_total
-            + tracker_total
         )
     
     @property
