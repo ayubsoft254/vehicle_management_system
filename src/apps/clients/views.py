@@ -240,6 +240,7 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     insurance_agent_name = insurance_data.get('insurance_agent_name', '').strip()
     insurance_agent_id_text = insurance_data.get('agent_id', '').strip()
     insurance_payment_type = insurance_data.get('insurance_payment_type', 'full').strip()
+    insurance_payment_method = insurance_data.get('insurance_payment_method', 'cash').strip() or 'cash'
     insurance_deposit_str = insurance_data.get('insurance_deposit', '').strip()
     insurance_flexible_json = insurance_data.get('insurance_flexible_installments_json', '[]')
     insurance_has_plan = insurance_payment_type == 'flexible'
@@ -328,6 +329,7 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     policy.agent_name = insurance_agent_name
     policy.agent_id = insurance_agent_id_text
     policy.payment_type = insurance_payment_type
+    policy.insurance_payment_method = insurance_payment_method
     policy.has_payment_plan = insurance_has_plan
     policy.insurance_deposit = insurance_deposit
     policy.insurance_installment_months = insurance_months if insurance_has_plan else None
@@ -602,6 +604,7 @@ def assign_vehicle(request, client_pk):
                 tracker_selling_prices = request.POST.getlist('tracker_selling_price[]')
                 tracker_deposits = request.POST.getlist('tracker_deposit[]')
                 tracker_payment_types = request.POST.getlist('tracker_payment_type[]')
+                tracker_payment_methods = request.POST.getlist('tracker_payment_method[]')
                 tracker_flex_jsons = request.POST.getlist('tracker_flexible_installments_json[]')
                 tracker_interest_rates = request.POST.getlist('tracker_interest_rate[]')
 
@@ -801,6 +804,7 @@ def assign_vehicle(request, client_pk):
                             from datetime import datetime as dt
                             
                             payment_type = tracker_payment_types[i] if i < len(tracker_payment_types) else 'full'
+                            payment_method = tracker_payment_methods[i] if i < len(tracker_payment_methods) and tracker_payment_methods[i] else 'cash'
                             install_date = tracker_install_dates[i] if i < len(tracker_install_dates) and tracker_install_dates[i] else timezone.now().date()
 
                             # Parse flexible installments from JSON
@@ -808,10 +812,11 @@ def assign_vehicle(request, client_pk):
                             tracker_months = None
                             tracker_monthly = None
                             trk_installments = []
+                            flex_json_raw = '[]'
                             if payment_type == 'flexible':
-                                flex_json = tracker_flex_jsons[i] if i < len(tracker_flex_jsons) else '[]'
+                                flex_json_raw = tracker_flex_jsons[i] if i < len(tracker_flex_jsons) else '[]'
                                 try:
-                                    trk_installments = _json.loads(flex_json or '[]')
+                                    trk_installments = _json.loads(flex_json_raw or '[]')
                                 except Exception:
                                     trk_installments = []
                                 if trk_installments:
@@ -856,10 +861,12 @@ def assign_vehicle(request, client_pk):
                                 buying_price=Decimal(tracker_buying_prices[i]) if i < len(tracker_buying_prices) and tracker_buying_prices[i] else Decimal('0'),
                                 selling_price=Decimal(tracker_selling_prices[i]) if i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0'),
                                 payment_type=payment_type,
+                                payment_method=payment_method,
                                 has_payment_plan=has_plan,
                                 deposit=tracker_deposit_value,
                                 installment_months=tracker_months if has_plan else None,
                                 monthly_installment=tracker_monthly if has_plan else None,
+                                installments_json=flex_json_raw if has_plan else '[]',
                                 interest_rate=Decimal('0'),
                                 total_paid=tracker_total_paid,
                                 installed_date=install_date,
@@ -1341,6 +1348,7 @@ def client_vehicle_update(request, pk):
             'agent_name': insurance_policy.agent_name or '',
             'agent_id': insurance_policy.agent_id or '',
             'payment_type': insurance_policy.payment_type or 'full',
+            'payment_method': insurance_policy.insurance_payment_method or 'cash',
             'flexible_installments': [
                 {
                     'due_date': row['due_date'].isoformat() if row['due_date'] else '',
@@ -1353,7 +1361,12 @@ def client_vehicle_update(request, pk):
     initial_trackers_data = []
     for tracker in client_vehicle.trackers.all().order_by('created_at'):
         installments = []
-        if tracker.has_payment_plan and tracker.installment_months and tracker.monthly_installment:
+        raw_json = getattr(tracker, 'installments_json', '[]') or '[]'
+        try:
+            installments = json.loads(raw_json)
+        except Exception:
+            installments = []
+        if not installments and tracker.has_payment_plan and tracker.installment_months and tracker.monthly_installment:
             base_date = tracker.installed_date or timezone.now().date()
             for idx in range(int(tracker.installment_months)):
                 installments.append({
@@ -1376,6 +1389,7 @@ def client_vehicle_update(request, pk):
             'buying_price': str(tracker.buying_price or Decimal('0.00')),
             'selling_price': str(tracker.selling_price or Decimal('0.00')),
             'payment_type': tracker.payment_type or 'full',
+            'payment_method': getattr(tracker, 'payment_method', 'cash') or 'cash',
             'flexible_installments': installments,
         })
 

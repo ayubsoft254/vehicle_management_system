@@ -846,12 +846,36 @@ class VehicleTracker(models.Model):
         ('deduct_from_deposit', 'Deduct from Deposit'),
     ]
 
+    TRACKER_PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('mpesa', 'M-Pesa'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('cheque', 'Cheque'),
+        ('card', 'Credit/Debit Card'),
+        ('other', 'Other'),
+    ]
+
     payment_type = models.CharField(
         'Payment Type',
         max_length=30,
         choices=TRACKER_PAYMENT_TYPE_CHOICES,
         default='full',
         help_text='How the client pays for this tracker',
+    )
+
+    payment_method = models.CharField(
+        'Payment Method',
+        max_length=30,
+        choices=TRACKER_PAYMENT_METHOD_CHOICES,
+        default='cash',
+        help_text='Method used to pay for this tracker',
+    )
+
+    installments_json = models.TextField(
+        'Installments Schedule (JSON)',
+        blank=True,
+        default='[]',
+        help_text='JSON array of {due_date, amount} installment schedule entries',
     )
 
     has_payment_plan = models.BooleanField(

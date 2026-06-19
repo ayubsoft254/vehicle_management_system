@@ -332,86 +332,195 @@ def generate_sales_agreement_pdf(client_vehicle):
         elements.append(Spacer(1, 0.2*cm))
 
     # ---- INSURANCE & TRACKER ADD-ONS ----
+    import json as _json_pdf
+    from datetime import datetime as _dt_pdf
+
+    _PAYMENT_METHOD_LABELS = {
+        'cash': 'Cash', 'mpesa': 'M-Pesa', 'bank_transfer': 'Bank Transfer',
+        'cheque': 'Cheque', 'card': 'Credit/Debit Card', 'other': 'Other',
+    }
+
+    # Shared table styles
+    def _detail_table_style():
+        return TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f0f4ff')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a6e')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7.5),
+            ('LEADING', (0, 0), (-1, -1), 10),
+            ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#c7d2e8')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f7f9ff')]),
+            ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ])
+
+    def _schedule_table_style():
+        return TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#374151')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7.5),
+            ('LEADING', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#d1d5db')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
+            ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+            ('ALIGN', (0, 0), (1, -1), 'CENTER'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ])
+
     elements.append(Paragraph('<b>INSURANCE &amp; TRACKER DETAILS</b>', heading_style))
 
+    # ---- INSURANCE TABLE ----
     if insurance_policy:
-        insurance_lines = [
-            f'<b>PRICE:</b> KES {float(insurance_policy.selling_price or Decimal("0.00")):,.2f}',
-            f'<b>PAYMENT TYPE:</b> {_payment_type_label(insurance_policy.payment_type)}',
-            f'<b>VEHICLE USAGE:</b> {"Private" if insurance_policy.vehicle_usage == "private" else "PSV"}',
+        ins_price = insurance_policy.selling_price or Decimal('0.00')
+        ins_total_paid = insurance_policy.insurance_total_paid or Decimal('0.00')
+        ins_balance = max(Decimal('0.00'), ins_price - ins_total_paid)
+        ins_deposit = insurance_policy.insurance_deposit or Decimal('0.00')
+        ins_method_label = _PAYMENT_METHOD_LABELS.get(
+            insurance_policy.insurance_payment_method or '',
+            (insurance_policy.insurance_payment_method or '').replace('_', ' ').title() or '—'
+        )
+
+        # Header spans both columns
+        ins_detail_rows = [
+            [Paragraph('<b>INSURANCE</b>', ParagraphStyle('h', fontName='Helvetica-Bold', fontSize=7.5, textColor=colors.white)), ''],
+            ['Price', f'KES {float(ins_price):,.2f}'],
+            ['Payment Type', _payment_type_label(insurance_policy.payment_type)],
+            ['Payment Method', ins_method_label],
+            ['Vehicle Usage', 'Private' if insurance_policy.vehicle_usage == 'private' else 'PSV'],
         ]
 
         if insurance_policy.payment_type == 'full':
-            if insurance_policy.insurance_total_paid and insurance_policy.insurance_total_paid > Decimal('0.00'):
-                insurance_lines.append(
-                    f'<b>PAID:</b> KES {float(insurance_policy.insurance_total_paid):,.2f}'
-                )
+            ins_detail_rows.append(['Status', 'PAID IN FULL'])
         else:
-            if insurance_policy.insurance_deposit and insurance_policy.insurance_deposit > Decimal('0.00'):
-                insurance_lines.append(
-                    f'<b>PAID:</b> KES {float(insurance_policy.insurance_deposit):,.2f}'
-                )
-            elif insurance_policy.insurance_total_paid and insurance_policy.insurance_total_paid > Decimal('0.00'):
-                insurance_lines.append(
-                    f'<b>TOTAL PAID:</b> KES {float(insurance_policy.insurance_total_paid):,.2f}'
-                )
-
-            if insurance_policy.insurance_balance and insurance_policy.insurance_balance > Decimal('0.00'):
-                insurance_lines.append(
-                    f'<b>BALANCE:</b> KES {float(insurance_policy.insurance_balance):,.2f}'
-                )
-
+            if ins_deposit > Decimal('0.00'):
+                ins_detail_rows.append(['Deposit Paid', f'KES {float(ins_deposit):,.2f}'])
+            if ins_total_paid > ins_deposit:
+                ins_detail_rows.append(['Total Paid', f'KES {float(ins_total_paid):,.2f}'])
+            ins_detail_rows.append(['Balance Remaining', f'KES {float(ins_balance):,.2f}'])
             if insurance_policy.has_payment_plan:
-                insurance_lines.append(
-                    f'<b>PLAN:</b> Deposit KES {float(insurance_policy.insurance_deposit or Decimal("0.00")):,.2f}, '
-                    f'Months {insurance_policy.insurance_installment_months or ""}, '
-                    f'Monthly KES {float(insurance_policy.insurance_monthly_installment or Decimal("0.00")):,.2f}, '
-                    f'Balance KES {float(insurance_policy.insurance_balance or Decimal("0.00")):,.2f}'
-                )
+                months = insurance_policy.insurance_installment_months or '—'
+                ins_detail_rows.append(['Plan', f'Deposit KES {float(ins_deposit):,.2f} · {months} Month(s)'])
 
+        ins_detail_table = Table(ins_detail_rows, colWidths=[6*cm, 12*cm])
+        style = _detail_table_style()
+        style.add('SPAN', (0, 0), (1, 0))
+        style.add('ALIGN', (0, 0), (1, 0), 'LEFT')
+        ins_detail_table.setStyle(style)
+        elements.append(ins_detail_table)
+
+        # Insurance payment schedule
         insurance_schedules = list(insurance_policy.insurance_payment_schedules.order_by('installment_number'))
         if insurance_schedules:
-            insurance_lines.append('<b>INSURANCE PAYMENT SCHEDULE:</b>')
+            elements.append(Spacer(1, 0.1*cm))
+            sched_rows = [['#', 'Due Date', 'Amount (KES)', 'Balance After (KES)']]
+            running_balance = ins_price - ins_deposit
             for sch in insurance_schedules:
-                due_str = sch.due_date.strftime('%d-%m-%Y') if sch.due_date else '___'
-                insurance_lines.append(
-                    f'  #{sch.installment_number}: {due_str} — KES {float(sch.amount_due):,.2f}'
-                )
-
-        for line in insurance_lines:
-            elements.append(Paragraph(line, normal_small))
+                due_str = sch.due_date.strftime('%d-%m-%Y') if sch.due_date else '—'
+                amt = sch.amount_due or Decimal('0.00')
+                running_balance = max(Decimal('0.00'), running_balance - amt)
+                status = ' ✓' if sch.is_paid else ''
+                sched_rows.append([
+                    f'#{sch.installment_number}{status}',
+                    due_str,
+                    f'{float(amt):,.2f}',
+                    f'{float(running_balance):,.2f}',
+                ])
+            sched_table = Table(sched_rows, colWidths=[1.5*cm, 4*cm, 6.25*cm, 6.25*cm])
+            sched_table.setStyle(_schedule_table_style())
+            elements.append(sched_table)
     else:
-        elements.append(Paragraph('<b>INSURANCE:</b> Not included in this sale.', normal_small))
+        elements.append(Paragraph('Insurance: Not included in this sale.', normal_small))
 
-    elements.append(Spacer(1, 0.1*cm))
+    elements.append(Spacer(1, 0.2*cm))
+
+    # ---- TRACKER TABLE(S) ----
     if trackers:
-        elements.append(Paragraph('<b>TRACKER(S):</b>', normal_small))
         for idx, tracker in enumerate(trackers, start=1):
-            tracker_lines = [
-                f'<b>{idx}. Tracker</b> — '
-                f'Price KES {float(tracker.selling_price or Decimal("0.00")):,.2f}',
-                f'<b>Payment Type:</b> {_payment_type_label(tracker.payment_type)}',
+            trk_price = tracker.selling_price or Decimal('0.00')
+            trk_total_paid = tracker.total_paid or Decimal('0.00')
+            trk_balance = max(Decimal('0.00'), trk_price - trk_total_paid)
+            trk_deposit = tracker.deposit or Decimal('0.00')
+            trk_method_label = _PAYMENT_METHOD_LABELS.get(
+                getattr(tracker, 'payment_method', '') or '',
+                (getattr(tracker, 'payment_method', '') or '').replace('_', ' ').title() or '—'
+            )
+
+            trk_header_text = f'TRACKER {idx}{": " + tracker.tracker_name if tracker.tracker_name else ""}'
+            trk_detail_rows = [
+                [Paragraph(f'<b>{trk_header_text}</b>', ParagraphStyle('th', fontName='Helvetica-Bold', fontSize=7.5, textColor=colors.white)), ''],
+                ['Price', f'KES {float(trk_price):,.2f}'],
+                ['Payment Type', _payment_type_label(tracker.payment_type)],
+                ['Payment Method', trk_method_label],
             ]
+            if tracker.serial_number:
+                trk_detail_rows.append(['Serial / IMEI', tracker.serial_number])
+            if tracker.provider:
+                trk_detail_rows.append(['Provider', tracker.provider])
 
-            tracker_is_paid = tracker.payment_type == 'full' or (tracker.balance or Decimal('0.00')) <= Decimal('0.00')
-            if tracker_is_paid:
-                tracker_lines.append('<b>PAID IN FULL</b>')
+            if tracker.payment_type == 'full' or trk_balance <= Decimal('0.00'):
+                trk_detail_rows.append(['Status', 'PAID IN FULL'])
             else:
-                if tracker.deposit and tracker.deposit > Decimal('0.00'):
-                    tracker_lines.append(f'<b>Deposit Paid:</b> KES {float(tracker.deposit):,.2f}')
-                if tracker.total_paid and tracker.total_paid > Decimal('0.00'):
-                    tracker_lines.append(f'<b>Total Paid:</b> KES {float(tracker.total_paid):,.2f}')
-                tracker_lines.append(f'<b>Balance:</b> KES {float(tracker.balance or Decimal("0.00")):,.2f}')
+                if trk_deposit > Decimal('0.00'):
+                    trk_detail_rows.append(['Deposit Paid', f'KES {float(trk_deposit):,.2f}'])
+                if trk_total_paid > trk_deposit:
+                    trk_detail_rows.append(['Total Paid', f'KES {float(trk_total_paid):,.2f}'])
+                trk_detail_rows.append(['Balance Remaining', f'KES {float(trk_balance):,.2f}'])
+                if tracker.has_payment_plan and tracker.installment_months:
+                    trk_detail_rows.append(['Plan', f'{tracker.installment_months} Month(s)'])
 
-            if tracker.has_payment_plan:
-                tracker_lines.append(
-                    f'<b>Plan:</b> Months {tracker.installment_months or ""} | Monthly KES {float(tracker.monthly_installment or Decimal("0.00")):,.2f}'
-                )
+            trk_detail_table = Table(trk_detail_rows, colWidths=[6*cm, 12*cm])
+            style = _detail_table_style()
+            style.add('SPAN', (0, 0), (1, 0))
+            style.add('ALIGN', (0, 0), (1, 0), 'LEFT')
+            # Use orange accent for tracker header
+            style.add('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#92400e'))
+            trk_detail_table.setStyle(style)
+            elements.append(trk_detail_table)
 
-            for line in tracker_lines:
-                elements.append(Paragraph(line, normal_small))
+            # Tracker payment schedule
+            raw_json = getattr(tracker, 'installments_json', '[]') or '[]'
+            try:
+                trk_installments = _json_pdf.loads(raw_json)
+            except Exception:
+                trk_installments = []
+
+            if trk_installments:
+                elements.append(Spacer(1, 0.1*cm))
+                trk_sched_rows = [['#', 'Due Date', 'Amount (KES)', 'Balance After (KES)']]
+                running_trk_balance = trk_price - trk_deposit
+                for t_idx, entry in enumerate(trk_installments, start=1):
+                    due_raw = str(entry.get('due_date', '')).strip()
+                    try:
+                        due_str = _dt_pdf.strptime(due_raw, '%Y-%m-%d').strftime('%d-%m-%Y')
+                    except Exception:
+                        due_str = due_raw or '—'
+                    amt = Decimal(str(entry.get('amount', '0') or '0'))
+                    running_trk_balance = max(Decimal('0.00'), running_trk_balance - amt)
+                    trk_sched_rows.append([
+                        f'#{t_idx}',
+                        due_str,
+                        f'{float(amt):,.2f}',
+                        f'{float(running_trk_balance):,.2f}',
+                    ])
+                trk_sched_table = Table(trk_sched_rows, colWidths=[1.5*cm, 4*cm, 6.25*cm, 6.25*cm])
+                trk_sched_table.setStyle(_schedule_table_style())
+                elements.append(trk_sched_table)
+
+            if idx < len(trackers):
+                elements.append(Spacer(1, 0.15*cm))
     else:
-        elements.append(Paragraph('<b>TRACKER:</b> Not included in this sale.', normal_small))
+        elements.append(Paragraph('Tracker: Not included in this sale.', normal_small))
 
     elements.append(Spacer(1, 0.2*cm))
 

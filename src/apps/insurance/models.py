@@ -300,6 +300,23 @@ class InsurancePolicy(models.Model):
         help_text='How the client pays for insurance',
     )
 
+    INSURANCE_PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('mpesa', 'M-Pesa'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('cheque', 'Cheque'),
+        ('card', 'Credit/Debit Card'),
+        ('other', 'Other'),
+    ]
+
+    insurance_payment_method = models.CharField(
+        'Payment Method',
+        max_length=30,
+        choices=INSURANCE_PAYMENT_METHOD_CHOICES,
+        default='cash',
+        help_text='Method used to pay for insurance',
+    )
+
     # Individual payment plan for insurance
     has_payment_plan = models.BooleanField(
         'Has Payment Plan',
@@ -405,10 +422,10 @@ class InsurancePolicy(models.Model):
         if self.has_payment_plan and self.insurance_deposit is not None and \
            self.insurance_installment_months and self.selling_price:
             
-            # Calculate balance after deposit
+            # Balance = remaining unpaid (selling price minus all payments made so far)
             balance_after_deposit = self.selling_price - self.insurance_deposit
-            self.insurance_balance = balance_after_deposit
-            
+            self.insurance_balance = max(Decimal('0.00'), self.selling_price - self.insurance_total_paid)
+
             # Calculate total with interest
             if self.insurance_interest_rate > Decimal('0.00'):
                 rate = Decimal(str(self.insurance_interest_rate)) / Decimal('100.00')
