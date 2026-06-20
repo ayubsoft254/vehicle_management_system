@@ -1007,7 +1007,9 @@ function applyInitialTrackerData() {
 }
 
 function applyInitialDepositData() {
-    if (!initialDepositData || Object.keys(initialDepositData).length === 0) {
+    const hasSingleData = initialDepositData && Object.keys(initialDepositData).length > 0;
+    const hasSplitData = Array.isArray(initialDepositSplits) && initialDepositSplits.length > 0;
+    if (!hasSingleData && !hasSplitData) {
         return;
     }
 
