@@ -395,8 +395,6 @@ def generate_sales_agreement_pdf(client_vehicle):
         ins_detail_rows = [
             [Paragraph('<b>INSURANCE</b>', ParagraphStyle('h', fontName='Helvetica-Bold', fontSize=7.5, textColor=colors.white)), ''],
             ['Price', f'KES {float(ins_price):,.2f}'],
-            ['Payment Type', _payment_type_label(insurance_policy.payment_type)],
-            ['Payment Method', ins_method_label],
             ['Vehicle Usage', 'Private' if insurance_policy.vehicle_usage == 'private' else 'PSV'],
         ]
 
@@ -460,13 +458,7 @@ def generate_sales_agreement_pdf(client_vehicle):
             trk_detail_rows = [
                 [Paragraph(f'<b>{trk_header_text}</b>', ParagraphStyle('th', fontName='Helvetica-Bold', fontSize=7.5, textColor=colors.white)), ''],
                 ['Price', f'KES {float(trk_price):,.2f}'],
-                ['Payment Type', _payment_type_label(tracker.payment_type)],
-                ['Payment Method', trk_method_label],
             ]
-            if tracker.serial_number:
-                trk_detail_rows.append(['Serial / IMEI', tracker.serial_number])
-            if tracker.provider:
-                trk_detail_rows.append(['Provider', tracker.provider])
 
             if tracker.payment_type == 'full' or trk_balance <= Decimal('0.00'):
                 trk_detail_rows.append(['Status', 'PAID IN FULL'])
@@ -494,6 +486,26 @@ def generate_sales_agreement_pdf(client_vehicle):
                 trk_installments = _json_pdf.loads(raw_json)
             except Exception:
                 trk_installments = []
+
+            # Fallback: auto-generate schedule when JSON is empty but a plan exists
+            if not trk_installments and tracker.has_payment_plan and tracker.installment_months:
+                start_date = (
+                    getattr(tracker, 'installed_date', None)
+                    or getattr(client_vehicle, 'purchase_date', None)
+                    or _dt_pdf.now().date()
+                )
+                if hasattr(start_date, 'date'):
+                    start_date = start_date.date()
+                months = tracker.installment_months
+                monthly_amount = tracker.monthly_installment or (
+                    (trk_price - trk_deposit) / months if months else Decimal('0.00')
+                )
+                for m in range(1, months + 1):
+                    due = start_date + relativedelta(months=m)
+                    trk_installments.append({
+                        'due_date': due.strftime('%Y-%m-%d'),
+                        'amount': str(monthly_amount.quantize(Decimal('0.01'))),
+                    })
 
             if trk_installments:
                 elements.append(Spacer(1, 0.1*cm))
