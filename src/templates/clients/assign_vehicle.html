@@ -642,7 +642,7 @@
                     <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
                         <p class="text-xs text-gray-500 uppercase font-medium">Vehicle Cost</p>
                         <p class="text-lg font-bold text-gray-700 mt-1" id="pl-cost">KES 0.00</p>
-                        <p class="text-xs text-gray-400 mt-0.5">Base dealer cost</p>
+                        <p class="text-xs text-gray-400 mt-0.5">Dealer cost + extra costs</p>
                     </div>
                     <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
                         <p class="text-xs text-gray-500 uppercase font-medium">Commission</p>
@@ -652,7 +652,7 @@
                     <div class="bg-orange-50 rounded-lg p-4 border-2 border-orange-300">
                         <p class="text-xs text-orange-700 uppercase font-medium">Total Cost</p>
                         <p class="text-lg font-bold text-orange-700 mt-1" id="pl-total-cost">KES 0.00</p>
-                        <p class="text-xs text-orange-600 mt-0.5">Vehicle cost + commission</p>
+                        <p class="text-xs text-orange-600 mt-0.5">Vehicle cost + extras + commission</p>
                     </div>
                     <div class="bg-blue-50 rounded-lg p-4 border-2 border-blue-300">
                         <p class="text-xs text-blue-700 uppercase font-medium">Final Selling Price</p>
@@ -672,7 +672,7 @@
         <div id="pricing-adjustments-section" class="bg-white rounded-lg shadow-sm border border-purple-200 overflow-hidden">
             <div class="bg-gradient-to-r from-purple-50 to-purple-50 px-6 py-4 border-b border-purple-200">
                 <h2 class="text-lg font-semibold text-purple-900"><i class="fas fa-calculator mr-2"></i>Pricing Adjustments</h2>
-                <p class="text-xs text-purple-600 mt-1">Set final selling price and store optional extra cost records for reporting.</p>
+                <p class="text-xs text-purple-600 mt-1">Add extra costs to the vehicle cost and set the final selling price.</p>
             </div>
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -687,7 +687,7 @@
                         {% if form.purchase_price.errors %}<p class="mt-1 text-sm text-red-600">{{ form.purchase_price.errors.0 }}</p>{% endif %}
                         <p class="mt-2 text-xs text-gray-600">
                             <i class="fas fa-info-circle mr-1 text-purple-600"></i>
-                            Updated automatically when you modify vehicle selection, insurance, trackers, or commission amounts.
+                            Updated automatically when you modify vehicle selection, insurance, trackers, extra costs, or commission amounts.
                         </p>
 
                         <div class="mt-4">
@@ -705,13 +705,13 @@
 
                         <div class="mt-6 border border-purple-200 rounded-lg p-4 bg-purple-50">
                             <div class="flex items-center justify-between mb-3">
-                                <h3 class="text-sm font-semibold text-purple-900"><i class="fas fa-receipt mr-2"></i>Extra Costs (Record Only)</h3>
+                                <h3 class="text-sm font-semibold text-purple-900"><i class="fas fa-receipt mr-2"></i>Extra Costs</h3>
                                 <button type="button" id="add-extra-cost-btn" class="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs font-medium rounded-lg border border-purple-200 transition duration-150">
                                     <i class="fas fa-plus mr-1"></i>Add Cost
                                 </button>
                             </div>
                             <div id="extra-costs-container" class="space-y-2"></div>
-                            <p class="mt-2 text-xs text-gray-600">These amounts are saved for records and do not change the final selling price.</p>
+                            <p class="mt-2 text-xs text-gray-600">These costs are added to the vehicle cost and included in the total deal cost.</p>
                         </div>
                     </div>
                     <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
@@ -720,6 +720,10 @@
                             <div class="flex justify-between">
                                 <span>Vehicle Cost:</span>
                                 <span id="calc-vehicle-price" class="font-medium">KES 0.00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>+ Extra Costs:</span>
+                                <span id="calc-extra-costs" class="font-medium">KES 0.00</span>
                             </div>
                             <div class="flex justify-between">
                                 <span>+ Commission:</span>
@@ -732,10 +736,6 @@
                             <div class="flex justify-between">
                                 <span>Final Selling Price:</span>
                                 <span id="calc-final-selling" class="font-medium">KES 0.00</span>
-                            </div>
-                            <div class="flex justify-between text-purple-700">
-                                <span>Extra Costs (Record):</span>
-                                <span id="calc-extra-costs" class="font-medium">KES 0.00</span>
                             </div>
                             <div class="border-t border-purple-300 pt-2 mt-2 flex justify-between font-semibold text-purple-900">
                                 <span>= Net Profit / Loss:</span>
@@ -1555,17 +1555,17 @@ function hydrateExtraCostsFromHidden() {
 function updateCalculationBreakdown() {
     const vehicleId = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
     const dealerCost = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
-    const commission = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
-    const totalCost = dealerCost + commission;
-    const finalSelling = getFinalSellingValue(selectedVehicleBasePrice);
     const extraCosts = calculateExtraCostsTotal();
+    const commission = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
+    const totalCost = dealerCost + extraCosts + commission;
+    const finalSelling = getFinalSellingValue(selectedVehicleBasePrice + extraCosts);
     const netProfit = finalSelling - totalCost;
 
     document.getElementById('calc-vehicle-price').textContent = fmt(dealerCost);
+    document.getElementById('calc-extra-costs').textContent = fmt(extraCosts);
     document.getElementById('calc-commission').textContent = fmt(commission);
     document.getElementById('calc-client-purchase').textContent = fmt(totalCost);
     document.getElementById('calc-final-selling').textContent = fmt(finalSelling);
-    document.getElementById('calc-extra-costs').textContent = fmt(extraCosts);
     document.getElementById('calc-total').textContent = fmt(netProfit);
 
     syncExtraCostsPayload();
@@ -1578,21 +1578,20 @@ function updateProfitLoss() {
 
     if (!priceField) return;
 
-    // Base program cost of the vehicle (purchase + duty + clearance + extras)
     const baseVehicleCost = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
-    priceField.value = Number(baseVehicleCost).toFixed(2);
+    const extraCosts = calculateExtraCostsTotal();
+    const totalVehicleCost = baseVehicleCost + extraCosts;
+    priceField.value = Number(totalVehicleCost).toFixed(2);
 
-    // Final selling price auto-fills from the vehicle listing price only
-    const finalSellingPrice = getFinalSellingValue(selectedVehicleBasePrice);
+    const finalSellingPrice = getFinalSellingValue(selectedVehicleBasePrice + extraCosts);
 
     updateCalculationBreakdown();
 
-    // P&L: vehicle cost + commission only (insurance/tracker not part of dealer cost)
     const commissionCost = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
-    const totalCostForPL = baseVehicleCost + commissionCost;
+    const totalCostForPL = totalVehicleCost + commissionCost;
     const netProfit = finalSellingPrice - totalCostForPL;
 
-    document.getElementById('pl-cost').textContent       = fmt(baseVehicleCost);
+    document.getElementById('pl-cost').textContent       = fmt(totalVehicleCost);
     document.getElementById('pl-expenses').textContent   = fmt(commissionCost);
     document.getElementById('pl-total-cost').textContent = fmt(totalCostForPL);
     document.getElementById('pl-price').textContent      = fmt(finalSellingPrice);
