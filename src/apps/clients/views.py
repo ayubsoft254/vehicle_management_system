@@ -621,20 +621,21 @@ def assign_vehicle(request, client_pk):
 
                 base_vehicle_price = parse_money(client_vehicle.vehicle.website_display_price)
 
+                extra_cost_rows, extra_costs_total = parse_extra_costs(request.POST.get('extra_costs_json', '[]'))
+
                 auto_client_purchase_price = (
                     base_vehicle_price
                     + insurance_addon
                     + tracker_addon
                     + commission_addon
+                    + extra_costs_total
                 ).quantize(Decimal('0.01'))
 
-                extra_cost_rows, extra_costs_total = parse_extra_costs(request.POST.get('extra_costs_json', '[]'))
                 final_selling_price = parse_money(request.POST.get('final_selling_price', auto_client_purchase_price))
                 if final_selling_price == Decimal('0') and auto_client_purchase_price > 0:
                     final_selling_price = auto_client_purchase_price
                 final_selling_price = final_selling_price.quantize(Decimal('0.01'))
 
-                # Extra costs are stored for records only and should not change client price.
                 effective_client_price = final_selling_price.quantize(Decimal('0.01'))
 
                 client_vehicle.client_purchase_price = auto_client_purchase_price
@@ -1192,20 +1193,21 @@ def client_vehicle_update(request, pk):
 
             base_vehicle_price = parse_money(updated_client_vehicle.vehicle.website_display_price)
 
+            extra_cost_rows, extra_costs_total = parse_extra_costs(request.POST.get('extra_costs_json', '[]'))
+
             auto_client_purchase_price = (
                 base_vehicle_price
                 + insurance_addon
                 + tracker_addon
                 + commission_addon
+                + extra_costs_total
             ).quantize(Decimal('0.01'))
 
-            extra_cost_rows, extra_costs_total = parse_extra_costs(request.POST.get('extra_costs_json', '[]'))
             final_selling_price = parse_money(request.POST.get('final_selling_price', auto_client_purchase_price))
             if final_selling_price == Decimal('0') and auto_client_purchase_price > 0:
                 final_selling_price = auto_client_purchase_price
             final_selling_price = final_selling_price.quantize(Decimal('0.01'))
 
-            # Extra costs are stored for records only and should not change client price.
             effective_client_price = final_selling_price.quantize(Decimal('0.01'))
 
             updated_client_vehicle.client_purchase_price = auto_client_purchase_price
