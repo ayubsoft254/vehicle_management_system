@@ -701,16 +701,12 @@
                         <h3 class="text-sm font-semibold text-purple-900 mb-3"><i class="fas fa-list mr-2"></i>Calculation Breakdown</h3>
                         <div class="space-y-2 text-xs text-gray-700">
                             <div class="flex justify-between">
-                                <span>Vehicle Cost (incl. Commission):</span>
+                                <span>Vehicle Cost:</span>
                                 <span id="calc-vehicle-price" class="font-medium">KES 0.00</span>
                             </div>
                             <div class="flex justify-between">
-                                <span>+ Insurance Cost:</span>
-                                <span id="calc-insurance" class="font-medium">KES 0.00</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span>+ Tracker(s) Cost:</span>
-                                <span id="calc-trackers" class="font-medium">KES 0.00</span>
+                                <span>+ Commission:</span>
+                                <span id="calc-commission" class="font-medium">KES 0.00</span>
                             </div>
                             <div class="border-t border-purple-300 pt-2 mt-2 flex justify-between">
                                 <span class="font-semibold text-purple-900">= Total Cost:</span>
@@ -1532,18 +1528,14 @@ function hydrateExtraCostsFromHidden() {
 function updateCalculationBreakdown() {
     const vehicleId = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
     const dealerCost = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
-    const insuranceSelling = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0) || 0;
-    const trackerSelling = calculateTrackerSellingTotal();
     const commission = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
-    const vehiclePlusCommission = dealerCost + commission;
-    const totalCost = vehiclePlusCommission + insuranceSelling + trackerSelling;
+    const totalCost = dealerCost + commission;
     const finalSelling = getFinalSellingValue(selectedVehicleBasePrice);
     const extraCosts = calculateExtraCostsTotal();
     const netProfit = finalSelling - totalCost;
 
-    document.getElementById('calc-vehicle-price').textContent = fmt(vehiclePlusCommission);
-    document.getElementById('calc-insurance').textContent = fmt(insuranceSelling);
-    document.getElementById('calc-trackers').textContent = fmt(trackerSelling);
+    document.getElementById('calc-vehicle-price').textContent = fmt(dealerCost);
+    document.getElementById('calc-commission').textContent = fmt(commission);
     document.getElementById('calc-client-purchase').textContent = fmt(totalCost);
     document.getElementById('calc-final-selling').textContent = fmt(finalSelling);
     document.getElementById('calc-extra-costs').textContent = fmt(extraCosts);
@@ -1568,22 +1560,13 @@ function updateProfitLoss() {
 
     updateCalculationBreakdown();
 
-    // P&L breakdown: vehicle cost + commission vs insurance/tracker separately
+    // P&L: vehicle cost + commission only (insurance/tracker not part of dealer cost)
     const commissionCost = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
-    const costPrice = baseVehicleCost + commissionCost;
-    const insuranceCost = parseFloat(document.getElementById('id_insurance_selling_price')?.value || 0);
-
-    let trackerCost = 0;
-    document.querySelectorAll('.tracker-item').forEach(tracker => {
-        trackerCost += parseFloat(tracker.querySelector('.tracker-selling-price')?.value || 0);
-    });
-
-    const totalExpenses = insuranceCost + trackerCost;
-    const totalCostForPL = costPrice + totalExpenses;
+    const totalCostForPL = baseVehicleCost + commissionCost;
     const netProfit = finalSellingPrice - totalCostForPL;
 
-    document.getElementById('pl-cost').textContent       = fmt(costPrice);
-    document.getElementById('pl-expenses').textContent   = fmt(totalExpenses);
+    document.getElementById('pl-cost').textContent       = fmt(baseVehicleCost);
+    document.getElementById('pl-expenses').textContent   = fmt(commissionCost);
     document.getElementById('pl-total-cost').textContent = fmt(totalCostForPL);
     document.getElementById('pl-price').textContent      = fmt(finalSellingPrice);
     document.getElementById('pl-result').textContent    = fmt(Math.abs(netProfit));
