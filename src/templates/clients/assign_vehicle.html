@@ -794,7 +794,7 @@ const insuranceAgentData       = {{ insurance_agents_json|safe|default:"[]" }};
 const trackerAgentList         = {{ tracker_agents_json|safe|default:"[]" }};
 const trackerAgentOptions      = trackerAgentList.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
 let selectedVehicleBasePrice = 0;
-let finalSellingTouched = false;
+let finalSellingTouched = {% if client_vehicle %}true{% else %}false{% endif %};
 
 function fmt(n) { return 'KES ' + n.toLocaleString('en-KE', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 
