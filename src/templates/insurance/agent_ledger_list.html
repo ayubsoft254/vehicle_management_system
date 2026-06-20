@@ -39,7 +39,7 @@
     {% endif %}
 
     <!-- KPI Summary -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Cost</p>
             <p class="text-xl font-bold text-blue-700 mt-1">KES {{ grand_buying|floatformat:0|intcomma }}</p>
@@ -49,13 +49,6 @@
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Revenue</p>
             <p class="text-xl font-bold text-green-700 mt-1">KES {{ grand_selling|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-0.5">Selling price charged</p>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Net Profit</p>
-            {% with profit=grand_selling|add:"-0" %}
-            <p class="text-xl font-bold text-emerald-700 mt-1">KES {{ grand_selling|floatformat:0|intcomma }}</p>
-            {% endwith %}
-            <p class="text-xs text-gray-400 mt-0.5">Revenue minus cost</p>
         </div>
         <div class="bg-white rounded-xl border border-red-100 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Outstanding</p>
@@ -83,7 +76,6 @@
                         <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Policies</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Cost (KES)</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Revenue (KES)</th>
-                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Profit (KES)</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Outstanding (KES)</th>
                         <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
                         <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Action</th>
@@ -106,12 +98,6 @@
                         <td class="px-6 py-4 text-right font-medium text-gray-700">{{ agent.total_policies }}</td>
                         <td class="px-6 py-4 text-right text-gray-700">{{ agent.total_buying_price|floatformat:0|intcomma }}</td>
                         <td class="px-6 py-4 text-right text-gray-700">{{ agent.total_selling_price|floatformat:0|intcomma }}</td>
-                        <td class="px-6 py-4 text-right font-semibold
-                            {% if agent.total_selling_price > agent.total_buying_price %}text-emerald-600
-                            {% elif agent.total_selling_price == agent.total_buying_price %}text-gray-500
-                            {% else %}text-red-600{% endif %}">
-                            {{ agent.total_selling_price|floatformat:0|intcomma }}
-                        </td>
                         <td class="px-6 py-4 text-right">
                             {% if agent.total_owed > 0 %}
                             <span class="font-semibold text-red-600">{{ agent.total_owed|floatformat:0|intcomma }}</span>
@@ -139,7 +125,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="px-6 py-16 text-center text-gray-400">
+                        <td colspan="8" class="px-6 py-16 text-center text-gray-400">
                             <i class="fas fa-user-slash text-4xl mb-3 block"></i>
                             No active insurance agents found.
                             <br><button onclick="document.getElementById('addAgentModal').classList.remove('hidden')"
