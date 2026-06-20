@@ -436,7 +436,10 @@ def vehicle_update_view(request, pk):
                     ClearanceRecord.objects.update_or_create(
                         vehicle=vehicle,
                         agent=clearing_agent,
-                        defaults={'amount': vehicle.clearance_cost},
+                        defaults={
+                            'amount': vehicle.clearance_cost,
+                            'date': vehicle.purchase_date or timezone.now().date(),
+                        },
                     )
                 except ClearingAgent.DoesNotExist:
                     pass
