@@ -491,6 +491,15 @@
                         <!-- Basic Info -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Agent</label>
+                                <select name="tracker_agent_id[]" class="form-input">
+                                    <option value="">— None / Unknown —</option>
+                                    {% for agent in tracker_agents %}
+                                    <option value="{{ agent.pk }}">{{ agent.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Name / Model</label>
                                 <input type="text" name="tracker_name[]" placeholder="e.g. Teltonika FMB920" class="form-input">
                             </div>
@@ -501,15 +510,6 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Certificate No</label>
                                 <input type="text" name="tracker_certificate_number[]" placeholder="Certificate number" class="form-input">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Agent</label>
-                                <select name="tracker_agent_id[]" class="form-input">
-                                    <option value="">— None / Unknown —</option>
-                                    {% for agent in tracker_agents %}
-                                    <option value="{{ agent.pk }}">{{ agent.name }}</option>
-                                    {% endfor %}
-                                </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Installation Date</label>
@@ -1326,6 +1326,13 @@ function addTracker() {
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Agent</label>
+                    <select name="tracker_agent_id[]" class="form-input">
+                        <option value="">— None / Unknown —</option>
+                        ${trackerAgentOptions}
+                    </select>
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Name / Model</label>
                     <input type="text" name="tracker_name[]" placeholder="e.g. Teltonika FMB920" class="form-input">
                 </div>
@@ -1336,13 +1343,6 @@ function addTracker() {
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Certificate No</label>
                     <input type="text" name="tracker_certificate_number[]" placeholder="Certificate number" class="form-input">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tracker Agent</label>
-                    <select name="tracker_agent_id[]" class="form-input">
-                        <option value="">— None / Unknown —</option>
-                        ${trackerAgentOptions}
-                    </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Installation Date</label>
