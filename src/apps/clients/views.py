@@ -1169,7 +1169,16 @@ def client_vehicle_update(request, pk):
             insurance_end_date = request.POST.get('insurance_end_date', '').strip()
             insurance_selling_price = request.POST.get('insurance_selling_price', '').strip()
             tracker_names = request.POST.getlist('tracker_name[]')
+            tracker_serials = request.POST.getlist('tracker_serial[]')
+            tracker_certificate_numbers = request.POST.getlist('tracker_certificate_number[]')
+            tracker_agent_ids = request.POST.getlist('tracker_agent_id[]')
+            tracker_install_dates = request.POST.getlist('tracker_install_date[]')
+            tracker_buying_prices = request.POST.getlist('tracker_buying_price[]')
             tracker_selling_prices = request.POST.getlist('tracker_selling_price[]')
+            tracker_deposits = request.POST.getlist('tracker_deposit[]')
+            tracker_payment_types = request.POST.getlist('tracker_payment_type[]')
+            tracker_payment_methods = request.POST.getlist('tracker_payment_method[]')
+            tracker_flex_jsons = request.POST.getlist('tracker_flexible_installments_json[]')
 
             commission_addon = parse_money(updated_client_vehicle.commission_amount)
             insurance_addon = Decimal('0.00')
@@ -1254,7 +1263,98 @@ def client_vehicle_update(request, pk):
                 )
             except Exception as e:
                 messages.warning(request, f'Assignment updated but insurance could not be saved: {e}')
-            
+
+            # --- Handle Trackers on Update: replace all existing records ---
+            vehicle = client_vehicle.vehicle
+            client_vehicle.trackers.all().delete()
+            TrackerRecord.objects.filter(client_vehicle=client_vehicle).delete()
+            for i, name in enumerate(tracker_names):
+                if not name.strip():
+                    continue
+                try:
+                    from datetime import datetime as dt
+                    payment_type = tracker_payment_types[i] if i < len(tracker_payment_types) else 'full'
+                    payment_method = (tracker_payment_methods[i] if i < len(tracker_payment_methods) and tracker_payment_methods[i] else 'cash')
+                    raw_install_date = tracker_install_dates[i] if i < len(tracker_install_dates) and tracker_install_dates[i] else ''
+                    try:
+                        install_date = dt.strptime(raw_install_date, '%Y-%m-%d').date() if raw_install_date else timezone.now().date()
+                    except Exception:
+                        install_date = timezone.now().date()
+
+                    import json as _json
+                    trk_installments = []
+                    flex_json_raw = '[]'
+                    if payment_type == 'flexible':
+                        flex_json_raw = tracker_flex_jsons[i] if i < len(tracker_flex_jsons) else '[]'
+                        try:
+                            trk_installments = _json.loads(flex_json_raw or '[]')
+                        except Exception:
+                            trk_installments = []
+
+                    has_plan = (payment_type == 'flexible') and bool(trk_installments)
+                    tracker_months = len(trk_installments) if has_plan else None
+                    tracker_monthly = None
+                    if has_plan and tracker_months:
+                        total_trk = sum(Decimal(str(row.get('amount', '0') or '0')) for row in trk_installments)
+                        tracker_monthly = total_trk / tracker_months
+
+                    tracker_deposit_val = Decimal(tracker_deposits[i]) if i < len(tracker_deposits) and tracker_deposits[i] else Decimal('0')
+                    tracker_selling_val = Decimal(tracker_selling_prices[i]) if i < len(tracker_selling_prices) and tracker_selling_prices[i] else Decimal('0')
+
+                    if payment_type == 'full':
+                        tracker_total_paid = tracker_selling_val
+                        tracker_deposit_stored = Decimal('0')
+                    elif payment_type == 'deduct_from_deposit':
+                        tracker_deposit_stored = tracker_selling_val
+                        tracker_total_paid = tracker_selling_val
+                    else:
+                        tracker_deposit_stored = tracker_deposit_val
+                        tracker_total_paid = tracker_deposit_val
+
+                    tracker_agent_id = tracker_agent_ids[i] if i < len(tracker_agent_ids) else ''
+                    tracker_agent_name = ''
+                    if tracker_agent_id:
+                        try:
+                            ta = TrackerAgent.objects.get(pk=tracker_agent_id)
+                            tracker_agent_name = ta.name
+                        except TrackerAgent.DoesNotExist:
+                            tracker_agent_id = ''
+
+                    vt = VehicleTracker.objects.create(
+                        client_vehicle=client_vehicle,
+                        tracker_name=name,
+                        serial_number=tracker_serials[i] if i < len(tracker_serials) else '',
+                        certificate_number=tracker_certificate_numbers[i] if i < len(tracker_certificate_numbers) else '',
+                        provider=tracker_agent_name,
+                        buying_price=Decimal(tracker_buying_prices[i]) if i < len(tracker_buying_prices) and tracker_buying_prices[i] else Decimal('0'),
+                        selling_price=tracker_selling_val,
+                        payment_type=payment_type,
+                        payment_method=payment_method,
+                        has_payment_plan=has_plan,
+                        deposit=tracker_deposit_stored,
+                        installment_months=tracker_months if has_plan else None,
+                        monthly_installment=tracker_monthly if has_plan else None,
+                        installments_json=flex_json_raw if has_plan else '[]',
+                        interest_rate=Decimal('0'),
+                        total_paid=tracker_total_paid,
+                        installed_date=install_date,
+                        created_by=request.user,
+                    )
+
+                    if tracker_agent_id:
+                        TrackerRecord.objects.create(
+                            vehicle=vehicle,
+                            client_vehicle=client_vehicle,
+                            agent_id=tracker_agent_id,
+                            tracker_name=name,
+                            serial_number=tracker_serials[i] if i < len(tracker_serials) else '',
+                            buying_price=vt.buying_price,
+                            selling_price=vt.selling_price,
+                            installation_date=install_date,
+                        )
+                except Exception as e:
+                    messages.warning(request, f'Tracker "{name}" could not be saved: {e}')
+
             # Automatically create Installment Plan if there's a balance and payment terms are provided
             if client_vehicle.balance > 0 and client_vehicle.installment_months:
                 from apps.payments.models import PaymentSchedule
@@ -1388,6 +1488,7 @@ def client_vehicle_update(request, pk):
             'install_date': tracker.installed_date.isoformat() if tracker.installed_date else '',
             'buying_price': str(tracker.buying_price or Decimal('0.00')),
             'selling_price': str(tracker.selling_price or Decimal('0.00')),
+            'deposit': str(tracker.deposit or Decimal('0.00')),
             'payment_type': tracker.payment_type or 'full',
             'payment_method': getattr(tracker, 'payment_method', 'cash') or 'cash',
             'flexible_installments': installments,
