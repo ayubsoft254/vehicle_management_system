@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Broker Ledger{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-1">Broker Ledger</h1>
+            <p class="text-gray-500 text-sm">Track broker commissions and outstanding balances across all vehicle sales</p>
+        </div>
+        <div class="mt-4 md:mt-0 flex gap-3">
+            <button onclick="document.getElementById('addBrokerModal').classList.remove('hidden')"
+                    class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition">
+                <i class="fas fa-plus mr-2"></i>Add Broker
+            </button>
+            <a href="{% url 'vehicles:vehicle_reports' %}"
+               class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition">
+                <i class="fas fa-arrow-left mr-2"></i>Reports
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="mb-5">
+        {% for message in messages %}
+        <div class="px-4 py-3 rounded-lg mb-2 {% if message.tags == 'success' %}bg-green-50 text-green-800 border border-green-200{% else %}bg-red-50 text-red-800 border border-red-200{% endif %}">
+            <i class="fas {% if message.tags == 'success' %}fa-check-circle text-green-500{% else %}fa-exclamation-circle text-red-500{% endif %} mr-2"></i>{{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- KPI Summary -->
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Commission</p>
+            <p class="text-xl font-bold text-blue-700 mt-1">KES {{ grand_commission|floatformat:0|intcomma }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">Across all sales</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Paid Out</p>
+            <p class="text-xl font-bold text-green-700 mt-1">KES {{ grand_paid|floatformat:0|intcomma }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">Commissions settled</p>
+        </div>
+        <div class="bg-white rounded-xl border border-red-100 shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Outstanding</p>
+            <p class="text-xl font-bold text-red-700 mt-1">KES {{ grand_owed|floatformat:0|intcomma }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">Unpaid to brokers</p>
+        </div>
+    </div>
+
+    <!-- Search + Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h2 class="text-base font-semibold text-gray-800">
+                <i class="fas fa-user-tie text-amber-500 mr-2"></i>Brokers
+            </h2>
+            <input type="text" id="brokerSearch" placeholder="Search broker name or phone..."
+                   class="w-full sm:w-64 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                   onkeyup="filterBrokers()">
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm" id="brokerTable">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Broker</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Contact</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Sales</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Total Commission</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Paid Out</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Outstanding</th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for broker in brokers %}
+                    <tr class="hover:bg-gray-50 broker-row">
+                        <td class="px-6 py-4">
+                            <a href="{% url 'vehicles:broker_ledger_detail' broker.pk %}"
+                               class="font-medium text-primary-600 hover:text-primary-800 broker-name">{{ broker.name }}</a>
+                            {% if broker.id_number %}<p class="text-xs text-gray-400 mt-0.5">ID: {{ broker.id_number }}</p>{% endif %}
+                            {% if broker.notes %}<p class="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{{ broker.notes|truncatechars:50 }}</p>{% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="text-gray-600 broker-phone">{{ broker.phone|default:"—" }}</span>
+                            {% if broker.email %}<p class="text-xs text-gray-400">{{ broker.email }}</p>{% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right font-medium text-gray-700">{{ broker.total_sales }}</td>
+                        <td class="px-6 py-4 text-right text-gray-700">KES {{ broker.total_commission|floatformat:0|intcomma }}</td>
+                        <td class="px-6 py-4 text-right text-green-700 font-medium">KES {{ broker.total_payments_made|floatformat:0|intcomma }}</td>
+                        <td class="px-6 py-4 text-right">
+                            {% if broker.total_owed > 0 %}
+                            <span class="font-semibold text-red-600">KES {{ broker.total_owed|floatformat:0|intcomma }}</span>
+                            {% else %}
+                            <span class="text-gray-400 text-xs">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            {% if broker.total_owed == 0 %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-check mr-1"></i>Settled
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                <i class="fas fa-clock mr-1"></i>Unpaid
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <a href="{% url 'vehicles:broker_ledger_detail' broker.pk %}"
+                               class="inline-flex items-center px-3 py-1 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-lg text-xs font-medium transition">
+                                <i class="fas fa-list-alt mr-1"></i>View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-16 text-center text-gray-400">
+                            <i class="fas fa-user-tie text-4xl mb-3 block"></i>
+                            No brokers found.
+                            <br><button onclick="document.getElementById('addBrokerModal').classList.remove('hidden')"
+                                        class="mt-3 text-primary-600 hover:underline text-sm">Add the first broker</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Broker Modal -->
+<div id="addBrokerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">
+                <i class="fas fa-user-plus text-primary-500 mr-2"></i>Add Broker
+            </h3>
+            <button onclick="document.getElementById('addBrokerModal').classList.add('hidden')"
+                    class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <div class="px-6 py-5 space-y-4">
+                {% if form.errors %}
+                <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-700 text-sm">
+                    <i class="fas fa-exclamation-circle mr-2"></i>Please correct the errors below.
+                </div>
+                {% endif %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Full Name <span class="text-red-500">*</span></label>
+                    {{ form.name }}
+                    {% if form.name.errors %}<p class="text-red-500 text-xs mt-1">{{ form.name.errors|join:", " }}</p>{% endif %}
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ID Number</label>
+                        {{ form.id_number }}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        {{ form.phone }}
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    {{ form.email }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    {{ form.notes }}
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50 rounded-b-xl">
+                <button type="button" onclick="document.getElementById('addBrokerModal').classList.add('hidden')"
+                        class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition">
+                    <i class="fas fa-save mr-2"></i>Save Broker
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if form.errors %}
+<script>document.getElementById('addBrokerModal').classList.remove('hidden');</script>
+{% endif %}
+
+<script>
+function filterBrokers() {
+    const q = document.getElementById('brokerSearch').value.toLowerCase();
+    document.querySelectorAll('.broker-row').forEach(row => {
+        const name = row.querySelector('.broker-name')?.textContent.toLowerCase() || '';
+        const phone = row.querySelector('.broker-phone')?.textContent.toLowerCase() || '';
+        row.style.display = (name.includes(q) || phone.includes(q)) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}
