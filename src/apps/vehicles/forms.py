@@ -3,7 +3,7 @@ Vehicles Forms
 """
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, ClearingAgent
+from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, ClearingAgent, Broker
 from utils.constants import VehicleStatus, VehicleLocation
 from decimal import Decimal
 from django.forms import HiddenInput
@@ -648,4 +648,19 @@ class ClearingAgentForm(forms.ModelForm):
             'phone': forms.TextInput(attrs={'class': _FC, 'placeholder': '+254...'}),
             'email': forms.EmailInput(attrs={'class': _FC, 'placeholder': 'agent@example.com'}),
             'notes': forms.Textarea(attrs={'class': _FC, 'rows': 3, 'placeholder': 'Optional notes'}),
+        }
+
+
+# ==================== BROKER FORM ====================
+
+class BrokerForm(forms.ModelForm):
+    class Meta:
+        model = Broker
+        fields = ['name', 'id_number', 'phone', 'email', 'notes']
+        widgets = {
+            'name':      forms.TextInput(attrs={'class': _FC, 'placeholder': 'Broker full name'}),
+            'id_number': forms.TextInput(attrs={'class': _FC, 'placeholder': 'National ID or passport'}),
+            'phone':     forms.TextInput(attrs={'class': _FC, 'placeholder': '+254...'}),
+            'email':     forms.EmailInput(attrs={'class': _FC, 'placeholder': 'broker@example.com'}),
+            'notes':     forms.Textarea(attrs={'class': _FC, 'rows': 3, 'placeholder': 'Optional notes'}),
         }
