@@ -202,6 +202,40 @@
                                 <span class="ml-3 font-medium">Tracker Management</span>
                             </a>
                             {% endif %}
+
+                            <!-- Ledgers (collapsible) -->
+                            {% if user.is_superuser or user|can_access:'vehicles' %}
+                            <button id="ledgers-toggle" onclick="toggleLedgers()"
+                                class="w-full flex items-center justify-between px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <span class="flex items-center">
+                                    <i class="fas fa-book w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                    <span class="ml-3 font-medium">Ledgers</span>
+                                </span>
+                                <i id="ledgers-chevron" class="fas fa-chevron-down text-xs text-gray-400 transition-transform duration-200"></i>
+                            </button>
+                            <div id="ledgers-submenu" class="hidden ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-3">
+                                <a href="{% url 'vehicles:broker_ledger_list' %}"
+                                   class="flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-amber-50 hover:text-amber-700 transition-colors duration-200 group">
+                                    <i class="fas fa-user-tie w-4 text-amber-400 group-hover:text-amber-600"></i>
+                                    <span class="ml-2">Broker Ledger</span>
+                                </a>
+                                <a href="{% url 'vehicles:tracker_agent_ledger_list' %}"
+                                   class="flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-violet-50 hover:text-violet-700 transition-colors duration-200 group">
+                                    <i class="fas fa-satellite-dish w-4 text-violet-400 group-hover:text-violet-600"></i>
+                                    <span class="ml-2">Tracker Agents</span>
+                                </a>
+                                <a href="{% url 'vehicles:clearing_agent_ledger_list' %}"
+                                   class="flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-teal-50 hover:text-teal-700 transition-colors duration-200 group">
+                                    <i class="fas fa-ship w-4 text-teal-400 group-hover:text-teal-600"></i>
+                                    <span class="ml-2">Clearing Agents</span>
+                                </a>
+                                <a href="{% url 'insurance:agent_ledger_list' %}"
+                                   class="flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-colors duration-200 group">
+                                    <i class="fas fa-handshake w-4 text-blue-400 group-hover:text-blue-600"></i>
+                                    <span class="ml-2">Insurance Agents</span>
+                                </a>
+                            </div>
+                            {% endif %}
                             
                             {% comment %}
                             <!-- Expenses -->
@@ -439,6 +473,35 @@
     <!-- Custom JavaScript -->
     <script>
         // ============================================================================
+        // LEDGERS SUBMENU TOGGLE
+        function toggleLedgers() {
+            const submenu = document.getElementById('ledgers-submenu');
+            const chevron = document.getElementById('ledgers-chevron');
+            if (!submenu) return;
+            const isOpen = !submenu.classList.contains('hidden');
+            submenu.classList.toggle('hidden', isOpen);
+            chevron?.classList.toggle('rotate-180', !isOpen);
+            try { localStorage.setItem('ledgers-open', String(!isOpen)); } catch(e) {}
+        }
+
+        // Restore ledgers submenu state on page load
+        (function() {
+            try {
+                const open = localStorage.getItem('ledgers-open') === 'true';
+                if (open) {
+                    document.getElementById('ledgers-submenu')?.classList.remove('hidden');
+                    document.getElementById('ledgers-chevron')?.classList.add('rotate-180');
+                }
+            } catch(e) {}
+
+            // Also auto-open if a ledger page is currently active
+            const ledgerPaths = ['/vehicles/brokers', '/vehicles/tracker-agents', '/vehicles/clearing-agents', '/insurance/agents/ledger'];
+            if (ledgerPaths.some(p => location.pathname.startsWith(p))) {
+                document.getElementById('ledgers-submenu')?.classList.remove('hidden');
+                document.getElementById('ledgers-chevron')?.classList.add('rotate-180');
+            }
+        })();
+
         // MOBILE SIDEBAR TOGGLE
         // ============================================================================
         const sidebar = document.getElementById('sidebar');
