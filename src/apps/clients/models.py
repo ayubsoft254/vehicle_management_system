@@ -554,6 +554,29 @@ class ClientVehicle(models.Model):
         help_text='Optional payment details to include in the agreement'
     )
     
+    # Broker ledger link
+    broker = models.ForeignKey(
+        'vehicles.Broker',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sales',
+        help_text='Broker linked to this sale (for ledger tracking)'
+    )
+
+    BROKER_COMMISSION_STATUS_CHOICES = [
+        ('unpaid', 'Unpaid'),
+        ('paid', 'Paid'),
+    ]
+
+    broker_commission_status = models.CharField(
+        'Commission Status',
+        max_length=10,
+        choices=BROKER_COMMISSION_STATUS_CHOICES,
+        default='unpaid',
+        help_text='Whether the broker commission for this sale has been paid'
+    )
+
     # Commission & Sales
     broker_name = models.CharField(
         'Broker Name',
