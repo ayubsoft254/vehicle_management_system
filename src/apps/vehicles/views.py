@@ -10,12 +10,12 @@ from django.db.models.deletion import ProtectedError
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
-from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord
+from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord, Broker, BrokerPayment
 from apps.clients.models import ClientVehicle, Client
 from .forms import (
     VehicleForm, VehiclePhotoForm, VehicleSearchForm,
     VehicleStatusChangeForm, BulkVehicleActionForm, VehicleMoveForm,
-    TrackerAgentForm, ClearingAgentForm,
+    TrackerAgentForm, ClearingAgentForm, BrokerForm,
 )
 from utils.decorators import role_required, module_permission_required
 from utils.constants import UserRole, VehicleStatus, AccessLevel
@@ -1341,3 +1341,122 @@ def vehicle_reports(request):
         'by_condition': by_condition,
     }
     return render(request, 'vehicles/vehicle_reports.html', context)
+
+
+# ==================== BROKER LEDGER VIEWS ====================
+
+@login_required
+def broker_ledger_list(request):
+    """List all brokers with commission totals and outstanding balances."""
+    if request.method == 'POST':
+        form = BrokerForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Broker added successfully.')
+            return redirect('vehicles:broker_ledger_list')
+    else:
+        form = BrokerForm()
+
+    brokers = Broker.objects.filter(is_active=True).order_by('name')
+    totals = ClientVehicle.objects.filter(broker__isnull=False).aggregate(
+        grand_commission=Coalesce(Sum('commission_amount'), Value(0, output_field=DecimalField())),
+        grand_owed=Coalesce(
+            Sum('commission_amount', filter=Q(broker_commission_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+        grand_paid=Coalesce(
+            Sum('commission_amount', filter=Q(broker_commission_status='paid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    )
+    context = {
+        'brokers': brokers,
+        'grand_commission': totals['grand_commission'],
+        'grand_owed': totals['grand_owed'],
+        'grand_paid': totals['grand_paid'],
+        'form': form,
+    }
+    return render(request, 'vehicles/broker_ledger_list.html', context)
+
+
+@login_required
+def broker_ledger_detail(request, pk):
+    """Show all sales for a broker and allow marking commissions paid."""
+    broker = get_object_or_404(Broker, pk=pk)
+    sales = broker.sales.select_related('vehicle', 'client').order_by('-purchase_date')
+    payments = broker.payments.select_related('recorded_by').order_by('-payment_date')
+    context = {
+        'broker': broker,
+        'sales': sales,
+        'payments': payments,
+    }
+    return render(request, 'vehicles/broker_ledger_detail.html', context)
+
+
+@login_required
+def broker_commission_mark_paid(request, pk):
+    """Mark a single sale's broker commission as paid."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    sale = get_object_or_404(ClientVehicle, pk=pk)
+    sale.broker_commission_status = 'paid'
+    sale.save(update_fields=['broker_commission_status'])
+    return JsonResponse({'status': 'paid', 'sale_id': pk})
+
+
+@login_required
+def broker_mark_all_paid(request, broker_pk):
+    """Mark all unpaid commissions for a broker as paid."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    broker = get_object_or_404(Broker, pk=broker_pk)
+    updated = broker.sales.filter(broker_commission_status='unpaid').update(
+        broker_commission_status='paid'
+    )
+    return JsonResponse({'status': 'ok', 'updated': updated})
+
+
+@login_required
+def record_broker_payment(request, broker_pk):
+    """Record a lump-sum payment (voucher) to a broker."""
+    if request.method != 'POST':
+        messages.error(request, 'Method not allowed.')
+        return redirect('vehicles:broker_ledger_detail', pk=broker_pk)
+    broker = get_object_or_404(Broker, pk=broker_pk)
+    amount_str = request.POST.get('amount', '').strip()
+    payment_method = request.POST.get('payment_method', 'bank_transfer')
+    reference_number = request.POST.get('reference_number', '').strip()
+    notes = request.POST.get('notes', '').strip()
+    payment_date_str = request.POST.get('payment_date', '').strip()
+    try:
+        amount = Decimal(amount_str)
+        if amount <= 0:
+            raise ValueError
+    except Exception:
+        messages.error(request, 'Invalid payment amount.')
+        return redirect('vehicles:broker_ledger_detail', pk=broker_pk)
+    from datetime import date as date_type, datetime as datetime_type
+    payment_date = date_type.today()
+    if payment_date_str:
+        try:
+            payment_date = datetime_type.strptime(payment_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    payment = BrokerPayment.objects.create(
+        broker=broker,
+        amount=amount,
+        payment_method=payment_method,
+        reference_number=reference_number,
+        notes=notes,
+        payment_date=payment_date,
+        recorded_by=request.user,
+    )
+    messages.success(request, f'Payment voucher {payment.voucher_number} (KES {amount:,.2f}) recorded for {broker.name}.')
+    return redirect('vehicles:broker_ledger_detail', pk=broker_pk)
+
+
+@login_required
+def broker_voucher_print(request, payment_pk):
+    """Printable voucher for a broker payment."""
+    payment = get_object_or_404(BrokerPayment, pk=payment_pk)
+    return render(request, 'vehicles/broker_voucher_print.html', {'payment': payment})
