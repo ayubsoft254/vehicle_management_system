@@ -926,8 +926,10 @@ def assign_vehicle(request, client_pk):
 
     # Get insurance and tracker agents
     from apps.insurance.models import InsuranceAgent
+    from apps.vehicles.models import Broker
     insurance_agents = InsuranceAgent.objects.filter(is_active=True).order_by('name')
     tracker_agents = TrackerAgent.objects.filter(is_active=True).order_by('name')
+    brokers = Broker.objects.filter(is_active=True).order_by('name')
 
     insurance_agent_data = [
         {'id': agent.pk, 'name': agent.name, 'phone': agent.phone or ''}
@@ -946,6 +948,10 @@ def assign_vehicle(request, client_pk):
         'tracker_agents': tracker_agents,
         'tracker_agents_json': json.dumps([{'id': a.pk, 'name': a.name} for a in tracker_agents]),
         'initial_flexible_installments_json': initial_flexible_installments_json,
+        'broker_ledger_data': json.dumps([
+            {'id': b.pk, 'name': b.name, 'id_number': b.id_number, 'phone': b.phone}
+            for b in brokers
+        ]),
     }
 
     return render(request, 'clients/assign_vehicle.html', context)
@@ -1424,9 +1430,11 @@ def client_vehicle_update(request, pk):
 
     # Prefill insurance and tracker sections for edit mode.
     from apps.insurance.models import InsuranceAgent, InsurancePolicy
+    from apps.vehicles.models import Broker
 
     insurance_agents = InsuranceAgent.objects.filter(is_active=True).order_by('name')
     tracker_agents = TrackerAgent.objects.filter(is_active=True).order_by('name')
+    brokers = Broker.objects.filter(is_active=True).order_by('name')
     insurance_policy = InsurancePolicy.objects.filter(
         vehicle=client_vehicle.vehicle,
         client=client_vehicle.client,
@@ -1549,8 +1557,12 @@ def client_vehicle_update(request, pk):
         'initial_flexible_installments_json': json.dumps(initial_flexible_installments),
         'initial_deposit_json': json.dumps(initial_deposit_data),
         'initial_deposit_splits_json': json.dumps(initial_deposit_splits),
+        'broker_ledger_data': json.dumps([
+            {'id': b.pk, 'name': b.name, 'id_number': b.id_number, 'phone': b.phone}
+            for b in brokers
+        ]),
     }
-    
+
     return render(request, 'clients/assign_vehicle.html', context)
 
 
