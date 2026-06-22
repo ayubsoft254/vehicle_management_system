@@ -342,7 +342,7 @@
     {% endif %}
 
     <!-- Quick Links -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <a href="{% url 'vehicles:list' %}"
            class="flex items-center p-4 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl text-white shadow-sm hover:shadow-md transition">
             <i class="fas fa-car text-2xl mr-3 opacity-80"></i>
@@ -357,6 +357,11 @@
            class="flex items-center p-4 bg-gradient-to-br from-teal-500 to-teal-700 rounded-xl text-white shadow-sm hover:shadow-md transition">
             <i class="fas fa-ship text-2xl mr-3 opacity-80"></i>
             <div><p class="text-xs opacity-75">View</p><p class="font-semibold">Clearing Agents</p></div>
+        </a>
+        <a href="{% url 'vehicles:broker_ledger_list' %}"
+           class="flex items-center p-4 bg-gradient-to-br from-amber-500 to-amber-700 rounded-xl text-white shadow-sm hover:shadow-md transition">
+            <i class="fas fa-user-tie text-2xl mr-3 opacity-80"></i>
+            <div><p class="text-xs opacity-75">View</p><p class="font-semibold">Broker Ledger</p></div>
         </a>
         <a href="{% url 'vehicles:export' %}"
            class="flex items-center p-4 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-xl text-white shadow-sm hover:shadow-md transition">
