@@ -1047,3 +1047,112 @@ class ClearingAgentPayment(models.Model):
 
     def __str__(self):
         return f"Payment KES {self.amount:,.0f} to {self.agent.name} on {self.payment_date}"
+
+
+# ==================== BROKER MODEL ====================
+
+class Broker(models.Model):
+    """An external broker who refers clients and earns commissions on vehicle sales."""
+
+    name = models.CharField(max_length=200)
+    id_number = models.CharField('ID Number', max_length=50, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Broker'
+        verbose_name_plural = 'Brokers'
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def total_sales(self):
+        return self.sales.count()
+
+    @property
+    def total_commission(self):
+        return (
+            self.sales.aggregate(total=models.Sum('commission_amount'))['total']
+            or Decimal('0.00')
+        )
+
+    @property
+    def total_owed(self):
+        """Sum of commissions not yet paid to this broker."""
+        return (
+            self.sales.filter(broker_commission_status='unpaid')
+            .aggregate(total=models.Sum('commission_amount'))['total']
+            or Decimal('0.00')
+        )
+
+    @property
+    def total_payments_made(self):
+        return (
+            self.payments.aggregate(total=models.Sum('amount'))['total']
+            or Decimal('0.00')
+        )
+
+
+# ==================== BROKER PAYMENT MODEL ====================
+
+class BrokerPayment(models.Model):
+    """A lump-sum voucher payment made to a broker for their commissions."""
+
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('mpesa', 'M-Pesa'),
+        ('cheque', 'Cheque'),
+        ('other', 'Other'),
+    ]
+
+    broker = models.ForeignKey(
+        Broker, on_delete=models.CASCADE, related_name='payments'
+    )
+    amount = models.DecimalField(
+        'Amount (KES)', max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
+    payment_date = models.DateField('Payment Date', default=timezone.now)
+    payment_method = models.CharField(
+        'Payment Method', max_length=20,
+        choices=PAYMENT_METHOD_CHOICES, default='bank_transfer'
+    )
+    reference_number = models.CharField('Reference / Receipt No.', max_length=100, blank=True)
+    voucher_number = models.CharField('Voucher Number', max_length=50, blank=True, unique=True)
+    notes = models.TextField('Notes', blank=True)
+    recorded_by = models.ForeignKey(
+        'authentication.User', on_delete=models.SET_NULL, null=True,
+        related_name='broker_payments_recorded'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-payment_date', '-created_at']
+        verbose_name = 'Broker Payment'
+        verbose_name_plural = 'Broker Payments'
+
+    def __str__(self):
+        return f"Voucher {self.voucher_number} — KES {self.amount:,.0f} to {self.broker.name}"
+
+    def save(self, *args, **kwargs):
+        if not self.voucher_number:
+            from django.utils import timezone as tz
+            date_str = tz.now().strftime('%Y%m%d')
+            last = BrokerPayment.objects.filter(
+                voucher_number__startswith=f'VCH-{date_str}-'
+            ).order_by('-voucher_number').first()
+            seq = 1
+            if last and last.voucher_number:
+                try:
+                    seq = int(last.voucher_number.split('-')[-1]) + 1
+                except (ValueError, IndexError):
+                    pass
+            self.voucher_number = f'VCH-{date_str}-{seq:04d}'
+        super().save(*args, **kwargs)
