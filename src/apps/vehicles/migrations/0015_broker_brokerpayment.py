@@ -16,6 +16,19 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Drop any leftover tables/types from a previous failed migration attempt.
+        migrations.RunSQL(
+            "DROP TABLE IF EXISTS vehicles_brokerpayment CASCADE;",
+            migrations.RunSQL.noop,
+        ),
+        migrations.RunSQL(
+            "DROP TABLE IF EXISTS vehicles_broker CASCADE;",
+            migrations.RunSQL.noop,
+        ),
+        migrations.RunSQL(
+            "DROP TYPE IF EXISTS vehicles_broker CASCADE;",
+            migrations.RunSQL.noop,
+        ),
         migrations.CreateModel(
             name='Broker',
             fields=[
