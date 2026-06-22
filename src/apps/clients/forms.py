@@ -185,7 +185,7 @@ class ClientVehicleForm(forms.ModelForm):
         model = ClientVehicle
         fields = [
             'vehicle',
-            'broker_name', 'broker_id_no', 'broker_phone_no',
+            'broker', 'broker_name', 'broker_id_no', 'broker_phone_no',
             'purchase_date', 'purchase_price',
             'final_selling_price', 'extra_costs_total', 'extra_costs_json',
             'deposit_paid', 'payment_type',
@@ -201,6 +201,10 @@ class ClientVehicleForm(forms.ModelForm):
             'vehicle': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent vehicle-select',
                 'data-placeholder': 'Search by Make, Model, VIN or Registration...'
+            }),
+            'broker': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                'id': 'id_broker_fk',
             }),
             'broker_name': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
@@ -314,8 +318,8 @@ class ClientVehicleForm(forms.ModelForm):
         # Make optional fields non-required
         optional_fields = [
             'remainder_payment_type', 'monthly_payment_date',
-            'weekly_payment_day', 'monthly_installment', 'installment_months', 
-            'broker_name', 'broker_id_no', 'broker_phone_no', 'commission_amount'
+            'weekly_payment_day', 'monthly_installment', 'installment_months',
+            'broker', 'broker_name', 'broker_id_no', 'broker_phone_no', 'commission_amount'
         ]
         for field_name in optional_fields:
             self.fields[field_name].required = False
