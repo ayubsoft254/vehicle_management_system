@@ -595,12 +595,19 @@
             </div>
         </div>
 
-        <!-- Additional Information -->
+        <!-- Broker Information -->
         <div id="broker-info-section" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
                 <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-user-tie mr-2"></i>Broker Information</h2>
             </div>
             <div class="p-6 space-y-6">
+                <!-- Ledger broker selector -->
+                <div>
+                    <label for="id_broker_fk" class="block text-sm font-medium text-gray-700 mb-1">Select Broker from Ledger <span class="text-xs text-gray-400">(optional — links to commission ledger)</span></label>
+                    {{ form.broker }}
+                    {% if form.broker.errors %}<p class="mt-1 text-sm text-red-600">{{ form.broker.errors.0 }}</p>{% endif %}
+                    <p class="mt-1 text-xs text-gray-500">Selecting a ledger broker auto-fills the fields below and tracks commissions owed. <a href="{% url 'vehicles:broker_ledger_list' %}" target="_blank" class="text-primary-600 hover:underline">Manage brokers &rarr;</a></p>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                         <label for="{{ form.broker_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Broker Name</label>
@@ -1800,6 +1807,27 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('id_insurance_agent_id')?.addEventListener('change', onInsuranceAgentChange);
     document.getElementById('id_broker_name')?.addEventListener('blur', syncInsuranceAgentFromBrokerFields);
     document.getElementById('id_broker_phone_no')?.addEventListener('blur', syncInsuranceAgentFromBrokerFields);
+
+    // Auto-fill broker text fields when a ledger broker is selected
+    const brokerFkSelect = document.getElementById('id_broker_fk');
+    if (brokerFkSelect) {
+        const brokerLedgerData = {{ broker_ledger_data|safe }};
+        brokerFkSelect.addEventListener('change', function() {
+            const selected = brokerLedgerData.find(b => String(b.id) === this.value);
+            const nameField = document.getElementById('id_broker_name');
+            const idField = document.getElementById('id_broker_id_no');
+            const phoneField = document.getElementById('id_broker_phone_no');
+            if (selected) {
+                if (nameField) nameField.value = selected.name || '';
+                if (idField) idField.value = selected.id_number || '';
+                if (phoneField) phoneField.value = selected.phone || '';
+            } else {
+                if (nameField) nameField.value = '';
+                if (idField) idField.value = '';
+                if (phoneField) phoneField.value = '';
+            }
+        });
+    }
     document.getElementById('id_insurance_selling_price')?.addEventListener('input', () => {
         updateInsuranceInstallmentSummary();
         updateCalculationBreakdown();
