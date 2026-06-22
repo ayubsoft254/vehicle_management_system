@@ -53,4 +53,12 @@ urlpatterns = [
     path('clearing-agents/<int:agent_pk>/mark-all-paid/', views.clearing_agent_mark_all_paid, name='clearing_agent_mark_all_paid'),
     path('tracker-agents/<int:agent_pk>/record-payment/', views.record_tracker_agent_payment, name='record_tracker_agent_payment'),
     path('clearing-agents/<int:agent_pk>/record-payment/', views.record_clearing_agent_payment, name='record_clearing_agent_payment'),
+
+    # Broker Ledger
+    path('brokers/', views.broker_ledger_list, name='broker_ledger_list'),
+    path('brokers/<int:pk>/', views.broker_ledger_detail, name='broker_ledger_detail'),
+    path('brokers/<int:broker_pk>/mark-all-paid/', views.broker_mark_all_paid, name='broker_mark_all_paid'),
+    path('brokers/<int:broker_pk>/record-payment/', views.record_broker_payment, name='record_broker_payment'),
+    path('broker-sales/<int:pk>/mark-paid/', views.broker_commission_mark_paid, name='broker_commission_mark_paid'),
+    path('broker-payments/<int:payment_pk>/voucher/', views.broker_voucher_print, name='broker_voucher_print'),
 ]
