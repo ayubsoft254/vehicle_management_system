@@ -7,10 +7,48 @@ from django.db import migrations, models
 
 def create_agreement_signature_table_if_missing(apps, schema_editor):
     """Create agreement_signatures table only when it does not already exist."""
-    AgreementSignature = apps.get_model('clients', 'AgreementSignature')
-    if AgreementSignature._meta.db_table in schema_editor.connection.introspection.table_names():
+    if 'agreement_signatures' in schema_editor.connection.introspection.table_names():
         return
-    schema_editor.create_model(AgreementSignature)
+    db = schema_editor.connection.vendor
+    if db == 'sqlite':
+        schema_editor.execute('''
+            CREATE TABLE IF NOT EXISTS "agreement_signatures" (
+                "id" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+                "signer_name" varchar(200) NOT NULL,
+                "signer_id_number" varchar(50) NOT NULL,
+                "signature_data" text NOT NULL,
+                "ip_address" char(39) NULL,
+                "signed_at" datetime NOT NULL,
+                "client_vehicle_id" bigint NOT NULL UNIQUE REFERENCES "client_vehicles" ("id") DEFERRABLE INITIALLY DEFERRED,
+                "signed_by_id" bigint NULL REFERENCES "authentication_user" ("id") DEFERRABLE INITIALLY DEFERRED
+            )
+        ''')
+    elif db == 'mysql':
+        schema_editor.execute('''
+            CREATE TABLE IF NOT EXISTS `agreement_signatures` (
+                `id` bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                `signer_name` varchar(200) NOT NULL,
+                `signer_id_number` varchar(50) NOT NULL,
+                `signature_data` longtext NOT NULL,
+                `ip_address` char(39) NULL,
+                `signed_at` datetime(6) NOT NULL,
+                `client_vehicle_id` bigint NOT NULL UNIQUE,
+                `signed_by_id` bigint NULL
+            )
+        ''')
+    else:
+        schema_editor.execute('''
+            CREATE TABLE IF NOT EXISTS "agreement_signatures" (
+                "id" bigserial NOT NULL PRIMARY KEY,
+                "signer_name" varchar(200) NOT NULL,
+                "signer_id_number" varchar(50) NOT NULL,
+                "signature_data" text NOT NULL,
+                "ip_address" inet NULL,
+                "signed_at" timestamp with time zone NOT NULL,
+                "client_vehicle_id" bigint NOT NULL UNIQUE,
+                "signed_by_id" bigint NULL
+            )
+        ''')
 
 
 class Migration(migrations.Migration):

@@ -5,10 +5,51 @@ from django.db import migrations, models
 
 def create_tracker_company_table_if_missing(apps, schema_editor):
     """Create tracker_companies table only when it does not already exist."""
-    TrackerCompany = apps.get_model('clients', 'TrackerCompany')
-    if TrackerCompany._meta.db_table in schema_editor.connection.introspection.table_names():
+    if 'tracker_companies' in schema_editor.connection.introspection.table_names():
         return
-    schema_editor.create_model(TrackerCompany)
+    db = schema_editor.connection.vendor
+    if db == 'sqlite':
+        schema_editor.execute('''
+            CREATE TABLE IF NOT EXISTS "tracker_companies" (
+                "id" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+                "name" varchar(200) NOT NULL UNIQUE,
+                "phone" varchar(20) NULL,
+                "email" varchar(254) NULL,
+                "contact_person" varchar(200) NULL,
+                "notes" text NULL,
+                "is_active" bool NOT NULL DEFAULT 1,
+                "created_at" datetime NOT NULL,
+                "updated_at" datetime NOT NULL
+            )
+        ''')
+    elif db == 'mysql':
+        schema_editor.execute('''
+            CREATE TABLE IF NOT EXISTS `tracker_companies` (
+                `id` bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                `name` varchar(200) NOT NULL UNIQUE,
+                `phone` varchar(20) NULL,
+                `email` varchar(254) NULL,
+                `contact_person` varchar(200) NULL,
+                `notes` longtext NULL,
+                `is_active` tinyint(1) NOT NULL DEFAULT 1,
+                `created_at` datetime(6) NOT NULL,
+                `updated_at` datetime(6) NOT NULL
+            )
+        ''')
+    else:
+        schema_editor.execute('''
+            CREATE TABLE IF NOT EXISTS "tracker_companies" (
+                "id" bigserial NOT NULL PRIMARY KEY,
+                "name" varchar(200) NOT NULL UNIQUE,
+                "phone" varchar(20) NULL,
+                "email" varchar(254) NULL,
+                "contact_person" varchar(200) NULL,
+                "notes" text NULL,
+                "is_active" boolean NOT NULL DEFAULT TRUE,
+                "created_at" timestamp with time zone NOT NULL,
+                "updated_at" timestamp with time zone NOT NULL
+            )
+        ''')
 
 
 class Migration(migrations.Migration):

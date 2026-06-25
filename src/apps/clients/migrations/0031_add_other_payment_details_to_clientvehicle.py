@@ -1,6 +1,16 @@
 from django.db import migrations, models
 
 
+def add_column_if_missing(apps, schema_editor):
+    with schema_editor.connection.cursor() as cursor:
+        cols = {c.name for c in schema_editor.connection.introspection.get_table_description(cursor, 'client_vehicles')}
+    if 'other_payment_details' not in cols:
+        ClientVehicle = apps.get_model('clients', 'ClientVehicle')
+        field = models.TextField(blank=True, help_text='Optional payment details to include in the agreement', verbose_name='Other Payment Details')
+        field.set_attributes_from_name('other_payment_details')
+        schema_editor.add_field(ClientVehicle, field)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -8,9 +18,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql="ALTER TABLE client_vehicles ADD COLUMN IF NOT EXISTS other_payment_details text;",
-            reverse_sql=migrations.RunSQL.noop,
+        migrations.SeparateDatabaseAndState(
             state_operations=[
                 migrations.AddField(
                     model_name='clientvehicle',
@@ -21,6 +29,9 @@ class Migration(migrations.Migration):
                         verbose_name='Other Payment Details'
                     ),
                 ),
+            ],
+            database_operations=[
+                migrations.RunPython(add_column_if_missing, migrations.RunPython.noop),
             ],
         ),
     ]

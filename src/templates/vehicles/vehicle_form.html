@@ -242,6 +242,18 @@
                         </div>
                         {% if form.purchase_price.errors %}<p class="mt-1 text-xs text-red-600">{{ form.purchase_price.errors.0 }}</p>{% endif %}
                     </div>
+                    <div>
+                        <label for="japan_supplier_id" class="block text-sm font-medium text-gray-700 mb-1">
+                            Japan Supplier <span class="text-gray-400 font-normal">(optional)</span>
+                        </label>
+                        <select name="japan_supplier_id" id="japan_supplier_id" class="form-input">
+                            <option value="">— No Supplier / Unknown —</option>
+                            {% for supplier in japan_suppliers %}
+                            <option value="{{ supplier.pk }}" {% if existing_japan_supplier_id == supplier.pk %}selected{% endif %}>{{ supplier.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">Link the purchase price to a supplier for ledger tracking.</p>
+                    </div>
                     {% endif %}
                 </div>
                 {% if can_view_prices %}

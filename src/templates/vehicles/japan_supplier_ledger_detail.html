@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}{{ supplier.name }} — Japan Supplier Ledger{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex items-center justify-between mb-6">
+        <a href="{% url 'vehicles:japan_supplier_ledger_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Japan Suppliers
+        </a>
+        <button onclick="document.getElementById('payment-modal').classList.remove('hidden')"
+            class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition text-sm">
+            <i class="fas fa-hand-holding-usd mr-2"></i>Record Payment
+        </button>
+    </div>
+
+    <!-- Supplier Header -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+        <div class="flex items-center mb-6">
+            <div class="h-14 w-14 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                <i class="fas fa-store text-red-600 text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">{{ supplier.name }}</h1>
+                <p class="text-gray-500 text-sm">
+                    {% if supplier.country %}{{ supplier.country }}{% endif %}
+                    {% if supplier.phone %} · {{ supplier.phone }}{% endif %}
+                    {% if supplier.email %} · {{ supplier.email }}{% endif %}
+                </p>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-gray-50 rounded-lg p-4 text-center">
+                <p class="text-xs text-gray-500 mb-1">Vehicles</p>
+                <p class="text-2xl font-bold text-gray-800">{{ supplier.total_records }}</p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-4 text-center">
+                <p class="text-xs text-blue-600 mb-1">Total Purchased</p>
+                <p class="text-lg font-bold text-blue-800">KES {{ supplier.total_purchase_value|floatformat:0|intcomma }}</p>
+            </div>
+            <div class="bg-indigo-50 rounded-lg p-4 text-center">
+                <p class="text-xs text-indigo-600 mb-1">Payments Made</p>
+                <p class="text-lg font-bold text-indigo-800">KES {{ supplier.total_payments_made|floatformat:0|intcomma }}</p>
+            </div>
+            <div class="bg-red-50 rounded-lg p-4 text-center">
+                <p class="text-xs text-red-600 mb-1">Outstanding</p>
+                <p class="text-lg font-bold text-red-800">KES {{ supplier.total_owed|floatformat:0|intcomma }}</p>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="mb-5">
+        {% for message in messages %}
+        <div class="px-4 py-3 rounded-lg mb-2 {% if message.tags == 'success' %}bg-green-50 text-green-800 border border-green-200{% else %}bg-red-50 text-red-800 border border-red-200{% endif %}">
+            <i class="fas {% if message.tags == 'success' %}fa-check-circle text-green-500{% else %}fa-exclamation-circle text-red-500{% endif %} mr-2"></i>{{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Vehicle Purchase Records -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-900">Vehicle Purchase Records ({{ records|length }})</h2>
+            <form method="post" action="{% url 'vehicles:japan_supplier_mark_all_paid' supplier.pk %}">
+                {% csrf_token %}
+                <button type="submit"
+                    onclick="return confirm('Mark all unpaid records as paid?')"
+                    class="inline-flex items-center px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition text-xs font-medium">
+                    <i class="fas fa-check-double mr-1"></i>Mark All Paid
+                </button>
+            </form>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vehicle</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Purchase Date</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Purchase Price</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for record in records %}
+                    <tr id="row-{{ record.pk }}" class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm">
+                            <a href="{% url 'vehicles:detail' record.vehicle.pk %}" class="text-primary-600 hover:underline font-medium">
+                                {{ record.vehicle.make }} {{ record.vehicle.model }} {{ record.vehicle.year }}
+                            </a>
+                            {% if record.vehicle.registration_number %}
+                            <p class="text-xs text-gray-400">{{ record.vehicle.registration_number }}</p>
+                            {% elif record.vehicle.vin %}
+                            <p class="text-xs text-gray-400">{{ record.vehicle.vin }}</p>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-500">{{ record.date|default:"—" }}</td>
+                        <td class="px-4 py-3 text-right text-sm font-medium text-gray-800">KES {{ record.purchase_price|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-center">
+                            <span id="status-badge-{{ record.pk }}"
+                                class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                {% if record.payment_status == 'paid' %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                {% if record.payment_status == 'paid' %}<i class="fas fa-check mr-1"></i>Paid{% else %}<i class="fas fa-clock mr-1"></i>Unpaid{% endif %}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            {% if record.payment_status == 'unpaid' %}
+                            <button onclick="markPaid({{ record.pk }})"
+                                class="inline-flex items-center px-3 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-xs font-medium transition">
+                                <i class="fas fa-check mr-1"></i>Mark Paid
+                            </button>
+                            {% else %}
+                            <span class="text-xs text-gray-400">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">No purchase records for this supplier.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if records %}
+                <tfoot class="bg-gray-50">
+                    <tr>
+                        <td colspan="2" class="px-4 py-3 text-sm font-semibold text-gray-700">Total</td>
+                        <td class="px-4 py-3 text-right text-sm font-bold text-gray-800">KES {{ supplier.total_purchase_value|floatformat:0|intcomma }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <!-- Payment History -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                <i class="fas fa-history text-indigo-600 mr-2"></i>Payment History
+                <span class="ml-2 bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full">{{ payments|length }}</span>
+            </h2>
+            <button onclick="document.getElementById('payment-modal').classList.remove('hidden')"
+                class="inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition text-sm">
+                <i class="fas fa-plus mr-1"></i>Record Payment
+            </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recorded By</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for payment in payments %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ payment.payment_date|date:"M d, Y" }}</td>
+                        <td class="px-4 py-3 text-right text-sm font-semibold text-indigo-700">KES {{ payment.amount|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-sm">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">{{ payment.get_payment_method_display }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-500 font-mono">{{ payment.reference_number|default:"—" }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-500">{{ payment.notes|truncatechars:50|default:"—" }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-500">
+                            {% if payment.recorded_by %}{{ payment.recorded_by.get_full_name|default:payment.recorded_by.username }}{% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-gray-400">
+                            <i class="fas fa-receipt text-3xl mb-2 block opacity-30"></i>
+                            No payments recorded yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if payments %}
+                <tfoot class="bg-indigo-50">
+                    <tr>
+                        <td class="px-4 py-3 text-sm font-semibold text-gray-700">Total Paid</td>
+                        <td class="px-4 py-3 text-right text-sm font-bold text-indigo-700">KES {{ supplier.total_payments_made|floatformat:0|intcomma }}</td>
+                        <td colspan="4"></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Record Payment Modal -->
+<div id="payment-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                <i class="fas fa-hand-holding-usd text-indigo-600 mr-2"></i>Record Payment to {{ supplier.name }}
+            </h3>
+            <button onclick="document.getElementById('payment-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form method="post" action="{% url 'vehicles:record_japan_supplier_payment' supplier.pk %}" class="p-6 space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Amount (KES) <span class="text-red-500">*</span></label>
+                <input type="number" name="amount" step="0.01" min="0.01" required placeholder="e.g. 800000"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
+                    <input type="date" name="payment_date" value="{% now 'Y-m-d' %}"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                    <select name="payment_method" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                        <option value="bank_transfer">Bank Transfer / SWIFT</option>
+                        <option value="mpesa">M-Pesa</option>
+                        <option value="cash">Cash</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Reference / Receipt No.</label>
+                <input type="text" name="reference_number" placeholder="e.g. SWIFT-TRN123456"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea name="notes" rows="2" placeholder="Optional notes about this payment"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"></textarea>
+            </div>
+            <div class="flex items-center justify-end space-x-3 pt-2">
+                <button type="button" onclick="document.getElementById('payment-modal').classList.add('hidden')"
+                    class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition">
+                    <i class="fas fa-save mr-1"></i>Record Payment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('payment-modal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.add('hidden');
+});
+
+function markPaid(recordId) {
+    if (!confirm('Mark this vehicle as paid?')) return;
+    fetch(`/vehicles/japan-supplier-records/${recordId}/mark-paid/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'paid') {
+            const badge = document.getElementById(`status-badge-${recordId}`);
+            if (badge) {
+                badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800';
+                badge.innerHTML = '<i class="fas fa-check mr-1"></i>Paid';
+            }
+            const row = document.getElementById(`row-${recordId}`);
+            if (row) {
+                const actionCell = row.querySelector('td:last-child');
+                if (actionCell) actionCell.innerHTML = '<span class="text-xs text-gray-400">—</span>';
+            }
+        }
+    })
+    .catch(() => alert('Failed to update record. Please refresh and try again.'));
+}
+</script>
+{% endblock %}

@@ -54,6 +54,13 @@ urlpatterns = [
     path('tracker-agents/<int:agent_pk>/record-payment/', views.record_tracker_agent_payment, name='record_tracker_agent_payment'),
     path('clearing-agents/<int:agent_pk>/record-payment/', views.record_clearing_agent_payment, name='record_clearing_agent_payment'),
 
+    # Japan Supplier Ledger
+    path('japan-suppliers/', views.japan_supplier_ledger_list, name='japan_supplier_ledger_list'),
+    path('japan-suppliers/<int:pk>/', views.japan_supplier_ledger_detail, name='japan_supplier_ledger_detail'),
+    path('japan-supplier-records/<int:pk>/mark-paid/', views.japan_supplier_record_mark_paid, name='japan_supplier_record_mark_paid'),
+    path('japan-suppliers/<int:supplier_pk>/mark-all-paid/', views.japan_supplier_mark_all_paid, name='japan_supplier_mark_all_paid'),
+    path('japan-suppliers/<int:supplier_pk>/record-payment/', views.record_japan_supplier_payment, name='record_japan_supplier_payment'),
+
     # Broker Ledger
     path('brokers/', views.broker_ledger_list, name='broker_ledger_list'),
     path('brokers/<int:pk>/', views.broker_ledger_detail, name='broker_ledger_detail'),

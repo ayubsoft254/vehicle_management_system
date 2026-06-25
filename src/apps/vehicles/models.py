@@ -1146,3 +1146,128 @@ class BrokerPayment(models.Model):
                     pass
             self.voucher_number = f'VCH-{date_str}-{seq:04d}'
         super().save(*args, **kwargs)
+
+
+# ==================== JAPAN SUPPLIER MODEL ====================
+
+class JapanSupplier(models.Model):
+    """A Japan-based supplier from whom vehicles are purchased."""
+
+    name = models.CharField(max_length=200)
+    phone = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True, null=True)
+    country = models.CharField(max_length=100, default='Japan', blank=True)
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Japan Supplier'
+        verbose_name_plural = 'Japan Suppliers'
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def total_records(self):
+        return self.supplier_records.count()
+
+    @property
+    def total_purchase_value(self):
+        return self.supplier_records.aggregate(
+            total=models.Sum('purchase_price')
+        )['total'] or Decimal('0.00')
+
+    @property
+    def total_payments_made(self):
+        return self.payments.aggregate(
+            total=models.Sum('amount')
+        )['total'] or Decimal('0.00')
+
+    @property
+    def total_owed(self):
+        return max(Decimal('0.00'), self.total_purchase_value - self.total_payments_made)
+
+
+# ==================== JAPAN SUPPLIER RECORD MODEL ====================
+
+class JapanSupplierRecord(models.Model):
+    """Links a vehicle's purchase price to a Japan supplier for ledger tracking."""
+
+    PAYMENT_STATUS_CHOICES = [
+        ('unpaid', 'Unpaid'),
+        ('paid', 'Paid'),
+    ]
+
+    vehicle = models.OneToOneField(
+        Vehicle,
+        on_delete=models.CASCADE,
+        related_name='japan_supplier_record',
+    )
+    supplier = models.ForeignKey(
+        JapanSupplier,
+        on_delete=models.PROTECT,
+        related_name='supplier_records',
+    )
+    purchase_price = models.DecimalField(
+        'Purchase Price (KES)', max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    date = models.DateField('Purchase Date')
+    payment_status = models.CharField(
+        'Payment Status', max_length=10,
+        choices=PAYMENT_STATUS_CHOICES, default='unpaid',
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date']
+        verbose_name = 'Japan Supplier Record'
+        verbose_name_plural = 'Japan Supplier Records'
+
+    def __str__(self):
+        return f"{self.supplier.name} — {self.vehicle} — KES {self.purchase_price:,.2f}"
+
+
+# ==================== JAPAN SUPPLIER PAYMENT MODEL ====================
+
+class JapanSupplierPayment(models.Model):
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('bank_transfer', 'Bank Transfer / SWIFT'),
+        ('mpesa', 'M-Pesa'),
+        ('cheque', 'Cheque'),
+        ('other', 'Other'),
+    ]
+
+    supplier = models.ForeignKey(
+        JapanSupplier, on_delete=models.CASCADE, related_name='payments'
+    )
+    amount = models.DecimalField(
+        'Amount (KES)', max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
+    payment_date = models.DateField('Payment Date', default=timezone.now)
+    payment_method = models.CharField(
+        'Payment Method', max_length=20,
+        choices=PAYMENT_METHOD_CHOICES, default='bank_transfer'
+    )
+    reference_number = models.CharField('Reference / Receipt No.', max_length=100, blank=True)
+    notes = models.TextField('Notes', blank=True)
+    recorded_by = models.ForeignKey(
+        'authentication.User', on_delete=models.SET_NULL, null=True,
+        related_name='japan_supplier_payments'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-payment_date', '-created_at']
+        verbose_name = 'Japan Supplier Payment'
+        verbose_name_plural = 'Japan Supplier Payments'
+
+    def __str__(self):
+        return f"Payment KES {self.amount:,.0f} to {self.supplier.name} on {self.payment_date}"

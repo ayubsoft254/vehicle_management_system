@@ -11,12 +11,12 @@ from django.db.models.functions import Coalesce
 from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
-from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord, Broker, BrokerPayment
+from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord, Broker, BrokerPayment, JapanSupplier, JapanSupplierRecord, JapanSupplierPayment
 from apps.clients.models import ClientVehicle, Client
 from .forms import (
     VehicleForm, VehiclePhotoForm, VehicleSearchForm,
     VehicleStatusChangeForm, BulkVehicleActionForm, VehicleMoveForm,
-    TrackerAgentForm, ClearingAgentForm, BrokerForm,
+    TrackerAgentForm, ClearingAgentForm, BrokerForm, JapanSupplierForm,
 )
 from utils.decorators import role_required, module_permission_required
 from utils.constants import UserRole, VehicleStatus, AccessLevel
@@ -356,6 +356,22 @@ def vehicle_create_view(request):
                 except ClearingAgent.DoesNotExist:
                     pass
 
+            # Link purchase price to a Japan supplier ledger record
+            japan_supplier_id = request.POST.get('japan_supplier_id')
+            if japan_supplier_id and vehicle.purchase_price:
+                try:
+                    japan_supplier = JapanSupplier.objects.get(pk=japan_supplier_id)
+                    JapanSupplierRecord.objects.update_or_create(
+                        vehicle=vehicle,
+                        defaults={
+                            'supplier': japan_supplier,
+                            'purchase_price': vehicle.purchase_price,
+                            'date': vehicle.date_added.date(),
+                        },
+                    )
+                except JapanSupplier.DoesNotExist:
+                    pass
+
             # Log creation
             AuditLog.log_create(
                 user=request.user,
@@ -398,6 +414,8 @@ def vehicle_create_view(request):
         'extra_cost_entries': extra_cost_entries,
         'clearing_agents': ClearingAgent.objects.filter(is_active=True).order_by('name'),
         'existing_clearing_agent_id': None,
+        'japan_suppliers': JapanSupplier.objects.filter(is_active=True).order_by('name'),
+        'existing_japan_supplier_id': None,
     }
     return render(request, 'vehicles/vehicle_form.html', context)
 
@@ -453,9 +471,22 @@ def vehicle_update_view(request, pk):
                     )
                 except ClearingAgent.DoesNotExist:
                     pass
-            elif not clearing_agent_id:
-                # If agent was removed, leave existing record as-is
-                pass
+
+            # Link purchase price to a Japan supplier ledger record
+            japan_supplier_id = request.POST.get('japan_supplier_id')
+            if japan_supplier_id and vehicle.purchase_price:
+                try:
+                    japan_supplier = JapanSupplier.objects.get(pk=japan_supplier_id)
+                    JapanSupplierRecord.objects.update_or_create(
+                        vehicle=vehicle,
+                        defaults={
+                            'supplier': japan_supplier,
+                            'purchase_price': vehicle.purchase_price,
+                            'date': vehicle.purchase_date or timezone.now().date(),
+                        },
+                    )
+                except JapanSupplier.DoesNotExist:
+                    pass
 
             # Detect changes
             changes = {}
@@ -487,6 +518,7 @@ def vehicle_update_view(request, pk):
         extra_cost_entries = list(vehicle.extra_costs.values('description', 'amount'))
     
     existing_clearance = vehicle.clearance_records.select_related('agent').first()
+    existing_supplier_record = getattr(vehicle, 'japan_supplier_record', None)
     context = {
         'form': form,
         'vehicle': vehicle,
@@ -495,6 +527,8 @@ def vehicle_update_view(request, pk):
         'extra_cost_entries': extra_cost_entries,
         'clearing_agents': ClearingAgent.objects.filter(is_active=True).order_by('name'),
         'existing_clearing_agent_id': existing_clearance.agent_id if existing_clearance else None,
+        'japan_suppliers': JapanSupplier.objects.filter(is_active=True).order_by('name'),
+        'existing_japan_supplier_id': existing_supplier_record.supplier_id if existing_supplier_record else None,
     }
     return render(request, 'vehicles/vehicle_form.html', context)
 
@@ -1272,6 +1306,144 @@ def record_clearing_agent_payment(request, agent_pk):
     else:
         messages.success(request, f'Payment of KES {amount:,.2f} recorded for {agent.name}.')
     return redirect('vehicles:clearing_agent_ledger_detail', pk=agent_pk)
+
+
+# ==================== JAPAN SUPPLIER LEDGER VIEWS ====================
+
+@login_required
+def japan_supplier_ledger_list(request):
+    """List all Japan suppliers with totals and outstanding balances."""
+    from django.db.models import Q, Sum, Value, DecimalField
+    from django.db.models.functions import Coalesce
+
+    if request.method == 'POST':
+        form = JapanSupplierForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Japan supplier added successfully.')
+            return redirect('vehicles:japan_supplier_ledger_list')
+    else:
+        form = JapanSupplierForm()
+
+    suppliers = JapanSupplier.objects.filter(is_active=True).prefetch_related('supplier_records').order_by('name')
+    totals = JapanSupplierRecord.objects.aggregate(
+        grand_total=Coalesce(Sum('purchase_price'), Value(0, output_field=DecimalField())),
+        grand_owed=Coalesce(
+            Sum('purchase_price', filter=Q(payment_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+        grand_settled=Coalesce(
+            Sum('purchase_price', filter=Q(payment_status='paid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    )
+    context = {
+        'suppliers': suppliers,
+        'grand_total': totals['grand_total'],
+        'grand_owed': totals['grand_owed'],
+        'grand_settled': totals['grand_settled'],
+        'form': form,
+    }
+    return render(request, 'vehicles/japan_supplier_ledger_list.html', context)
+
+
+@login_required
+def japan_supplier_ledger_detail(request, pk):
+    """Show all purchase records for a supplier and payment history."""
+    supplier = get_object_or_404(JapanSupplier, pk=pk)
+    records = supplier.supplier_records.select_related('vehicle').order_by('-date')
+    payments = supplier.payments.select_related('recorded_by').order_by('-payment_date')
+    context = {
+        'supplier': supplier,
+        'records': records,
+        'payments': payments,
+    }
+    return render(request, 'vehicles/japan_supplier_ledger_detail.html', context)
+
+
+@login_required
+def japan_supplier_record_mark_paid(request, pk):
+    """Mark a single supplier record as paid."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    record = get_object_or_404(JapanSupplierRecord, pk=pk)
+    record.payment_status = 'paid'
+    record.save(update_fields=['payment_status'])
+    return JsonResponse({'status': 'paid', 'record_id': pk})
+
+
+@login_required
+def japan_supplier_mark_all_paid(request, supplier_pk):
+    """Mark all unpaid records for a supplier as paid."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    supplier = get_object_or_404(JapanSupplier, pk=supplier_pk)
+    updated = supplier.supplier_records.filter(payment_status='unpaid').update(payment_status='paid')
+    return JsonResponse({'status': 'ok', 'updated': updated})
+
+
+@login_required
+def record_japan_supplier_payment(request, supplier_pk):
+    """Record a lump-sum payment to a Japan supplier."""
+    if request.method != 'POST':
+        messages.error(request, 'Method not allowed.')
+        return redirect('vehicles:japan_supplier_ledger_detail', pk=supplier_pk)
+    supplier = get_object_or_404(JapanSupplier, pk=supplier_pk)
+    amount_str = request.POST.get('amount', '').strip()
+    payment_method = request.POST.get('payment_method', 'bank_transfer')
+    reference_number = request.POST.get('reference_number', '').strip()
+    notes = request.POST.get('notes', '').strip()
+    payment_date_str = request.POST.get('payment_date', '').strip()
+    try:
+        amount = Decimal(amount_str)
+        if amount <= 0:
+            raise ValueError
+    except Exception:
+        messages.error(request, 'Invalid payment amount.')
+        return redirect('vehicles:japan_supplier_ledger_detail', pk=supplier_pk)
+    from datetime import date as date_type, datetime as datetime_type
+    payment_date = date_type.today()
+    if payment_date_str:
+        try:
+            payment_date = datetime_type.strptime(payment_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    with transaction.atomic():
+        JapanSupplierPayment.objects.create(
+            supplier=supplier,
+            amount=amount,
+            payment_method=payment_method,
+            reference_number=reference_number,
+            notes=notes,
+            payment_date=payment_date,
+            recorded_by=request.user,
+        )
+
+        # Mark unpaid records as paid (oldest first) until payment is exhausted
+        remaining = amount
+        unpaid_records = supplier.supplier_records.filter(
+            payment_status='unpaid'
+        ).order_by('date', 'id')
+
+        records_cleared = 0
+        for record in unpaid_records:
+            if remaining >= record.purchase_price:
+                remaining -= record.purchase_price
+                record.payment_status = 'paid'
+                record.save(update_fields=['payment_status'])
+                records_cleared += 1
+            else:
+                break
+
+    if records_cleared:
+        messages.success(
+            request,
+            f'Payment of KES {amount:,.2f} recorded for {supplier.name}. '
+            f'{records_cleared} vehicle(s) marked as settled.'
+        )
+    else:
+        messages.success(request, f'Payment of KES {amount:,.2f} recorded for {supplier.name}.')
+    return redirect('vehicles:japan_supplier_ledger_detail', pk=supplier_pk)
 
 
 # ==================== VEHICLE REPORTS ====================

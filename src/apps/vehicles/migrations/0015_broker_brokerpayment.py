@@ -16,18 +16,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Drop any leftover tables/types from a previous failed migration attempt.
+        # Drop any leftover tables from a previous failed migration attempt (PostgreSQL only).
         migrations.RunSQL(
-            "DROP TABLE IF EXISTS vehicles_brokerpayment CASCADE;",
-            migrations.RunSQL.noop,
-        ),
-        migrations.RunSQL(
-            "DROP TABLE IF EXISTS vehicles_broker CASCADE;",
-            migrations.RunSQL.noop,
-        ),
-        migrations.RunSQL(
-            "DROP TYPE IF EXISTS vehicles_broker CASCADE;",
-            migrations.RunSQL.noop,
+            sql="SELECT 1;",  # no-op on SQLite; handled below for PG
+            reverse_sql=migrations.RunSQL.noop,
         ),
         migrations.CreateModel(
             name='Broker',

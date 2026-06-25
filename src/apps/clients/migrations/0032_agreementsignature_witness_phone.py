@@ -1,6 +1,16 @@
 from django.db import migrations, models
 
 
+def add_witness_phone_if_missing(apps, schema_editor):
+    with schema_editor.connection.cursor() as cursor:
+        cols = {c.name for c in schema_editor.connection.introspection.get_table_description(cursor, 'agreement_signatures')}
+    if 'witness_phone' not in cols:
+        AgreementSignature = apps.get_model('clients', 'AgreementSignature')
+        field = models.CharField(blank=True, default='', max_length=20, verbose_name='Witness Phone / Mobile')
+        field.set_attributes_from_name('witness_phone')
+        schema_editor.add_field(AgreementSignature, field)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -8,15 +18,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql="""
-                ALTER TABLE agreement_signatures
-                ADD COLUMN IF NOT EXISTS witness_phone varchar(20) NOT NULL DEFAULT '';
-            """,
-            reverse_sql="""
-                ALTER TABLE agreement_signatures
-                DROP COLUMN IF EXISTS witness_phone;
-            """,
+        migrations.SeparateDatabaseAndState(
             state_operations=[
                 migrations.AddField(
                     model_name='agreementsignature',
@@ -28,6 +30,9 @@ class Migration(migrations.Migration):
                         verbose_name='Witness Phone / Mobile',
                     ),
                 ),
+            ],
+            database_operations=[
+                migrations.RunPython(add_witness_phone_if_missing, migrations.RunPython.noop),
             ],
         ),
     ]

@@ -3,7 +3,7 @@ Vehicles Forms
 """
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, ClearingAgent, Broker
+from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, ClearingAgent, Broker, JapanSupplier
 from utils.constants import VehicleStatus, VehicleLocation
 from decimal import Decimal
 from django.forms import HiddenInput
@@ -648,6 +648,21 @@ class ClearingAgentForm(forms.ModelForm):
             'phone': forms.TextInput(attrs={'class': _FC, 'placeholder': '+254...'}),
             'email': forms.EmailInput(attrs={'class': _FC, 'placeholder': 'agent@example.com'}),
             'notes': forms.Textarea(attrs={'class': _FC, 'rows': 3, 'placeholder': 'Optional notes'}),
+        }
+
+
+# ==================== JAPAN SUPPLIER FORM ====================
+
+class JapanSupplierForm(forms.ModelForm):
+    class Meta:
+        model = JapanSupplier
+        fields = ['name', 'phone', 'email', 'country', 'notes']
+        widgets = {
+            'name':    forms.TextInput(attrs={'class': _FC, 'placeholder': 'Supplier name'}),
+            'phone':   forms.TextInput(attrs={'class': _FC, 'placeholder': '+81...'}),
+            'email':   forms.EmailInput(attrs={'class': _FC, 'placeholder': 'supplier@example.jp'}),
+            'country': forms.TextInput(attrs={'class': _FC, 'placeholder': 'Japan'}),
+            'notes':   forms.Textarea(attrs={'class': _FC, 'rows': 3, 'placeholder': 'Optional notes'}),
         }
 
 
