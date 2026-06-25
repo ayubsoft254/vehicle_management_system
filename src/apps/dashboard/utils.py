@@ -165,61 +165,70 @@ def get_dashboard_overview_data(user=None):
         item['revenue'] = float(item.get('revenue') or 0)
 
     # ── DEFAULTERS LIST ───────────────────────────────────────────────
-    try:
-        overdue_schedules = PaymentSchedule.objects.filter(
-            is_paid=False,
-            due_date__lt=today,
-        ).select_related(
-            'client_vehicle__client', 'client_vehicle__vehicle'
-        ).order_by('due_date')[:30]
-
-        seen_clients = {}
-        for sched in overdue_schedules:
-            cv     = sched.client_vehicle
-            client = cv.client
-            cid    = client.pk
-            days_od = (today - sched.due_date).days
-            remaining_due = (sched.amount_due or Decimal('0.00')) - (sched.amount_paid or Decimal('0.00'))
-            if remaining_due < 0:
-                remaining_due = Decimal('0.00')
-            if cid not in seen_clients:
-                seen_clients[cid] = {
-                    'client_id':         cid,
-                    'client_name':       client.get_full_name(),
-                    'phone':             client.phone_primary or '',
-                    'vehicle':           str(cv.vehicle),
-                    'client_vehicle_id': cv.pk,
-                    'balance':           float(cv.balance),
-                    'overdue_amount':    float(remaining_due),
-                    'overdue_since':     sched.due_date.isoformat(),
-                    'days_overdue':      days_od,
-                }
-            else:
-                seen_clients[cid]['overdue_amount'] += float(remaining_due)
-                if days_od > seen_clients[cid]['days_overdue']:
-                    seen_clients[cid]['days_overdue'] = days_od
-
-        defaulters = sorted(seen_clients.values(), key=lambda x: x['days_overdue'], reverse=True)[:10]
-    except Exception:
-        defaulters = []
-
-    total_overdue_schedules = PaymentSchedule.objects.filter(
+    overdue_schedules_qs = PaymentSchedule.objects.filter(
         is_paid=False,
         due_date__lt=today,
-    )
-    overdue_total_amount = total_overdue_schedules.aggregate(
-        total=Sum('amount_due')
-    )['total'] or Decimal('0.00')
-    overdue_total_paid_portion = total_overdue_schedules.aggregate(
-        total=Sum('amount_paid')
-    )['total'] or Decimal('0.00')
-    total_overdue_amount = overdue_total_amount - overdue_total_paid_portion
-    if total_overdue_amount < 0:
-        total_overdue_amount = Decimal('0.00')
+    ).select_related(
+        'installment_plan__client_vehicle__client',
+        'installment_plan__client_vehicle__vehicle',
+    ).order_by('due_date')
+
+    seen_clients = {}
+    for sched in overdue_schedules_qs[:50]:
+        ip     = sched.installment_plan
+        cv     = ip.client_vehicle
+        client = cv.client
+        cid    = client.pk
+        days_od = (today - sched.due_date).days
+        if cid not in seen_clients:
+            seen_clients[cid] = {
+                'client_id':         cid,
+                'client_name':       client.get_full_name(),
+                'phone':             client.phone_primary or '',
+                'vehicle':           str(cv.vehicle),
+                'client_vehicle_id': cv.pk,
+                'overdue_amount':    float(cv.balance),
+                'overdue_since':     sched.due_date.isoformat(),
+                'days_overdue':      days_od,
+            }
+        else:
+            if days_od > seen_clients[cid]['days_overdue']:
+                seen_clients[cid]['days_overdue'] = days_od
+
+    defaulters = sorted(seen_clients.values(), key=lambda x: x['days_overdue'], reverse=True)[:10]
+
+    # Use ClientVehicle.balance as the authoritative overdue total
+    overdue_cv_ids = overdue_schedules_qs.values_list(
+        'installment_plan__client_vehicle__id', flat=True
+    ).distinct()
+    total_overdue_amount = ClientVehicle.objects.filter(
+        id__in=overdue_cv_ids
+    ).aggregate(total=Sum('balance'))['total'] or Decimal('0.00')
 
     collection_rate = Decimal('0.00')
     if total_sales_revenue > 0:
         collection_rate = ((total_revenue_all_time / total_sales_revenue) * Decimal('100')).quantize(Decimal('0.01'))
+
+    # ── DAILY REPORT ─────────────────────────────────────────────────
+    from apps.expenses.models import Expense
+
+    daily_cv_qs = ClientVehicle.objects.filter(purchase_date=today)
+    daily_vehicles_sold_count  = daily_cv_qs.count()
+    daily_vehicles_sold_amount = daily_cv_qs.aggregate(
+        total=Sum('purchase_price')
+    )['total'] or Decimal('0.00')
+
+    daily_trackers_sold_count = VehicleTracker.objects.filter(
+        created_at__date=today
+    ).count()
+
+    daily_insurance_sold_count = InsurancePolicy.objects.filter(
+        created_at__date=today
+    ).count()
+
+    daily_money_out = Expense.objects.filter(
+        expense_date=today
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
     # ── RECENT SALES ──────────────────────────────────────────────────
     recent_sales = list(
@@ -293,7 +302,7 @@ def get_dashboard_overview_data(user=None):
         'outstanding': {
             'total': float(total_outstanding), 'active_accounts': active_accounts,
             'overdue_total': float(total_overdue_amount),
-            'overdue_schedules': total_overdue_schedules.count(),
+            'overdue_schedules': overdue_schedules_qs.count(),
         },
         'sales': {
             'total_count': total_sales_count, 'total_revenue': float(total_sales_revenue),
@@ -333,6 +342,19 @@ def get_dashboard_overview_data(user=None):
         },
         'today': today.isoformat(),
         'first_day_of_month': first_day_of_month.isoformat(),
+        'daily': {
+            'date': today.isoformat(),
+            'overdue_total': float(total_overdue_amount),
+            'overdue_schedules': overdue_schedules_qs.count(),
+            'defaulters_count': len(defaulters),
+            'vehicles_sold_count': daily_vehicles_sold_count,
+            'vehicles_sold_amount': float(daily_vehicles_sold_amount),
+            'trackers_sold_count': daily_trackers_sold_count,
+            'insurance_sold_count': daily_insurance_sold_count,
+            'money_in': float(total_payments_today),
+            'money_in_count': payments_count_today,
+            'money_out': float(daily_money_out),
+        },
     }
 
 
