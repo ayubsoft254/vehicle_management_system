@@ -964,6 +964,15 @@ class VehicleTracker(models.Model):
         blank=True,
     )
 
+    renewal_of = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='renewals',
+        help_text='The tracker record this was renewed from',
+    )
+
     created_by = models.ForeignKey(
         'authentication.User',
         on_delete=models.SET_NULL,

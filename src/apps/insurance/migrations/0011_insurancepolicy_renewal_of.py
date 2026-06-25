@@ -11,9 +11,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='insurancepolicy',
-            name='renewal_of',
-            field=models.ForeignKey(blank=True, help_text='The policy this was renewed from', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='renewals', to='insurance.insurancepolicy'),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[
+                migrations.AddField(
+                    model_name='insurancepolicy',
+                    name='renewal_of',
+                    field=models.ForeignKey(blank=True, help_text='The policy this was renewed from', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='renewals', to='insurance.insurancepolicy'),
+                ),
+            ],
         ),
     ]

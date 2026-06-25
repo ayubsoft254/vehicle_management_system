@@ -484,49 +484,103 @@
 
                     <!-- Insurance Payment Info -->
                     <div class="mt-6 pt-6 border-t border-gray-200">
-                        <h3 class="text-sm font-semibold text-gray-900 mb-3">
-                            <i class="fas fa-shield-alt mr-2 text-blue-600"></i> Insurance Payment Info
-                        </h3>
-                        {% if insurance_summary %}
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
-                            <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                                <p class="text-xs text-blue-700">Policy Number</p>
-                                <p class="text-sm font-semibold text-blue-900">{{ insurance_summary.policy.policy_number }}</p>
-                            </div>
-                            <div class="bg-green-50 border border-green-100 rounded-lg p-3">
-                                <p class="text-xs text-green-700">Monthly Installment</p>
-                                <p class="text-sm font-semibold text-green-900">KES {{ insurance_summary.monthly_installment|floatformat:2 }}</p>
-                            </div>
-                            <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-3">
-                                <p class="text-xs text-yellow-700">Next Installment Date</p>
-                                <p class="text-sm font-semibold text-yellow-900">
-                                    {% if insurance_summary.next_payment %}
-                                    {{ insurance_summary.next_payment.due_date|date:"M d, Y" }}
-                                    {% else %}
-                                    N/A
-                                    {% endif %}
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-semibold text-gray-900">
+                                <i class="fas fa-shield-alt mr-2 text-blue-600"></i> Insurance Payment Info
+                            </h3>
+                            {% if active_insurance_policy %}
+                            <a href="{% url 'insurance:policy_renew' active_insurance_policy.pk %}"
+                               class="inline-flex items-center px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition">
+                                <i class="fas fa-sync-alt mr-1"></i>Renew Insurance
+                            </a>
+                            {% endif %}
+                        </div>
+
+                        {% if insurance_policy_list %}
+                        <div class="space-y-4">
+                            {% for ins in insurance_policy_list %}
+                            <div class="rounded-lg border {% if ins.is_renewal %}border-indigo-200 bg-indigo-50{% else %}border-blue-200 bg-blue-50{% endif %} p-4">
+                                <!-- Header row -->
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="flex items-center gap-2">
+                                        {% if ins.is_renewal %}
+                                        <span class="text-xs font-bold uppercase tracking-wide text-indigo-600"><i class="fas fa-sync-alt mr-1"></i>Renewal</span>
+                                        {% else %}
+                                        <span class="text-xs font-bold uppercase tracking-wide text-blue-600"><i class="fas fa-file-alt mr-1"></i>Initial</span>
+                                        {% endif %}
+                                        <a href="{% url 'insurance:policy_detail' ins.policy.pk %}"
+                                           class="text-sm font-bold {% if ins.is_renewal %}text-indigo-800 hover:text-indigo-600{% else %}text-blue-800 hover:text-blue-600{% endif %}">
+                                            {{ ins.policy.policy_number }}
+                                        </a>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs px-2 py-0.5 rounded-full font-semibold
+                                            {% if ins.policy.status == 'active' %}bg-green-100 text-green-800
+                                            {% elif ins.policy.status == 'renewed' %}bg-blue-100 text-blue-800
+                                            {% elif ins.policy.status == 'expired' %}bg-red-100 text-red-800
+                                            {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                            {{ ins.policy.get_status_display }}
+                                        </span>
+                                        {% if ins.is_fully_paid %}
+                                        <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">Fully Paid</span>
+                                        {% elif ins.is_defaulted %}
+                                        <span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-semibold">Defaulted</span>
+                                        {% else %}
+                                        <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 font-semibold">In Progress</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Coverage period -->
+                                <p class="text-xs text-gray-500 mb-3">
+                                    {{ ins.policy.start_date|date:"d M Y" }} → {{ ins.policy.end_date|date:"d M Y" }}
+                                    &nbsp;·&nbsp; {{ ins.policy.get_policy_type_display }}
                                 </p>
-                            </div>
-                            <div class="bg-emerald-50 border border-emerald-100 rounded-lg p-3">
-                                <p class="text-xs text-emerald-700">Total Paid</p>
-                                <p class="text-sm font-semibold text-emerald-900">KES {{ insurance_summary.total_paid|floatformat:2 }}</p>
-                            </div>
-                            <div class="bg-red-50 border border-red-100 rounded-lg p-3">
-                                <p class="text-xs text-red-700">Balance Owed</p>
-                                <p class="text-sm font-semibold text-red-900">KES {{ insurance_summary.balance|floatformat:2 }}</p>
-                            </div>
-                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                                <p class="text-xs text-gray-600">Insurance Status</p>
-                                <p class="text-sm font-semibold">
-                                    {% if insurance_summary.is_fully_paid %}
-                                    <span class="text-green-700">Fully Paid</span>
-                                    {% elif insurance_summary.is_defaulted %}
-                                    <span class="text-red-700">Defaulted</span>
+
+                                <!-- Stats grid -->
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                                    <div>
+                                        <p class="text-gray-500">Selling Price</p>
+                                        <p class="font-semibold text-gray-800">KES {{ ins.policy.selling_price|floatformat:0 }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500">Total Paid</p>
+                                        <p class="font-semibold text-emerald-700">KES {{ ins.total_paid|floatformat:0 }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500">Balance Owed</p>
+                                        <p class="font-semibold {% if ins.balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">KES {{ ins.balance|floatformat:0 }}</p>
+                                    </div>
+                                    {% if ins.policy.has_payment_plan %}
+                                    <div>
+                                        <p class="text-gray-500">Monthly Install.</p>
+                                        <p class="font-semibold text-gray-800">KES {{ ins.monthly_installment|floatformat:0 }}</p>
+                                    </div>
                                     {% else %}
-                                    <span class="text-yellow-700">In Progress</span>
+                                    <div>
+                                        <p class="text-gray-500">Payment Type</p>
+                                        <p class="font-semibold text-gray-800">{{ ins.policy.get_payment_type_display }}</p>
+                                    </div>
                                     {% endif %}
-                                </p>
+                                    {% if ins.policy.has_payment_plan and ins.policy.insurance_deposit > 0 %}
+                                    <div>
+                                        <p class="text-gray-500">Deposit Paid</p>
+                                        <p class="font-semibold text-emerald-700">KES {{ ins.policy.insurance_deposit|floatformat:0 }}</p>
+                                    </div>
+                                    {% endif %}
+                                    {% if ins.next_payment %}
+                                    <div>
+                                        <p class="text-gray-500">Next Due</p>
+                                        <p class="font-semibold {% if ins.is_defaulted %}text-red-700{% else %}text-gray-800{% endif %}">{{ ins.next_payment.due_date|date:"d M Y" }}</p>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <p class="text-gray-500">Agent</p>
+                                        <p class="font-semibold text-gray-800 truncate">{{ ins.policy.agent_name|default:"—" }}</p>
+                                    </div>
+                                </div>
                             </div>
+                            {% endfor %}
                         </div>
                         {% else %}
                         <p class="text-sm text-gray-500">No insurance policy linked to this purchase.</p>
@@ -588,6 +642,101 @@
                         {% else %}
                         <p class="text-sm text-gray-500">No trackers linked to this purchase.</p>
                         {% endif %}
+
+                        <!-- Tracker Renewal Summary Cards -->
+                        {% for row in tracker_payment_rows %}
+                        {% if row.renewal_trackers %}
+                        <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <p class="text-sm font-bold text-blue-800 mb-3 flex items-center">
+                                <i class="fas fa-sync-alt mr-2 text-blue-600"></i>
+                                {{ row.tracker.tracker_name }} — Renewal Info
+                            </p>
+                            {% for rt in row.renewal_trackers %}
+                            <div class="mb-3 pb-3 {% if not forloop.last %}border-b border-blue-200{% endif %}">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-sm font-semibold text-blue-700">{{ rt.tracker_name }}</span>
+                                    <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{{ rt.get_payment_type_display }}</span>
+                                </div>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mt-1">
+                                    <div>
+                                        <p class="text-blue-500">Selling Price</p>
+                                        <p class="font-semibold text-blue-800">KES {{ rt.selling_price|floatformat:0 }}</p>
+                                    </div>
+                                    {% if rt.payment_type == 'flexible' %}
+                                    <div>
+                                        <p class="text-blue-500">Deposit Paid</p>
+                                        <p class="font-semibold text-emerald-700">KES {{ rt.deposit|floatformat:0 }}</p>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <p class="text-blue-500">Total Paid</p>
+                                        <p class="font-semibold text-emerald-700">KES {{ rt.total_paid|floatformat:0 }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-blue-500">Renewal Balance</p>
+                                        <p class="font-semibold {% if rt.balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">KES {{ rt.balance|floatformat:0 }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            <div class="pt-2 border-t border-blue-300 space-y-1 text-sm">
+                                {% if row.balance > 0 %}
+                                <div class="flex justify-between text-gray-700">
+                                    <span>Current tracker balance</span>
+                                    <span class="font-medium text-red-600">KES {{ row.balance|floatformat:0 }}</span>
+                                </div>
+                                {% endif %}
+                                <div class="flex justify-between text-gray-700">
+                                    <span>Renewal balance(s)</span>
+                                    <span class="font-medium text-red-600">KES {{ row.renewal_total_balance|floatformat:0 }}</span>
+                                </div>
+                                {% if row.renewal_total_deposit > 0 %}
+                                <div class="flex justify-between text-gray-700">
+                                    <span>Deposit(s) recorded</span>
+                                    <span class="font-medium text-emerald-700">KES {{ row.renewal_total_deposit|floatformat:0 }}</span>
+                                </div>
+                                {% endif %}
+                                <div class="flex justify-between font-bold text-base pt-1 border-t border-blue-300 mt-1">
+                                    <span class="text-gray-800">Total Owed</span>
+                                    <span class="text-red-700">KES {{ row.combined_owed|floatformat:0 }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if row.original_tracker %}
+                        <div class="mt-4 bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                            <p class="text-sm font-bold text-indigo-800 mb-3 flex items-center">
+                                <i class="fas fa-history mr-2 text-indigo-600"></i>
+                                {{ row.tracker.tracker_name }} — Renewed From
+                            </p>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-semibold text-indigo-700">{{ row.original_tracker.tracker_name }}</span>
+                                <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{{ row.original_tracker.get_payment_type_display }}</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 text-xs mb-3">
+                                <div>
+                                    <p class="text-indigo-500">Original Balance</p>
+                                    <p class="font-semibold {% if row.original_balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">KES {{ row.original_balance|floatformat:0 }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-indigo-500">This Tracker Balance</p>
+                                    <p class="font-semibold {% if row.balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">KES {{ row.balance|floatformat:0 }}</p>
+                                </div>
+                                {% if row.tracker.deposit > 0 %}
+                                <div class="col-span-2">
+                                    <p class="text-indigo-500">Deposit Recorded</p>
+                                    <p class="font-semibold text-emerald-700">KES {{ row.tracker.deposit|floatformat:0 }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="flex justify-between font-bold text-sm pt-2 border-t border-indigo-300">
+                                <span class="text-indigo-800">Total Owed</span>
+                                <span class="text-red-700">KES {{ row.combined_owed_with_original|floatformat:0 }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
                     </div>
                 </div>
             </div>

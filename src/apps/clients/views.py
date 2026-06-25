@@ -1066,44 +1066,54 @@ def client_vehicle_detail(request, pk):
 
     today = timezone.now().date()
 
-    # Insurance payment summary (latest policy for this client vehicle)
-    insurance_policy = InsurancePolicy.objects.filter(
+    # Insurance payment summary — all policies for this client vehicle
+    all_insurance_policies = InsurancePolicy.objects.filter(
         vehicle=client_vehicle.vehicle,
         client=client_vehicle.client,
-    ).order_by('-created_at').first()
+    ).prefetch_related('insurance_payment_schedules').order_by('created_at')
 
-    insurance_summary = None
-    if insurance_policy:
-        insurance_schedules = insurance_policy.insurance_payment_schedules.all()
-        insurance_total_paid = insurance_schedules.aggregate(total=models.Sum('amount_paid'))['total'] or Decimal('0.00')
+    insurance_summary = None  # kept for backward compat (latest policy)
+    insurance_policy_list = []
+    active_insurance_policy = None
 
-        if insurance_policy.has_payment_plan and insurance_schedules.exists():
-            insurance_total_due = insurance_schedules.aggregate(total=models.Sum('amount_due'))['total'] or Decimal('0.00')
-            insurance_balance = max(Decimal('0.00'), insurance_total_due - insurance_total_paid)
-            insurance_next_payment = insurance_schedules.filter(is_paid=False).order_by('due_date').first()
-            insurance_monthly = insurance_policy.insurance_monthly_installment or (
-                insurance_next_payment.amount_due if insurance_next_payment else Decimal('0.00')
+    for ins_pol in all_insurance_policies:
+        ins_schedules = ins_pol.insurance_payment_schedules.all()
+        ins_total_paid = ins_schedules.aggregate(total=models.Sum('amount_paid'))['total'] or Decimal('0.00')
+
+        if ins_pol.has_payment_plan and ins_schedules.exists():
+            ins_total_due = ins_schedules.aggregate(total=models.Sum('amount_due'))['total'] or Decimal('0.00')
+            ins_balance = max(Decimal('0.00'), ins_total_due - ins_total_paid)
+            ins_next_payment = ins_schedules.filter(is_paid=False).order_by('due_date').first()
+            ins_monthly = ins_pol.insurance_monthly_installment or (
+                ins_next_payment.amount_due if ins_next_payment else Decimal('0.00')
             )
-            insurance_is_defaulted = insurance_schedules.filter(is_paid=False, due_date__lt=today).exists()
+            ins_is_defaulted = ins_schedules.filter(is_paid=False, due_date__lt=today).exists()
         else:
-            insurance_balance = max(Decimal('0.00'), (insurance_policy.selling_price or Decimal('0.00')) - insurance_total_paid)
-            insurance_next_payment = None
-            insurance_monthly = Decimal('0.00')
-            insurance_is_defaulted = False
+            ins_balance = max(Decimal('0.00'), (ins_pol.selling_price or Decimal('0.00')) - ins_total_paid)
+            ins_next_payment = None
+            ins_monthly = Decimal('0.00')
+            ins_is_defaulted = False
 
-        insurance_summary = {
-            'policy': insurance_policy,
-            'monthly_installment': insurance_monthly,
-            'next_payment': insurance_next_payment,
-            'total_paid': insurance_total_paid,
-            'balance': insurance_balance,
-            'is_defaulted': insurance_is_defaulted,
-            'is_fully_paid': insurance_balance <= Decimal('0.00'),
+        row = {
+            'policy': ins_pol,
+            'monthly_installment': ins_monthly,
+            'next_payment': ins_next_payment,
+            'total_paid': ins_total_paid,
+            'balance': ins_balance,
+            'is_defaulted': ins_is_defaulted,
+            'is_fully_paid': ins_balance <= Decimal('0.00'),
+            'is_renewal': ins_pol.renewal_of_id is not None,
         }
+        insurance_policy_list.append(row)
+        if ins_pol.status == 'active':
+            active_insurance_policy = ins_pol
+
+    if insurance_policy_list:
+        insurance_summary = insurance_policy_list[-1]  # latest for backward compat
 
     # Tracker payment summary
     tracker_payment_rows = []
-    for tracker in client_vehicle.trackers.all():
+    for tracker in client_vehicle.trackers.select_related('renewal_of').prefetch_related('renewals'):
         next_due_date = None
         is_defaulted = False
 
@@ -1115,6 +1125,15 @@ def client_vehicle_detail(request, pk):
                 next_due_date = tracker.installed_date + relativedelta(months=next_installment_number)
                 is_defaulted = next_due_date < today
 
+        renewal_trackers = list(tracker.renewals.order_by('created_at'))
+        renewal_total_balance = sum((r.balance for r in renewal_trackers), Decimal('0.00'))
+        renewal_total_deposit = sum((r.deposit for r in renewal_trackers), Decimal('0.00'))
+        combined_owed = tracker.balance + renewal_total_balance
+
+        original_tracker = tracker.renewal_of
+        original_balance = original_tracker.balance if original_tracker else Decimal('0.00')
+        combined_owed_with_original = tracker.balance + original_balance
+
         tracker_payment_rows.append({
             'tracker': tracker,
             'monthly_installment': tracker.monthly_installment if tracker.has_payment_plan else Decimal('0.00'),
@@ -1123,6 +1142,13 @@ def client_vehicle_detail(request, pk):
             'balance': tracker.balance,
             'is_defaulted': is_defaulted,
             'is_fully_paid': tracker.balance <= Decimal('0.00'),
+            'renewal_trackers': renewal_trackers,
+            'renewal_total_balance': renewal_total_balance,
+            'renewal_total_deposit': renewal_total_deposit,
+            'combined_owed': combined_owed,
+            'original_tracker': original_tracker,
+            'original_balance': original_balance,
+            'combined_owed_with_original': combined_owed_with_original,
         })
     
     tracker_agents = TrackerAgent.objects.filter(is_active=True).order_by('name')
@@ -1140,6 +1166,8 @@ def client_vehicle_detail(request, pk):
         'next_installment_date_display': next_installment_date_display,
         'interest_rate_display': interest_rate_display,
         'insurance_summary': insurance_summary,
+        'insurance_policy_list': insurance_policy_list,
+        'active_insurance_policy': active_insurance_policy,
         'tracker_payment_rows': tracker_payment_rows,
         'tracker_agents': tracker_agents,
     }
@@ -2268,6 +2296,7 @@ def renew_tracker(request, tracker_pk):
             total_paid=total_paid,
             installed_date=install_date,
             notes=notes,
+            renewal_of=tracker,
             created_by=request.user,
         )
 
