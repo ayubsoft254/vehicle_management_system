@@ -32,7 +32,7 @@
         <!-- Form -->
         <div class="lg:col-span-2">
             <div class="bg-white rounded-xl shadow-md p-6">
-                <form method="post" class="space-y-6">
+                <form method="post" class="space-y-6" id="loan-form">
                     {% csrf_token %}
 
                     <!-- Error Messages -->
@@ -58,25 +58,8 @@
                             Employee <span class="text-red-500">*</span>
                         </label>
                         {{ form.employee }}
-                        {% if form.employee.help_text %}
-                            <p class="text-xs text-gray-500 mt-1">{{ form.employee.help_text }}</p>
-                        {% endif %}
                         {% if form.employee.errors %}
                             <p class="text-xs text-red-500 mt-1">{{ form.employee.errors.0 }}</p>
-                        {% endif %}
-                    </div>
-
-                    <!-- Loan Type -->
-                    <div>
-                        <label for="{{ form.loan_type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                            Loan Type <span class="text-red-500">*</span>
-                        </label>
-                        {{ form.loan_type }}
-                        {% if form.loan_type.help_text %}
-                            <p class="text-xs text-gray-500 mt-1">{{ form.loan_type.help_text }}</p>
-                        {% endif %}
-                        {% if form.loan_type.errors %}
-                            <p class="text-xs text-red-500 mt-1">{{ form.loan_type.errors.0 }}</p>
                         {% endif %}
                     </div>
 
@@ -84,15 +67,12 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="{{ form.loan_amount.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                                Loan Amount <span class="text-red-500">*</span>
+                                Loan Amount (KES) <span class="text-red-500">*</span>
                             </label>
                             <div class="relative">
-                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                                {{ form.loan_amount }}
+                                <span class="absolute left-3 top-2.5 text-gray-500 font-medium text-sm">KES</span>
+                                <div class="pl-12">{{ form.loan_amount }}</div>
                             </div>
-                            {% if form.loan_amount.help_text %}
-                                <p class="text-xs text-gray-500 mt-1">{{ form.loan_amount.help_text }}</p>
-                            {% endif %}
                             {% if form.loan_amount.errors %}
                                 <p class="text-xs text-red-500 mt-1">{{ form.loan_amount.errors.0 }}</p>
                             {% endif %}
@@ -100,64 +80,78 @@
 
                         <div>
                             <label for="{{ form.interest_rate.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                                Interest Rate (%) <span class="text-red-500">*</span>
+                                Interest Rate (%) <span class="text-gray-400 text-xs font-normal">optional</span>
                             </label>
                             <div class="relative">
                                 {{ form.interest_rate }}
-                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
+                                <span class="absolute right-3 top-2.5 text-gray-500 text-sm">%</span>
                             </div>
-                            {% if form.interest_rate.help_text %}
-                                <p class="text-xs text-gray-500 mt-1">{{ form.interest_rate.help_text }}</p>
-                            {% endif %}
                             {% if form.interest_rate.errors %}
                                 <p class="text-xs text-red-500 mt-1">{{ form.interest_rate.errors.0 }}</p>
                             {% endif %}
                         </div>
                     </div>
 
-                    <!-- Installments and Disbursement Date -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="{{ form.installment_count.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                                Number of Installments <span class="text-red-500">*</span>
-                            </label>
-                            {{ form.installment_count }}
-                            <p class="text-xs text-gray-500 mt-1">
-                                <i class="fas fa-info-circle mr-1"></i>
-                                Number of months to repay the loan
-                            </p>
-                            {% if form.installment_count.errors %}
-                                <p class="text-xs text-red-500 mt-1">{{ form.installment_count.errors.0 }}</p>
-                            {% endif %}
+                    <!-- Installment Calculator -->
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-5">
+                        <h3 class="text-sm font-bold text-purple-900 mb-4 flex items-center">
+                            <i class="fas fa-calculator mr-2"></i>Repayment Calculator
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="id_installment_months" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Number of Months
+                                </label>
+                                {{ form.installment_months }}
+                                <p class="text-xs text-gray-500 mt-1">Enter months to auto-calculate monthly repayment</p>
+                            </div>
+                            <div>
+                                <label for="{{ form.monthly_repayment.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Monthly Repayment (KES) <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2.5 text-gray-500 font-medium text-sm">KES</span>
+                                    <div class="pl-12">{{ form.monthly_repayment }}</div>
+                                </div>
+                                {% if form.monthly_repayment.errors %}
+                                    <p class="text-xs text-red-500 mt-1">{{ form.monthly_repayment.errors.0 }}</p>
+                                {% endif %}
+                            </div>
                         </div>
+                        <div class="mt-4 bg-white rounded-lg p-3 border border-purple-200 flex justify-between items-center">
+                            <span class="text-sm font-medium text-purple-800">Estimated Total Payable:</span>
+                            <span id="total-payable" class="text-lg font-bold text-purple-700">KES 0</span>
+                        </div>
+                    </div>
 
+                    <!-- Dates -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label for="{{ form.disbursement_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
                                 Disbursement Date <span class="text-red-500">*</span>
                             </label>
                             {{ form.disbursement_date }}
-                            {% if form.disbursement_date.help_text %}
-                                <p class="text-xs text-gray-500 mt-1">{{ form.disbursement_date.help_text }}</p>
-                            {% endif %}
                             {% if form.disbursement_date.errors %}
                                 <p class="text-xs text-red-500 mt-1">{{ form.disbursement_date.errors.0 }}</p>
                             {% endif %}
                         </div>
-                    </div>
-
-                    <!-- Monthly Payment (Calculated) -->
-                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <label class="block text-sm font-medium text-purple-900 mb-1">
-                                    <i class="fas fa-calculator mr-2"></i>Estimated Monthly Payment
-                                </label>
-                                <p class="text-xs text-purple-700">This will be deducted from your monthly salary</p>
-                            </div>
-                            <div class="text-right">
-                                <div id="monthly-payment" class="text-2xl font-bold text-purple-600">$0.00</div>
-                                <div id="total-payable" class="text-xs text-purple-700 mt-1">Total: $0.00</div>
-                            </div>
+                        <div>
+                            <label for="{{ form.repayment_start_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Repayment Starts <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.repayment_start_date }}
+                            {% if form.repayment_start_date.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.repayment_start_date.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label for="{{ form.expected_completion_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Expected Completion <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.expected_completion_date }}
+                            {% if form.expected_completion_date.errors %}
+                                <p class="text-xs text-red-500 mt-1">{{ form.expected_completion_date.errors.0 }}</p>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -167,55 +161,20 @@
                             Purpose of Loan <span class="text-red-500">*</span>
                         </label>
                         {{ form.purpose }}
-                        <p class="text-xs text-gray-500 mt-1">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            Please provide detailed information about why you need this loan
-                        </p>
                         {% if form.purpose.errors %}
                             <p class="text-xs text-red-500 mt-1">{{ form.purpose.errors.0 }}</p>
                         {% endif %}
                     </div>
 
-                    <!-- Terms and Conditions -->
+                    <!-- Notes -->
                     <div>
-                        <label for="{{ form.terms.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                            Terms & Conditions
+                        <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Notes <span class="text-gray-400 text-xs font-normal">optional</span>
                         </label>
-                        {{ form.terms }}
-                        {% if form.terms.help_text %}
-                            <p class="text-xs text-gray-500 mt-1">{{ form.terms.help_text }}</p>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.notes.errors.0 }}</p>
                         {% endif %}
-                        {% if form.terms.errors %}
-                            <p class="text-xs text-red-500 mt-1">{{ form.terms.errors.0 }}</p>
-                        {% endif %}
-                    </div>
-
-                    <!-- Guarantor Information -->
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h3 class="text-sm font-bold text-blue-900 mb-3">
-                            <i class="fas fa-user-shield mr-2"></i>Guarantor Information (if required)
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label for="{{ form.guarantor_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Guarantor Name
-                                </label>
-                                {{ form.guarantor_name }}
-                                {% if form.guarantor_name.errors %}
-                                    <p class="text-xs text-red-500 mt-1">{{ form.guarantor_name.errors.0 }}</p>
-                                {% endif %}
-                            </div>
-
-                            <div>
-                                <label for="{{ form.guarantor_contact.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Guarantor Contact
-                                </label>
-                                {{ form.guarantor_contact }}
-                                {% if form.guarantor_contact.errors %}
-                                    <p class="text-xs text-red-500 mt-1">{{ form.guarantor_contact.errors.0 }}</p>
-                                {% endif %}
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Acknowledgment -->
@@ -223,7 +182,7 @@
                         <label class="flex items-start cursor-pointer">
                             <input type="checkbox" name="acknowledgment" required class="mt-1 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
                             <span class="ml-3 text-sm text-yellow-900">
-                                <strong>I acknowledge that:</strong> I understand and agree to the terms of this loan. I authorize automatic monthly deductions from my salary until the loan is fully repaid. I understand that leaving the company before full repayment may result in the remaining balance being deducted from my final settlement.
+                                <strong>I acknowledge that:</strong> I understand and agree to the repayment terms. I authorize automatic monthly deductions from my salary until the loan is fully repaid. I understand that leaving the company before full repayment may result in the remaining balance being deducted from my final settlement.
                             </span>
                         </label>
                     </div>
@@ -243,96 +202,45 @@
 
         <!-- Sidebar -->
         <div class="lg:col-span-1 space-y-6">
-            <!-- Loan Types Card -->
-            <div class="bg-blue-50 rounded-xl border border-blue-200 p-6">
-                <h3 class="text-lg font-bold text-blue-900 mb-4">
-                    <i class="fas fa-info-circle mr-2"></i>Loan Types
-                </h3>
-                <div class="space-y-3 text-sm text-blue-800">
-                    <div class="flex items-start">
-                        <i class="fas fa-graduation-cap text-blue-600 mr-2 mt-1"></i>
-                        <div>
-                            <p class="font-medium">Education Loan</p>
-                            <p class="text-xs text-blue-700">For educational expenses - up to $10,000</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <i class="fas fa-home text-green-600 mr-2 mt-1"></i>
-                        <div>
-                            <p class="font-medium">Housing Loan</p>
-                            <p class="text-xs text-blue-700">For rent/mortgage - up to $15,000</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <i class="fas fa-clinic-medical text-red-600 mr-2 mt-1"></i>
-                        <div>
-                            <p class="font-medium">Medical Loan</p>
-                            <p class="text-xs text-blue-700">For medical expenses - up to $8,000</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <i class="fas fa-car text-purple-600 mr-2 mt-1"></i>
-                        <div>
-                            <p class="font-medium">Vehicle Loan</p>
-                            <p class="text-xs text-blue-700">For vehicle purchase - up to $20,000</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <i class="fas fa-hand-holding-heart text-orange-600 mr-2 mt-1"></i>
-                        <div>
-                            <p class="font-medium">Emergency Loan</p>
-                            <p class="text-xs text-blue-700">For urgent needs - up to $5,000</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <i class="fas fa-money-bill-wave text-teal-600 mr-2 mt-1"></i>
-                        <div>
-                            <p class="font-medium">Salary Advance</p>
-                            <p class="text-xs text-blue-700">Short-term advance - up to 50% of salary</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Calculation Example Card -->
+            <!-- How It Works -->
             <div class="bg-purple-50 rounded-xl border border-purple-200 p-6">
                 <h3 class="text-lg font-bold text-purple-900 mb-4">
-                    <i class="fas fa-calculator mr-2"></i>How It Works
+                    <i class="fas fa-calculator mr-2"></i>How Repayment Works
                 </h3>
                 <div class="space-y-3 text-sm text-purple-800">
                     <div class="bg-white rounded-lg p-3 border border-purple-300">
-                        <p class="font-medium mb-2">Example Calculation:</p>
+                        <p class="font-medium mb-2 text-xs text-gray-500 uppercase">Example</p>
                         <div class="space-y-1 text-xs">
                             <div class="flex justify-between">
                                 <span>Loan Amount:</span>
-                                <span class="font-medium">$10,000</span>
+                                <span class="font-medium">KES 100,000</span>
                             </div>
                             <div class="flex justify-between">
                                 <span>Interest Rate:</span>
                                 <span class="font-medium">5% per year</span>
                             </div>
                             <div class="flex justify-between">
-                                <span>Installments:</span>
+                                <span>Duration:</span>
                                 <span class="font-medium">12 months</span>
                             </div>
                             <div class="flex justify-between pt-2 border-t border-purple-200 font-bold">
                                 <span>Monthly Payment:</span>
-                                <span class="text-purple-600">$856.07</span>
+                                <span class="text-purple-600">KES 8,561</span>
                             </div>
                             <div class="flex justify-between text-purple-700">
                                 <span>Total Payable:</span>
-                                <span>$10,272.84</span>
+                                <span>KES 102,728</span>
                             </div>
                         </div>
                     </div>
                     <p class="text-xs text-purple-700">
                         <i class="fas fa-info-circle mr-1"></i>
-                        Monthly payments are automatically deducted from your salary
+                        Monthly payments are automatically deducted from salary
                     </p>
                 </div>
             </div>
 
-            <!-- Eligibility Requirements Card -->
+            <!-- Eligibility -->
             <div class="bg-green-50 rounded-xl border border-green-200 p-6">
                 <h3 class="text-lg font-bold text-green-900 mb-4">
                     <i class="fas fa-check-circle mr-2"></i>Eligibility
@@ -354,26 +262,22 @@
                         <i class="fas fa-check text-green-600 mr-2 mt-1"></i>
                         <span>Monthly deduction ≤ 40% of salary</span>
                     </li>
-                    <li class="flex items-start">
-                        <i class="fas fa-check text-green-600 mr-2 mt-1"></i>
-                        <span>Guarantor required for loans &gt; $5,000</span>
-                    </li>
                 </ul>
             </div>
 
-            <!-- Tips Card -->
+            <!-- Tips -->
             <div class="bg-yellow-50 rounded-xl border border-yellow-200 p-6">
                 <h3 class="text-lg font-bold text-yellow-900 mb-4">
-                    <i class="fas fa-lightbulb mr-2"></i>Important Tips
+                    <i class="fas fa-lightbulb mr-2"></i>Tips
                 </h3>
                 <ul class="space-y-2 text-sm text-yellow-800">
                     <li class="flex items-start">
                         <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
-                        <span>Choose installments you can comfortably afford</span>
+                        <span>Enter months to auto-calculate the monthly amount</span>
                     </li>
                     <li class="flex items-start">
                         <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
-                        <span>Lower interest rates for longer employment</span>
+                        <span>You can manually override the monthly repayment</span>
                     </li>
                     <li class="flex items-start">
                         <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
@@ -381,11 +285,7 @@
                     </li>
                     <li class="flex items-start">
                         <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
-                        <span>Approval typically takes 3-5 business days</span>
-                    </li>
-                    <li class="flex items-start">
-                        <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
-                        <span>Supporting documents may be required</span>
+                        <span>Approval typically takes 3–5 business days</span>
                     </li>
                 </ul>
             </div>
@@ -394,49 +294,63 @@
 </div>
 
 <script>
-// Calculate monthly payment and total payable
 document.addEventListener('DOMContentLoaded', function() {
-    const loanAmountInput = document.getElementById('{{ form.loan_amount.id_for_label }}');
-    const interestRateInput = document.getElementById('{{ form.interest_rate.id_for_label }}');
-    const installmentCountInput = document.getElementById('{{ form.installment_count.id_for_label }}');
-    const monthlyPaymentDiv = document.getElementById('monthly-payment');
-    const totalPayableDiv = document.getElementById('total-payable');
+    const loanAmountInput = document.querySelector('input[name="loan_amount"]');
+    const interestRateInput = document.querySelector('input[name="interest_rate"]');
+    const installmentMonthsInput = document.getElementById('id_installment_months');
+    const monthlyRepaymentInput = document.querySelector('input[name="monthly_repayment"]');
+    const totalPayableEl = document.getElementById('total-payable');
+    const repaymentStartInput = document.querySelector('input[name="repayment_start_date"]');
+    const completionDateInput = document.querySelector('input[name="expected_completion_date"]');
 
-    function calculatePayment() {
+    function calculateAndFill() {
         const principal = parseFloat(loanAmountInput.value) || 0;
-        const annualRate = parseFloat(interestRateInput.value) || 0;
-        const months = parseInt(installmentCountInput.value) || 0;
+        const annualRate = parseFloat(interestRateInput ? interestRateInput.value : 0) || 0;
+        const months = parseInt(installmentMonthsInput.value) || 0;
 
         if (principal > 0 && months > 0) {
-            // Convert annual rate to monthly rate
             const monthlyRate = (annualRate / 100) / 12;
-            
-            let monthlyPayment;
+            let monthly;
             if (monthlyRate === 0) {
-                // No interest
-                monthlyPayment = principal / months;
+                monthly = principal / months;
             } else {
-                // Calculate using loan payment formula: P * [r(1+r)^n] / [(1+r)^n - 1]
                 const x = Math.pow(1 + monthlyRate, months);
-                monthlyPayment = principal * (monthlyRate * x) / (x - 1);
+                monthly = principal * (monthlyRate * x) / (x - 1);
             }
-            
-            const totalPayable = monthlyPayment * months;
-            
-            monthlyPaymentDiv.textContent = '$' + monthlyPayment.toFixed(2);
-            totalPayableDiv.textContent = 'Total: $' + totalPayable.toFixed(2);
+            const total = monthly * months;
+            monthlyRepaymentInput.value = monthly.toFixed(2);
+            totalPayableEl.textContent = 'KES ' + total.toLocaleString('en-KE', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+
+            // Auto-fill expected completion date from repayment start + months
+            if (repaymentStartInput.value && months > 0) {
+                const start = new Date(repaymentStartInput.value);
+                start.setMonth(start.getMonth() + months);
+                completionDateInput.value = start.toISOString().split('T')[0];
+            }
         } else {
-            monthlyPaymentDiv.textContent = '$0.00';
-            totalPayableDiv.textContent = 'Total: $0.00';
+            totalPayableEl.textContent = 'KES 0';
+        }
+
+        // Update total if monthly is edited manually
+        updateTotal();
+    }
+
+    function updateTotal() {
+        const months = parseInt(installmentMonthsInput.value) || 0;
+        const monthly = parseFloat(monthlyRepaymentInput.value) || 0;
+        if (months > 0 && monthly > 0) {
+            const total = months * monthly;
+            totalPayableEl.textContent = 'KES ' + total.toLocaleString('en-KE', {minimumFractionDigits: 0, maximumFractionDigits: 0});
         }
     }
 
-    loanAmountInput.addEventListener('input', calculatePayment);
-    interestRateInput.addEventListener('input', calculatePayment);
-    installmentCountInput.addEventListener('input', calculatePayment);
-    
-    // Calculate on page load if values exist
-    calculatePayment();
+    loanAmountInput.addEventListener('input', calculateAndFill);
+    if (interestRateInput) interestRateInput.addEventListener('input', calculateAndFill);
+    installmentMonthsInput.addEventListener('input', calculateAndFill);
+    monthlyRepaymentInput.addEventListener('input', updateTotal);
+    repaymentStartInput.addEventListener('change', calculateAndFill);
+
+    calculateAndFill();
 });
 </script>
 {% endblock %}

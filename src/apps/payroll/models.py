@@ -177,12 +177,12 @@ class SalaryStructure(models.Model):
     
     # Commission Structure
     commission_enabled = models.BooleanField(default=False)
-    commission_rate = models.DecimalField(
-        max_digits=5,
+    commission_amount = models.DecimalField(
+        max_digits=12,
         decimal_places=2,
         default=Decimal('0.00'),
-        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
-        help_text="Commission percentage"
+        validators=[MinValueValidator(Decimal('0'))],
+        help_text="Monthly commission amount (KES)"
     )
     
     # Overtime
@@ -256,11 +256,17 @@ class Commission(models.Model):
     commission_rate = models.DecimalField(
         max_digits=5,
         decimal_places=2,
+        null=True,
+        blank=True,
+        default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))]
     )
     base_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
+        null=True,
+        blank=True,
+        default=Decimal('0.00'),
         help_text="Amount commission is calculated from"
     )
     

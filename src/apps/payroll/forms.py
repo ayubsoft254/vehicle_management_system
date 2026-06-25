@@ -77,7 +77,7 @@ class SalaryStructureForm(forms.ModelForm):
             'basic_salary', 'currency',
             'housing_allowance', 'transport_allowance', 'medical_allowance',
             'meal_allowance', 'other_allowances',
-            'commission_enabled', 'commission_rate',
+            'commission_enabled', 'commission_amount',
             'overtime_enabled', 'overtime_rate',
             'effective_from', 'effective_to'
         ]
@@ -90,7 +90,7 @@ class SalaryStructureForm(forms.ModelForm):
             'meal_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
             'other_allowances': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
             'commission_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'commission_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'max': '100', 'placeholder': '0.00'}),
+            'commission_amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
             'overtime_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'overtime_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
             'effective_from': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
@@ -122,46 +122,22 @@ class SalaryStructureForm(forms.ModelForm):
 
 class CommissionForm(forms.ModelForm):
     """Form for recording employee commissions."""
-    
+
     class Meta:
         model = Commission
-        fields = [
-            'employee', 'description', 'base_amount', 'commission_rate',
-            'amount', 'commission_date', 'payroll_month',
-            'related_vehicle', 'related_client', 'notes'
-        ]
+        fields = ['employee', 'description', 'amount', 'commission_date', 'payroll_month', 'notes']
         widgets = {
-            'employee': forms.Select(attrs={'class': 'form-control select2'}),
-            'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Commission description'}),
-            'base_amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
-            'commission_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'max': '100'}),
-            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'employee': forms.Select(attrs={'class': 'form-control'}),
+            'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Vehicle sale commission — Client X'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
             'commission_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'payroll_month': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'related_vehicle': forms.Select(attrs={'class': 'form-control select2'}),
-            'related_client': forms.Select(attrs={'class': 'form-control select2'}),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Optional notes'}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        self.fields['related_vehicle'].required = False
-        self.fields['related_client'].required = False
         self.fields['notes'].required = False
-        
-        # Auto-calculate amount if base_amount and rate provided
-        if self.data:
-            try:
-                base = Decimal(self.data.get('base_amount', 0))
-                rate = Decimal(self.data.get('commission_rate', 0))
-                if base and rate:
-                    self.initial['amount'] = (base * rate) / Decimal('100')
-            except:
-                pass
-    
-    def clean(self):
-        return super().clean()
 
 
 class DeductionForm(forms.ModelForm):
@@ -359,45 +335,58 @@ class LeaveApprovalForm(forms.Form):
 
 class LoanForm(forms.ModelForm):
     """Form for employee loan applications."""
-    
+
+    # Helper field — not a model field; used only by JS to compute monthly repayment.
+    installment_months = forms.IntegerField(
+        required=False,
+        min_value=1,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g. 12',
+            'id': 'id_installment_months',
+        }),
+        label='Number of Months',
+    )
+
     class Meta:
         model = Loan
         fields = [
             'employee', 'loan_amount', 'interest_rate', 'monthly_repayment',
             'disbursement_date', 'repayment_start_date', 'expected_completion_date',
-            'purpose', 'notes'
+            'purpose', 'notes',
         ]
         widgets = {
-            'employee': forms.Select(attrs={'class': 'form-control select2'}),
-            'loan_amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
-            'interest_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'max': '100'}),
-            'monthly_repayment': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'employee': forms.Select(attrs={'class': 'form-control'}),
+            'loan_amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'interest_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'max': '100', 'placeholder': '0.00'}),
+            'monthly_repayment': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': 'Auto-calculated'}),
             'disbursement_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'repayment_start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'expected_completion_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'purpose': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Purpose of loan'}),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'purpose': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Purpose of loan'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Optional notes'}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['notes'].required = False
-    
+        self.fields['interest_rate'].required = False
+        self.fields['installment_months'].required = False
+
     def clean(self):
-        """Validate loan details."""
         cleaned_data = super().clean()
         disbursement_date = cleaned_data.get('disbursement_date')
         repayment_start_date = cleaned_data.get('repayment_start_date')
         expected_completion_date = cleaned_data.get('expected_completion_date')
-        
+
         if disbursement_date and repayment_start_date:
             if repayment_start_date < disbursement_date:
                 raise ValidationError('Repayment start date must be after disbursement date.')
-        
+
         if repayment_start_date and expected_completion_date:
             if expected_completion_date < repayment_start_date:
                 raise ValidationError('Completion date must be after repayment start date.')
-        
+
         return cleaned_data
 
 

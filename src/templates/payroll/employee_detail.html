@@ -57,10 +57,6 @@
             <p class="text-xs font-medium text-blue-900 uppercase">Tenure</p>
             <p class="text-2xl font-bold text-blue-900 mt-1">{{ tenure_years }} years</p>
         </div>
-        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-4">
-            <p class="text-xs font-medium text-green-900 uppercase">Department</p>
-            <p class="text-xl font-bold text-green-900 mt-1">{{ employee.department|default:"N/A" }}</p>
-        </div>
         <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-sm border border-purple-200 p-4">
             <p class="text-xs font-medium text-purple-900 uppercase">Job Title</p>
             <p class="text-xl font-bold text-purple-900 mt-1">{{ employee.job_title }}</p>
@@ -147,10 +143,6 @@
                                     <div>
                                         <dt class="text-sm font-medium text-gray-500">Job Title</dt>
                                         <dd class="mt-1 text-sm text-gray-900">{{ employee.job_title }}</dd>
-                                    </div>
-                                    <div>
-                                        <dt class="text-sm font-medium text-gray-500">Department</dt>
-                                        <dd class="mt-1 text-sm text-gray-900">{{ employee.department|default:"N/A" }}</dd>
                                     </div>
                                     <div>
                                         <dt class="text-sm font-medium text-gray-500">Employment Type</dt>
