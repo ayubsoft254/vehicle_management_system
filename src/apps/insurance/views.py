@@ -629,7 +629,8 @@ def payment_create(request, policy_pk):
     Record an insurance premium payment
     """
     policy = get_object_or_404(InsurancePolicy, pk=policy_pk)
-    
+    next_url = request.GET.get('next', '') or request.POST.get('next', '')
+
     if request.method == 'POST':
         form = InsurancePaymentForm(request.POST)
         if form.is_valid():
@@ -637,31 +638,39 @@ def payment_create(request, policy_pk):
             payment.policy = policy
             payment.recorded_by = request.user
             payment.save()
-            
+
+            # Update policy total_paid and balance
+            policy.insurance_total_paid = (policy.insurance_total_paid or Decimal('0.00')) + payment.amount
+            policy.insurance_balance = max(Decimal('0.00'), (policy.selling_price or Decimal('0.00')) - policy.insurance_total_paid)
+            policy.save(update_fields=['insurance_total_paid', 'insurance_balance'])
+
             # Link to oldest unpaid schedule (if policy has payment plan)
             if policy.has_payment_plan:
                 unpaid_schedule = policy.insurance_payment_schedules.filter(
                     is_paid=False
                 ).order_by('installment_number').first()
-                
+
                 if unpaid_schedule:
                     unpaid_schedule.mark_as_paid(payment, amount=payment.amount)
-            
+
             log_audit(
                 request.user, 'create', 'InsurancePayment',
                 f'Recorded payment {payment.receipt_number} for policy {policy.policy_number}'
             )
-            
+
             messages.success(request, f'Payment recorded successfully! Receipt: {payment.receipt_number}')
+            if next_url:
+                return redirect(next_url)
             return redirect('insurance:policy_detail', pk=policy.pk)
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
         form = InsurancePaymentForm(initial={'policy': policy, 'amount': policy.premium_amount})
-    
+
     context = {
         'form': form,
         'policy': policy,
+        'next': next_url,
         'today': timezone.now().date(),
         'title': f'Record Payment for Policy: {policy.policy_number}',
         'button_text': 'Record Payment'

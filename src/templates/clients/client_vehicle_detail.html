@@ -605,6 +605,41 @@
                                         <p class="font-semibold text-gray-800 truncate">{{ ins.policy.agent_name|default:"—" }}</p>
                                     </div>
                                 </div>
+
+                                <!-- Record Payment button -->
+                                {% if not ins.is_fully_paid %}
+                                <div class="mt-3 pt-3 border-t border-gray-200 flex justify-end">
+                                    <a href="{% url 'insurance:payment_create' ins.policy.pk %}?next={% url 'clients:client_vehicle_detail' client_vehicle.pk %}"
+                                       class="inline-flex items-center px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition">
+                                        <i class="fas fa-plus mr-1"></i>Record Payment
+                                    </a>
+                                </div>
+                                {% endif %}
+
+                                <!-- Payment history -->
+                                {% if ins.payment_records %}
+                                <div class="mt-3 pt-3 border-t border-gray-200">
+                                    <p class="text-xs font-semibold text-gray-600 mb-2">Payment History</p>
+                                    <div class="space-y-1">
+                                        {% if ins.policy.has_payment_plan and ins.policy.insurance_deposit > 0 %}
+                                        <div class="flex justify-between text-xs text-gray-600 bg-emerald-50 rounded px-2 py-1">
+                                            <span><i class="fas fa-circle text-emerald-400 mr-1" style="font-size:6px;vertical-align:middle"></i>Deposit ({{ ins.policy.start_date|date:"d M Y" }})</span>
+                                            <span class="font-semibold text-emerald-700">KES {{ ins.policy.insurance_deposit|floatformat:0 }}</span>
+                                        </div>
+                                        {% endif %}
+                                        {% for pmt in ins.payment_records %}
+                                        <div class="flex justify-between text-xs text-gray-600 bg-white border border-gray-100 rounded px-2 py-1">
+                                            <span>
+                                                <i class="fas fa-circle text-blue-400 mr-1" style="font-size:6px;vertical-align:middle"></i>
+                                                {{ pmt.payment_date|date:"d M Y" }}
+                                                <span class="text-gray-400 ml-1">· {{ pmt.receipt_number }}</span>
+                                            </span>
+                                            <span class="font-semibold text-emerald-700">KES {{ pmt.amount|floatformat:0 }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
                             {% endfor %}
                         </div>
@@ -629,6 +664,7 @@
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Paid</th>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Balance Owed</th>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-100">
@@ -650,7 +686,7 @@
                                             {% endif %}
                                         </td>
                                         <td class="px-4 py-3 text-emerald-700 font-semibold">KES {{ row.total_paid|floatformat:2 }}</td>
-                                        <td class="px-4 py-3 text-red-700 font-semibold">KES {{ row.balance|floatformat:2 }}</td>
+                                        <td class="px-4 py-3 {% if row.balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %} font-semibold">KES {{ row.balance|floatformat:2 }}</td>
                                         <td class="px-4 py-3">
                                             {% if row.is_fully_paid %}
                                             <span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">Fully Paid</span>
@@ -658,6 +694,15 @@
                                             <span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">Defaulted</span>
                                             {% else %}
                                             <span class="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">In Progress</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            {% if not row.is_fully_paid and row.tracker.has_payment_plan %}
+                                            <button type="button"
+                                                onclick="document.getElementById('trackerPayModal{{ row.tracker.pk }}').classList.remove('hidden')"
+                                                class="inline-flex items-center px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded transition">
+                                                <i class="fas fa-plus mr-1"></i>Pay
+                                            </button>
                                             {% endif %}
                                         </td>
                                     </tr>
@@ -668,6 +713,59 @@
                         {% else %}
                         <p class="text-sm text-gray-500">No trackers linked to this purchase.</p>
                         {% endif %}
+
+                        <!-- Tracker Payment Modals -->
+                        {% for row in tracker_payment_rows %}
+                        {% if not row.is_fully_paid and row.tracker.has_payment_plan %}
+                        <div id="trackerPayModal{{ row.tracker.pk }}" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-base font-bold text-gray-900">Record Tracker Payment</h3>
+                                    <button type="button" onclick="document.getElementById('trackerPayModal{{ row.tracker.pk }}').classList.add('hidden')"
+                                        class="text-gray-400 hover:text-gray-600">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <p class="text-sm text-gray-600 mb-4">
+                                    <span class="font-semibold">{{ row.tracker.tracker_name }}</span>
+                                    &nbsp;·&nbsp; Balance: <span class="text-red-600 font-semibold">KES {{ row.balance|floatformat:0 }}</span>
+                                </p>
+                                <form method="post" action="{% url 'clients:record_tracker_payment' row.tracker.pk %}">
+                                    {% csrf_token %}
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">Amount (KES)</label>
+                                            <input type="number" name="amount" step="0.01" min="0.01"
+                                                value="{{ row.monthly_installment|floatformat:2 }}"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" required>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">Payment Method</label>
+                                            <select name="payment_method" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                                <option value="cash">Cash</option>
+                                                <option value="mpesa">M-Pesa</option>
+                                                <option value="bank_transfer">Bank Transfer</option>
+                                                <option value="cheque">Cheque</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 mb-1">Notes (optional)</label>
+                                            <input type="text" name="notes" placeholder="Reference number, receipt, etc."
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 flex justify-end gap-2">
+                                        <button type="button" onclick="document.getElementById('trackerPayModal{{ row.tracker.pk }}').classList.add('hidden')"
+                                            class="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition">Cancel</button>
+                                        <button type="submit" class="px-4 py-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition">
+                                            <i class="fas fa-check mr-1"></i>Record Payment
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
 
                         <!-- Tracker Renewal Summary Cards -->
                         {% for row in tracker_payment_rows %}

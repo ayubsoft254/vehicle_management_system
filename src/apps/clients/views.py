@@ -1076,7 +1076,7 @@ def client_vehicle_detail(request, pk):
     all_insurance_policies = InsurancePolicy.objects.filter(
         vehicle=client_vehicle.vehicle,
         client=client_vehicle.client,
-    ).prefetch_related('insurance_payment_schedules').order_by('created_at')
+    ).prefetch_related('insurance_payment_schedules', 'payments').order_by('created_at')
 
     insurance_summary = None  # kept for backward compat (latest policy)
     insurance_policy_list = []
@@ -1084,17 +1084,22 @@ def client_vehicle_detail(request, pk):
 
     for ins_pol in all_insurance_policies:
         ins_schedules = ins_pol.insurance_payment_schedules.all()
-        ins_total_paid = ins_schedules.aggregate(total=models.Sum('amount_paid'))['total'] or Decimal('0.00')
+        ins_schedule_paid = ins_schedules.aggregate(total=models.Sum('amount_paid'))['total'] or Decimal('0.00')
+        ins_payment_records = list(ins_pol.payments.order_by('-payment_date'))
 
         if ins_pol.has_payment_plan and ins_schedules.exists():
+            # Deposit counts as first payment; schedules cover the installments after deposit
+            ins_total_paid = (ins_pol.insurance_deposit or Decimal('0.00')) + ins_schedule_paid
             ins_total_due = ins_schedules.aggregate(total=models.Sum('amount_due'))['total'] or Decimal('0.00')
-            ins_balance = max(Decimal('0.00'), ins_total_due - ins_total_paid)
+            ins_balance = max(Decimal('0.00'), ins_total_due - ins_schedule_paid)
             ins_next_payment = ins_schedules.filter(is_paid=False).order_by('due_date').first()
             ins_monthly = ins_pol.insurance_monthly_installment or (
                 ins_next_payment.amount_due if ins_next_payment else Decimal('0.00')
             )
             ins_is_defaulted = ins_schedules.filter(is_paid=False, due_date__lt=today).exists()
         else:
+            # Full payment or deduct_from_deposit — use the stored total on the policy
+            ins_total_paid = ins_pol.insurance_total_paid or Decimal('0.00')
             ins_balance = max(Decimal('0.00'), (ins_pol.selling_price or Decimal('0.00')) - ins_total_paid)
             ins_next_payment = None
             ins_monthly = Decimal('0.00')
@@ -1109,6 +1114,7 @@ def client_vehicle_detail(request, pk):
             'is_defaulted': ins_is_defaulted,
             'is_fully_paid': ins_balance <= Decimal('0.00'),
             'is_renewal': ins_pol.renewal_of_id is not None,
+            'payment_records': ins_payment_records,
         }
         insurance_policy_list.append(row)
         if ins_pol.status == 'active':
@@ -2470,4 +2476,39 @@ def renew_tracker(request, tracker_pk):
     log_audit(request.user, 'create', 'VehicleTracker',
               f'Renewed tracker "{name}" for {client_vehicle}')
     messages.success(request, f'Tracker "{name}" renewed successfully.')
+    return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
+
+
+@login_required
+def record_tracker_payment(request, tracker_pk):
+    """Record a payment against a VehicleTracker installment plan."""
+    tracker = get_object_or_404(VehicleTracker, pk=tracker_pk)
+    client_vehicle = tracker.client_vehicle
+
+    if request.method != 'POST':
+        return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
+
+    amount_str = request.POST.get('amount', '').strip()
+    payment_method = request.POST.get('payment_method', 'cash').strip()
+    notes = request.POST.get('notes', '').strip()
+
+    try:
+        amount = Decimal(amount_str)
+        if amount <= Decimal('0'):
+            raise ValueError
+    except Exception:
+        messages.error(request, 'Invalid payment amount.')
+        return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
+
+    if amount > (tracker.balance or Decimal('0.00')):
+        amount = tracker.balance or Decimal('0.00')
+
+    tracker.total_paid = (tracker.total_paid or Decimal('0.00')) + amount
+    tracker.balance = max(Decimal('0.00'), (tracker.balance or Decimal('0.00')) - amount)
+    tracker.save(update_fields=['total_paid', 'balance'])
+
+    log_audit(request.user, 'update', 'VehicleTracker',
+              f'Recorded payment KES {amount:,.2f} for tracker "{tracker.tracker_name}" '
+              f'(method: {payment_method}){". " + notes if notes else ""}')
+    messages.success(request, f'Payment of KES {amount:,.0f} recorded for tracker "{tracker.tracker_name}".')
     return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
