@@ -38,19 +38,19 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Purchased</p>
-            <p class="text-xl font-bold text-blue-700 mt-1">KES {{ grand_total|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-blue-700 mt-1">USD {{ grand_total|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-0.5">All supplier records</p>
         </div>
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Settled</p>
-            <p class="text-xl font-bold text-green-700 mt-1">KES {{ grand_settled|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-green-700 mt-1">USD {{ grand_settled|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-0.5">
                 {% if grand_total %}{% widthratio grand_settled grand_total 100 %}% of total{% else %}0%{% endif %}
             </p>
         </div>
         <div class="bg-white rounded-xl border border-red-100 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Outstanding</p>
-            <p class="text-xl font-bold text-red-700 mt-1">KES {{ grand_owed|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-red-700 mt-1">USD {{ grand_owed|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-0.5">Unpaid to suppliers</p>
         </div>
     </div>
@@ -73,8 +73,8 @@
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Supplier</th>
                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Contact</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Vehicles</th>
-                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Total (KES)</th>
-                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Outstanding (KES)</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Total (USD)</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Outstanding (USD)</th>
                         <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
                         <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Action</th>
                     </tr>
