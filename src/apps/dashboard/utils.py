@@ -173,13 +173,23 @@ def get_dashboard_overview_data(user=None):
         'installment_plan__client_vehicle__vehicle',
     ).order_by('due_date')
 
+    # Total overdue = sum of unpaid portions of all overdue scheduled installments
+    agg = overdue_schedules_qs.aggregate(
+        total_due=Sum('amount_due'),
+        total_paid=Sum('amount_paid'),
+    )
+    total_overdue_amount = (
+        (agg['total_due'] or Decimal('0.00')) - (agg['total_paid'] or Decimal('0.00'))
+    )
+
     seen_clients = {}
-    for sched in overdue_schedules_qs[:50]:
+    for sched in overdue_schedules_qs:
         ip     = sched.installment_plan
         cv     = ip.client_vehicle
         client = cv.client
         cid    = client.pk
         days_od = (today - sched.due_date).days
+        sched_overdue = float(max(sched.amount_due - sched.amount_paid, Decimal('0.00')))
         if cid not in seen_clients:
             seen_clients[cid] = {
                 'client_id':         cid,
@@ -187,23 +197,16 @@ def get_dashboard_overview_data(user=None):
                 'phone':             client.phone_primary or '',
                 'vehicle':           str(cv.vehicle),
                 'client_vehicle_id': cv.pk,
-                'overdue_amount':    float(cv.balance),
+                'overdue_amount':    sched_overdue,
                 'overdue_since':     sched.due_date.isoformat(),
                 'days_overdue':      days_od,
             }
         else:
+            seen_clients[cid]['overdue_amount'] += sched_overdue
             if days_od > seen_clients[cid]['days_overdue']:
                 seen_clients[cid]['days_overdue'] = days_od
 
     defaulters = sorted(seen_clients.values(), key=lambda x: x['days_overdue'], reverse=True)[:10]
-
-    # Use ClientVehicle.balance as the authoritative overdue total
-    overdue_cv_ids = overdue_schedules_qs.values_list(
-        'installment_plan__client_vehicle__id', flat=True
-    ).distinct()
-    total_overdue_amount = ClientVehicle.objects.filter(
-        id__in=overdue_cv_ids
-    ).aggregate(total=Sum('balance'))['total'] or Decimal('0.00')
 
     collection_rate = Decimal('0.00')
     if total_sales_revenue > 0:
@@ -229,6 +232,11 @@ def get_dashboard_overview_data(user=None):
     daily_money_out = Expense.objects.filter(
         expense_date=today
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+    # Expected payments today: sum of scheduled installments due today
+    daily_expected_today = PaymentSchedule.objects.filter(
+        due_date=today,
+    ).aggregate(total=Sum('amount_due'))['total'] or Decimal('0.00')
 
     # ── RECENT SALES ──────────────────────────────────────────────────
     recent_sales = list(
@@ -351,6 +359,7 @@ def get_dashboard_overview_data(user=None):
             'vehicles_sold_amount': float(daily_vehicles_sold_amount),
             'trackers_sold_count': daily_trackers_sold_count,
             'insurance_sold_count': daily_insurance_sold_count,
+            'expected_today': float(daily_expected_today),
             'money_in': float(total_payments_today),
             'money_in_count': payments_count_today,
             'money_out': float(daily_money_out),
