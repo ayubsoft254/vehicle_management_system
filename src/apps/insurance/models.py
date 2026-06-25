@@ -375,6 +375,16 @@ class InsurancePolicy(models.Model):
         help_text='Auto-calculated total including interest'
     )
 
+    # Renewal tracking
+    renewal_of = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='renewals',
+        help_text='The policy this was renewed from',
+    )
+
     # System Fields
     created_by = models.ForeignKey(
         User,

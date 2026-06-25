@@ -1373,10 +1373,19 @@ def japan_supplier_ledger_detail(request, pk):
     supplier = get_object_or_404(JapanSupplier, pk=pk)
     records = supplier.supplier_records.select_related('vehicle').order_by('-date')
     payments = supplier.payments.select_related('recorded_by').order_by('-payment_date')
+
+    vehicle_search = request.GET.get('vehicle_search', '').strip()
+    if vehicle_search:
+        records = records.filter(
+            Q(vehicle__vin__icontains=vehicle_search) |
+            Q(vehicle__registration_number__icontains=vehicle_search)
+        )
+
     context = {
         'supplier': supplier,
         'records': records,
         'payments': payments,
+        'vehicle_search': vehicle_search,
     }
     return render(request, 'vehicles/japan_supplier_ledger_detail.html', context)
 

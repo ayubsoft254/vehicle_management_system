@@ -177,11 +177,22 @@ def policy_detail(request, pk):
     claims = InsuranceClaim.objects.filter(policy=policy).order_by('-claim_date')
     payments = InsurancePayment.objects.filter(policy=policy).order_by('-payment_date')
     payment_schedules = policy.insurance_payment_schedules.all().order_by('installment_number')
-    
+
     # Update late fees for all overdue schedules
     for schedule in payment_schedules.filter(is_paid=False):
         schedule.update_late_fees()
-    
+
+    # Renewal tracking: find renewal policies for this policy
+    renewal_policies = list(policy.renewals.order_by('start_date'))
+    renewal_total_balance = sum((r.insurance_balance for r in renewal_policies), Decimal('0.00'))
+    renewal_total_deposit = sum((r.insurance_deposit for r in renewal_policies), Decimal('0.00'))
+    combined_owed = policy.insurance_balance + renewal_total_balance
+
+    # If this policy IS a renewal, also surface the original policy balance
+    original_policy = policy.renewal_of
+    original_balance = original_policy.insurance_balance if original_policy else Decimal('0.00')
+    combined_owed_with_original = policy.insurance_balance + original_balance
+
     context = {
         'policy': policy,
         'claims': claims,
@@ -189,6 +200,13 @@ def policy_detail(request, pk):
         'payment_schedules': payment_schedules,
         'total_claims': claims.count(),
         'total_payments': payments.aggregate(Sum('amount'))['amount__sum'] or 0,
+        'renewal_policies': renewal_policies,
+        'renewal_total_balance': renewal_total_balance,
+        'renewal_total_deposit': renewal_total_deposit,
+        'combined_owed': combined_owed,
+        'original_policy': original_policy,
+        'original_balance': original_balance,
+        'combined_owed_with_original': combined_owed_with_original,
     }
     
     log_audit(request.user, 'view', 'InsurancePolicy', f'Viewed policy: {policy.policy_number}')
@@ -334,6 +352,7 @@ def policy_renew(request, pk):
                     insurance_balance=ins_balance,
                     insurance_interest_rate=Decimal('0.00'),
                     status='active',
+                    renewal_of=old_policy,
                     created_by=request.user
                 )
 

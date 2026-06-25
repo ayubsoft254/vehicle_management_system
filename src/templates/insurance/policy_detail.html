@@ -277,6 +277,111 @@
                 </div>
             {% endif %}
 
+            <!-- Renewal Tracking: this policy has been renewed -->
+            {% if renewal_policies %}
+            <div class="bg-blue-50 rounded-xl border border-blue-200 p-6">
+                <h2 class="text-base font-bold text-blue-800 mb-4 flex items-center">
+                    <i class="fas fa-sync-alt text-blue-600 mr-2"></i>Renewal Info
+                </h2>
+                {% for rp in renewal_policies %}
+                <div class="mb-3 pb-3 {% if not forloop.last %}border-b border-blue-200{% endif %}">
+                    <div class="flex items-center justify-between mb-1">
+                        <a href="{% url 'insurance:policy_detail' rp.pk %}" class="text-sm font-semibold text-blue-700 hover:underline">{{ rp.policy_number }}</a>
+                        <span class="text-xs px-2 py-0.5 rounded-full {% if rp.status == 'active' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-700{% endif %}">{{ rp.get_status_display }}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-x-3 text-xs text-blue-700 mt-1">
+                        <div>
+                            <p class="text-blue-500">Period</p>
+                            <p class="font-medium">{{ rp.start_date|date:"d M Y" }} → {{ rp.end_date|date:"d M Y" }}</p>
+                        </div>
+                        <div>
+                            <p class="text-blue-500">Selling Price</p>
+                            <p class="font-medium">KES {{ rp.selling_price|floatformat:0 }}</p>
+                        </div>
+                        {% if rp.payment_type == 'flexible' %}
+                        <div>
+                            <p class="text-blue-500">Deposit Paid</p>
+                            <p class="font-semibold text-emerald-700">KES {{ rp.insurance_deposit|floatformat:0 }}</p>
+                        </div>
+                        <div>
+                            <p class="text-blue-500">Renewal Balance</p>
+                            <p class="font-semibold {% if rp.insurance_balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">KES {{ rp.insurance_balance|floatformat:0 }}</p>
+                        </div>
+                        {% else %}
+                        <div>
+                            <p class="text-blue-500">Payment Type</p>
+                            <p class="font-medium">{{ rp.get_payment_type_display }}</p>
+                        </div>
+                        <div>
+                            <p class="text-blue-500">Balance</p>
+                            <p class="font-semibold {% if rp.insurance_balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">KES {{ rp.insurance_balance|floatformat:0 }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Combined owed summary -->
+                <div class="mt-3 pt-3 border-t border-blue-300 space-y-1.5 text-sm">
+                    {% if policy.insurance_balance > 0 %}
+                    <div class="flex justify-between text-gray-700">
+                        <span>Current policy balance</span>
+                        <span class="font-medium text-red-600">KES {{ policy.insurance_balance|floatformat:0 }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="flex justify-between text-gray-700">
+                        <span>Renewal balance(s)</span>
+                        <span class="font-medium text-red-600">KES {{ renewal_total_balance|floatformat:0 }}</span>
+                    </div>
+                    {% if renewal_total_deposit > 0 %}
+                    <div class="flex justify-between text-gray-700">
+                        <span>Deposit(s) recorded</span>
+                        <span class="font-medium text-emerald-700">KES {{ renewal_total_deposit|floatformat:0 }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="flex justify-between font-bold text-base pt-1 border-t border-blue-300 mt-1">
+                        <span class="text-gray-800">Total Owed</span>
+                        <span class="text-red-700">KES {{ combined_owed|floatformat:0 }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Renewal Tracking: this policy IS a renewal -->
+            {% if original_policy %}
+            <div class="bg-indigo-50 rounded-xl border border-indigo-200 p-6">
+                <h2 class="text-base font-bold text-indigo-800 mb-3 flex items-center">
+                    <i class="fas fa-history text-indigo-600 mr-2"></i>Renewed From
+                </h2>
+                <div class="text-sm space-y-2 text-indigo-800">
+                    <div class="flex items-center justify-between">
+                        <a href="{% url 'insurance:policy_detail' original_policy.pk %}" class="font-semibold text-indigo-700 hover:underline">{{ original_policy.policy_number }}</a>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{{ original_policy.get_status_display }}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mt-2">
+                        <div>
+                            <p class="text-indigo-500 text-xs">Original Balance</p>
+                            <p class="font-semibold {% if original_balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">KES {{ original_balance|floatformat:0 }}</p>
+                        </div>
+                        <div>
+                            <p class="text-indigo-500 text-xs">This Policy Balance</p>
+                            <p class="font-semibold {% if policy.insurance_balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">KES {{ policy.insurance_balance|floatformat:0 }}</p>
+                        </div>
+                        {% if policy.insurance_deposit > 0 %}
+                        <div class="col-span-2">
+                            <p class="text-indigo-500 text-xs">Deposit Recorded</p>
+                            <p class="font-semibold text-emerald-700">KES {{ policy.insurance_deposit|floatformat:0 }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="flex justify-between font-bold text-base pt-2 border-t border-indigo-300 mt-2">
+                        <span>Total Owed</span>
+                        <span class="text-red-700">KES {{ combined_owed_with_original|floatformat:0 }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- System Information -->
             <div class="bg-white rounded-xl shadow-md p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">

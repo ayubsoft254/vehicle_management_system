@@ -68,8 +68,21 @@
 
     <!-- Vehicle Purchase Records -->
     <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h2 class="text-lg font-semibold text-gray-900">Vehicle Purchase Records ({{ records|length }})</h2>
+            <form method="get" class="flex items-center gap-2">
+                <input type="text" name="vehicle_search" value="{{ vehicle_search }}"
+                    placeholder="Search chassis / reg no..."
+                    class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-56">
+                <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg transition">
+                    <i class="fas fa-search mr-1"></i>Search
+                </button>
+                {% if vehicle_search %}
+                <a href="?" class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition">
+                    Clear
+                </a>
+                {% endif %}
+            </form>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
