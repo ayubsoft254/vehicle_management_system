@@ -1106,13 +1106,18 @@ def overdue_payments(request):
         cutoff_date = today - timedelta(days=min_days)
         overdue_schedules = overdue_schedules.filter(due_date__lte=cutoff_date)
     
-    # Calculate totals
-    total_overdue_amount = overdue_schedules.aggregate(
-        total=Sum(F('amount_due') - F('amount_paid'))
-    )['total'] or 0
+    # Total overdue balance: sum of ClientVehicle.balance for each distinct vehicle
+    # with at least one overdue schedule (authoritative stored balance, not installment sums).
+    overdue_cv_ids = overdue_schedules.values_list(
+        'installment_plan__client_vehicle__id', flat=True
+    ).distinct()
+    total_overdue_amount = ClientVehicle.objects.filter(
+        id__in=overdue_cv_ids
+    ).aggregate(total=Sum('balance'))['total'] or Decimal('0.00')
+
     total_late_fees = overdue_schedules.aggregate(
         total=Sum('late_fee_applied')
-    )['total'] or 0
+    )['total'] or Decimal('0.00')
     total_overdue_with_fees = total_overdue_amount + total_late_fees
 
     total_overdue_count = overdue_schedules.count()
@@ -1131,7 +1136,9 @@ def overdue_payments(request):
     page_obj = paginator.get_page(page_number)
 
     for schedule in page_obj:
-        schedule.total_due_with_late_fee = schedule.remaining_amount + (schedule.late_fee_applied or 0)
+        cv_balance = schedule.installment_plan.client_vehicle.balance or Decimal('0.00')
+        schedule.balance_due = cv_balance
+        schedule.total_due_with_late_fee = cv_balance + (schedule.late_fee_applied or Decimal('0.00'))
     
     context = {
         'overdue_schedules': page_obj,
