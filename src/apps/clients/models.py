@@ -1183,3 +1183,49 @@ class AgreementSignature(models.Model):
 
     def __str__(self):
         return f"Signature: {self.signer_name} — {self.client_vehicle}"
+
+
+class AgreementVersion(models.Model):
+    """
+    A frozen snapshot of the sales agreement at a point in time.
+    Version 1 is created automatically on first signing (original).
+    Subsequent versions are created manually when the user revises the agreement.
+    """
+
+    client_vehicle = models.ForeignKey(
+        ClientVehicle,
+        on_delete=models.CASCADE,
+        related_name='agreement_versions',
+    )
+
+    version_number = models.PositiveIntegerField()
+
+    label = models.CharField(
+        max_length=200,
+        default='',
+        help_text='Short description, e.g. "Original Signed Agreement" or "Revision 1"',
+    )
+
+    snapshot = models.JSONField(
+        help_text='Frozen vehicle/client/purchase/insurance/tracker data at version creation time',
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    created_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='agreement_versions_created',
+    )
+
+    class Meta:
+        db_table = 'agreement_versions'
+        ordering = ['version_number']
+        unique_together = [('client_vehicle', 'version_number')]
+        verbose_name = 'Agreement Version'
+        verbose_name_plural = 'Agreement Versions'
+
+    def __str__(self):
+        return f"v{self.version_number} — {self.label} ({self.client_vehicle})"

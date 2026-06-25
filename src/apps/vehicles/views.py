@@ -281,11 +281,9 @@ def vehicle_detail_view(request, pk):
             .order_by('-initiated_date')
         )
         for repo in repossession_history:
-            repossession_cost_total += repo.total_cost
-            repossession_cost_total += repo.get_expense_total()
-            repossession_cost_total += repo.additional_cost_items.aggregate(
-                t=Sum('amount')
-            )['t'] or Decimal('0.00')
+            # get_total_additional_costs = total_cost + expense_total
+            # additional_cost_items are sub-items of additional_costs (already in total_cost)
+            repossession_cost_total += repo.get_total_additional_costs()
             repossession_outstanding_total += repo.outstanding_amount
 
     if repossession_history:

@@ -944,18 +944,18 @@ def assign_vehicle(request, client_pk):
     # Get vehicle prices for JavaScript
     vehicles_qs = Vehicle.objects.filter(status='available').prefetch_related('repossessions__expenses', 'repossessions__additional_cost_items')
     vehicle_prices = {}
+    vehicle_cost_prices = {}
     for v in vehicles_qs:
         latest_repo = v.repossessions.order_by('-initiated_date').first()
         if latest_repo:
-            repo_costs = sum(
-                (r.total_cost + r.get_expense_total() +
-                 (r.additional_cost_items.aggregate(t=Sum('amount'))['t'] or Decimal('0.00')))
-                for r in v.repossessions.all()
-            )
-            vehicle_prices[v.id] = float(latest_repo.outstanding_amount + repo_costs)
+            # Use get_total_amount_due() — outstanding_amount + total_cost + expense_total
+            # (additional_cost_items are sub-items of additional_costs, already in total_cost)
+            repo_total = float(latest_repo.get_total_amount_due())
+            vehicle_prices[v.id] = repo_total
+            vehicle_cost_prices[v.id] = repo_total
         else:
             vehicle_prices[v.id] = float(v.website_display_price or Decimal('0.00'))
-    vehicle_cost_prices = {v.id: float(v.total_program_cost) for v in vehicles_qs}
+            vehicle_cost_prices[v.id] = float(v.total_program_cost)
 
     # Get insurance and tracker agents
     from apps.insurance.models import InsuranceAgent
@@ -1159,6 +1159,8 @@ def client_vehicle_detail(request, pk):
     
     tracker_agents = TrackerAgent.objects.filter(is_active=True).order_by('name')
 
+    agreement_versions = list(client_vehicle.agreement_versions.order_by('version_number'))
+
     context = {
         'client_vehicle': client_vehicle,
         'payments': payments,
@@ -1176,6 +1178,7 @@ def client_vehicle_detail(request, pk):
         'active_insurance_policy': active_insurance_policy,
         'tracker_payment_rows': tracker_payment_rows,
         'tracker_agents': tracker_agents,
+        'agreement_versions': agreement_versions,
     }
     
     log_audit(
@@ -1721,6 +1724,21 @@ def sign_agreement_online(request, pk):
                     ip_address=ip,
                     signed_by=request.user if request.user.is_authenticated else None,
                 )
+                # Auto-create Version 1 (original) on first signing
+                try:
+                    from .models import AgreementVersion
+                    snap = _build_agreement_snapshot(client_vehicle)
+                    AgreementVersion.objects.get_or_create(
+                        client_vehicle=client_vehicle,
+                        version_number=1,
+                        defaults={
+                            'label': 'Original Signed Agreement',
+                            'snapshot': snap,
+                            'created_by': request.user if request.user.is_authenticated else None,
+                        },
+                    )
+                except Exception:
+                    pass
 
             log_audit(
                 request.user if request.user.is_authenticated else None,
@@ -1743,35 +1761,165 @@ def sign_agreement_online(request, pk):
     return render(request, 'clients/sign_agreement_online.html', context)
 
 
-def download_sales_agreement(request, client_vehicle_pk):
+def _build_agreement_snapshot(client_vehicle):
+    """Capture all agreement-relevant data into a JSON-serialisable dict."""
+    vehicle = client_vehicle.vehicle
+    client = client_vehicle.client
+
+    from apps.insurance.models import InsurancePolicy
+    insurance_policy = InsurancePolicy.objects.filter(
+        vehicle=vehicle,
+        client=client,
+    ).order_by('-created_at').first()
+
+    si = None
+    if insurance_policy:
+        schedules = list(insurance_policy.insurance_payment_schedules.order_by('installment_number'))
+        si = {
+            'selling_price': str(insurance_policy.selling_price or '0'),
+            'payment_type': insurance_policy.payment_type or '',
+            'vehicle_usage': insurance_policy.vehicle_usage or '',
+            'has_payment_plan': bool(insurance_policy.has_payment_plan),
+            'insurance_installment_months': insurance_policy.insurance_installment_months,
+            'insurance_deposit': str(insurance_policy.insurance_deposit or '0'),
+            'insurance_total_paid': str(insurance_policy.insurance_total_paid or '0'),
+            'schedules': [
+                {
+                    'installment_number': s.installment_number,
+                    'due_date': s.due_date.strftime('%Y-%m-%d') if s.due_date else '',
+                    'amount_due': str(s.amount_due or '0'),
+                    'is_paid': bool(s.is_paid),
+                }
+                for s in schedules
+            ],
+        }
+
+    tracker_snapshots = []
+    for tracker in client_vehicle.trackers.all().order_by('created_at'):
+        tracker_snapshots.append({
+            'tracker_name': tracker.tracker_name or '',
+            'selling_price': str(tracker.selling_price or '0'),
+            'payment_type': tracker.payment_type or '',
+            'has_payment_plan': bool(tracker.has_payment_plan),
+            'installment_months': tracker.installment_months,
+            'deposit': str(tracker.deposit or '0'),
+            'total_paid': str(tracker.total_paid or '0'),
+            'installments_json': tracker.installments_json or '[]',
+            'payment_method': getattr(tracker, 'payment_method', '') or '',
+            'monthly_installment': str(tracker.monthly_installment) if tracker.monthly_installment else None,
+        })
+
+    return {
+        'vehicle': {
+            'make': vehicle.make or '',
+            'model': vehicle.model or '',
+            'registration_number': vehicle.registration_number or '',
+            'vin': vehicle.vin or '',
+            'engine_number': vehicle.engine_number or '',
+            'fuel_type': vehicle.fuel_type or '',
+            'engine_size': vehicle.engine_size or '',
+            'color': vehicle.color or '',
+            'year': vehicle.year,
+        },
+        'client': {
+            'full_name': client.get_full_name(),
+            'phone_primary': client.phone_primary or '',
+            'id_number': client.id_number or '',
+            'kra_pin': client.kra_pin or '',
+            'email': client.email or '',
+            'postal_address': client.postal_address or '',
+            'city': client.city or '',
+            'physical_address': client.physical_address or '',
+            'next_of_kin_phone': client.next_of_kin_phone or '',
+        },
+        'purchase': {
+            'purchase_price': str(client_vehicle.purchase_price or '0'),
+            'deposit_paid': str(client_vehicle.deposit_paid or '0'),
+            'balance': str(client_vehicle.balance or '0'),
+            'payment_type': client_vehicle.payment_type or '',
+            'installment_months': client_vehicle.installment_months,
+            'purchase_date': client_vehicle.purchase_date.strftime('%Y-%m-%d') if client_vehicle.purchase_date else '',
+            'other_payment_details': client_vehicle.other_payment_details or '',
+        },
+        'insurance': si,
+        'trackers': tracker_snapshots,
+    }
+
+
+@login_required
+def download_sales_agreement(request, client_vehicle_pk, version_id=None):
     """
-    Download sales agreement PDF for a vehicle purchase
+    Download sales agreement PDF for a vehicle purchase.
+    If version_id is provided, use the frozen snapshot for that version.
     """
     client_vehicle = get_object_or_404(ClientVehicle, pk=client_vehicle_pk)
-    
+
     # Only client portal users are restricted to their own vehicles.
     client_profile = getattr(request.user, 'client_profile', None)
     if request.user.role == UserRole.CLIENT and client_profile != client_vehicle.client:
         return JsonResponse({'error': 'Unauthorized'}, status=403)
-    
+
     try:
         from apps.documents.sales_agreement_pdf import generate_sales_agreement_pdf
-        
-        pdf_buffer = generate_sales_agreement_pdf(client_vehicle)
-        
+        from .models import AgreementVersion
+
+        snapshot = None
+        version_label = ''
+        if version_id:
+            version = get_object_or_404(AgreementVersion, pk=version_id, client_vehicle=client_vehicle)
+            snapshot = version.snapshot
+            version_label = f'_v{version.version_number}'
+
+        pdf_buffer = generate_sales_agreement_pdf(client_vehicle, snapshot=snapshot)
+
+        reg_no = (snapshot or {}).get('vehicle', {}).get('registration_number') or client_vehicle.vehicle.registration_number or ''
         response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
-        filename = f"Sales_Agreement_{client_vehicle.vehicle.registration_number}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        filename = f"Sales_Agreement_{reg_no}{version_label}_{datetime.now().strftime('%Y%m%d')}.pdf"
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
+
         log_audit(
             request.user, 'download', 'ClientVehicle',
-            f'Downloaded sales agreement for {client_vehicle.client.get_full_name()}'
+            f'Downloaded sales agreement{"" if not version_id else f" v{version.version_number}"} for {client_vehicle.client.get_full_name()}'
         )
-        
+
         return response
     except Exception as e:
         messages.error(request, f'Error generating PDF: {str(e)}')
         return redirect('clients:client_vehicle_detail', pk=client_vehicle_pk)
+
+
+@login_required
+def create_agreement_revision(request, pk):
+    """
+    Snapshot the current agreement data as a new version.
+    Staff use this after updating a field (e.g. registration number) to create
+    a revised version while keeping the original intact.
+    """
+    client_vehicle = get_object_or_404(ClientVehicle, pk=pk)
+
+    if request.method == 'POST':
+        from .models import AgreementVersion
+        last_version = client_vehicle.agreement_versions.order_by('-version_number').first()
+        next_version_number = (last_version.version_number + 1) if last_version else 1
+        if next_version_number == 1:
+            label = 'Original Signed Agreement'
+        else:
+            label = f'Revision {next_version_number - 1}'
+        custom_label = request.POST.get('label', '').strip()
+        if custom_label:
+            label = custom_label
+
+        snapshot = _build_agreement_snapshot(client_vehicle)
+        AgreementVersion.objects.create(
+            client_vehicle=client_vehicle,
+            version_number=next_version_number,
+            label=label,
+            snapshot=snapshot,
+            created_by=request.user,
+        )
+        messages.success(request, f'Agreement version {next_version_number} ({label}) saved.')
+
+    return redirect('clients:client_vehicle_detail', pk=pk)
 
 
 # ==================== PAYMENT VIEWS ====================

@@ -16,7 +16,7 @@ from reportlab.lib import colors
 from django.utils import timezone
 
 
-def generate_sales_agreement_pdf(client_vehicle):
+def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
     """
     Generate a PDF sales agreement for a vehicle purchase
     
@@ -27,7 +27,9 @@ def generate_sales_agreement_pdf(client_vehicle):
         BytesIO object containing the PDF
     """
     buffer = BytesIO()
-    
+
+    _title_reg = (snapshot or {}).get('vehicle', {}).get('registration_number') or client_vehicle.vehicle.registration_number or ''
+
     # Create PDF document
     doc = SimpleDocTemplate(
         buffer,
@@ -36,7 +38,7 @@ def generate_sales_agreement_pdf(client_vehicle):
         leftMargin=1*cm,
         topMargin=1*cm,
         bottomMargin=1*cm,
-        title=f"Sales Agreement - {client_vehicle.vehicle.registration_number}"
+        title=f"Sales Agreement - {_title_reg}"
     )
     
     # Get styles
@@ -81,38 +83,132 @@ def generate_sales_agreement_pdf(client_vehicle):
     # Build the content
     elements = []
 
-    vehicle = client_vehicle.vehicle
-    client = client_vehicle.client
-
-    # Try to get installment plan (may not exist)
-    try:
-        plan = client_vehicle.installment_plan
-    except Exception:
+    if snapshot:
+        from types import SimpleNamespace
+        from datetime import datetime as _snap_dt
+        sv = snapshot.get('vehicle', {})
+        sc = snapshot.get('client', {})
+        sp = snapshot.get('purchase', {})
+        _fn = sc.get('full_name', '')
+        vehicle = SimpleNamespace(
+            make=sv.get('make', ''),
+            model=sv.get('model', ''),
+            registration_number=sv.get('registration_number', ''),
+            vin=sv.get('vin', ''),
+            engine_number=sv.get('engine_number', ''),
+            fuel_type=sv.get('fuel_type', ''),
+            engine_size=sv.get('engine_size', ''),
+            color=sv.get('color', ''),
+            year=sv.get('year', ''),
+        )
+        client = SimpleNamespace(
+            get_full_name=lambda: _fn,
+            phone_primary=sc.get('phone_primary', ''),
+            id_number=sc.get('id_number', ''),
+            kra_pin=sc.get('kra_pin', ''),
+            email=sc.get('email', ''),
+            postal_address=sc.get('postal_address', ''),
+            city=sc.get('city', ''),
+            physical_address=sc.get('physical_address', ''),
+            next_of_kin_phone=sc.get('next_of_kin_phone', ''),
+        )
         plan = None
-
-    # Pull optional insurance policy and tracker data for agreement visibility.
-    try:
-        from apps.insurance.models import InsurancePolicy
-        insurance_policy = InsurancePolicy.objects.filter(
-            vehicle=vehicle,
-            client=client,
-        ).order_by('-created_at').first()
-    except Exception:
-        insurance_policy = None
-
-    trackers = list(client_vehicle.trackers.all().order_by('created_at'))
-    try:
-        agreement_signature = client_vehicle.agreement_signature
-    except Exception:
-        agreement_signature = None
-
-    selected_months = None
-    if plan and plan.number_of_installments:
-        selected_months = plan.number_of_installments
-    elif client_vehicle.installment_months:
-        selected_months = client_vehicle.installment_months
-
-    is_full_payment = (client_vehicle.payment_type == 'full') or ((client_vehicle.balance or Decimal('0.00')) <= Decimal('0.00'))
+        _purchase_price = Decimal(str(sp.get('purchase_price') or '0'))
+        _deposit_paid = Decimal(str(sp.get('deposit_paid') or '0'))
+        _payment_type = sp.get('payment_type', 'installment')
+        _balance = Decimal(str(sp.get('balance') or '0'))
+        _installment_months = sp.get('installment_months')
+        _purchase_date_str = sp.get('purchase_date', '')
+        try:
+            _purchase_date = _snap_dt.strptime(_purchase_date_str, '%Y-%m-%d').date() if _purchase_date_str else None
+        except Exception:
+            _purchase_date = None
+        _other_payment_details = sp.get('other_payment_details', '')
+        # Build insurance from snapshot
+        si = snapshot.get('insurance')
+        if si:
+            _si_scheds_raw = si.get('schedules', [])
+            _si_scheds = []
+            for _s in _si_scheds_raw:
+                _due_str = _s.get('due_date', '')
+                try:
+                    _due = _snap_dt.strptime(_due_str, '%Y-%m-%d').date() if _due_str else None
+                except Exception:
+                    _due = None
+                _si_scheds.append(SimpleNamespace(
+                    installment_number=_s.get('installment_number', 0),
+                    due_date=_due,
+                    amount_due=Decimal(str(_s.get('amount_due') or '0')),
+                    is_paid=_s.get('is_paid', False),
+                ))
+            insurance_policy = SimpleNamespace(
+                selling_price=Decimal(str(si.get('selling_price') or '0')),
+                payment_type=si.get('payment_type', 'installment'),
+                vehicle_usage=si.get('vehicle_usage', 'private'),
+                has_payment_plan=si.get('has_payment_plan', False),
+                insurance_installment_months=si.get('insurance_installment_months'),
+                insurance_deposit=Decimal(str(si.get('insurance_deposit') or '0')),
+                insurance_total_paid=Decimal(str(si.get('insurance_total_paid') or '0')),
+                insurance_payment_schedules=SimpleNamespace(order_by=lambda _: _si_scheds),
+            )
+        else:
+            insurance_policy = None
+        # Build trackers from snapshot
+        trackers = []
+        for _t in snapshot.get('trackers', []):
+            _mi = _t.get('monthly_installment')
+            trackers.append(SimpleNamespace(
+                tracker_name=_t.get('tracker_name', ''),
+                selling_price=Decimal(str(_t.get('selling_price') or '0')),
+                payment_type=_t.get('payment_type', 'installment'),
+                has_payment_plan=_t.get('has_payment_plan', False),
+                installment_months=_t.get('installment_months'),
+                deposit=Decimal(str(_t.get('deposit') or '0')),
+                total_paid=Decimal(str(_t.get('total_paid') or '0')),
+                installments_json=_t.get('installments_json', '[]'),
+                payment_method=_t.get('payment_method', ''),
+                monthly_installment=Decimal(str(_mi)) if _mi else None,
+                installed_date=None,
+            ))
+        try:
+            agreement_signature = client_vehicle.agreement_signature
+        except Exception:
+            agreement_signature = None
+        selected_months = _installment_months
+        is_full_payment = (_payment_type == 'full') or (_balance <= Decimal('0.00'))
+    else:
+        vehicle = client_vehicle.vehicle
+        client = client_vehicle.client
+        try:
+            plan = client_vehicle.installment_plan
+        except Exception:
+            plan = None
+        try:
+            from apps.insurance.models import InsurancePolicy
+            insurance_policy = InsurancePolicy.objects.filter(
+                vehicle=vehicle,
+                client=client,
+            ).order_by('-created_at').first()
+        except Exception:
+            insurance_policy = None
+        trackers = list(client_vehicle.trackers.all().order_by('created_at'))
+        try:
+            agreement_signature = client_vehicle.agreement_signature
+        except Exception:
+            agreement_signature = None
+        _purchase_price = client_vehicle.purchase_price
+        _deposit_paid = client_vehicle.deposit_paid
+        _payment_type = client_vehicle.payment_type
+        _balance = client_vehicle.balance or Decimal('0.00')
+        _installment_months = client_vehicle.installment_months
+        _purchase_date = client_vehicle.purchase_date
+        _other_payment_details = getattr(client_vehicle, 'other_payment_details', '') or ''
+        selected_months = None
+        if plan and plan.number_of_installments:
+            selected_months = plan.number_of_installments
+        elif _installment_months:
+            selected_months = _installment_months
+        is_full_payment = (_payment_type == 'full') or (_balance <= Decimal('0.00'))
 
     client_id_display = (client.id_number or '').replace('-', '')
 
@@ -280,8 +376,8 @@ def generate_sales_agreement_pdf(client_vehicle):
     elements.append(Spacer(1, 0.3*cm))
 
     # ---- PRICING DETAILS ----
-    client_final_price = client_vehicle.purchase_price or Decimal('0.00')
-    deposit_paid = client_vehicle.deposit_paid or Decimal('0.00')
+    client_final_price = _purchase_price or Decimal('0.00')
+    deposit_paid = _deposit_paid or Decimal('0.00')
     # Always derive balance from price minus deposit so the PDF is correct
     # even when the stored balance field is stale.
     balance_amount = max(Decimal('0.00'), client_final_price - deposit_paid)
@@ -593,8 +689,8 @@ def generate_sales_agreement_pdf(client_vehicle):
         # Balance / months / end date summary
         if plan and plan.end_date:
             end_date_str = plan.end_date.strftime('%d-%m-%Y')
-        elif selected_months and client_vehicle.purchase_date:
-            end_date_str = (client_vehicle.purchase_date + relativedelta(months=selected_months)).strftime('%d-%m-%Y')
+        elif selected_months and _purchase_date:
+            end_date_str = (_purchase_date + relativedelta(months=selected_months)).strftime('%d-%m-%Y')
         else:
             end_date_str = ''
 
@@ -606,7 +702,7 @@ def generate_sales_agreement_pdf(client_vehicle):
             normal_small
         ))
         elements.append(Spacer(1, 0.15*cm))
-        other_payment_details = getattr(client_vehicle, 'other_payment_details', '') or ''
+        other_payment_details = _other_payment_details
         if other_payment_details:
             payment_details_text = other_payment_details.strip()
         else:

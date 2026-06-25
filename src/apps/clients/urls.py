@@ -77,6 +77,8 @@ urlpatterns = [
     # Assign Vehicle to Client
     path('<int:client_pk>/assign-vehicle/', views.assign_vehicle, name='assign_vehicle'),
     path('vehicle/<int:client_vehicle_pk>/sales-agreement/', views.download_sales_agreement, name='download_sales_agreement'),
+    path('vehicle/<int:client_vehicle_pk>/sales-agreement/<int:version_id>/', views.download_sales_agreement, name='download_sales_agreement_version'),
+    path('vehicle/<int:pk>/agreement-revision/', views.create_agreement_revision, name='create_agreement_revision'),
     path('vehicle/<int:pk>/sign/', views.sign_agreement_online, name='sign_agreement_online'),
 
     # Client Vehicle Management

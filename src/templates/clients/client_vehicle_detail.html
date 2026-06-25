@@ -49,10 +49,36 @@
                    class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                     <i class="fas fa-money-bill-wave mr-2"></i> Record Payment
                 </a>
-                <a href="{% url 'clients:download_sales_agreement' client_vehicle.pk %}" 
+                {% if agreement_versions %}
+                <div class="relative inline-block" x-data="{ open: false }">
+                    <button @click="open = !open" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                        <i class="fas fa-file-pdf mr-2"></i> Agreement <i class="fas fa-chevron-down ml-2 text-xs"></i>
+                    </button>
+                    <div x-show="open" @click.outside="open = false" x-cloak
+                         class="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                        <div class="py-1">
+                            <a href="{% url 'clients:download_sales_agreement' client_vehicle.pk %}"
+                               class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                <i class="fas fa-file-alt mr-2 text-gray-500"></i> Download Latest (Live)
+                            </a>
+                            <hr class="my-1 border-gray-200">
+                            {% for version in agreement_versions %}
+                            <a href="{% url 'clients:download_sales_agreement_version' client_vehicle.pk version.pk %}"
+                               class="flex items-center px-4 py-2 text-sm {% if forloop.first %}text-blue-700 font-medium{% else %}text-indigo-700{% endif %} hover:bg-gray-100">
+                                <i class="fas fa-download mr-2 {% if forloop.first %}text-blue-500{% else %}text-indigo-500{% endif %}"></i>
+                                v{{ version.version_number }} — {{ version.label }}
+                                {% if forloop.first %}<span class="ml-1 text-xs bg-blue-100 text-blue-700 px-1 rounded">Original</span>{% endif %}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <a href="{% url 'clients:download_sales_agreement' client_vehicle.pk %}"
                    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                     <i class="fas fa-file-pdf mr-2"></i> Print Agreement
                 </a>
+                {% endif %}
                 <a href="{% url 'clients:sign_agreement_online' client_vehicle.pk %}" 
                    class="inline-flex items-center px-4 py-2 {% if client_vehicle.agreement_signature %}bg-green-600 hover:bg-green-700{% else %}bg-purple-600 hover:bg-purple-700{% endif %} text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                     <i class="fas fa-signature mr-2"></i>
@@ -882,20 +908,76 @@
                     </h2>
                 </div>
                 <div class="p-4 space-y-2">
-                    <a href="{% url 'clients:record_payment' client_vehicle.pk %}" 
+                    <a href="{% url 'clients:record_payment' client_vehicle.pk %}"
                        class="block px-4 py-2 text-sm text-center bg-green-50 hover:bg-green-100 text-green-700 font-medium rounded-lg transition duration-150 ease-in-out">
                         <i class="fas fa-money-bill-wave mr-2"></i> Record Payment
                     </a>
                     {% if not installment_plan %}
-                    <a href="{% url 'clients:create_installment_plan' client_vehicle.pk %}" 
+                    <a href="{% url 'clients:create_installment_plan' client_vehicle.pk %}"
                        class="block px-4 py-2 text-sm text-center bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium rounded-lg transition duration-150 ease-in-out">
                         <i class="fas fa-calendar-alt mr-2"></i> Create Payment Plan
                     </a>
                     {% endif %}
-                    <a href="{% url 'clients:client_statement' client_vehicle.client.pk %}" 
+                    <a href="{% url 'clients:client_statement' client_vehicle.client.pk %}"
                        class="block px-4 py-2 text-sm text-center bg-purple-50 hover:bg-purple-100 text-purple-700 font-medium rounded-lg transition duration-150 ease-in-out">
                         <i class="fas fa-file-invoice mr-2"></i> Generate Statement
                     </a>
+                </div>
+            </div>
+
+            <!-- Agreement Versions -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-file-contract mr-2 text-blue-600"></i> Agreement Versions
+                    </h2>
+                    {% if client_vehicle.agreement_signature %}
+                    <form method="post" action="{% url 'clients:create_agreement_revision' client_vehicle.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" title="Save current data as a new version"
+                                class="text-xs px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">
+                            <i class="fas fa-plus mr-1"></i> New Revision
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                <div class="p-4">
+                    {% if agreement_versions %}
+                    <div class="space-y-2">
+                        {% for version in agreement_versions %}
+                        <div class="flex items-start justify-between p-3 {% if forloop.first %}bg-blue-50 border border-blue-200{% else %}bg-indigo-50 border border-indigo-200{% endif %} rounded-lg">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-1 flex-wrap">
+                                    <span class="text-xs font-bold {% if forloop.first %}text-blue-700{% else %}text-indigo-700{% endif %}">v{{ version.version_number }}</span>
+                                    {% if forloop.first %}
+                                    <span class="text-xs bg-blue-200 text-blue-800 px-1 rounded">Original</span>
+                                    {% else %}
+                                    <span class="text-xs bg-indigo-200 text-indigo-800 px-1 rounded">Revised</span>
+                                    {% endif %}
+                                </div>
+                                <p class="text-xs font-medium text-gray-800 mt-0.5 truncate">{{ version.label }}</p>
+                                <p class="text-xs text-gray-500">{{ version.created_at|date:"d M Y, H:i" }}</p>
+                            </div>
+                            <a href="{% url 'clients:download_sales_agreement_version' client_vehicle.pk version.pk %}"
+                               title="Download v{{ version.version_number }}"
+                               class="ml-2 flex-shrink-0 px-2 py-1 text-xs {% if forloop.first %}bg-blue-600 hover:bg-blue-700{% else %}bg-indigo-600 hover:bg-indigo-700{% endif %} text-white rounded-lg">
+                                <i class="fas fa-download"></i>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% elif client_vehicle.agreement_signature %}
+                    <p class="text-sm text-gray-500 mb-3">No saved versions yet. The agreement was signed before versioning was enabled.</p>
+                    <form method="post" action="{% url 'clients:create_agreement_revision' client_vehicle.pk %}">
+                        {% csrf_token %}
+                        <button type="submit"
+                                class="w-full px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                            <i class="fas fa-camera mr-2"></i> Save Current as v1
+                        </button>
+                    </form>
+                    {% else %}
+                    <p class="text-sm text-gray-400 italic">Agreement not yet signed. Once signed, Version 1 (Original) will be saved automatically.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
