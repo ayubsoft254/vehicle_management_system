@@ -20,11 +20,11 @@ User = get_user_model()
 
 class EmployeeForm(forms.ModelForm):
     """Form for creating and editing employees."""
-    
+
     class Meta:
         model = Employee
         fields = [
-            'user', 'first_name', 'last_name', 'middle_name', 'date_of_birth',
+            'first_name', 'last_name', 'middle_name', 'date_of_birth',
             'phone_number', 'email', 'national_id', 'employment_type', 'status',
             'job_title', 'department', 'hire_date', 'termination_date',
             'bank_name', 'bank_account_number', 'bank_branch',
@@ -33,7 +33,6 @@ class EmployeeForm(forms.ModelForm):
             'address_line1', 'address_line2', 'city', 'state', 'postal_code', 'country'
         ]
         widgets = {
-            'user': forms.Select(attrs={'class': 'form-control select2'}),
             'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First name'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last name'}),
             'middle_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Middle name (optional)'}),
@@ -50,67 +49,24 @@ class EmployeeForm(forms.ModelForm):
             'bank_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Bank name'}),
             'bank_account_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Account number'}),
             'bank_branch': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Branch (optional)'}),
-            'tax_identification_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tax ID'}),
-            'pension_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Pension number'}),
-            'insurance_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Insurance number'}),
+            'tax_identification_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'KRA PIN'}),
+            'pension_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'NSSF number'}),
+            'insurance_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'NHIF number'}),
             'emergency_contact_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Emergency contact name'}),
             'emergency_contact_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Emergency contact phone'}),
             'emergency_contact_relationship': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Relationship'}),
-            'address_line1': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Address line 1'}),
+            'address_line1': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Address'}),
             'address_line2': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Address line 2 (optional)'}),
             'city': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'City'}),
             'state': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'State/County'}),
             'postal_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Postal code'}),
-            'country': forms.TextInput(attrs={'class': 'form-control', 'value': 'Kenya'}),
+            'country': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Country'}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        # Make optional fields not required
-        optional_fields = [
-            'middle_name', 'termination_date', 'bank_branch', 
-            'tax_identification_number', 'pension_number', 'insurance_number',
-            'address_line2', 'state', 'postal_code'
-        ]
-        for field in optional_fields:
-            self.fields[field].required = False
-    
-    def clean_date_of_birth(self):
-        """Validate age requirements."""
-        dob = self.cleaned_data.get('date_of_birth')
-        
-        if dob:
-            today = date.today()
-            age = (today - dob).days / 365.25
-            
-            if age < 18:
-                raise ValidationError('Employee must be at least 18 years old.')
-            if age > 70:
-                raise ValidationError('Please verify the date of birth.')
-        
-        return dob
-    
-    def clean_hire_date(self):
-        """Validate hire date."""
-        hire_date = self.cleaned_data.get('hire_date')
-        
-        if hire_date and hire_date > date.today():
-            raise ValidationError('Hire date cannot be in the future.')
-        
-        return hire_date
-    
-    def clean(self):
-        """Additional validation."""
-        cleaned_data = super().clean()
-        hire_date = cleaned_data.get('hire_date')
-        termination_date = cleaned_data.get('termination_date')
-        
-        if hire_date and termination_date:
-            if termination_date < hire_date:
-                raise ValidationError('Termination date cannot be before hire date.')
-        
-        return cleaned_data
+        for field in self.fields.values():
+            field.required = False
 
 
 class SalaryStructureForm(forms.ModelForm):

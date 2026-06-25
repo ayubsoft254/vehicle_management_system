@@ -34,7 +34,7 @@ class Employee(models.Model):
     ]
     
     # User Link
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee_profile')
+    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='employee_profile')
     
     # Personal Information
     employee_id = models.CharField(max_length=20, unique=True, editable=False)
@@ -121,13 +121,10 @@ class Employee(models.Model):
     
     def get_tenure_years(self):
         """Calculate years of service."""
-        if self.termination_date:
-            end_date = self.termination_date
-        else:
-            end_date = date.today()
-        
-        years = (end_date - self.hire_date).days / 365.25
-        return round(years, 2)
+        if not self.hire_date:
+            return 0.0
+        end_date = self.termination_date or date.today()
+        return round((end_date - self.hire_date).days / 365.25, 2)
     
     def is_active(self):
         """Check if employee is active."""

@@ -154,23 +154,23 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">KRA PIN</label>
-                    {{ form.kra_pin }}
-                    {% if form.kra_pin.errors %}
-                    <p class="mt-1 text-sm text-red-600">{{ form.kra_pin.errors.0 }}</p>
+                    {{ form.tax_identification_number }}
+                    {% if form.tax_identification_number.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.tax_identification_number.errors.0 }}</p>
                     {% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">NSSF Number</label>
-                    {{ form.nssf_number }}
-                    {% if form.nssf_number.errors %}
-                    <p class="mt-1 text-sm text-red-600">{{ form.nssf_number.errors.0 }}</p>
+                    {{ form.pension_number }}
+                    {% if form.pension_number.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.pension_number.errors.0 }}</p>
                     {% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">NHIF Number</label>
-                    {{ form.nhif_number }}
-                    {% if form.nhif_number.errors %}
-                    <p class="mt-1 text-sm text-red-600">{{ form.nhif_number.errors.0 }}</p>
+                    {{ form.insurance_number }}
+                    {% if form.insurance_number.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.insurance_number.errors.0 }}</p>
                     {% endif %}
                 </div>
             </div>
@@ -215,9 +215,9 @@
             </h2>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                {{ form.address }}
-                {% if form.address.errors %}
-                <p class="mt-1 text-sm text-red-600">{{ form.address.errors.0 }}</p>
+                {{ form.address_line1 }}
+                {% if form.address_line1.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ form.address_line1.errors.0 }}</p>
                 {% endif %}
             </div>
         </div>
