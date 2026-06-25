@@ -167,6 +167,7 @@ def employee_detail(request, pk):
         'recent_commissions': recent_commissions,
         'active_loans': active_loans,
         'leaves_taken': leaves_taken,
+        'leave_balance': max(0, 21 - leaves_taken),
         'tenure_years': employee.get_tenure_years(),
     }
     
@@ -180,8 +181,8 @@ def employee_create(request):
         form = EmployeeForm(request.POST)
         if form.is_valid():
             employee = form.save()
-            messages.success(request, f'Employee {employee.get_full_name()} created successfully.')
-            return redirect('payroll:employee_detail', pk=employee.pk)
+            messages.success(request, f'Employee {employee.get_full_name()} created. Now set up their salary structure.')
+            return redirect('payroll:salary_structure_create', employee_pk=employee.pk)
     else:
         form = EmployeeForm()
     
@@ -238,21 +239,18 @@ def salary_structure_create(request, employee_pk):
             structure = form.save(commit=False)
             structure.employee = employee
             structure.save()
-            
             action = 'updated' if is_update else 'created'
             messages.success(request, f'Salary structure {action} successfully.')
             return redirect('payroll:employee_detail', pk=employee.pk)
     else:
         form = SalaryStructureForm(instance=salary_structure)
-        form.fields['employee'].initial = employee
-        form.fields['employee'].widget.attrs['readonly'] = True
-    
+
     context = {
         'form': form,
         'employee': employee,
         'is_update': is_update,
     }
-    
+
     return render(request, 'payroll/salary_structure_form.html', context)
 
 

@@ -70,11 +70,11 @@ class EmployeeForm(forms.ModelForm):
 
 class SalaryStructureForm(forms.ModelForm):
     """Form for managing employee salary structure."""
-    
+
     class Meta:
         model = SalaryStructure
         fields = [
-            'employee', 'basic_salary', 'currency',
+            'basic_salary', 'currency',
             'housing_allowance', 'transport_allowance', 'medical_allowance',
             'meal_allowance', 'other_allowances',
             'commission_enabled', 'commission_rate',
@@ -82,36 +82,41 @@ class SalaryStructureForm(forms.ModelForm):
             'effective_from', 'effective_to'
         ]
         widgets = {
-            'employee': forms.Select(attrs={'class': 'form-control select2'}),
-            'basic_salary': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'basic_salary': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
             'currency': forms.TextInput(attrs={'class': 'form-control', 'value': 'KES'}),
-            'housing_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
-            'transport_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
-            'medical_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
-            'meal_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
-            'other_allowances': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'housing_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'transport_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'medical_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'meal_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'other_allowances': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
             'commission_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'commission_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'max': '100'}),
+            'commission_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'max': '100', 'placeholder': '0.00'}),
             'overtime_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'overtime_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'overtime_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
             'effective_from': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'effective_to': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['effective_to'].required = False
-    
+        self.fields['effective_from'].required = False
+        # Default effective_from to today if not set
+        if not self.instance.pk and not self.initial.get('effective_from'):
+            self.initial['effective_from'] = date.today()
+
+    def clean_effective_from(self):
+        value = self.cleaned_data.get('effective_from')
+        if not value:
+            return date.today()
+        return value
+
     def clean(self):
-        """Validate date range."""
         cleaned_data = super().clean()
         effective_from = cleaned_data.get('effective_from')
         effective_to = cleaned_data.get('effective_to')
-        
-        if effective_from and effective_to:
-            if effective_to < effective_from:
-                raise ValidationError('End date must be after start date.')
-        
+        if effective_from and effective_to and effective_to < effective_from:
+            raise ValidationError('End date must be after start date.')
         return cleaned_data
 
 
@@ -156,21 +161,7 @@ class CommissionForm(forms.ModelForm):
                 pass
     
     def clean(self):
-        """Validate commission calculation."""
-        cleaned_data = super().clean()
-        base_amount = cleaned_data.get('base_amount')
-        commission_rate = cleaned_data.get('commission_rate')
-        amount = cleaned_data.get('amount')
-        
-        if base_amount and commission_rate:
-            expected_amount = (base_amount * commission_rate) / Decimal('100')
-            if amount and abs(amount - expected_amount) > Decimal('0.01'):
-                raise ValidationError(
-                    f'Commission amount should be {expected_amount} '
-                    f'({commission_rate}% of {base_amount})'
-                )
-        
-        return cleaned_data
+        return super().clean()
 
 
 class DeductionForm(forms.ModelForm):

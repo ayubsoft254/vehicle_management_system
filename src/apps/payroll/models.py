@@ -44,14 +44,14 @@ class Employee(models.Model):
     date_of_birth = models.DateField(null=True, blank=True)
     phone_number = models.CharField(max_length=20)
     email = models.EmailField()
-    national_id = models.CharField(max_length=50, unique=True)
+    national_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
     
     # Employment Details
     employment_type = models.CharField(max_length=20, choices=EMPLOYMENT_TYPE_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
     job_title = models.CharField(max_length=100)
-    department = models.CharField(max_length=100)
-    hire_date = models.DateField()
+    department = models.CharField(max_length=100, blank=True)
+    hire_date = models.DateField(null=True, blank=True)
     termination_date = models.DateField(null=True, blank=True)
     
     # Banking Information
