@@ -3,6 +3,27 @@ import django.core.validators
 from decimal import Decimal
 
 
+def rename_commission_rate_if_needed(apps, schema_editor):
+    """
+    Rename commission_rate → commission_amount on payroll_salarystructure,
+    but only if the old column still exists. Databases initialised from the
+    already-renamed model state will have commission_amount from the start
+    and should skip the rename.
+    """
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM information_schema.columns
+            WHERE table_name = 'payroll_salarystructure'
+              AND column_name = 'commission_rate'
+        """)
+        if cursor.fetchone()[0] > 0:
+            cursor.execute("""
+                ALTER TABLE payroll_salarystructure
+                RENAME COLUMN commission_rate TO commission_amount
+            """)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,12 +31,24 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Rename commission_rate → commission_amount on SalaryStructure and widen it
-        migrations.RenameField(
-            model_name='salarystructure',
-            old_name='commission_rate',
-            new_name='commission_amount',
+        # Use SeparateDatabaseAndState so the DB rename is conditional while
+        # Django's migration state is always updated to reflect the new name.
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(
+                    rename_commission_rate_if_needed,
+                    reverse_code=migrations.RunPython.noop,
+                ),
+            ],
+            state_operations=[
+                migrations.RenameField(
+                    model_name='salarystructure',
+                    old_name='commission_rate',
+                    new_name='commission_amount',
+                ),
+            ],
         ),
+        # Widen the field now that it holds KES amounts, not a percentage.
         migrations.AlterField(
             model_name='salarystructure',
             name='commission_amount',
@@ -27,7 +60,7 @@ class Migration(migrations.Migration):
                 validators=[django.core.validators.MinValueValidator(Decimal('0'))],
             ),
         ),
-        # Make Commission.commission_rate and Commission.base_amount optional
+        # Make Commission.commission_rate and Commission.base_amount optional.
         migrations.AlterField(
             model_name='commission',
             name='commission_rate',
