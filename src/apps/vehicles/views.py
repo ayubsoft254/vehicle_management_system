@@ -273,6 +273,14 @@ def vehicle_detail_view(request, pk):
         display_price = vehicle.website_display_price
         vehicle_profit = vehicle.website_display_price - vehicle.total_program_cost
 
+    repossession_history = []
+    if request.user.is_authenticated:
+        repossession_history = list(
+            vehicle.repossessions.select_related('client', 'created_by')
+            .prefetch_related('expenses', 'additional_cost_items')
+            .order_by('-initiated_date')
+        )
+
     context = {
         'vehicle': vehicle,
         'history': history,
@@ -287,6 +295,7 @@ def vehicle_detail_view(request, pk):
         'display_price': display_price,
         'latest_sale': latest_sale,
         'vehicle_profit': vehicle_profit,
+        'repossession_history': repossession_history,
     }
     return render(request, 'vehicles/vehicle_detail.html', context)
 
