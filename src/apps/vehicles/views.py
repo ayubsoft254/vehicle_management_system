@@ -273,6 +273,7 @@ def vehicle_detail_view(request, pk):
 
     repossession_history = []
     repossession_cost_total = Decimal('0.00')
+    repossession_outstanding_total = Decimal('0.00')
     if request.user.is_authenticated:
         repossession_history = list(
             vehicle.repossessions.select_related('client', 'created_by')
@@ -285,6 +286,7 @@ def vehicle_detail_view(request, pk):
             repossession_cost_total += repo.additional_cost_items.aggregate(
                 t=Sum('amount')
             )['t'] or Decimal('0.00')
+            repossession_outstanding_total += repo.outstanding_amount
 
     if repossession_history:
         total_additional_cost += repossession_cost_total
@@ -308,6 +310,7 @@ def vehicle_detail_view(request, pk):
         'vehicle_profit': vehicle_profit,
         'repossession_history': repossession_history,
         'repossession_cost_total': repossession_cost_total,
+        'repossession_total_with_outstanding': repossession_outstanding_total + repossession_cost_total,
     }
     return render(request, 'vehicles/vehicle_detail.html', context)
 

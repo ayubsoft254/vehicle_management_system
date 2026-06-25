@@ -265,6 +265,44 @@ def policy_renew(request, pk):
         if form.is_valid():
             with transaction.atomic():
                 new_agent = form.cleaned_data.get('insurance_agent') or old_policy.insurance_agent
+
+                # Payment options from raw POST (same pattern as vehicle assign)
+                ins_payment_type = request.POST.get('insurance_payment_type', 'full').strip() or 'full'
+                ins_payment_method = request.POST.get('insurance_payment_method', 'cash').strip() or 'cash'
+                ins_deposit_str = request.POST.get('insurance_deposit', '').strip()
+                ins_flexible_json = request.POST.get('insurance_flexible_installments_json', '[]')
+
+                selling_price = form.cleaned_data.get('selling_price') or Decimal('0.00')
+
+                try:
+                    ins_installments = json.loads(ins_flexible_json or '[]')
+                except Exception:
+                    ins_installments = []
+
+                ins_has_plan = (ins_payment_type == 'flexible') and bool(ins_installments)
+                ins_deposit = Decimal('0.00')
+                ins_total_paid = Decimal('0.00')
+                ins_balance = selling_price
+                ins_months = None
+                ins_monthly = None
+
+                if ins_payment_type == 'full':
+                    ins_total_paid = selling_price
+                    ins_balance = Decimal('0.00')
+                elif ins_payment_type == 'deduct_from_deposit':
+                    ins_total_paid = selling_price
+                    ins_balance = Decimal('0.00')
+                elif ins_has_plan:
+                    try:
+                        ins_deposit = min(Decimal(ins_deposit_str), selling_price) if ins_deposit_str else Decimal('0.00')
+                    except Exception:
+                        ins_deposit = Decimal('0.00')
+                    ins_total_paid = ins_deposit
+                    ins_balance = max(Decimal('0.00'), selling_price - ins_deposit)
+                    ins_months = len(ins_installments)
+                    total_ins = sum((Decimal(str(r.get('amount', '0') or '0')) for r in ins_installments), Decimal('0.00'))
+                    ins_monthly = (total_ins / ins_months).quantize(Decimal('0.01')) if ins_months else None
+
                 # Create new policy
                 new_policy = InsurancePolicy.objects.create(
                     vehicle=old_policy.vehicle,
@@ -277,14 +315,41 @@ def policy_renew(request, pk):
                     vehicle_usage=form.cleaned_data['vehicle_usage'],
                     start_date=form.cleaned_data['new_start_date'],
                     end_date=form.cleaned_data['new_end_date'],
-                    premium_amount=form.cleaned_data['new_premium_amount'],
+                    premium_amount=selling_price,
                     sum_insured=form.cleaned_data['new_sum_insured'],
-                    excess_amount=form.cleaned_data.get('new_excess_amount') or Decimal('0.00'),
+                    excess_amount=Decimal('0.00'),
                     buying_price=form.cleaned_data.get('buying_price') or Decimal('0.00'),
-                    selling_price=form.cleaned_data.get('selling_price') or Decimal('0.00'),
+                    selling_price=selling_price,
+                    payment_type=ins_payment_type,
+                    insurance_payment_method=ins_payment_method,
+                    has_payment_plan=ins_has_plan,
+                    insurance_deposit=ins_deposit,
+                    insurance_installment_months=ins_months if ins_has_plan else None,
+                    insurance_monthly_installment=ins_monthly if ins_has_plan else None,
+                    insurance_total_paid=ins_total_paid,
+                    insurance_balance=ins_balance,
+                    insurance_interest_rate=Decimal('0.00'),
                     status='active',
                     created_by=request.user
                 )
+
+                if ins_has_plan and ins_installments:
+                    from apps.insurance.models import InsurancePaymentSchedule
+                    from datetime import datetime as _dt
+                    for idx, row in enumerate(ins_installments, start=1):
+                        try:
+                            due_date = _dt.strptime(str(row.get('due_date', '')).strip(), '%Y-%m-%d').date()
+                        except Exception:
+                            continue
+                        amount_due = Decimal(str(row.get('amount', '0') or '0'))
+                        if amount_due <= 0:
+                            continue
+                        InsurancePaymentSchedule.objects.create(
+                            policy=new_policy,
+                            installment_number=idx,
+                            due_date=due_date,
+                            amount_due=amount_due,
+                        )
 
                 # Save certificate if uploaded
                 cert = form.cleaned_data.get('new_certificate')

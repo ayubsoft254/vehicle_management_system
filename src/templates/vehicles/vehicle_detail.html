@@ -586,9 +586,9 @@
                                 {% endif %}
                             </div>
                             {% if repo.total_cost %}
-                            <div class="mt-2 flex justify-between items-center bg-orange-50 rounded px-3 py-2 text-sm">
-                                <span class="font-semibold text-gray-700">Total Cost</span>
-                                <span class="font-bold text-orange-700">KES {{ repo.total_cost|floatformat:2 }}</span>
+                            <div class="mt-2 flex justify-between items-center bg-gray-50 rounded px-3 py-2 text-sm">
+                                <span class="font-semibold text-gray-700">Repossession Costs</span>
+                                <span class="font-bold text-gray-800">KES {{ repo.total_cost|floatformat:2 }}</span>
                             </div>
                             {% endif %}
                         </div>
@@ -627,6 +627,12 @@
                         </div>
                         {% endif %}
 
+                        <!-- Total (outstanding + all costs) -->
+                        <div class="mt-2 flex justify-between items-center bg-orange-50 border border-orange-200 rounded px-3 py-2 text-sm">
+                            <span class="font-bold text-orange-800">Total (Owed + Costs)</span>
+                            <span class="font-bold text-orange-700">KES {{ repo.get_total_amount_due|floatformat:2 }}</span>
+                        </div>
+
                         <!-- Resolution -->
                         {% if repo.resolution_type %}
                         <div class="text-xs text-gray-500 pt-3 border-t border-gray-100">
@@ -655,9 +661,9 @@
                     <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                         {{ repossession_history|length }} record{{ repossession_history|length|pluralize }}
                     </span>
-                    {% if can_view_prices and repossession_cost_total %}
+                    {% if can_view_prices and repossession_total_with_outstanding %}
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        KES {{ repossession_cost_total|floatformat:0 }}
+                        KES {{ repossession_total_with_outstanding|floatformat:0 }}
                     </span>
                     {% endif %}
                 </div>
@@ -698,6 +704,9 @@
                         <!-- Costs -->
                         {% if can_view_prices %}
                         <div class="space-y-1">
+                            {% if repo.outstanding_amount %}
+                            <div class="flex justify-between text-xs"><span class="text-red-600 font-medium">Amount Owed</span><span class="font-semibold text-red-600">KES {{ repo.outstanding_amount|floatformat:0 }}</span></div>
+                            {% endif %}
                             {% if repo.recovery_cost %}<div class="flex justify-between text-xs"><span class="text-gray-600">Recovery</span><span class="font-semibold">KES {{ repo.recovery_cost|floatformat:0 }}</span></div>{% endif %}
                             {% if repo.storage_cost %}<div class="flex justify-between text-xs"><span class="text-gray-600">Storage</span><span class="font-semibold">KES {{ repo.storage_cost|floatformat:0 }}</span></div>{% endif %}
                             {% if repo.legal_cost %}<div class="flex justify-between text-xs"><span class="text-gray-600">Legal</span><span class="font-semibold">KES {{ repo.legal_cost|floatformat:0 }}</span></div>{% endif %}
@@ -710,10 +719,13 @@
                             <div class="flex justify-between text-xs"><span class="text-gray-600">{{ item.get_category_display }}</span><span class="font-semibold">KES {{ item.amount|floatformat:0 }}</span></div>
                             {% endfor %}
                             {% if repo.total_cost %}
-                            <div class="flex justify-between text-xs font-bold pt-1 border-t border-orange-200 text-orange-700">
-                                <span>Subtotal</span><span>KES {{ repo.total_cost|floatformat:0 }}</span>
+                            <div class="flex justify-between text-xs pt-1 border-t border-gray-200">
+                                <span class="text-gray-600">Repossession Costs</span><span class="font-semibold text-gray-800">KES {{ repo.total_cost|floatformat:0 }}</span>
                             </div>
                             {% endif %}
+                            <div class="flex justify-between text-xs font-bold pt-1 border-t border-orange-200 text-orange-700">
+                                <span>Total</span><span>KES {{ repo.get_total_amount_due|floatformat:0 }}</span>
+                            </div>
                         </div>
                         {% endif %}
                         {% if repo.resolution_type %}

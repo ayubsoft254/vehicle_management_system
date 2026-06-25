@@ -87,10 +87,11 @@
                             <a href="{% url 'vehicles:detail' record.vehicle.pk %}" class="text-primary-600 hover:underline font-medium">
                                 {{ record.vehicle.make }} {{ record.vehicle.model }} {{ record.vehicle.year }}
                             </a>
+                            {% if record.vehicle.vin %}
+                            <p class="text-xs text-gray-400 font-mono">VIN: {{ record.vehicle.vin }}</p>
+                            {% endif %}
                             {% if record.vehicle.registration_number %}
-                            <p class="text-xs text-gray-400">{{ record.vehicle.registration_number }}</p>
-                            {% elif record.vehicle.vin %}
-                            <p class="text-xs text-gray-400">{{ record.vehicle.vin }}</p>
+                            <p class="text-xs text-gray-500">Reg: {{ record.vehicle.registration_number }}</p>
                             {% endif %}
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-500">{{ record.date|default:"—" }}</td>

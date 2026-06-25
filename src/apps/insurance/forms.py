@@ -1020,25 +1020,10 @@ class PolicyRenewalForm(forms.Form):
         widget=forms.DateInput(attrs={'class': _css, 'type': 'date'})
     )
 
-    new_premium_amount = forms.DecimalField(
-        min_value=Decimal('0'),
-        max_digits=12,
-        decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0', 'placeholder': '0.00'})
-    )
-
     new_sum_insured = forms.DecimalField(
         min_value=Decimal('0.01'),
         max_digits=12,
         decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0', 'placeholder': '0.00'})
-    )
-
-    new_excess_amount = forms.DecimalField(
-        min_value=Decimal('0'),
-        max_digits=12,
-        decimal_places=2,
-        required=False,
         widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0', 'placeholder': '0.00'})
     )
 
@@ -1082,9 +1067,7 @@ class PolicyRenewalForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields['insurance_agent'].queryset = InsuranceAgent.objects.filter(is_active=True)
         if old_policy and not args and not kwargs.get('data'):
-            self.initial.setdefault('new_premium_amount', old_policy.premium_amount)
             self.initial.setdefault('new_sum_insured', old_policy.sum_insured)
-            self.initial.setdefault('new_excess_amount', old_policy.excess_amount)
             self.initial.setdefault('buying_price', old_policy.buying_price)
             self.initial.setdefault('selling_price', old_policy.selling_price)
             self.initial.setdefault('policy_type', old_policy.policy_type)

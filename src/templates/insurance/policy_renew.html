@@ -170,20 +170,6 @@
                     <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Financial Details</h2>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                            <label for="id_new_premium_amount" class="block text-sm font-medium text-gray-700 mb-2">
-                                Premium Amount (KES) <span class="text-red-500">*</span>
-                            </label>
-                            <input type="number" name="new_premium_amount" id="id_new_premium_amount"
-                                value="{{ form.new_premium_amount.value|default:old_policy.premium_amount }}"
-                                required min="0" step="0.01"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                                placeholder="0.00">
-                            {% if form.new_premium_amount.errors %}
-                                <p class="text-red-500 text-sm mt-1">{{ form.new_premium_amount.errors.0 }}</p>
-                            {% endif %}
-                        </div>
-
-                        <div>
                             <label for="id_new_sum_insured" class="block text-sm font-medium text-gray-700 mb-2">
                                 Sum Insured (KES) <span class="text-red-500">*</span>
                             </label>
@@ -195,17 +181,6 @@
                             {% if form.new_sum_insured.errors %}
                                 <p class="text-red-500 text-sm mt-1">{{ form.new_sum_insured.errors.0 }}</p>
                             {% endif %}
-                        </div>
-
-                        <div>
-                            <label for="id_new_excess_amount" class="block text-sm font-medium text-gray-700 mb-2">
-                                Excess Amount (KES)
-                            </label>
-                            <input type="number" name="new_excess_amount" id="id_new_excess_amount"
-                                value="{{ form.new_excess_amount.value|default:old_policy.excess_amount }}"
-                                min="0" step="0.01"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                                placeholder="0.00">
                         </div>
 
                         <div>
@@ -229,13 +204,83 @@
                             </label>
                             <input type="number" name="selling_price" id="id_selling_price"
                                 value="{{ form.selling_price.value|default:old_policy.selling_price }}"
-                                min="0" step="0.01"
+                                min="0" step="0.01" oninput="updateRenewalInsurancePaymentSummary()"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                 placeholder="0.00">
                             <p class="text-xs text-gray-400 mt-1">Amount charged to the client</p>
                             {% if form.selling_price.errors %}
                                 <p class="text-red-500 text-sm mt-1">{{ form.selling_price.errors.0 }}</p>
                             {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Options -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Payment Options</h2>
+
+                    <!-- Payment Method -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                        <select name="insurance_payment_method" id="id_ins_payment_method"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <option value="cash">Cash</option>
+                            <option value="mpesa">M-Pesa</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="equity_hoza">Equity Hoza</option>
+                            <option value="dib_hoza">DIB Hoza</option>
+                            <option value="coop_hoza">COOP Hoza</option>
+                            <option value="kcb_ke">KCB KE</option>
+                            <option value="absa_ke">ABSA KE</option>
+                            <option value="equity_ke">EQUITY KE</option>
+                            <option value="cheque">Cheque</option>
+                            <option value="card">Card</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <!-- Payment Type -->
+                    <div class="flex flex-wrap gap-6 mb-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="insurance_payment_type" value="full" checked onchange="updateRenewalInsurancePaymentUI()">
+                            <span class="text-sm font-medium text-gray-700">Full Payment</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="insurance_payment_type" value="flexible" onchange="updateRenewalInsurancePaymentUI()">
+                            <span class="text-sm font-medium text-gray-700">Flexible Installments</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="insurance_payment_type" value="deduct_from_deposit" onchange="updateRenewalInsurancePaymentUI()">
+                            <span class="text-sm font-medium text-gray-700">Deduct from Deposit</span>
+                        </label>
+                    </div>
+
+                    <!-- Flexible deposit -->
+                    <div id="ins-deposit-section" class="hidden mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Insurance Deposit Paid (KES)</label>
+                        <input type="number" name="insurance_deposit" id="id_ins_deposit" placeholder="0.00" step="0.01" min="0"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            oninput="updateRenewalInsurancePaymentSummary()">
+                        <p class="text-xs text-gray-500 mt-1">Optional deposit applied toward the flexible plan.</p>
+                    </div>
+
+                    <!-- Flexible installments -->
+                    <div id="ins-flexible-section" class="hidden">
+                        <input type="hidden" name="insurance_flexible_installments_json" id="id_ins_flex_json" value="[]">
+                        <div id="ins-installments-container" class="space-y-3 mb-3"></div>
+                        <button type="button" onclick="addRenewalInsuranceInstallmentRow()"
+                            class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg border border-blue-200 transition duration-150">
+                            <i class="fas fa-plus mr-1"></i>Add Installment
+                        </button>
+                        <p id="ins-flex-summary" class="text-sm text-gray-600 mt-2"></p>
+                        <p id="ins-flex-warning" class="text-sm text-red-500 hidden mt-1">Total installments should match the selling price.</p>
+                    </div>
+
+                    <!-- Deduct from deposit note -->
+                    <div id="ins-deduct-section" class="hidden">
+                        <div class="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <i class="fas fa-info-circle text-yellow-600"></i>
+                            <p class="text-sm text-yellow-800">The insurance cost will be deducted from the client's vehicle deposit.</p>
                         </div>
                     </div>
                 </div>
@@ -280,6 +325,80 @@
 </div>
 
 <script>
+// ===================== Insurance Payment UI =====================
+function updateRenewalInsurancePaymentUI() {
+    const val = document.querySelector('input[name="insurance_payment_type"]:checked')?.value || 'full';
+    document.getElementById('ins-flexible-section').classList.toggle('hidden', val !== 'flexible');
+    document.getElementById('ins-deposit-section').classList.toggle('hidden', val !== 'flexible');
+    document.getElementById('ins-deduct-section').classList.toggle('hidden', val !== 'deduct_from_deposit');
+    if (val === 'flexible' && getInsRenewalRows().length === 0) addRenewalInsuranceInstallmentRow();
+    updateRenewalInsurancePaymentSummary();
+}
+
+function getInsRenewalRows() {
+    return Array.from(document.querySelectorAll('#ins-installments-container .ins-ren-row'));
+}
+
+function syncInsRenewalPayload() {
+    const inp = document.getElementById('id_ins_flex_json');
+    if (!inp) return;
+    const data = getInsRenewalRows().map(row => ({
+        due_date: row.querySelector('input[name="ins_ren_due_date[]"]')?.value.trim() || '',
+        amount:   row.querySelector('input[name="ins_ren_amount[]"]')?.value.trim() || '',
+    })).filter(i => i.due_date || i.amount);
+    inp.value = JSON.stringify(data);
+}
+
+function updateRenewalInsurancePaymentSummary() {
+    const summaryEl = document.getElementById('ins-flex-summary');
+    const warningEl = document.getElementById('ins-flex-warning');
+    if (!summaryEl) return;
+    const rows = getInsRenewalRows();
+    const total = rows.reduce((s, r) => s + (parseFloat(r.querySelector('input[name="ins_ren_amount[]"]')?.value || 0) || 0), 0);
+    const sellingPrice = parseFloat(document.getElementById('id_selling_price')?.value || 0);
+    const deposit = parseFloat(document.getElementById('id_ins_deposit')?.value || 0) || 0;
+    const balanceTarget = Math.max(0, sellingPrice - deposit);
+    const remaining = balanceTarget - total;
+    summaryEl.textContent = `Installments: ${rows.length} | Total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2, maximumFractionDigits:2})} | Remaining: KES ${remaining.toLocaleString('en-KE', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+    if (warningEl) warningEl.classList.toggle('hidden', Math.abs(total - balanceTarget) <= 0.01 || balanceTarget === 0);
+    syncInsRenewalPayload();
+}
+
+function addRenewalInsuranceInstallmentRow(dueDate='', amount='') {
+    const container = document.getElementById('ins-installments-container');
+    if (!container) return;
+    const count = getInsRenewalRows().length + 1;
+    const row = document.createElement('div');
+    row.className = 'ins-ren-row grid grid-cols-1 md:grid-cols-12 gap-3 p-3 bg-white border border-blue-100 rounded-lg';
+    row.innerHTML = `
+        <div class="md:col-span-3 flex items-center text-sm font-medium text-gray-700">Installment ${count}</div>
+        <div class="md:col-span-4">
+            <label class="block text-xs text-gray-600 mb-1">Payment Date</label>
+            <input type="date" name="ins_ren_due_date[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div class="md:col-span-4">
+            <label class="block text-xs text-gray-600 mb-1">Amount (KES)</label>
+            <input type="number" name="ins_ren_amount[]" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="md:col-span-1 flex items-end">
+            <button type="button" class="remove-ins-ren-row w-full h-10 rounded-md border border-red-200 text-red-600 hover:bg-red-50" title="Remove">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    row.querySelector('input[name="ins_ren_due_date[]"]').value = dueDate;
+    row.querySelector('input[name="ins_ren_amount[]"]').value = amount;
+    row.querySelectorAll('input').forEach(i => i.addEventListener('input', updateRenewalInsurancePaymentSummary));
+    row.querySelector('.remove-ins-ren-row').addEventListener('click', () => {
+        row.remove();
+        if (getInsRenewalRows().length === 0) addRenewalInsuranceInstallmentRow();
+        updateRenewalInsurancePaymentSummary();
+    });
+    container.appendChild(row);
+    updateRenewalInsurancePaymentSummary();
+}
+
+// ===================== Coverage duration calc =====================
 document.addEventListener('DOMContentLoaded', function () {
     const startDate = document.getElementById('id_new_start_date');
     const endDate   = document.getElementById('id_new_end_date');

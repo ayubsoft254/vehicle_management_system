@@ -316,6 +316,9 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     ):
         insurance_policy_number = f"{insurance_policy_number}-{vehicle.pk}"
 
+    ins_sum_insured_str = insurance_data.get('insurance_sum_insured', '').strip()
+    ins_sum_insured = parse_money(ins_sum_insured_str) if ins_sum_insured_str else client_vehicle.purchase_price
+
     policy.vehicle = vehicle
     policy.insurance_agent = insurance_agent_obj
     policy.client = client
@@ -325,7 +328,7 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     policy.start_date = start_date
     policy.end_date = end_date
     policy.premium_amount = parse_money(insurance_selling_price)
-    policy.sum_insured = client_vehicle.purchase_price
+    policy.sum_insured = ins_sum_insured
     policy.buying_price = parse_money(insurance_buying_price)
     policy.selling_price = parse_money(insurance_selling_price)
     policy.agent_name = insurance_agent_name
@@ -621,7 +624,18 @@ def assign_vehicle(request, client_pk):
                     if name.strip():
                         tracker_addon += parse_money(tracker_selling_prices[i] if i < len(tracker_selling_prices) else '0')
 
-                base_vehicle_price = parse_money(client_vehicle.vehicle.website_display_price)
+                # For repossessed vehicles, base price = outstanding amount + all repossession costs
+                _repo_qs = client_vehicle.vehicle.repossessions.prefetch_related('expenses', 'additional_cost_items')
+                _latest_repo = _repo_qs.order_by('-initiated_date').first()
+                if _latest_repo:
+                    _repo_costs = sum(
+                        (r.total_cost + r.get_expense_total() +
+                         (r.additional_cost_items.aggregate(t=Sum('amount'))['t'] or Decimal('0.00')))
+                        for r in _repo_qs
+                    )
+                    base_vehicle_price = _latest_repo.outstanding_amount + _repo_costs
+                else:
+                    base_vehicle_price = parse_money(client_vehicle.vehicle.website_display_price)
 
                 extra_cost_rows, extra_costs_total = parse_extra_costs(request.POST.get('extra_costs_json', '[]'))
 
@@ -922,8 +936,19 @@ def assign_vehicle(request, client_pk):
         form = ClientVehicleForm(client=client, initial=initial_data)
 
     # Get vehicle prices for JavaScript
-    vehicles_qs = Vehicle.objects.filter(status='available')
-    vehicle_prices = {v.id: float(v.website_display_price or Decimal('0.00')) for v in vehicles_qs}
+    vehicles_qs = Vehicle.objects.filter(status='available').prefetch_related('repossessions__expenses', 'repossessions__additional_cost_items')
+    vehicle_prices = {}
+    for v in vehicles_qs:
+        latest_repo = v.repossessions.order_by('-initiated_date').first()
+        if latest_repo:
+            repo_costs = sum(
+                (r.total_cost + r.get_expense_total() +
+                 (r.additional_cost_items.aggregate(t=Sum('amount'))['t'] or Decimal('0.00')))
+                for r in v.repossessions.all()
+            )
+            vehicle_prices[v.id] = float(latest_repo.outstanding_amount + repo_costs)
+        else:
+            vehicle_prices[v.id] = float(v.website_display_price or Decimal('0.00'))
     vehicle_cost_prices = {v.id: float(v.total_program_cost) for v in vehicles_qs}
 
     # Get insurance and tracker agents
@@ -1456,6 +1481,7 @@ def client_vehicle_update(request, pk):
             'end_date': insurance_policy.end_date.isoformat() if insurance_policy.end_date else '',
             'buying_price': str(insurance_policy.buying_price or Decimal('0.00')),
             'selling_price': str(insurance_policy.selling_price or Decimal('0.00')),
+            'sum_insured': str(insurance_policy.sum_insured or Decimal('0.00')),
             'insurance_deposit': str(insurance_policy.insurance_deposit or Decimal('0.00')),
             'agent_name': insurance_policy.agent_name or '',
             'agent_id': insurance_policy.agent_id or '',
@@ -2132,5 +2158,85 @@ def client_stats_api(request, pk):
         'available_credit': float(client.available_credit),
         'credit_utilization': float(client.credit_utilization),
     }
-    
+
     return JsonResponse(data)
+
+
+@login_required
+def renew_tracker(request, tracker_pk):
+    tracker = get_object_or_404(VehicleTracker, pk=tracker_pk)
+    client_vehicle = tracker.client_vehicle
+
+    if request.method != 'POST':
+        return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
+
+    name = request.POST.get('tracker_name', '').strip()
+    if not name:
+        messages.error(request, 'Tracker name is required.')
+        return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
+
+    serial = request.POST.get('serial_number', '').strip()
+    cert = request.POST.get('certificate_number', '').strip()
+    tracker_agent_id = request.POST.get('tracker_agent_id', '').strip()
+    install_date_str = request.POST.get('installed_date', '').strip()
+    buying_price_str = request.POST.get('buying_price', '0').strip()
+    selling_price_str = request.POST.get('selling_price', '0').strip()
+    payment_type = request.POST.get('payment_type', 'full').strip()
+    payment_method = request.POST.get('payment_method', 'cash').strip()
+
+    try:
+        buying_price = Decimal(buying_price_str) if buying_price_str else Decimal('0')
+        selling_price = Decimal(selling_price_str) if selling_price_str else Decimal('0')
+    except Exception:
+        buying_price = Decimal('0')
+        selling_price = Decimal('0')
+
+    install_date = None
+    if install_date_str:
+        try:
+            install_date = datetime.strptime(install_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+
+    tracker_agent_name = ''
+    if tracker_agent_id:
+        try:
+            ta = TrackerAgent.objects.get(pk=tracker_agent_id)
+            tracker_agent_name = ta.name
+        except TrackerAgent.DoesNotExist:
+            tracker_agent_id = ''
+
+    total_paid = Decimal('0')
+    if payment_type in ('full', 'deduct_from_deposit'):
+        total_paid = selling_price
+
+    VehicleTracker.objects.create(
+        client_vehicle=client_vehicle,
+        tracker_name=name,
+        serial_number=serial,
+        certificate_number=cert,
+        provider=tracker_agent_name,
+        buying_price=buying_price,
+        selling_price=selling_price,
+        payment_type=payment_type,
+        payment_method=payment_method,
+        has_payment_plan=False,
+        total_paid=total_paid,
+        installed_date=install_date,
+        created_by=request.user,
+    )
+
+    if tracker_agent_id:
+        TrackerRecord.objects.create(
+            vehicle=client_vehicle.vehicle,
+            client_vehicle=client_vehicle,
+            agent_id=tracker_agent_id,
+            tracker_name=name,
+            serial_number=serial,
+            buying_price=buying_price,
+            selling_price=selling_price,
+            installation_date=install_date,
+        )
+
+    messages.success(request, f'Tracker "{name}" renewed successfully.')
+    return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
