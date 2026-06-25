@@ -249,10 +249,6 @@
                             <input type="radio" name="insurance_payment_type" value="flexible" onchange="updateRenewalInsurancePaymentUI()">
                             <span class="text-sm font-medium text-gray-700">Flexible Installments</span>
                         </label>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="insurance_payment_type" value="deduct_from_deposit" onchange="updateRenewalInsurancePaymentUI()">
-                            <span class="text-sm font-medium text-gray-700">Deduct from Deposit</span>
-                        </label>
                     </div>
 
                     <!-- Flexible deposit -->
@@ -276,13 +272,6 @@
                         <p id="ins-flex-warning" class="text-sm text-red-500 hidden mt-1">Total installments should match the selling price.</p>
                     </div>
 
-                    <!-- Deduct from deposit note -->
-                    <div id="ins-deduct-section" class="hidden">
-                        <div class="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <i class="fas fa-info-circle text-yellow-600"></i>
-                            <p class="text-sm text-yellow-800">The insurance cost will be deducted from the client's vehicle deposit.</p>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- New Certificate -->
@@ -330,7 +319,6 @@ function updateRenewalInsurancePaymentUI() {
     const val = document.querySelector('input[name="insurance_payment_type"]:checked')?.value || 'full';
     document.getElementById('ins-flexible-section').classList.toggle('hidden', val !== 'flexible');
     document.getElementById('ins-deposit-section').classList.toggle('hidden', val !== 'flexible');
-    document.getElementById('ins-deduct-section').classList.toggle('hidden', val !== 'deduct_from_deposit');
     if (val === 'flexible' && getInsRenewalRows().length === 0) addRenewalInsuranceInstallmentRow();
     updateRenewalInsurancePaymentSummary();
 }
