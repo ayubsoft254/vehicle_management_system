@@ -219,14 +219,14 @@
                                         {{ schedule.installment_plan.client_vehicle.vehicle.registration_number }}
                                     </div>
                                     <div class="text-xs text-gray-400">
-                                        <i class="fas fa-phone mr-1"></i>{{ schedule.installment_plan.client_vehicle.client.phone_number }}
+                                        <i class="fas fa-phone mr-1"></i>{{ schedule.installment_plan.client_vehicle.client.phone_primary }}
                                     </div>
                                 </div>
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-semibold text-gray-900">#{{ schedule.installment_number }}</div>
-                            <div class="text-xs text-gray-500">of {{ schedule.installment_plan.duration_months }}</div>
+                            <div class="text-xs text-gray-500">of {{ schedule.installment_plan.number_of_installments }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm text-gray-900">
@@ -269,7 +269,7 @@
                                    title="Record Payment">
                                     <i class="fas fa-plus-circle"></i>
                                 </a>
-                                <a href="tel:{{ schedule.installment_plan.client_vehicle.client.phone_number }}" 
+                                <a href="tel:{{ schedule.installment_plan.client_vehicle.client.phone_primary }}" 
                                    class="text-blue-600 hover:text-blue-900 transition-colors duration-150" 
                                    title="Call Client">
                                     <i class="fas fa-phone"></i>

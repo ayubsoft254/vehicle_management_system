@@ -1839,60 +1839,74 @@ def paybill_balance_timeout_callback(request):
 @login_required
 def defaulters_report(request):
     """
-    Generate report of clients with overdue payments
+    Generate report of clients with outstanding vehicle balances.
+    Source of truth: ClientVehicle.balance > 0 (not limited to clients with
+    formal overdue PaymentSchedule records — that approach misses clients who
+    owe money but have no installment plan or whose first scheduled payment has
+    not yet been recorded as overdue).
     """
     today = timezone.now().date()
 
-    # Get all overdue payment schedules
-    overdue_schedules = PaymentSchedule.objects.filter(
-        is_paid=False,
-        due_date__lt=today
-    ).select_related(
-        'installment_plan__client_vehicle__client',
-        'installment_plan__client_vehicle__vehicle'
-    ).order_by('due_date')
+    # Find every vehicle purchase that still has an outstanding balance.
+    outstanding_cvs = ClientVehicle.objects.filter(
+        balance__gt=0,
+        is_paid_off=False,
+    ).select_related('client', 'vehicle').order_by('purchase_date')
 
-    # Group overdue schedules by client and calculate dynamic metrics used by template.
     defaulters = {}
-    for schedule in overdue_schedules:
-        client_vehicle = schedule.installment_plan.client_vehicle
-        client = client_vehicle.client
+    for cv in outstanding_cvs:
+        client = cv.client
+
+        # Find the oldest unpaid, past-due installment for this vehicle.
+        overdue_qs = PaymentSchedule.objects.filter(
+            installment_plan__client_vehicle=cv,
+            is_paid=False,
+            due_date__lt=today,
+        ).order_by('due_date')
+        oldest_overdue = overdue_qs.first()
+        overdue_count = overdue_qs.count()
+
+        if oldest_overdue:
+            days_overdue = oldest_overdue.days_overdue
+        else:
+            # No formal overdue schedule — measure from purchase date.
+            days_overdue = (today - cv.purchase_date).days
+
+        last_payment = Payment.objects.filter(
+            client_vehicle=cv
+        ).order_by('-payment_date', '-created_at').first()
 
         if client.id not in defaulters:
-            last_payment = Payment.objects.filter(client_vehicle=client_vehicle).order_by('-payment_date', '-created_at').first()
             defaulters[client.id] = {
                 'client': client,
-                'vehicle': client_vehicle.vehicle,
-                'client_vehicle_id': client_vehicle.id,
-                'days_overdue': schedule.days_overdue,
-                'overdue_installments': 0,
-                'total_outstanding': Decimal('0.00'),
+                'vehicle': cv.vehicle,
+                'client_vehicle_id': cv.id,
+                'days_overdue': days_overdue,
+                'overdue_installments': overdue_count,
+                'total_outstanding': cv.balance,
                 'payment_percentage': Decimal('0.00'),
                 'last_payment_date': last_payment.payment_date if last_payment else None,
                 'last_payment_amount': last_payment.amount if last_payment else None,
             }
+        else:
+            # Client with multiple vehicles — accumulate balance, take worst overdue.
+            defaulters[client.id]['total_outstanding'] += cv.balance
+            defaulters[client.id]['overdue_installments'] += overdue_count
+            if days_overdue > defaulters[client.id]['days_overdue']:
+                defaulters[client.id]['days_overdue'] = days_overdue
 
-        defaulters[client.id]['overdue_installments'] += 1
-
-        if schedule.days_overdue > defaulters[client.id]['days_overdue']:
-            defaulters[client.id]['days_overdue'] = schedule.days_overdue
-
-    # Compute total_outstanding and payment_percentage from ALL client vehicles (not just overdue ones).
-    # Use Sum('balance') — the same authoritative stored field used by the client detail page.
+    # Compute payment_percentage from purchase_price vs total_paid across all vehicles.
     for client_id, data in defaulters.items():
         cv_totals = ClientVehicle.objects.filter(client=data['client']).aggregate(
-            total_balance=Sum('balance'),
             total_purchase=Sum('purchase_price'),
             total_paid_sum=Sum('total_paid'),
         )
-        total_balance = cv_totals['total_balance'] or Decimal('0.00')
         total_purchase = cv_totals['total_purchase'] or Decimal('0.00')
-        total_paid = cv_totals['total_paid_sum'] or Decimal('0.00')
-        data['total_outstanding'] = max(Decimal('0.00'), total_balance)
+        total_paid_cv = cv_totals['total_paid_sum'] or Decimal('0.00')
         if total_purchase > 0:
-            data['payment_percentage'] = (total_paid / total_purchase) * Decimal('100')
+            data['payment_percentage'] = (total_paid_cv / total_purchase) * Decimal('100')
 
-    defaulters_list = list(defaulters.values())
+    defaulters_list = sorted(defaulters.values(), key=lambda d: d['days_overdue'], reverse=True)
     total_outstanding = sum((d['total_outstanding'] for d in defaulters_list), Decimal('0.00'))
 
     critical_defaulters = [d for d in defaulters_list if d['days_overdue'] >= 90]
@@ -1905,7 +1919,10 @@ def defaulters_report(request):
 
     average_days_overdue = Decimal('0.00')
     if defaulters_list:
-        average_days_overdue = sum((Decimal(str(d['days_overdue'])) for d in defaulters_list), Decimal('0.00')) / Decimal(str(len(defaulters_list)))
+        average_days_overdue = (
+            sum((Decimal(str(d['days_overdue'])) for d in defaulters_list), Decimal('0.00'))
+            / Decimal(str(len(defaulters_list)))
+        )
 
     context = {
         'defaulters': defaulters_list,
@@ -1922,10 +1939,11 @@ def defaulters_report(request):
         'severe_amount': severe_amount,
         'moderate_count': len(moderate_defaulters),
         'moderate_amount': moderate_amount,
+        'now': timezone.now(),
     }
-    
+
     log_audit(request.user, 'view', 'Payment', 'Viewed defaulters report')
-    
+
     return render(request, 'payments/defaulters_report.html', context)
 
 
