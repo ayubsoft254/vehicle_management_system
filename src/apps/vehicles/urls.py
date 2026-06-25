@@ -60,6 +60,7 @@ urlpatterns = [
     path('japan-supplier-records/<int:pk>/mark-paid/', views.japan_supplier_record_mark_paid, name='japan_supplier_record_mark_paid'),
     path('japan-suppliers/<int:supplier_pk>/mark-all-paid/', views.japan_supplier_mark_all_paid, name='japan_supplier_mark_all_paid'),
     path('japan-suppliers/<int:supplier_pk>/record-payment/', views.record_japan_supplier_payment, name='record_japan_supplier_payment'),
+    path('japan-suppliers/<int:pk>/delete/', views.delete_japan_supplier, name='delete_japan_supplier'),
 
     # Broker Ledger
     path('brokers/', views.broker_ledger_list, name='broker_ledger_list'),

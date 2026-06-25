@@ -1212,7 +1212,7 @@ class JapanSupplierRecord(models.Model):
         related_name='supplier_records',
     )
     purchase_price = models.DecimalField(
-        'Purchase Price (KES)', max_digits=12, decimal_places=2,
+        'Purchase Price (USD)', max_digits=12, decimal_places=2,
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     date = models.DateField('Purchase Date')

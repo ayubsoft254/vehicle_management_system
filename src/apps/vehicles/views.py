@@ -268,18 +268,29 @@ def vehicle_detail_view(request, pk):
 
     if vehicle.status == VehicleStatus.SOLD and latest_sale:
         display_price = latest_sale.final_selling_price
-        vehicle_profit = latest_sale.final_selling_price - vehicle.total_program_cost
     else:
         display_price = vehicle.website_display_price
-        vehicle_profit = vehicle.website_display_price - vehicle.total_program_cost
 
     repossession_history = []
+    repossession_cost_total = Decimal('0.00')
     if request.user.is_authenticated:
         repossession_history = list(
             vehicle.repossessions.select_related('client', 'created_by')
             .prefetch_related('expenses', 'additional_cost_items')
             .order_by('-initiated_date')
         )
+        for repo in repossession_history:
+            repossession_cost_total += repo.total_cost
+            repossession_cost_total += repo.get_expense_total()
+            repossession_cost_total += repo.additional_cost_items.aggregate(
+                t=Sum('amount')
+            )['t'] or Decimal('0.00')
+
+    if repossession_history:
+        total_additional_cost += repossession_cost_total
+        total_cost = vehicle.purchase_price + total_additional_cost
+
+    vehicle_profit = display_price - total_cost
 
     context = {
         'vehicle': vehicle,
@@ -296,6 +307,7 @@ def vehicle_detail_view(request, pk):
         'latest_sale': latest_sale,
         'vehicle_profit': vehicle_profit,
         'repossession_history': repossession_history,
+        'repossession_cost_total': repossession_cost_total,
     }
     return render(request, 'vehicles/vehicle_detail.html', context)
 
@@ -356,20 +368,22 @@ def vehicle_create_view(request):
                 except ClearingAgent.DoesNotExist:
                     pass
 
-            # Link purchase price to a Japan supplier ledger record
+            # Link purchase price (USD) to a Japan supplier ledger record
             japan_supplier_id = request.POST.get('japan_supplier_id')
-            if japan_supplier_id and vehicle.purchase_price:
+            japan_supplier_price_usd_str = request.POST.get('japan_supplier_price_usd', '').strip()
+            if japan_supplier_id and japan_supplier_price_usd_str:
                 try:
+                    japan_supplier_price_usd = Decimal(japan_supplier_price_usd_str)
                     japan_supplier = JapanSupplier.objects.get(pk=japan_supplier_id)
                     JapanSupplierRecord.objects.update_or_create(
                         vehicle=vehicle,
                         defaults={
                             'supplier': japan_supplier,
-                            'purchase_price': vehicle.purchase_price,
+                            'purchase_price': japan_supplier_price_usd,
                             'date': vehicle.date_added.date(),
                         },
                     )
-                except JapanSupplier.DoesNotExist:
+                except (JapanSupplier.DoesNotExist, Exception):
                     pass
 
             # Log creation
@@ -472,20 +486,22 @@ def vehicle_update_view(request, pk):
                 except ClearingAgent.DoesNotExist:
                     pass
 
-            # Link purchase price to a Japan supplier ledger record
+            # Link purchase price (USD) to a Japan supplier ledger record
             japan_supplier_id = request.POST.get('japan_supplier_id')
-            if japan_supplier_id and vehicle.purchase_price:
+            japan_supplier_price_usd_str = request.POST.get('japan_supplier_price_usd', '').strip()
+            if japan_supplier_id and japan_supplier_price_usd_str:
                 try:
+                    japan_supplier_price_usd = Decimal(japan_supplier_price_usd_str)
                     japan_supplier = JapanSupplier.objects.get(pk=japan_supplier_id)
                     JapanSupplierRecord.objects.update_or_create(
                         vehicle=vehicle,
                         defaults={
                             'supplier': japan_supplier,
-                            'purchase_price': vehicle.purchase_price,
+                            'purchase_price': japan_supplier_price_usd,
                             'date': vehicle.purchase_date or timezone.now().date(),
                         },
                     )
-                except JapanSupplier.DoesNotExist:
+                except (JapanSupplier.DoesNotExist, Exception):
                     pass
 
             # Detect changes
@@ -529,6 +545,7 @@ def vehicle_update_view(request, pk):
         'existing_clearing_agent_id': existing_clearance.agent_id if existing_clearance else None,
         'japan_suppliers': JapanSupplier.objects.filter(is_active=True).order_by('name'),
         'existing_japan_supplier_id': existing_supplier_record.supplier_id if existing_supplier_record else None,
+        'existing_japan_supplier_price_usd': existing_supplier_record.purchase_price if existing_supplier_record else None,
     }
     return render(request, 'vehicles/vehicle_form.html', context)
 
@@ -1444,6 +1461,18 @@ def record_japan_supplier_payment(request, supplier_pk):
     else:
         messages.success(request, f'Payment of KES {amount:,.2f} recorded for {supplier.name}.')
     return redirect('vehicles:japan_supplier_ledger_detail', pk=supplier_pk)
+
+
+@login_required
+def delete_japan_supplier(request, pk):
+    """Delete a Japan supplier and all related records."""
+    if request.method != 'POST':
+        return redirect('vehicles:japan_supplier_ledger_detail', pk=pk)
+    supplier = get_object_or_404(JapanSupplier, pk=pk)
+    name = supplier.name
+    supplier.delete()
+    messages.success(request, f'Supplier "{name}" has been deleted.')
+    return redirect('vehicles:japan_supplier_ledger_list')
 
 
 # ==================== VEHICLE REPORTS ====================
