@@ -45,23 +45,23 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     <option value="">All Statuses</option>
-                    <option value="PENDING">Pending</option>
-                    <option value="APPROVED">Approved</option>
-                    <option value="REJECTED">Rejected</option>
-                    <option value="CANCELLED">Cancelled</option>
+                    <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending</option>
+                    <option value="APPROVED" {% if status_filter == 'APPROVED' %}selected{% endif %}>Approved</option>
+                    <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>Rejected</option>
+                    <option value="CANCELLED" {% if status_filter == 'CANCELLED' %}selected{% endif %}>Cancelled</option>
                 </select>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Leave Type</label>
                 <select name="leave_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     <option value="">All Types</option>
-                    <option value="ANNUAL">Annual</option>
-                    <option value="SICK">Sick</option>
-                    <option value="MATERNITY">Maternity</option>
-                    <option value="PATERNITY">Paternity</option>
-                    <option value="UNPAID">Unpaid</option>
-                    <option value="BEREAVEMENT">Bereavement</option>
-                    <option value="OTHER">Other</option>
+                    <option value="ANNUAL" {% if leave_type_filter == 'ANNUAL' %}selected{% endif %}>Annual</option>
+                    <option value="SICK" {% if leave_type_filter == 'SICK' %}selected{% endif %}>Sick</option>
+                    <option value="MATERNITY" {% if leave_type_filter == 'MATERNITY' %}selected{% endif %}>Maternity</option>
+                    <option value="PATERNITY" {% if leave_type_filter == 'PATERNITY' %}selected{% endif %}>Paternity</option>
+                    <option value="UNPAID" {% if leave_type_filter == 'UNPAID' %}selected{% endif %}>Unpaid</option>
+                    <option value="BEREAVEMENT" {% if leave_type_filter == 'BEREAVEMENT' %}selected{% endif %}>Bereavement</option>
+                    <option value="OTHER" {% if leave_type_filter == 'OTHER' %}selected{% endif %}>Other</option>
                 </select>
             </div>
             <div>

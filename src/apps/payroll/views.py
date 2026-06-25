@@ -744,29 +744,56 @@ def attendance_bulk_mark(request):
 @login_required
 def leave_list(request):
     """Display leave requests."""
-    leaves = Leave.objects.all().select_related('employee', 'approved_by').order_by('-start_date')
-    
-    # Filter by status
-    status_filter = request.GET.get('status')
+    leaves_qs = Leave.objects.all().select_related('employee', 'approved_by').order_by('-start_date')
+
+    status_filter = request.GET.get('status', '')
+    leave_type_filter = request.GET.get('leave_type', '')
+    month_filter = request.GET.get('month', '')
+
     if status_filter:
-        leaves = leaves.filter(status=status_filter)
-    
-    # Pagination
-    paginator = Paginator(leaves, 25)
+        leaves_qs = leaves_qs.filter(status=status_filter)
+    if leave_type_filter:
+        leaves_qs = leaves_qs.filter(leave_type=leave_type_filter)
+    if month_filter:
+        try:
+            year, month = month_filter.split('-')
+            leaves_qs = leaves_qs.filter(start_date__year=year, start_date__month=month)
+        except (ValueError, AttributeError):
+            pass
+
+    paginator = Paginator(leaves_qs, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
+    today = date.today()
+    all_leaves = Leave.objects.all()
     context = {
+        'leaves': page_obj,
         'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
         'status_filter': status_filter,
+        'leave_type_filter': leave_type_filter,
+        'pending_count': all_leaves.filter(status='PENDING').count(),
+        'approved_count': all_leaves.filter(status='APPROVED').count(),
+        'rejected_count': all_leaves.filter(status='REJECTED').count(),
+        'this_month_count': all_leaves.filter(start_date__year=today.year, start_date__month=today.month).count(),
     }
-    
+
     return render(request, 'payroll/leave_list.html', context)
 
 
 @login_required
 def leave_create(request):
     """Create leave request."""
+    # Pre-populate employee from ?employee= query param
+    employee_id = request.GET.get('employee') or request.POST.get('employee')
+    employee_obj = None
+    if employee_id:
+        try:
+            employee_obj = Employee.objects.get(pk=employee_id)
+        except Employee.DoesNotExist:
+            pass
+
     if request.method == 'POST':
         form = LeaveForm(request.POST)
         if form.is_valid():
@@ -774,13 +801,17 @@ def leave_create(request):
             messages.success(request, 'Leave request submitted.')
             return redirect('payroll:leave_list')
     else:
-        form = LeaveForm()
-    
+        initial = {}
+        if employee_obj:
+            initial['employee'] = employee_obj
+        form = LeaveForm(initial=initial)
+
     context = {
         'form': form,
         'title': 'Request Leave',
+        'employee': employee_obj,
     }
-    
+
     return render(request, 'payroll/leave_form.html', context)
 
 

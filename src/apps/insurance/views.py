@@ -360,7 +360,7 @@ def expiring_policies(request):
         status='active',
         end_date__lte=timezone.now().date() + timedelta(days=days),
         end_date__gte=timezone.now().date()
-    ).select_related('vehicle', 'provider', 'client').order_by('end_date')
+    ).select_related('vehicle', 'client').order_by('end_date')
     
     context = {
         'expiring_policies': expiring,
@@ -821,7 +821,7 @@ def expiring_policies_api(request):
         status='active',
         end_date__lte=today + timedelta(days=days),
         end_date__gte=today
-    ).select_related('vehicle', 'provider', 'client')
+    ).select_related('vehicle', 'client')
     
     policies_data = []
     for policy in expiring:
@@ -936,7 +936,7 @@ def policy_comparison(request):
         
         policies = InsurancePolicy.objects.filter(
             pk__in=policy_ids
-        ).select_related('vehicle', 'provider', 'client')
+        ).select_related('vehicle', 'client')
         
         context = {
             'policies': policies
@@ -958,7 +958,7 @@ def claims_by_vehicle(request, vehicle_pk):
     
     claims = InsuranceClaim.objects.filter(
         policy__vehicle=vehicle
-    ).select_related('policy__provider').order_by('-claim_date')
+    ).select_related('policy__vehicle').order_by('-claim_date')
     
     # Statistics
     total_claims = claims.count()
@@ -989,7 +989,7 @@ def claims_by_client(request, client_pk):
     
     claims = InsuranceClaim.objects.filter(
         policy__client=client
-    ).select_related('policy__vehicle', 'policy__provider').order_by('-claim_date')
+    ).select_related('policy__vehicle', 'policy__client').order_by('-claim_date')
     
     # Statistics
     total_claims = claims.count()
@@ -1020,7 +1020,7 @@ def policies_by_vehicle(request, vehicle_pk):
     
     policies = InsurancePolicy.objects.filter(
         vehicle=vehicle
-    ).select_related('provider', 'client').order_by('-start_date')
+    ).select_related('vehicle', 'client').order_by('-start_date')
     
     # Get current active policy
     active_policy = policies.filter(status='active').first()
@@ -1046,7 +1046,7 @@ def policies_by_client(request, client_pk):
     
     policies = InsurancePolicy.objects.filter(
         client=client
-    ).select_related('vehicle', 'provider').order_by('-start_date')
+    ).select_related('vehicle', 'client').order_by('-start_date')
     
     # Statistics
     total_policies = policies.count()

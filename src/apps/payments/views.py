@@ -1877,18 +1877,20 @@ def defaulters_report(request):
         if schedule.days_overdue > defaulters[client.id]['days_overdue']:
             defaulters[client.id]['days_overdue'] = schedule.days_overdue
 
-    # Compute total_outstanding and payment_percentage from ALL client vehicles (not just overdue ones)
-    # so the balance matches what the client detail page shows.
+    # Compute total_outstanding and payment_percentage from ALL client vehicles (not just overdue ones).
+    # Use Sum('balance') — the same authoritative stored field used by the client detail page.
     for client_id, data in defaulters.items():
         cv_totals = ClientVehicle.objects.filter(client=data['client']).aggregate(
+            total_balance=Sum('balance'),
             total_purchase=Sum('purchase_price'),
             total_paid_sum=Sum('total_paid'),
         )
-        purchase = cv_totals['total_purchase'] or Decimal('0.00')
-        paid = cv_totals['total_paid_sum'] or Decimal('0.00')
-        data['total_outstanding'] = max(Decimal('0.00'), purchase - paid)
-        if purchase > 0:
-            data['payment_percentage'] = (paid / purchase) * Decimal('100')
+        total_balance = cv_totals['total_balance'] or Decimal('0.00')
+        total_purchase = cv_totals['total_purchase'] or Decimal('0.00')
+        total_paid = cv_totals['total_paid_sum'] or Decimal('0.00')
+        data['total_outstanding'] = max(Decimal('0.00'), total_balance)
+        if total_purchase > 0:
+            data['payment_percentage'] = (total_paid / total_purchase) * Decimal('100')
 
     defaulters_list = list(defaulters.values())
     total_outstanding = sum((d['total_outstanding'] for d in defaulters_list), Decimal('0.00'))

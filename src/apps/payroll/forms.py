@@ -312,23 +312,14 @@ class LeaveForm(forms.ModelForm):
         }
     
     def clean(self):
-        """Validate leave dates."""
         cleaned_data = super().clean()
         start_date = cleaned_data.get('start_date')
         end_date = cleaned_data.get('end_date')
-        days_requested = cleaned_data.get('days_requested')
-        
-        if start_date and end_date:
-            if end_date < start_date:
-                raise ValidationError('End date must be after start date.')
-            
-            # Check if days_requested matches date range
-            actual_days = (end_date - start_date).days + 1
-            if days_requested and abs(days_requested - actual_days) > 2:
-                raise ValidationError(
-                    f'Days requested ({days_requested}) does not match date range ({actual_days} days).'
-                )
-        
+        if start_date and end_date and end_date < start_date:
+            raise ValidationError('End date must be after start date.')
+        # Auto-calculate days_requested if not provided
+        if start_date and end_date and not cleaned_data.get('days_requested'):
+            cleaned_data['days_requested'] = (end_date - start_date).days + 1
         return cleaned_data
 
 
