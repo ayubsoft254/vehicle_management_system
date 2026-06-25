@@ -298,10 +298,13 @@ class RepossessionDocumentForm(forms.ModelForm):
         if self.user:
             document.uploaded_by = self.user
         
+        # After save(), document.file is a FieldFile (no content_type).
+        # The uploaded file is in self.cleaned_data['file'] (an InMemoryUploadedFile).
+        uploaded_file = self.cleaned_data.get('file')
         if document.file:
             document.file_name = document.file.name
             document.file_size = document.file.size
-            document.file_type = document.file.content_type
+            document.file_type = getattr(uploaded_file, 'content_type', '') if uploaded_file else ''
         
         if commit:
             document.save()

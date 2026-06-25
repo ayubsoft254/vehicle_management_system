@@ -16,6 +16,13 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Drop any leftover types/tables from a previous failed migration attempt (PostgreSQL only).
+        migrations.RunSQL("DROP TABLE IF EXISTS vehicles_japansupplierrecord CASCADE;", migrations.RunSQL.noop),
+        migrations.RunSQL("DROP TABLE IF EXISTS vehicles_japansupplierpayment CASCADE;", migrations.RunSQL.noop),
+        migrations.RunSQL("DROP TABLE IF EXISTS vehicles_japansupplier CASCADE;", migrations.RunSQL.noop),
+        migrations.RunSQL("DROP TYPE IF EXISTS vehicles_japansupplierrecord CASCADE;", migrations.RunSQL.noop),
+        migrations.RunSQL("DROP TYPE IF EXISTS vehicles_japansupplierpayment CASCADE;", migrations.RunSQL.noop),
+        migrations.RunSQL("DROP TYPE IF EXISTS vehicles_japansupplier CASCADE;", migrations.RunSQL.noop),
         migrations.CreateModel(
             name='JapanSupplier',
             fields=[

@@ -11,9 +11,6 @@
             <p class="text-gray-600">Policies expiring within {{ days }} days</p>
         </div>
         <div class="mt-4 md:mt-0 space-x-3">
-            <a href="{% url 'insurance:send_bulk_reminders' %}" class="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition">
-                <i class="fas fa-paper-plane mr-2"></i>Send Reminders
-            </a>
             <a href="{% url 'insurance:policy_list' %}" class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition">
                 <i class="fas fa-arrow-left mr-2"></i>All Policies
             </a>
