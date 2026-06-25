@@ -1854,17 +1854,12 @@ def defaulters_report(request):
 
     # Group overdue schedules by client and calculate dynamic metrics used by template.
     defaulters = {}
-    seen_vehicles = set()  # track (client_id, cv_id) to avoid double-counting balance
     for schedule in overdue_schedules:
         client_vehicle = schedule.installment_plan.client_vehicle
         client = client_vehicle.client
 
         if client.id not in defaulters:
             last_payment = Payment.objects.filter(client_vehicle=client_vehicle).order_by('-payment_date', '-created_at').first()
-            payment_percentage = Decimal('0.00')
-            if client_vehicle.purchase_price and client_vehicle.purchase_price > 0:
-                payment_percentage = (client_vehicle.total_paid / client_vehicle.purchase_price) * Decimal('100')
-
             defaulters[client.id] = {
                 'client': client,
                 'vehicle': client_vehicle.vehicle,
@@ -1872,21 +1867,28 @@ def defaulters_report(request):
                 'days_overdue': schedule.days_overdue,
                 'overdue_installments': 0,
                 'total_outstanding': Decimal('0.00'),
-                'payment_percentage': payment_percentage,
+                'payment_percentage': Decimal('0.00'),
                 'last_payment_date': last_payment.payment_date if last_payment else None,
                 'last_payment_amount': last_payment.amount if last_payment else None,
             }
 
         defaulters[client.id]['overdue_installments'] += 1
 
-        # Add the full remaining loan balance once per vehicle (not per overdue schedule)
-        cv_key = (client.id, client_vehicle.id)
-        if cv_key not in seen_vehicles:
-            seen_vehicles.add(cv_key)
-            defaulters[client.id]['total_outstanding'] += max(Decimal('0.00'), client_vehicle.balance)
-
         if schedule.days_overdue > defaulters[client.id]['days_overdue']:
             defaulters[client.id]['days_overdue'] = schedule.days_overdue
+
+    # Compute total_outstanding and payment_percentage from ALL client vehicles (not just overdue ones)
+    # so the balance matches what the client detail page shows.
+    for client_id, data in defaulters.items():
+        cv_totals = ClientVehicle.objects.filter(client=data['client']).aggregate(
+            total_purchase=Sum('purchase_price'),
+            total_paid_sum=Sum('total_paid'),
+        )
+        purchase = cv_totals['total_purchase'] or Decimal('0.00')
+        paid = cv_totals['total_paid_sum'] or Decimal('0.00')
+        data['total_outstanding'] = max(Decimal('0.00'), purchase - paid)
+        if purchase > 0:
+            data['payment_percentage'] = (paid / purchase) * Decimal('100')
 
     defaulters_list = list(defaulters.values())
     total_outstanding = sum((d['total_outstanding'] for d in defaulters_list), Decimal('0.00'))

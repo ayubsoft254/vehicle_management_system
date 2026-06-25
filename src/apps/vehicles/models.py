@@ -762,11 +762,8 @@ class TrackerAgent(models.Model):
 
     @property
     def total_owed(self):
-        """Sum of buying prices for unpaid tracker records from this agent."""
-        return (
-            self.tracker_records.filter(dealer_payment_status='unpaid')
-            .aggregate(total=models.Sum('buying_price'))['total'] or Decimal('0.00')
-        )
+        """Remaining balance: total buying price minus all payments made."""
+        return max(Decimal('0.00'), self.total_buying_price - self.total_payments_made)
 
     @property
     def total_payments_made(self):
@@ -1081,12 +1078,8 @@ class Broker(models.Model):
 
     @property
     def total_owed(self):
-        """Sum of commissions not yet paid to this broker."""
-        return (
-            self.sales.filter(broker_commission_status='unpaid')
-            .aggregate(total=models.Sum('commission_amount'))['total']
-            or Decimal('0.00')
-        )
+        """Remaining balance: total commission minus all payments made."""
+        return max(Decimal('0.00'), self.total_commission - self.total_payments_made)
 
     @property
     def total_payments_made(self):

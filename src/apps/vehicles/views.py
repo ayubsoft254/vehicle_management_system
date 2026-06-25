@@ -1493,16 +1493,37 @@ def record_broker_payment(request, broker_pk):
             payment_date = datetime_type.strptime(payment_date_str, '%Y-%m-%d').date()
         except ValueError:
             pass
-    payment = BrokerPayment.objects.create(
-        broker=broker,
-        amount=amount,
-        payment_method=payment_method,
-        reference_number=reference_number,
-        notes=notes,
-        payment_date=payment_date,
-        recorded_by=request.user,
-    )
-    messages.success(request, f'Payment voucher {payment.voucher_number} (KES {amount:,.2f}) recorded for {broker.name}.')
+    with transaction.atomic():
+        payment = BrokerPayment.objects.create(
+            broker=broker,
+            amount=amount,
+            payment_method=payment_method,
+            reference_number=reference_number,
+            notes=notes,
+            payment_date=payment_date,
+            recorded_by=request.user,
+        )
+
+        # Mark unpaid commission records as paid (oldest first) until exhausted
+        remaining = amount
+        unpaid_sales = broker.sales.filter(
+            broker_commission_status='unpaid'
+        ).order_by('purchase_date', 'id')
+
+        sales_cleared = 0
+        for sale in unpaid_sales:
+            if remaining >= sale.commission_amount:
+                remaining -= sale.commission_amount
+                sale.broker_commission_status = 'paid'
+                sale.save(update_fields=['broker_commission_status'])
+                sales_cleared += 1
+            else:
+                break
+
+    msg = f'Payment voucher {payment.voucher_number} (KES {amount:,.2f}) recorded for {broker.name}.'
+    if sales_cleared:
+        msg += f' {sales_cleared} commission record(s) marked as settled.'
+    messages.success(request, msg)
     return redirect('vehicles:broker_ledger_detail', pk=broker_pk)
 
 

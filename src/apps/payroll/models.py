@@ -41,7 +41,7 @@ class Employee(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     middle_name = models.CharField(max_length=100, blank=True)
-    date_of_birth = models.DateField()
+    date_of_birth = models.DateField(null=True, blank=True)
     phone_number = models.CharField(max_length=20)
     email = models.EmailField()
     national_id = models.CharField(max_length=50, unique=True)

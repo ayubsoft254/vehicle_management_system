@@ -113,12 +113,8 @@ class InsuranceAgent(models.Model):
 
     @property
     def total_owed(self):
-        """Sum of buying prices for all unpaid policies through this agent."""
-        from django.db.models import Sum
-        return (
-            self.policies.filter(dealer_payment_status='unpaid')
-            .aggregate(total=Sum('buying_price'))['total'] or Decimal('0.00')
-        )
+        """Remaining balance: total buying price minus all payments made."""
+        return max(Decimal('0.00'), self.total_buying_price - self.total_payments_made)
 
     @property
     def total_payments_made(self):

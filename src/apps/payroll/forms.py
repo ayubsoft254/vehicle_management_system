@@ -26,7 +26,7 @@ class EmployeeForm(forms.ModelForm):
         fields = [
             'first_name', 'last_name', 'middle_name', 'date_of_birth',
             'phone_number', 'email', 'national_id', 'employment_type', 'status',
-            'job_title', 'department', 'hire_date', 'termination_date',
+            'job_title', 'hire_date', 'termination_date',
             'bank_name', 'bank_account_number', 'bank_branch',
             'tax_identification_number', 'pension_number', 'insurance_number',
             'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
@@ -43,7 +43,6 @@ class EmployeeForm(forms.ModelForm):
             'employment_type': forms.Select(attrs={'class': 'form-control'}),
             'status': forms.Select(attrs={'class': 'form-control'}),
             'job_title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Job title'}),
-            'department': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Department'}),
             'hire_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'termination_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'bank_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Bank name'}),
