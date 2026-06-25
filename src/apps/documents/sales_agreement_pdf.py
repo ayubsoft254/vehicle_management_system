@@ -149,6 +149,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
                 insurance_installment_months=si.get('insurance_installment_months'),
                 insurance_deposit=Decimal(str(si.get('insurance_deposit') or '0')),
                 insurance_total_paid=Decimal(str(si.get('insurance_total_paid') or '0')),
+                insurance_payment_method=si.get('insurance_payment_method', ''),
                 insurance_payment_schedules=SimpleNamespace(order_by=lambda _: _si_scheds),
             )
         else:

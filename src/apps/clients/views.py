@@ -1783,6 +1783,7 @@ def _build_agreement_snapshot(client_vehicle):
             'insurance_installment_months': insurance_policy.insurance_installment_months,
             'insurance_deposit': str(insurance_policy.insurance_deposit or '0'),
             'insurance_total_paid': str(insurance_policy.insurance_total_paid or '0'),
+            'insurance_payment_method': insurance_policy.insurance_payment_method or '',
             'schedules': [
                 {
                     'installment_number': s.installment_number,
