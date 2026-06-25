@@ -82,6 +82,7 @@ urlpatterns = [
     # Client Vehicle Management
     path('vehicle/<int:pk>/', views.client_vehicle_detail, name='client_vehicle_detail'),
     path('vehicle/<int:pk>/update/', views.client_vehicle_update, name='client_vehicle_update'),
+    path('tracker/<int:tracker_pk>/renew/', views.renew_tracker, name='renew_tracker'),
     
     # ==================== PAYMENT URLS ====================
     

@@ -1125,6 +1125,8 @@ def client_vehicle_detail(request, pk):
             'is_fully_paid': tracker.balance <= Decimal('0.00'),
         })
     
+    tracker_agents = TrackerAgent.objects.filter(is_active=True).order_by('name')
+
     context = {
         'client_vehicle': client_vehicle,
         'payments': payments,
@@ -1139,6 +1141,7 @@ def client_vehicle_detail(request, pk):
         'interest_rate_display': interest_rate_display,
         'insurance_summary': insurance_summary,
         'tracker_payment_rows': tracker_payment_rows,
+        'tracker_agents': tracker_agents,
     }
     
     log_audit(
@@ -2181,15 +2184,21 @@ def renew_tracker(request, tracker_pk):
     install_date_str = request.POST.get('installed_date', '').strip()
     buying_price_str = request.POST.get('buying_price', '0').strip()
     selling_price_str = request.POST.get('selling_price', '0').strip()
-    payment_type = request.POST.get('payment_type', 'full').strip()
-    payment_method = request.POST.get('payment_method', 'cash').strip()
+    payment_type = request.POST.get('payment_type', 'full').strip() or 'full'
+    payment_method = request.POST.get('payment_method', 'cash').strip() or 'cash'
+    deposit_str = request.POST.get('deposit', '0').strip()
+    flex_json_raw = request.POST.get('tracker_flexible_installments_json', '[]')
+    notes = request.POST.get('notes', '').strip()
 
-    try:
-        buying_price = Decimal(buying_price_str) if buying_price_str else Decimal('0')
-        selling_price = Decimal(selling_price_str) if selling_price_str else Decimal('0')
-    except Exception:
-        buying_price = Decimal('0')
-        selling_price = Decimal('0')
+    def _money(val, default='0'):
+        try:
+            return Decimal(str(val).strip() or default)
+        except Exception:
+            return Decimal(default)
+
+    buying_price = _money(buying_price_str)
+    selling_price = _money(selling_price_str)
+    deposit = _money(deposit_str)
 
     install_date = None
     if install_date_str:
@@ -2206,37 +2215,75 @@ def renew_tracker(request, tracker_pk):
         except TrackerAgent.DoesNotExist:
             tracker_agent_id = ''
 
-    total_paid = Decimal('0')
-    if payment_type in ('full', 'deduct_from_deposit'):
+    # Parse flexible installments
+    try:
+        flex_installments = json.loads(flex_json_raw or '[]')
+        if not isinstance(flex_installments, list):
+            flex_installments = []
+    except Exception:
+        flex_installments = []
+
+    has_plan = (payment_type == 'flexible') and bool(flex_installments)
+
+    # Compute installment summary
+    ins_months = None
+    monthly_installment = None
+    if has_plan:
+        ins_months = len(flex_installments)
+        total_flex = sum(
+            (_money(row.get('amount', '0')) for row in flex_installments),
+            Decimal('0.00'),
+        )
+        monthly_installment = (total_flex / ins_months).quantize(Decimal('0.01')) if ins_months else None
+
+    # Compute total_paid and effective deposit
+    if payment_type == 'full':
         total_paid = selling_price
+        deposit = Decimal('0.00')
+    elif payment_type == 'deduct_from_deposit':
+        total_paid = selling_price
+        deposit = Decimal('0.00')
+    elif has_plan:
+        deposit = min(deposit, selling_price)
+        total_paid = deposit
+    else:
+        total_paid = Decimal('0.00')
 
-    VehicleTracker.objects.create(
-        client_vehicle=client_vehicle,
-        tracker_name=name,
-        serial_number=serial,
-        certificate_number=cert,
-        provider=tracker_agent_name,
-        buying_price=buying_price,
-        selling_price=selling_price,
-        payment_type=payment_type,
-        payment_method=payment_method,
-        has_payment_plan=False,
-        total_paid=total_paid,
-        installed_date=install_date,
-        created_by=request.user,
-    )
-
-    if tracker_agent_id:
-        TrackerRecord.objects.create(
-            vehicle=client_vehicle.vehicle,
+    with transaction.atomic():
+        new_tracker = VehicleTracker.objects.create(
             client_vehicle=client_vehicle,
-            agent_id=tracker_agent_id,
             tracker_name=name,
             serial_number=serial,
+            certificate_number=cert,
+            provider=tracker_agent_name,
             buying_price=buying_price,
             selling_price=selling_price,
-            installation_date=install_date,
+            payment_type=payment_type,
+            payment_method=payment_method,
+            has_payment_plan=has_plan,
+            deposit=deposit,
+            installment_months=ins_months,
+            monthly_installment=monthly_installment,
+            installments_json=json.dumps(flex_installments) if has_plan else '[]',
+            total_paid=total_paid,
+            installed_date=install_date,
+            notes=notes,
+            created_by=request.user,
         )
 
+        if tracker_agent_id:
+            TrackerRecord.objects.create(
+                vehicle=client_vehicle.vehicle,
+                client_vehicle=client_vehicle,
+                agent_id=tracker_agent_id,
+                tracker_name=name,
+                serial_number=serial,
+                buying_price=buying_price,
+                selling_price=selling_price,
+                installation_date=install_date,
+            )
+
+    log_audit(request.user, 'create', 'VehicleTracker',
+              f'Renewed tracker "{name}" for {client_vehicle}')
     messages.success(request, f'Tracker "{name}" renewed successfully.')
     return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)

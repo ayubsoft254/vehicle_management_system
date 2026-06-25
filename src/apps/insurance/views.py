@@ -44,6 +44,7 @@ def policy_list(request):
 
     if search_form.is_valid():
         search = search_form.cleaned_data.get('search')
+        chassis_no = search_form.cleaned_data.get('chassis_no')
         policy_type = search_form.cleaned_data.get('policy_type')
         status = search_form.cleaned_data.get('status')
         insurance_agent = search_form.cleaned_data.get('insurance_agent')
@@ -56,6 +57,9 @@ def policy_list(request):
                 Q(client__first_name__icontains=search) |
                 Q(client__last_name__icontains=search)
             )
+
+        if chassis_no:
+            policies = policies.filter(vehicle__vin__icontains=chassis_no)
 
         if policy_type:
             policies = policies.filter(policy_type=policy_type)
