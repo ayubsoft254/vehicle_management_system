@@ -215,28 +215,46 @@ def get_dashboard_overview_data(user=None):
     # ── DAILY REPORT ─────────────────────────────────────────────────
     from apps.expenses.models import Expense
 
-    daily_cv_qs = ClientVehicle.objects.filter(purchase_date=today)
-    daily_vehicles_sold_count  = daily_cv_qs.count()
-    daily_vehicles_sold_amount = daily_cv_qs.aggregate(
-        total=Sum('purchase_price')
-    )['total'] or Decimal('0.00')
-
-    daily_trackers_sold_count = VehicleTracker.objects.filter(
-        created_at__date=today
-    ).count()
-
-    daily_insurance_sold_count = InsurancePolicy.objects.filter(
-        created_at__date=today
-    ).count()
-
     daily_money_out = Expense.objects.filter(
         expense_date=today
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-    # Expected payments today: sum of scheduled installments due today
+    # Expected vehicle installments today
     daily_expected_today = PaymentSchedule.objects.filter(
         due_date=today,
     ).aggregate(total=Sum('amount_due'))['total'] or Decimal('0.00')
+
+    # Insurance expected & collected today
+    from apps.insurance.models import InsurancePaymentSchedule, InsurancePayment
+    daily_expected_insurance = InsurancePaymentSchedule.objects.filter(
+        due_date=today,
+    ).aggregate(total=Sum('amount_due'))['total'] or Decimal('0.00')
+    daily_paid_insurance = InsurancePayment.objects.filter(
+        payment_date=today,
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+    # Tracker installments expected today (installments_json stores [{due_date, amount}])
+    import json as _json
+    from dateutil.relativedelta import relativedelta as _rd
+    _today_str = today.isoformat()
+    daily_expected_trackers = Decimal('0.00')
+    for _trk in VehicleTracker.objects.filter(has_payment_plan=True, balance__gt=0):
+        _raw = _trk.installments_json or '[]'
+        try:
+            _entries = _json.loads(_raw)
+        except Exception:
+            _entries = []
+        if not _entries and _trk.monthly_installment and _trk.installment_months and _trk.installed_date:
+            _entries = [
+                {'due_date': (_trk.installed_date + _rd(months=i + 1)).isoformat(), 'amount': str(_trk.monthly_installment)}
+                for i in range(int(_trk.installment_months))
+            ]
+        for _e in _entries:
+            if _e.get('due_date') == _today_str:
+                try:
+                    daily_expected_trackers += Decimal(str(_e.get('amount', '0')))
+                except Exception:
+                    pass
 
     # ── RECENT SALES ──────────────────────────────────────────────────
     recent_sales = list(
@@ -352,17 +370,16 @@ def get_dashboard_overview_data(user=None):
         'first_day_of_month': first_day_of_month.isoformat(),
         'daily': {
             'date': today.isoformat(),
-            'overdue_total': float(total_overdue_amount),
-            'overdue_schedules': overdue_schedules_qs.count(),
-            'defaulters_count': len(defaulters),
-            'vehicles_sold_count': daily_vehicles_sold_count,
-            'vehicles_sold_amount': float(daily_vehicles_sold_amount),
-            'trackers_sold_count': daily_trackers_sold_count,
-            'insurance_sold_count': daily_insurance_sold_count,
             'expected_today': float(daily_expected_today),
             'money_in': float(total_payments_today),
             'money_in_count': payments_count_today,
+            'expected_insurance': float(daily_expected_insurance),
+            'paid_insurance': float(daily_paid_insurance),
+            'expected_trackers': float(daily_expected_trackers),
             'money_out': float(daily_money_out),
+            'overdue_total': float(total_overdue_amount),
+            'overdue_schedules': overdue_schedules_qs.count(),
+            'defaulters_count': len(defaulters),
         },
     }
 
