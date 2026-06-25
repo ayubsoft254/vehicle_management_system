@@ -166,7 +166,7 @@ class DocumentForm(forms.ModelForm):
 
 class DocumentCategoryForm(forms.ModelForm):
     """Form for managing document categories."""
-    
+
     class Meta:
         model = DocumentCategory
         fields = ['name', 'description', 'icon', 'color']
@@ -189,37 +189,36 @@ class DocumentCategoryForm(forms.ModelForm):
                 'type': 'color'
             })
         }
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['parent'].required = False
-        
-        # Prevent circular references
-        if self.instance.pk:
-            self.fields['parent'].queryset = DocumentCategory.objects.exclude(
-                pk=self.instance.pk
-            ).exclude(
-                parent=self.instance
-            )
+
+    def save(self, commit=True):
+        from django.utils.text import slugify
+        instance = super().save(commit=False)
+        if not instance.slug:
+            base_slug = slugify(instance.name)
+            slug = base_slug
+            i = 1
+            while DocumentCategory.objects.filter(slug=slug).exclude(pk=instance.pk or 0).exists():
+                slug = f'{base_slug}-{i}'
+                i += 1
+            instance.slug = slug
+        if commit:
+            instance.save()
+        return instance
 
 
 class DocumentShareForm(forms.ModelForm):
-    """Form for sharing documents with users."""
-    
+    """Form for creating shareable document links."""
+
     class Meta:
         model = DocumentShare
-        fields = ['password', 'allow_download', 'max_downloads', 'expires_at']
+        fields = ['allow_download', 'max_downloads', 'expires_at']
         widgets = {
-            'password': forms.PasswordInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Optional password protection'
-            }),
             'allow_download': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
             'max_downloads': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Maximum downloads (optional)',
+                'placeholder': 'Leave blank for unlimited',
                 'min': 1
             }),
             'expires_at': forms.DateTimeInput(attrs={
@@ -227,60 +226,31 @@ class DocumentShareForm(forms.ModelForm):
                 'type': 'datetime-local'
             })
         }
-    
+
     def __init__(self, *args, **kwargs):
         self.document = kwargs.pop('document', None)
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        
-        # Don't allow sharing with document owner
-        if self.document and self.document.uploaded_by:
-            self.fields['shared_with'].queryset = User.objects.filter(
-                is_active=True
-            ).exclude(pk=self.document.uploaded_by.pk)
-        
+        self.fields['max_downloads'].required = False
         self.fields['expires_at'].required = False
-    
+
     def clean_expires_at(self):
-        """Validate expiration date."""
         expires_at = self.cleaned_data.get('expires_at')
-        
         if expires_at and expires_at < timezone.now():
             raise ValidationError('Expiration date cannot be in the past.')
-        
         return expires_at
-    
-    def clean(self):
-        """Check for duplicate shares."""
-        cleaned_data = super().clean()
-        shared_with = cleaned_data.get('shared_with')
-        
-        if self.document and shared_with:
-            existing = DocumentShare.objects.filter(
-                document=self.document,
-                shared_with=shared_with
-            ).exists()
-            
-            if existing:
-                raise ValidationError(
-                    f'Document is already shared with {shared_with.get_full_name() or shared_with.username}.'
-                )
-        
-        return cleaned_data
-    
+
     def save(self, commit=True):
-        """Save share record."""
+        import secrets
         share = super().save(commit=False)
-        
         if self.document:
             share.document = self.document
-        
         if self.user:
-            share.shared_by = self.user
-        
+            share.created_by = self.user
+        if not share.share_token:
+            share.share_token = secrets.token_urlsafe(32)
         if commit:
             share.save()
-        
         return share
 
 

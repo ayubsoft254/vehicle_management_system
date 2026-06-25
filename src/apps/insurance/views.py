@@ -280,7 +280,6 @@ def policy_renew(request, pk):
                     sum_insured=form.cleaned_data['new_sum_insured'],
                     excess_amount=form.cleaned_data.get('new_excess_amount') or Decimal('0.00'),
                     status='active',
-                    notes=form.cleaned_data.get('notes', ''),
                     created_by=request.user
                 )
 

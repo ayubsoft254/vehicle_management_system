@@ -19,48 +19,63 @@ from apps.audit.utils import log_audit
 
 @login_required
 def document_list(request):
-    """Display list of documents with search and filters."""
-    form = DocumentSearchForm(request.GET or None)
-    
-    # Base queryset - all active documents
+    """Display all uploaded documents with search and filters."""
+    # All active (non-deleted) documents
     documents = Document.objects.filter(is_active=True).select_related(
         'uploaded_by', 'category'
     ).order_by('-uploaded_at')
-    
-    # Apply search filters
-    if form.is_valid():
-        query = form.cleaned_data.get('query')
-        if query:
-            documents = documents.filter(
-                Q(title__icontains=query) |
-                Q(description__icontains=query)
-            )
-        
-        category = form.cleaned_data.get('category')
-        if category:
-            documents = documents.filter(category=category)
-        
-        uploaded_by = form.cleaned_data.get('uploaded_by')
-        if uploaded_by:
-            documents = documents.filter(uploaded_by=uploaded_by)
-    
+
+    # Search
+    query = request.GET.get('query', '').strip()
+    if query:
+        documents = documents.filter(
+            Q(title__icontains=query) |
+            Q(description__icontains=query) |
+            Q(document_number__icontains=query) |
+            Q(tags__icontains=query)
+        )
+
+    # Category filter
+    category_id = request.GET.get('category')
+    if category_id:
+        documents = documents.filter(category_id=category_id)
+
+    # Date range filter
+    date_from = request.GET.get('date_from')
+    if date_from:
+        try:
+            from datetime import datetime as dt
+            documents = documents.filter(uploaded_at__date__gte=dt.strptime(date_from, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+
+    date_to = request.GET.get('date_to')
+    if date_to:
+        try:
+            from datetime import datetime as dt
+            documents = documents.filter(uploaded_at__date__lte=dt.strptime(date_to, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+
     # Pagination
     paginator = Paginator(documents, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
-    # Get categories for filter
+
     categories = DocumentCategory.objects.filter(is_active=True)
-    
+
     log_audit(request.user, 'read', 'Document', 'Viewed document list')
-    
+
     context = {
         'documents': page_obj,
-        'form': form,
         'categories': categories,
-        'total_count': documents.count(),
+        'total_count': Document.objects.filter(is_active=True).count(),
+        'query': query,
+        'category_id': category_id,
+        'date_from': date_from,
+        'date_to': date_to,
     }
-    
+
     return render(request, 'documents/document_list.html', context)
 
 
@@ -69,12 +84,10 @@ def document_detail(request, pk):
     """Display document details."""
     document = get_object_or_404(Document, pk=pk, is_active=True)
     
-    # Check if user has access
-    if not (document.uploaded_by == request.user or not document.is_private):
-        # Check if document is shared with user
-        if not DocumentShare.objects.filter(document=document, user=request.user, is_active=True).exists():
-            messages.error(request, 'You do not have permission to view this document.')
-            return redirect('documents:document_list')
+    # Private documents: only the uploader or admins can view
+    if document.is_private and document.uploaded_by != request.user and not request.user.is_staff:
+        messages.error(request, 'You do not have permission to view this document.')
+        return redirect('documents:document_list')
     
     log_audit(request.user, 'read', 'Document', f'Viewed document: {document.title}')
     
@@ -172,21 +185,20 @@ def document_share(request, pk):
         form = DocumentShareForm(request.POST, document=document, user=request.user)
         if form.is_valid():
             share = form.save()
-            log_audit(request.user, 'create', 'DocumentShare', f'Shared document {document.title} with {share.user.get_full_name()}')
-            messages.success(request, f'Document shared with {share.user.get_full_name()} successfully!')
+            log_audit(request.user, 'create', 'DocumentShare', f'Created share link for {document.title}')
+            messages.success(request, 'Share link created successfully!')
             return redirect('documents:document_detail', pk=document.pk)
     else:
         form = DocumentShareForm(document=document, user=request.user)
-    
-    # Get existing shares
-    shares = DocumentShare.objects.filter(document=document, is_active=True).select_related('user')
-    
+
+    shares = DocumentShare.objects.filter(document=document, is_active=True).select_related('created_by')
+
     context = {
         'form': form,
         'document': document,
         'shares': shares,
     }
-    
+
     return render(request, 'documents/document_share.html', context)
 
 
@@ -278,12 +290,10 @@ def download_document(request, pk):
     """Download a document file."""
     document = get_object_or_404(Document, pk=pk, is_active=True)
     
-    # Check if user has access
-    if not (document.uploaded_by == request.user or not document.is_private):
-        # Check if document is shared with user
-        if not DocumentShare.objects.filter(document=document, user=request.user, is_active=True).exists():
-            messages.error(request, 'You do not have permission to download this document.')
-            return redirect('documents:document_list')
+    # Private documents: only the uploader or admins can download
+    if document.is_private and document.uploaded_by != request.user and not request.user.is_staff:
+        messages.error(request, 'You do not have permission to download this document.')
+        return redirect('documents:document_list')
     
     log_audit(request.user, 'read', 'Document', f'Downloaded document: {document.title}')
     

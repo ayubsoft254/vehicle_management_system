@@ -273,7 +273,22 @@ def commission_list(request):
     # Filter by employee
     employee_id = request.GET.get('employee')
     if employee_id:
-        commissions = commissions.filter(employee_id=employee_id)
+        try:
+            commissions = commissions.filter(employee_id=int(employee_id))
+        except (ValueError, TypeError):
+            pass
+
+    # Filter by month (e.g. "2024-01")
+    month_filter = request.GET.get('month')
+    if month_filter:
+        try:
+            month_date = datetime.strptime(month_filter, '%Y-%m').date()
+            commissions = commissions.filter(
+                payroll_month__year=month_date.year,
+                payroll_month__month=month_date.month,
+            )
+        except ValueError:
+            pass
 
     # Pagination
     paginator = Paginator(commissions, 25)
@@ -285,6 +300,7 @@ def commission_list(request):
         'page_obj': page_obj,
         'commissions': page_obj,
         'status_filter': status_filter,
+        'month_filter': month_filter,
         'total_amount': all_commissions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00'),
         'pending_count': all_commissions.filter(status='PENDING').count(),
         'approved_count': all_commissions.filter(status='APPROVED').count(),
@@ -342,31 +358,44 @@ def commission_approve(request, pk):
 def deduction_list(request):
     """Display list of deductions."""
     deductions = Deduction.objects.all().select_related('employee').order_by('-start_date')
-    
-    # Filter by type
-    type_filter = request.GET.get('type')
+
+    # Filter by type — template sends 'deduction_type'
+    type_filter = request.GET.get('deduction_type') or request.GET.get('type')
     if type_filter:
         deductions = deductions.filter(deduction_type=type_filter)
-    
+
     # Filter by employee
-    employee_id = request.GET.get('employee')
-    if employee_id:
-        deductions = deductions.filter(employee_id=employee_id)
-    
-    # Filter active only
-    if request.GET.get('active') == 'true':
+    employee_search = request.GET.get('employee')
+    if employee_search:
+        deductions = deductions.filter(
+            Q(employee__first_name__icontains=employee_search) |
+            Q(employee__last_name__icontains=employee_search) |
+            Q(employee__employee_id__icontains=employee_search)
+        )
+
+    # Filter active/inactive
+    is_active_param = request.GET.get('is_active')
+    if is_active_param == 'true':
         deductions = deductions.filter(is_active=True)
-    
+    elif is_active_param == 'false':
+        deductions = deductions.filter(is_active=False)
+
     # Pagination
     paginator = Paginator(deductions, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
+    all_deductions = Deduction.objects.all()
     context = {
         'page_obj': page_obj,
+        'deductions': page_obj,
         'type_filter': type_filter,
+        'total_deductions': all_deductions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00'),
+        'tax_amount': all_deductions.filter(deduction_type='TAX').aggregate(total=Sum('amount'))['total'] or Decimal('0.00'),
+        'insurance_amount': all_deductions.filter(deduction_type='INSURANCE').aggregate(total=Sum('amount'))['total'] or Decimal('0.00'),
+        'active_count': all_deductions.filter(is_active=True).count(),
     }
-    
+
     return render(request, 'payroll/deduction_list.html', context)
 
 
@@ -896,6 +925,23 @@ def loan_list(request):
     if status_filter:
         loans_qs = loans_qs.filter(status=status_filter)
 
+    # Filter by employee name/ID search
+    employee_search = request.GET.get('employee')
+    if employee_search:
+        loans_qs = loans_qs.filter(
+            Q(employee__first_name__icontains=employee_search) |
+            Q(employee__last_name__icontains=employee_search) |
+            Q(employee__employee_id__icontains=employee_search)
+        )
+
+    # Filter by disbursement date from
+    date_from = request.GET.get('date_from')
+    if date_from:
+        try:
+            loans_qs = loans_qs.filter(disbursement_date__gte=datetime.strptime(date_from, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+
     # Pagination
     paginator = Paginator(loans_qs, 25)
     page_number = request.GET.get('page')
@@ -967,10 +1013,148 @@ def loan_approve(request, pk):
 @login_required
 def payroll_reports(request):
     """Display payroll reports and analytics."""
-    # TODO: Implement comprehensive reporting
-    
+    date_from_str = request.GET.get('date_from')
+    date_to_str = request.GET.get('date_to')
+
+    payslip_qs = Payslip.objects.all()
+    commission_qs = Commission.objects.all()
+    deduction_qs = Deduction.objects.all()
+    attendance_qs = Attendance.objects.all()
+    leave_qs = Leave.objects.filter(status='APPROVED')
+    loan_qs = Loan.objects.all()
+
+    if date_from_str:
+        try:
+            date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date()
+            payslip_qs = payslip_qs.filter(payroll_run__payroll_month__gte=date_from)
+            commission_qs = commission_qs.filter(commission_date__gte=date_from)
+            attendance_qs = attendance_qs.filter(attendance_date__gte=date_from)
+            leave_qs = leave_qs.filter(start_date__gte=date_from)
+        except ValueError:
+            pass
+
+    if date_to_str:
+        try:
+            date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date()
+            payslip_qs = payslip_qs.filter(payroll_run__payroll_month__lte=date_to)
+            commission_qs = commission_qs.filter(commission_date__lte=date_to)
+            attendance_qs = attendance_qs.filter(attendance_date__lte=date_to)
+            leave_qs = leave_qs.filter(end_date__lte=date_to)
+        except ValueError:
+            pass
+
+    # Overall payroll totals from payslips
+    payslip_totals = payslip_qs.aggregate(
+        gross=Sum('gross_salary'),
+        deductions=Sum('total_deductions'),
+        net=Sum('net_salary'),
+    )
+    total_payroll = payslip_totals['gross'] or Decimal('0.00')
+    total_deductions = payslip_totals['deductions'] or Decimal('0.00')
+    net_pay = payslip_totals['net'] or Decimal('0.00')
+
+    # Commission totals
+    total_commissions = commission_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    total_commissions_paid = commission_qs.filter(status='PAID').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    pending_commissions_count = commission_qs.filter(status='PENDING').count()
+
+    # Monthly salary stats from PayrollRun
+    monthly_values = list(PayrollRun.objects.values_list('total_net', flat=True).filter(total_net__gt=0))
+    if monthly_values:
+        avg_monthly_salary = sum(monthly_values) / len(monthly_values)
+        highest_month = max(monthly_values)
+        lowest_month = min(monthly_values)
+    else:
+        avg_monthly_salary = highest_month = lowest_month = Decimal('0.00')
+
+    # Top earner by paid commission
+    top_earner_row = (
+        commission_qs.filter(status='PAID')
+        .values('employee__first_name', 'employee__last_name')
+        .annotate(total=Sum('amount'))
+        .order_by('-total')
+        .first()
+    )
+    if top_earner_row:
+        top_earner = {
+            'name': f"{top_earner_row['employee__first_name']} {top_earner_row['employee__last_name']}",
+            'amount': top_earner_row['total'],
+        }
+    else:
+        top_earner = {'name': '—', 'amount': Decimal('0.00')}
+
+    # Deduction breakdown by type
+    deduction_by_type = list(
+        deduction_qs.values('deduction_type')
+        .annotate(total=Sum('amount'))
+        .order_by('-total')
+    )
+    total_deduction_sum = sum(d['total'] for d in deduction_by_type if d['total']) or Decimal('1.00')
+    deduction_type_labels = dict(Deduction.DEDUCTION_TYPE_CHOICES)
+    deduction_summary = [
+        {
+            'type_display': deduction_type_labels.get(d['deduction_type'], d['deduction_type']),
+            'amount': d['total'] or Decimal('0.00'),
+            'percentage': min(100, float((d['total'] or 0) / total_deduction_sum * 100)),
+        }
+        for d in deduction_by_type
+    ]
+
+    # Attendance stats
+    total_att = attendance_qs.count() or 1
+    present_days = attendance_qs.filter(status='PRESENT').count()
+    absent_days = attendance_qs.filter(status='ABSENT').count()
+    late_days = attendance_qs.filter(status='LATE').count()
+    avg_attendance_rate = (present_days + late_days) / total_att * 100
+
+    # Leave utilization (approved leaves only)
+    leave_by_type = list(
+        leave_qs.values('leave_type')
+        .annotate(total_days=Sum('days_requested'))
+        .order_by('-total_days')
+    )
+    total_leave_days = sum(l['total_days'] for l in leave_by_type if l['total_days']) or 1
+    leave_type_labels = dict(Leave.LEAVE_TYPE_CHOICES)
+    leave_stats = [
+        {
+            'type_display': leave_type_labels.get(l['leave_type'], l['leave_type']),
+            'days': l['total_days'] or 0,
+            'percentage': min(100, float((l['total_days'] or 0) / total_leave_days * 100)),
+        }
+        for l in leave_by_type
+    ]
+
+    # Loan portfolio
+    loan_totals = loan_qs.aggregate(
+        total_amount=Sum('loan_amount'),
+        total_balance=Sum('balance'),
+    )
+    total_loans_amount = loan_totals['total_amount'] or Decimal('0.00')
+    outstanding_balance = loan_totals['total_balance'] or Decimal('0.00')
+    repaid = total_loans_amount - outstanding_balance
+    repayment_rate = float(repaid / (total_loans_amount or Decimal('1.00')) * 100) if total_loans_amount else 0.0
+
     context = {
         'title': 'Payroll Reports',
+        'total_payroll': total_payroll,
+        'total_commissions': total_commissions,
+        'total_deductions': total_deductions,
+        'net_pay': net_pay,
+        'avg_monthly_salary': avg_monthly_salary,
+        'highest_month': highest_month,
+        'lowest_month': lowest_month,
+        'total_commissions_paid': total_commissions_paid,
+        'pending_commissions_count': pending_commissions_count,
+        'top_earner': top_earner,
+        'deduction_summary': deduction_summary,
+        'avg_attendance_rate': avg_attendance_rate,
+        'present_days': present_days,
+        'absent_days': absent_days,
+        'late_days': late_days,
+        'leave_stats': leave_stats,
+        'total_loans_amount': total_loans_amount,
+        'outstanding_balance': outstanding_balance,
+        'repayment_rate': repayment_rate,
     }
-    
+
     return render(request, 'payroll/reports.html', context)
