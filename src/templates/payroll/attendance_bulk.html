@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-6">
+        <ol class="list-none p-0 inline-flex">
+            <li class="flex items-center">
+                <a href="{% url 'payroll:payroll_dashboard' %}" class="text-primary-600 hover:text-primary-700">Payroll</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="flex items-center">
+                <a href="{% url 'payroll:attendance_list' %}" class="text-primary-600 hover:text-primary-700">Attendance</a>
+                <i class="fas fa-chevron-right mx-2 text-gray-400 text-xs"></i>
+            </li>
+            <li class="text-gray-500">{{ title }}</li>
+        </ol>
+    </nav>
+
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">
+                <i class="fas fa-users text-green-600 mr-2"></i>{{ title }}
+            </h1>
+            <p class="text-gray-600 mt-1">Mark the same attendance status for multiple employees at once</p>
+        </div>
+        <a href="{% url 'payroll:attendance_list' %}" class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition">
+            <i class="fas fa-arrow-left mr-2"></i> Back
+        </a>
+    </div>
+
+    <form method="post" id="bulk-form">
+        {% csrf_token %}
+
+        <!-- Non-field errors -->
+        {% if form.non_field_errors %}
+        <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
+            <ul class="list-disc list-inside text-red-700 text-sm">
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Hidden employee_ids field -->
+        {{ form.employee_ids }}
+        {% if form.employee_ids.errors %}
+            <div class="mb-4 bg-red-50 border border-red-300 text-red-700 text-sm px-4 py-3 rounded">
+                {{ form.employee_ids.errors.0 }}
+            </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Settings panel -->
+            <div class="lg:col-span-1 space-y-4">
+                <div class="bg-white rounded-xl shadow-md p-6 space-y-5">
+                    <h2 class="text-lg font-bold text-gray-800 border-b pb-3">Attendance Settings</h2>
+
+                    <!-- Date -->
+                    <div>
+                        <label for="{{ form.attendance_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Date <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.attendance_date }}
+                        {% if form.attendance_date.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.attendance_date.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Status -->
+                    <div>
+                        <label for="{{ form.status.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Status <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.status }}
+                        {% if form.status.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.status.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Selection summary -->
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <p class="text-sm font-medium text-green-800">
+                            <i class="fas fa-users mr-1"></i>
+                            <span id="selected-count">0</span> employee(s) selected
+                        </p>
+                    </div>
+
+                    <!-- Submit -->
+                    <button type="submit" id="submit-btn" disabled
+                            class="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition duration-200">
+                        <i class="fas fa-clipboard-check mr-2"></i>Mark Attendance
+                    </button>
+                </div>
+            </div>
+
+            <!-- Employee list -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-gray-800">Active Employees ({{ employees|length }})</h2>
+                        <div class="flex gap-2">
+                            <button type="button" id="select-all"
+                                    class="text-sm px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 font-medium rounded-lg transition">
+                                Select All
+                            </button>
+                            <button type="button" id="clear-all"
+                                    class="text-sm px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition">
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+
+                    {% if employees %}
+                    <div class="divide-y divide-gray-100">
+                        {% for employee in employees %}
+                        <label class="flex items-center px-6 py-3 hover:bg-gray-50 cursor-pointer transition">
+                            <input type="checkbox" class="emp-checkbox h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                                   value="{{ employee.pk }}">
+                            <div class="ml-4 flex-1">
+                                <p class="text-sm font-medium text-gray-900">{{ employee.get_full_name }}</p>
+                                <p class="text-xs text-gray-500">{{ employee.employee_id }} &bull; {{ employee.job_title }}{% if employee.department %} &bull; {{ employee.department }}{% endif %}</p>
+                            </div>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                Active
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="px-6 py-12 text-center text-gray-500">
+                        <i class="fas fa-users text-4xl text-gray-300 mb-3"></i>
+                        <p>No active employees found</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const checkboxes = document.querySelectorAll('.emp-checkbox');
+    const hiddenInput = document.querySelector('input[name="employee_ids"]');
+    const countEl = document.getElementById('selected-count');
+    const submitBtn = document.getElementById('submit-btn');
+    const selectAllBtn = document.getElementById('select-all');
+    const clearAllBtn = document.getElementById('clear-all');
+
+    function updateHidden() {
+        const ids = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        hiddenInput.value = ids.join(',');
+        countEl.textContent = ids.length;
+        submitBtn.disabled = ids.length === 0;
+    }
+
+    checkboxes.forEach(cb => cb.addEventListener('change', updateHidden));
+
+    selectAllBtn.addEventListener('click', function () {
+        checkboxes.forEach(cb => cb.checked = true);
+        updateHidden();
+    });
+
+    clearAllBtn.addEventListener('click', function () {
+        checkboxes.forEach(cb => cb.checked = false);
+        updateHidden();
+    });
+});
+</script>
+{% endblock %}

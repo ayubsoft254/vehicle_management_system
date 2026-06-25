@@ -264,34 +264,34 @@ def commission_list(request):
     commissions = Commission.objects.all().select_related(
         'employee', 'approved_by'
     ).order_by('-commission_date')
-    
+
     # Filter by status
     status_filter = request.GET.get('status')
     if status_filter:
         commissions = commissions.filter(status=status_filter)
-    
+
     # Filter by employee
     employee_id = request.GET.get('employee')
     if employee_id:
         commissions = commissions.filter(employee_id=employee_id)
-    
+
     # Pagination
     paginator = Paginator(commissions, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
-    # Get summary
-    summary = commissions.aggregate(
-        total=Sum('amount'),
-        count=Count('id')
-    )
-    
+
+    all_commissions = Commission.objects.all()
     context = {
         'page_obj': page_obj,
+        'commissions': page_obj,
         'status_filter': status_filter,
-        'summary': summary,
+        'total_amount': all_commissions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00'),
+        'pending_count': all_commissions.filter(status='PENDING').count(),
+        'approved_count': all_commissions.filter(status='APPROVED').count(),
+        'paid_count': all_commissions.filter(status='PAID').count(),
+        'employees': Employee.objects.filter(status='ACTIVE').order_by('first_name'),
     }
-    
+
     return render(request, 'payroll/commission_list.html', context)
 
 
@@ -665,28 +665,42 @@ def payslip_download(request, pk):
 @login_required
 def attendance_list(request):
     """Display attendance records."""
-    attendance = Attendance.objects.all().select_related('employee').order_by('-attendance_date')
-    
+    attendance_qs = Attendance.objects.all().select_related('employee').order_by('-attendance_date')
+
     # Filter by date
     date_filter = request.GET.get('date')
     if date_filter:
-        attendance = attendance.filter(attendance_date=date_filter)
-    
+        attendance_qs = attendance_qs.filter(attendance_date=date_filter)
+
     # Filter by employee
     employee_id = request.GET.get('employee')
     if employee_id:
-        attendance = attendance.filter(employee_id=employee_id)
-    
+        attendance_qs = attendance_qs.filter(employee_id=employee_id)
+
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter:
+        attendance_qs = attendance_qs.filter(status=status_filter)
+
     # Pagination
-    paginator = Paginator(attendance, 25)
+    paginator = Paginator(attendance_qs, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
+    # Stats — use today's records when no date filter applied, else filtered records
+    stat_qs = attendance_qs if date_filter else Attendance.objects.filter(attendance_date=date.today())
     context = {
         'page_obj': page_obj,
+        'attendances': page_obj,
         'date_filter': date_filter,
+        'status_filter': status_filter,
+        'present_count': stat_qs.filter(status='PRESENT').count(),
+        'absent_count': stat_qs.filter(status='ABSENT').count(),
+        'late_count': stat_qs.filter(status='LATE').count(),
+        'on_leave_count': stat_qs.filter(status='ON_LEAVE').count(),
+        'holiday_count': stat_qs.filter(status='HOLIDAY').count(),
     }
-    
+
     return render(request, 'payroll/attendance_list.html', context)
 
 
@@ -711,30 +725,43 @@ def attendance_mark(request):
 
 
 @login_required
-@require_http_methods(["POST"])
 def attendance_bulk_mark(request):
     """Mark attendance for multiple employees."""
-    form = BulkAttendanceForm(request.POST)
-    
-    if not form.is_valid():
-        messages.error(request, 'Invalid form data.')
+    employees = Employee.objects.filter(status='ACTIVE').order_by('employee_id')
+
+    if request.method == 'POST':
+        form = BulkAttendanceForm(request.POST)
+        if not form.is_valid():
+            context = {
+                'form': form,
+                'employees': employees,
+                'title': 'Bulk Mark Attendance',
+            }
+            return render(request, 'payroll/attendance_bulk.html', context)
+
+        employee_ids = form.cleaned_data['employee_ids']
+        attendance_date = form.cleaned_data['attendance_date']
+        status = form.cleaned_data['status']
+
+        count = 0
+        for emp_id in employee_ids:
+            Attendance.objects.update_or_create(
+                employee_id=emp_id,
+                attendance_date=attendance_date,
+                defaults={'status': status}
+            )
+            count += 1
+
+        messages.success(request, f'Attendance marked for {count} employee(s).')
         return redirect('payroll:attendance_list')
-    
-    employee_ids = form.cleaned_data['employee_ids']
-    attendance_date = form.cleaned_data['attendance_date']
-    status = form.cleaned_data['status']
-    
-    count = 0
-    for emp_id in employee_ids:
-        Attendance.objects.update_or_create(
-            employee_id=emp_id,
-            attendance_date=attendance_date,
-            defaults={'status': status}
-        )
-        count += 1
-    
-    messages.success(request, f'Attendance marked for {count} employee(s).')
-    return redirect('payroll:attendance_list')
+
+    form = BulkAttendanceForm(initial={'attendance_date': date.today()})
+    context = {
+        'form': form,
+        'employees': employees,
+        'title': 'Bulk Mark Attendance',
+    }
+    return render(request, 'payroll/attendance_bulk.html', context)
 
 
 # ============================================================================
@@ -862,23 +889,29 @@ def leave_approve(request, pk):
 @login_required
 def loan_list(request):
     """Display employee loans."""
-    loans = Loan.objects.all().select_related('employee', 'approved_by').order_by('-disbursement_date')
-    
+    loans_qs = Loan.objects.all().select_related('employee', 'approved_by').order_by('-disbursement_date')
+
     # Filter by status
     status_filter = request.GET.get('status')
     if status_filter:
-        loans = loans.filter(status=status_filter)
-    
+        loans_qs = loans_qs.filter(status=status_filter)
+
     # Pagination
-    paginator = Paginator(loans, 25)
+    paginator = Paginator(loans_qs, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
+    all_loans = Loan.objects.all()
     context = {
         'page_obj': page_obj,
+        'loans': page_obj,
         'status_filter': status_filter,
+        'total_loans': all_loans.aggregate(total=Sum('loan_amount'))['total'] or Decimal('0.00'),
+        'active_count': all_loans.filter(status__in=['ACTIVE', 'APPROVED']).count(),
+        'paid_count': all_loans.filter(status='COMPLETED').count(),
+        'total_balance': all_loans.aggregate(total=Sum('balance'))['total'] or Decimal('0.00'),
     }
-    
+
     return render(request, 'payroll/loan_list.html', context)
 
 

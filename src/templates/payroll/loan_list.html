@@ -95,7 +95,7 @@
                             <div class="text-xs text-gray-500">{{ loan.employee.employee_id }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-bold text-gray-900">KES {{ loan.amount|floatformat:0 }}</div>
+                            <div class="text-sm font-bold text-gray-900">KES {{ loan.loan_amount|floatformat:0 }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {{ loan.interest_rate }}%
@@ -108,10 +108,10 @@
                         </td>
                         <td class="px-6 py-4">
                             <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div class="bg-green-600 h-2 rounded-full" 
-                                     style="width: {{ loan.repayment_progress }}%"></div>
+                                <div class="bg-green-600 h-2 rounded-full"
+                                     style="width: {{ loan.get_repayment_percentage|floatformat:0 }}%"></div>
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">{{ loan.repayment_progress|floatformat:0 }}% paid</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ loan.get_repayment_percentage|floatformat:0 }}% paid</p>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 py-1 text-xs font-medium rounded-full 

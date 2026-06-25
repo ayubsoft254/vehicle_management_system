@@ -113,8 +113,8 @@
                             </div>
 
                             <div class="flex items-start">
-                                <input type="radio" id="status_leave" name="{{ form.status.html_name }}" value="LEAVE" 
-                                       {% if form.status.value == 'LEAVE' %}checked{% endif %}
+                                <input type="radio" id="status_leave" name="{{ form.status.html_name }}" value="ON_LEAVE"
+                                       {% if form.status.value == 'ON_LEAVE' %}checked{% endif %}
                                        class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
                                 <label for="status_leave" class="ml-3 flex-1 cursor-pointer">
                                     <div class="flex items-center">
@@ -139,7 +139,7 @@
                             </div>
 
                             <div class="flex items-start">
-                                <input type="radio" id="status_late" name="{{ form.status.html_name }}" value="LATE" 
+                                <input type="radio" id="status_late" name="{{ form.status.html_name }}" value="LATE"
                                        {% if form.status.value == 'LATE' %}checked{% endif %}
                                        class="mt-1 h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300">
                                 <label for="status_late" class="ml-3 flex-1 cursor-pointer">
@@ -148,6 +148,19 @@
                                         <span class="font-medium text-gray-900">Late</span>
                                     </div>
                                     <p class="text-sm text-gray-500 mt-1">Employee arrived late</p>
+                                </label>
+                            </div>
+
+                            <div class="flex items-start">
+                                <input type="radio" id="status_holiday" name="{{ form.status.html_name }}" value="HOLIDAY"
+                                       {% if form.status.value == 'HOLIDAY' %}checked{% endif %}
+                                       class="mt-1 h-4 w-4 text-gray-600 focus:ring-gray-500 border-gray-300">
+                                <label for="status_holiday" class="ml-3 flex-1 cursor-pointer">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-umbrella-beach text-gray-600 mr-2"></i>
+                                        <span class="font-medium text-gray-900">Holiday</span>
+                                    </div>
+                                    <p class="text-sm text-gray-500 mt-1">Public holiday or company closure</p>
                                 </label>
                             </div>
                         </div>
@@ -183,6 +196,17 @@
                                 <p class="text-xs text-red-500 mt-1">{{ form.check_out_time.errors.0 }}</p>
                             {% endif %}
                         </div>
+                    </div>
+
+                    <!-- Hours Worked -->
+                    <div>
+                        <label for="{{ form.hours_worked.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Hours Worked <span class="text-gray-400 text-xs font-normal">optional</span>
+                        </label>
+                        {{ form.hours_worked }}
+                        {% if form.hours_worked.errors %}
+                            <p class="text-xs text-red-500 mt-1">{{ form.hours_worked.errors.0 }}</p>
+                        {% endif %}
                     </div>
 
                     <!-- Notes -->
