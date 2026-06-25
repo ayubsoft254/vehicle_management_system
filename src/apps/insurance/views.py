@@ -264,29 +264,38 @@ def policy_renew(request, pk):
         form = PolicyRenewalForm(request.POST, request.FILES, old_policy=old_policy)
         if form.is_valid():
             with transaction.atomic():
+                new_agent = form.cleaned_data.get('insurance_agent') or old_policy.insurance_agent
                 # Create new policy
                 new_policy = InsurancePolicy.objects.create(
                     vehicle=old_policy.vehicle,
                     client=old_policy.client,
-                    insurance_agent=old_policy.insurance_agent,
-                    agent_name=old_policy.agent_name,
+                    insurance_agent=new_agent,
+                    agent_name=new_agent.name if new_agent else old_policy.agent_name,
                     agent_id=old_policy.agent_id,
                     policy_number=form.cleaned_data['new_policy_number'],
-                    policy_type=old_policy.policy_type,
-                    vehicle_usage=old_policy.vehicle_usage,
+                    policy_type=form.cleaned_data['policy_type'],
+                    vehicle_usage=form.cleaned_data['vehicle_usage'],
                     start_date=form.cleaned_data['new_start_date'],
                     end_date=form.cleaned_data['new_end_date'],
                     premium_amount=form.cleaned_data['new_premium_amount'],
                     sum_insured=form.cleaned_data['new_sum_insured'],
                     excess_amount=form.cleaned_data.get('new_excess_amount') or Decimal('0.00'),
+                    buying_price=form.cleaned_data.get('buying_price') or Decimal('0.00'),
+                    selling_price=form.cleaned_data.get('selling_price') or Decimal('0.00'),
                     status='active',
                     created_by=request.user
                 )
 
+                # Save certificate if uploaded
+                cert = form.cleaned_data.get('new_certificate')
+                if cert:
+                    new_policy.certificate = cert
+                    new_policy.save(update_fields=['certificate'])
+
                 # Mark old policy as renewed
                 old_policy.status = 'renewed'
                 old_policy.save()
-                
+
                 log_audit(
                     request.user, 'create', 'InsurancePolicy',
                     f'Renewed policy {old_policy.policy_number} to {new_policy.policy_number}'

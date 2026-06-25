@@ -15,7 +15,7 @@
         <div class="p-8">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">{{ title }}</h1>
 
-            <!-- Old Policy Information -->
+            <!-- Current Policy Summary -->
             <div class="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-6 mb-8">
                 <h2 class="text-lg font-semibold text-blue-800 mb-4">Current Policy Details</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -28,8 +28,10 @@
                         <p class="text-blue-900 font-medium">{{ old_policy.vehicle }}</p>
                     </div>
                     <div>
-                        <p class="text-blue-600">Provider</p>
-                        <p class="text-blue-900 font-medium">{{ old_policy.provider.name }}</p>
+                        <p class="text-blue-600">Provider / Agent</p>
+                        <p class="text-blue-900 font-medium">
+                            {% if old_policy.insurance_agent %}{{ old_policy.insurance_agent.name }}{% else %}{{ old_policy.agent_name|default:"—" }}{% endif %}
+                        </p>
                     </div>
                     <div>
                         <p class="text-blue-600">Current Premium</p>
@@ -46,10 +48,20 @@
                 </div>
             </div>
 
+            {% if messages %}
+            <div class="mb-6">
+                {% for message in messages %}
+                <div class="px-4 py-3 rounded-lg mb-2 {% if message.tags == 'success' %}bg-green-50 text-green-800 border border-green-200{% else %}bg-red-50 text-red-800 border border-red-200{% endif %}">
+                    <i class="fas {% if message.tags == 'success' %}fa-check-circle text-green-500{% else %}fa-exclamation-circle text-red-500{% endif %} mr-2"></i>{{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             <form method="post" enctype="multipart/form-data" class="space-y-8">
                 {% csrf_token %}
 
-                <!-- New Policy Details -->
+                <!-- Policy Details -->
                 <div>
                     <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">New Policy Details</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -57,27 +69,95 @@
                             <label for="id_new_policy_number" class="block text-sm font-medium text-gray-700 mb-2">
                                 New Policy Number <span class="text-red-500">*</span>
                             </label>
-                            <input type="text" name="new_policy_number" id="id_new_policy_number" value="{{ form.new_policy_number.value|default:'' }}" required maxlength="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="New policy number">
+                            <input type="text" name="new_policy_number" id="id_new_policy_number"
+                                value="{{ form.new_policy_number.value|default:'' }}"
+                                required maxlength="100"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                placeholder="New policy number">
                             {% if form.new_policy_number.errors %}
                                 <p class="text-red-500 text-sm mt-1">{{ form.new_policy_number.errors.0 }}</p>
                             {% endif %}
                         </div>
 
                         <div>
+                            <label for="id_policy_type" class="block text-sm font-medium text-gray-700 mb-2">
+                                Policy Type <span class="text-red-500">*</span>
+                            </label>
+                            <select name="policy_type" id="id_policy_type" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                {% for val, label in form.fields.policy_type.choices %}
+                                <option value="{{ val }}" {% if form.policy_type.value == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.policy_type.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.policy_type.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_vehicle_usage" class="block text-sm font-medium text-gray-700 mb-2">
+                                Vehicle Usage <span class="text-red-500">*</span>
+                            </label>
+                            <select name="vehicle_usage" id="id_vehicle_usage" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                {% for val, label in form.fields.vehicle_usage.choices %}
+                                <option value="{{ val }}" {% if form.vehicle_usage.value == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.vehicle_usage.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.vehicle_usage.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_insurance_agent" class="block text-sm font-medium text-gray-700 mb-2">
+                                Insurance Agent
+                            </label>
+                            {{ form.insurance_agent }}
+                            {% if form.insurance_agent.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.insurance_agent.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coverage Period -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Coverage Period</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
                             <label for="id_new_start_date" class="block text-sm font-medium text-gray-700 mb-2">
                                 Start Date <span class="text-red-500">*</span>
                             </label>
-                            <input type="date" name="new_start_date" id="id_new_start_date" value="{{ form.new_start_date.value|date:'Y-m-d'|default:'' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <input type="date" name="new_start_date" id="id_new_start_date"
+                                value="{{ form.new_start_date.value|date:'Y-m-d'|default:'' }}"
+                                required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                             {% if form.new_start_date.errors %}
                                 <p class="text-red-500 text-sm mt-1">{{ form.new_start_date.errors.0 }}</p>
                             {% endif %}
                         </div>
 
                         <div>
+                            <label for="id_coverage_duration" class="block text-sm font-medium text-gray-700 mb-2">
+                                Coverage Duration
+                            </label>
+                            <select name="coverage_duration" id="id_coverage_duration"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                {% for val, label in form.fields.coverage_duration.choices %}
+                                <option value="{{ val }}" {% if form.coverage_duration.value == val or not form.coverage_duration.value and val == '1_year' %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
                             <label for="id_new_end_date" class="block text-sm font-medium text-gray-700 mb-2">
                                 End Date <span class="text-red-500">*</span>
                             </label>
-                            <input type="date" name="new_end_date" id="id_new_end_date" value="{{ form.new_end_date.value|date:'Y-m-d'|default:'' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <input type="date" name="new_end_date" id="id_new_end_date"
+                                value="{{ form.new_end_date.value|date:'Y-m-d'|default:'' }}"
+                                required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                             {% if form.new_end_date.errors %}
                                 <p class="text-red-500 text-sm mt-1">{{ form.new_end_date.errors.0 }}</p>
                             {% endif %}
@@ -93,7 +173,11 @@
                             <label for="id_new_premium_amount" class="block text-sm font-medium text-gray-700 mb-2">
                                 Premium Amount (KES) <span class="text-red-500">*</span>
                             </label>
-                            <input type="number" name="new_premium_amount" id="id_new_premium_amount" value="{{ form.new_premium_amount.value|default:old_policy.premium_amount }}" required min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <input type="number" name="new_premium_amount" id="id_new_premium_amount"
+                                value="{{ form.new_premium_amount.value|default:old_policy.premium_amount }}"
+                                required min="0" step="0.01"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                placeholder="0.00">
                             {% if form.new_premium_amount.errors %}
                                 <p class="text-red-500 text-sm mt-1">{{ form.new_premium_amount.errors.0 }}</p>
                             {% endif %}
@@ -103,7 +187,11 @@
                             <label for="id_new_sum_insured" class="block text-sm font-medium text-gray-700 mb-2">
                                 Sum Insured (KES) <span class="text-red-500">*</span>
                             </label>
-                            <input type="number" name="new_sum_insured" id="id_new_sum_insured" value="{{ form.new_sum_insured.value|default:old_policy.sum_insured }}" required min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <input type="number" name="new_sum_insured" id="id_new_sum_insured"
+                                value="{{ form.new_sum_insured.value|default:old_policy.sum_insured }}"
+                                required min="0" step="0.01"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                placeholder="0.00">
                             {% if form.new_sum_insured.errors %}
                                 <p class="text-red-500 text-sm mt-1">{{ form.new_sum_insured.errors.0 }}</p>
                             {% endif %}
@@ -113,19 +201,55 @@
                             <label for="id_new_excess_amount" class="block text-sm font-medium text-gray-700 mb-2">
                                 Excess Amount (KES)
                             </label>
-                            <input type="number" name="new_excess_amount" id="id_new_excess_amount" value="{{ form.new_excess_amount.value|default:old_policy.excess_amount }}" min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <input type="number" name="new_excess_amount" id="id_new_excess_amount"
+                                value="{{ form.new_excess_amount.value|default:old_policy.excess_amount }}"
+                                min="0" step="0.01"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                placeholder="0.00">
+                        </div>
+
+                        <div>
+                            <label for="id_buying_price" class="block text-sm font-medium text-gray-700 mb-2">
+                                Buying Price (KES)
+                            </label>
+                            <input type="number" name="buying_price" id="id_buying_price"
+                                value="{{ form.buying_price.value|default:old_policy.buying_price }}"
+                                min="0" step="0.01"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                placeholder="0.00">
+                            <p class="text-xs text-gray-400 mt-1">Amount paid to the insurance company</p>
+                            {% if form.buying_price.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.buying_price.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="id_selling_price" class="block text-sm font-medium text-gray-700 mb-2">
+                                Selling Price (KES)
+                            </label>
+                            <input type="number" name="selling_price" id="id_selling_price"
+                                value="{{ form.selling_price.value|default:old_policy.selling_price }}"
+                                min="0" step="0.01"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                placeholder="0.00">
+                            <p class="text-xs text-gray-400 mt-1">Amount charged to the client</p>
+                            {% if form.selling_price.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.selling_price.errors.0 }}</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
 
                 <!-- New Certificate -->
                 <div>
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">New Certificate</h2>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Certificate</h2>
                     <div>
                         <label for="id_new_certificate" class="block text-sm font-medium text-gray-700 mb-2">
                             Upload New Certificate
                         </label>
-                        <input type="file" name="new_certificate" id="id_new_certificate" accept=".pdf,.jpg,.jpeg,.png" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <input type="file" name="new_certificate" id="id_new_certificate"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                         <p class="text-xs text-gray-500 mt-1">Upload PDF, JPG, or PNG (Max 5MB)</p>
                     </div>
                 </div>
@@ -135,12 +259,15 @@
                     <label for="id_notes" class="block text-sm font-medium text-gray-700 mb-2">
                         Renewal Notes
                     </label>
-                    <textarea name="notes" id="id_notes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Any notes about this renewal...">{{ form.notes.value|default:'' }}</textarea>
+                    <textarea name="notes" id="id_notes" rows="3"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Any notes about this renewal...">{{ form.notes.value|default:'' }}</textarea>
                 </div>
 
                 <!-- Form Actions -->
                 <div class="flex items-center justify-end space-x-4 pt-6 border-t">
-                    <a href="{% url 'insurance:policy_detail' old_policy.pk %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    <a href="{% url 'insurance:policy_detail' old_policy.pk %}"
+                        class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
                         Cancel
                     </a>
                     <button type="submit" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
@@ -153,32 +280,37 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const startDate = document.getElementById('id_new_start_date');
-    const endDate = document.getElementById('id_new_end_date');
-    
+    const endDate   = document.getElementById('id_new_end_date');
+    const duration  = document.getElementById('id_coverage_duration');
+
+    function addMonths(d, months) {
+        const r = new Date(d);
+        r.setMonth(r.getMonth() + months);
+        return r;
+    }
+
+    function calcEnd() {
+        if (!startDate.value) return;
+        const start = new Date(startDate.value);
+        const map = { '6_months': 6, '1_year': 12, '2_years': 24, '3_years': 36 };
+        const months = map[duration.value] || 12;
+        const end = addMonths(start, months);
+        endDate.value = end.toISOString().split('T')[0];
+    }
+
     // Default start date to day after old policy expires
     if (startDate && !startDate.value) {
-        const oldEndDate = new Date('{{ old_policy.end_date|date:"Y-m-d" }}');
-        oldEndDate.setDate(oldEndDate.getDate() + 1);
-        startDate.value = oldEndDate.toISOString().split('T')[0];
+        const oldEnd = new Date('{{ old_policy.end_date|date:"Y-m-d" }}');
+        oldEnd.setDate(oldEnd.getDate() + 1);
+        startDate.value = oldEnd.toISOString().split('T')[0];
     }
-    
-    // Auto-calculate end date (1 year from start)
-    if (startDate && endDate) {
-        startDate.addEventListener('change', function() {
-            if (this.value && !endDate.value) {
-                const start = new Date(this.value);
-                start.setFullYear(start.getFullYear() + 1);
-                endDate.value = start.toISOString().split('T')[0];
-            }
-        });
-        
-        // Trigger on load if start date is set
-        if (startDate.value && !endDate.value) {
-            startDate.dispatchEvent(new Event('change'));
-        }
-    }
+
+    if (startDate && !endDate.value) calcEnd();
+
+    startDate.addEventListener('change', calcEnd);
+    duration.addEventListener('change', calcEnd);
 });
 </script>
 {% endblock %}

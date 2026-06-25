@@ -984,13 +984,36 @@ class PolicyRenewalForm(forms.Form):
     """
     _css = 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 
+    COVERAGE_DURATION_CHOICES = [
+        ('6_months', '6 months'),
+        ('1_year', '1 year'),
+        ('2_years', '2 years'),
+        ('3_years', '3 years'),
+    ]
+
     new_policy_number = forms.CharField(
         max_length=100,
         widget=forms.TextInput(attrs={'class': _css, 'placeholder': 'New policy number'})
     )
 
+    policy_type = forms.ChoiceField(
+        choices=InsurancePolicy.POLICY_TYPE_CHOICES,
+        widget=forms.Select(attrs={'class': _css}),
+    )
+
+    vehicle_usage = forms.ChoiceField(
+        choices=InsurancePolicy.VEHICLE_USAGE_CHOICES,
+        widget=forms.Select(attrs={'class': _css}),
+    )
+
     new_start_date = forms.DateField(
         widget=forms.DateInput(attrs={'class': _css, 'type': 'date'})
+    )
+
+    coverage_duration = forms.ChoiceField(
+        choices=COVERAGE_DURATION_CHOICES,
+        initial='1_year',
+        widget=forms.Select(attrs={'class': _css}),
     )
 
     new_end_date = forms.DateField(
@@ -1001,14 +1024,14 @@ class PolicyRenewalForm(forms.Form):
         min_value=Decimal('0'),
         max_digits=12,
         decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0'})
+        widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0', 'placeholder': '0.00'})
     )
 
     new_sum_insured = forms.DecimalField(
         min_value=Decimal('0.01'),
         max_digits=12,
         decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0'})
+        widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0', 'placeholder': '0.00'})
     )
 
     new_excess_amount = forms.DecimalField(
@@ -1016,7 +1039,32 @@ class PolicyRenewalForm(forms.Form):
         max_digits=12,
         decimal_places=2,
         required=False,
-        widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0'})
+        widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0', 'placeholder': '0.00'})
+    )
+
+    buying_price = forms.DecimalField(
+        label='Buying Price (KES)',
+        min_value=Decimal('0'),
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0', 'placeholder': '0.00'})
+    )
+
+    selling_price = forms.DecimalField(
+        label='Selling Price (KES)',
+        min_value=Decimal('0'),
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0', 'placeholder': '0.00'})
+    )
+
+    insurance_agent = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        empty_label='— No Agent —',
+        widget=forms.Select(attrs={'class': _css}),
     )
 
     new_certificate = forms.FileField(
@@ -1032,10 +1080,16 @@ class PolicyRenewalForm(forms.Form):
     def __init__(self, *args, **kwargs):
         old_policy = kwargs.pop('old_policy', None)
         super().__init__(*args, **kwargs)
+        self.fields['insurance_agent'].queryset = InsuranceAgent.objects.filter(is_active=True)
         if old_policy and not args and not kwargs.get('data'):
             self.initial.setdefault('new_premium_amount', old_policy.premium_amount)
             self.initial.setdefault('new_sum_insured', old_policy.sum_insured)
             self.initial.setdefault('new_excess_amount', old_policy.excess_amount)
+            self.initial.setdefault('buying_price', old_policy.buying_price)
+            self.initial.setdefault('selling_price', old_policy.selling_price)
+            self.initial.setdefault('policy_type', old_policy.policy_type)
+            self.initial.setdefault('vehicle_usage', old_policy.vehicle_usage)
+            self.initial.setdefault('insurance_agent', old_policy.insurance_agent_id)
 
 # ==================== INSURANCE AGENT FORM ====================
 
