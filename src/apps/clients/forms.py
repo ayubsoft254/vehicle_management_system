@@ -624,6 +624,14 @@ class ClientSearchForm(forms.Form):
         })
     )
     
+    vin = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+            'placeholder': 'Search by chassis / VIN...'
+        })
+    )
+
     date_from = forms.DateField(
         required=False,
         widget=forms.DateInput(attrs={
@@ -632,7 +640,7 @@ class ClientSearchForm(forms.Form):
             'placeholder': 'From Date'
         })
     )
-    
+
     date_to = forms.DateField(
         required=False,
         widget=forms.DateInput(attrs={

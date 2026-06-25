@@ -48,11 +48,12 @@ def client_list(request):
     search_form = ClientSearchForm(request.GET)
     if search_form.is_valid():
         search = search_form.cleaned_data.get('search')
+        vin = search_form.cleaned_data.get('vin')
         status = search_form.cleaned_data.get('status')
         id_type = search_form.cleaned_data.get('id_type')
         date_from = search_form.cleaned_data.get('date_from')
         date_to = search_form.cleaned_data.get('date_to')
-        
+
         if search:
             clients = clients.filter(
                 Q(first_name__icontains=search) |
@@ -63,6 +64,11 @@ def client_list(request):
                 Q(email__icontains=search) |
                 Q(vehicles__vehicle__registration_number__icontains=search) |
                 Q(vehicles__vehicle__vin__icontains=search)
+            ).distinct()
+
+        if vin:
+            clients = clients.filter(
+                vehicles__vehicle__vin__icontains=vin
             ).distinct()
         
         if status:
