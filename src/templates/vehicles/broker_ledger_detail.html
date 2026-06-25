@@ -87,7 +87,7 @@
                             {% endif %}
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-700">
-                            <a href="{% url 'clients:detail' sale.client.pk %}" class="hover:text-primary-600">
+                            <a href="{% url 'clients:client_detail' sale.client.pk %}" class="hover:text-primary-600">
                                 {{ sale.client.get_full_name }}
                             </a>
                             <p class="text-xs text-gray-400">{{ sale.client.phone_primary }}</p>
