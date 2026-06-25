@@ -8,6 +8,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Count, Sum, Avg, Value, DecimalField
 from django.db.models.deletion import ProtectedError
 from django.db.models.functions import Coalesce
+from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord, Broker, BrokerPayment
@@ -1161,16 +1162,41 @@ def record_tracker_agent_payment(request, agent_pk):
             payment_date = datetime_type.strptime(payment_date_str, '%Y-%m-%d').date()
         except ValueError:
             pass
-    TrackerAgentPayment.objects.create(
-        agent=agent,
-        amount=amount,
-        payment_method=payment_method,
-        reference_number=reference_number,
-        notes=notes,
-        payment_date=payment_date,
-        recorded_by=request.user,
-    )
-    messages.success(request, f'Payment of KES {amount:,.2f} recorded for {agent.name}.')
+    with transaction.atomic():
+        TrackerAgentPayment.objects.create(
+            agent=agent,
+            amount=amount,
+            payment_method=payment_method,
+            reference_number=reference_number,
+            notes=notes,
+            payment_date=payment_date,
+            recorded_by=request.user,
+        )
+
+        # Mark unpaid tracker records as paid (oldest first) until payment is exhausted
+        remaining = amount
+        unpaid_records = agent.tracker_records.filter(
+            dealer_payment_status='unpaid'
+        ).order_by('created_at')
+
+        records_cleared = 0
+        for record in unpaid_records:
+            if remaining >= record.buying_price:
+                remaining -= record.buying_price
+                record.dealer_payment_status = 'paid'
+                record.save(update_fields=['dealer_payment_status'])
+                records_cleared += 1
+            else:
+                break
+
+    if records_cleared:
+        messages.success(
+            request,
+            f'Payment of KES {amount:,.2f} recorded for {agent.name}. '
+            f'{records_cleared} tracker record(s) marked as settled.'
+        )
+    else:
+        messages.success(request, f'Payment of KES {amount:,.2f} recorded for {agent.name}.')
     return redirect('vehicles:tracker_agent_ledger_detail', pk=agent_pk)
 
 
@@ -1201,16 +1227,41 @@ def record_clearing_agent_payment(request, agent_pk):
             payment_date = datetime_type.strptime(payment_date_str, '%Y-%m-%d').date()
         except ValueError:
             pass
-    ClearingAgentPayment.objects.create(
-        agent=agent,
-        amount=amount,
-        payment_method=payment_method,
-        reference_number=reference_number,
-        notes=notes,
-        payment_date=payment_date,
-        recorded_by=request.user,
-    )
-    messages.success(request, f'Payment of KES {amount:,.2f} recorded for {agent.name}.')
+    with transaction.atomic():
+        ClearingAgentPayment.objects.create(
+            agent=agent,
+            amount=amount,
+            payment_method=payment_method,
+            reference_number=reference_number,
+            notes=notes,
+            payment_date=payment_date,
+            recorded_by=request.user,
+        )
+
+        # Mark unpaid clearance records as paid (oldest first) until payment is exhausted
+        remaining = amount
+        unpaid_records = agent.clearance_records.filter(
+            payment_status='unpaid'
+        ).order_by('date', 'id')
+
+        records_cleared = 0
+        for record in unpaid_records:
+            if remaining >= record.amount:
+                remaining -= record.amount
+                record.payment_status = 'paid'
+                record.save(update_fields=['payment_status'])
+                records_cleared += 1
+            else:
+                break
+
+    if records_cleared:
+        messages.success(
+            request,
+            f'Payment of KES {amount:,.2f} recorded for {agent.name}. '
+            f'{records_cleared} clearance record(s) marked as settled.'
+        )
+    else:
+        messages.success(request, f'Payment of KES {amount:,.2f} recorded for {agent.name}.')
     return redirect('vehicles:clearing_agent_ledger_detail', pk=agent_pk)
 
 

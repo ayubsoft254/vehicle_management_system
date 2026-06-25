@@ -1375,14 +1375,39 @@ def record_insurance_agent_payment(request, agent_pk):
             payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d').date()
         except ValueError:
             pass
-    InsuranceAgentPayment.objects.create(
-        agent=agent,
-        amount=amount,
-        payment_method=payment_method,
-        reference_number=reference_number,
-        notes=notes,
-        payment_date=payment_date,
-        recorded_by=request.user,
-    )
-    messages.success(request, f'Payment of KES {amount:,.2f} recorded for {agent.name}.')
+    with transaction.atomic():
+        InsuranceAgentPayment.objects.create(
+            agent=agent,
+            amount=amount,
+            payment_method=payment_method,
+            reference_number=reference_number,
+            notes=notes,
+            payment_date=payment_date,
+            recorded_by=request.user,
+        )
+
+        # Mark unpaid policies as paid (oldest first) until payment is exhausted
+        remaining = amount
+        unpaid_policies = agent.policies.filter(
+            dealer_payment_status='unpaid'
+        ).order_by('start_date', 'created_at')
+
+        policies_cleared = 0
+        for policy in unpaid_policies:
+            if remaining >= policy.buying_price:
+                remaining -= policy.buying_price
+                policy.dealer_payment_status = 'paid'
+                policy.save(update_fields=['dealer_payment_status'])
+                policies_cleared += 1
+            else:
+                break
+
+    if policies_cleared:
+        messages.success(
+            request,
+            f'Payment of KES {amount:,.2f} recorded for {agent.name}. '
+            f'{policies_cleared} policy/policies marked as settled.'
+        )
+    else:
+        messages.success(request, f'Payment of KES {amount:,.2f} recorded for {agent.name}.')
     return redirect('insurance:agent_ledger_detail', pk=agent_pk)
