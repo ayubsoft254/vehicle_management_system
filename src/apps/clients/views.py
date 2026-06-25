@@ -56,12 +56,14 @@ def client_list(request):
         if search:
             clients = clients.filter(
                 Q(first_name__icontains=search) |
-                Q(middle_name__icontains=search) |
+                Q(other_names__icontains=search) |
                 Q(last_name__icontains=search) |
                 Q(id_number__icontains=search) |
                 Q(phone_primary__icontains=search) |
-                Q(email__icontains=search)
-            )
+                Q(email__icontains=search) |
+                Q(vehicles__vehicle__registration_number__icontains=search) |
+                Q(vehicles__vehicle__vin__icontains=search)
+            ).distinct()
         
         if status:
             clients = clients.filter(status=status)
@@ -120,7 +122,7 @@ def tracker_management(request):
             | Q(certificate_number__icontains=search)
             | Q(provider__icontains=search)
             | Q(client_vehicle__client__first_name__icontains=search)
-            | Q(client_vehicle__client__middle_name__icontains=search)
+            | Q(client_vehicle__client__other_names__icontains=search)
             | Q(client_vehicle__client__last_name__icontains=search)
             | Q(client_vehicle__vehicle__registration_number__icontains=search)
         )
