@@ -982,19 +982,60 @@ class PolicyRenewalForm(forms.Form):
     """
     Form for renewing insurance policies
     """
+    _css = 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+
+    new_policy_number = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={'class': _css, 'placeholder': 'New policy number'})
+    )
+
     new_start_date = forms.DateField(
-        widget=forms.DateInput(attrs={
-            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-            'type': 'date'
-        })
+        widget=forms.DateInput(attrs={'class': _css, 'type': 'date'})
     )
-    
+
     new_end_date = forms.DateField(
-        widget=forms.DateInput(attrs={
-            'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-            'type': 'date'
-        })
+        widget=forms.DateInput(attrs={'class': _css, 'type': 'date'})
     )
+
+    new_premium_amount = forms.DecimalField(
+        min_value=Decimal('0'),
+        max_digits=12,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0'})
+    )
+
+    new_sum_insured = forms.DecimalField(
+        min_value=Decimal('0.01'),
+        max_digits=12,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0'})
+    )
+
+    new_excess_amount = forms.DecimalField(
+        min_value=Decimal('0'),
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': _css, 'step': '0.01', 'min': '0'})
+    )
+
+    new_certificate = forms.FileField(
+        required=False,
+        widget=forms.ClearableFileInput(attrs={'class': _css, 'accept': '.pdf,.jpg,.jpeg,.png'})
+    )
+
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': _css, 'rows': 3, 'placeholder': 'Any notes about this renewal...'})
+    )
+
+    def __init__(self, *args, **kwargs):
+        old_policy = kwargs.pop('old_policy', None)
+        super().__init__(*args, **kwargs)
+        if old_policy and not args and not kwargs.get('data'):
+            self.initial.setdefault('new_premium_amount', old_policy.premium_amount)
+            self.initial.setdefault('new_sum_insured', old_policy.sum_insured)
+            self.initial.setdefault('new_excess_amount', old_policy.excess_amount)
 
 # ==================== INSURANCE AGENT FORM ====================
 

@@ -1854,6 +1854,7 @@ def defaulters_report(request):
 
     # Group overdue schedules by client and calculate dynamic metrics used by template.
     defaulters = {}
+    seen_vehicles = set()  # track (client_id, cv_id) to avoid double-counting balance
     for schedule in overdue_schedules:
         client_vehicle = schedule.installment_plan.client_vehicle
         client = client_vehicle.client
@@ -1877,7 +1878,12 @@ def defaulters_report(request):
             }
 
         defaulters[client.id]['overdue_installments'] += 1
-        defaulters[client.id]['total_outstanding'] += schedule.remaining_amount
+
+        # Add the full remaining loan balance once per vehicle (not per overdue schedule)
+        cv_key = (client.id, client_vehicle.id)
+        if cv_key not in seen_vehicles:
+            seen_vehicles.add(cv_key)
+            defaulters[client.id]['total_outstanding'] += max(Decimal('0.00'), client_vehicle.balance)
 
         if schedule.days_overdue > defaulters[client.id]['days_overdue']:
             defaulters[client.id]['days_overdue'] = schedule.days_overdue
