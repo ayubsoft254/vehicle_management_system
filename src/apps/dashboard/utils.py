@@ -219,26 +219,66 @@ def get_dashboard_overview_data(user=None):
         expense_date=today
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-    # Expected vehicle installments today
-    daily_expected_today = PaymentSchedule.objects.filter(
+    # Expected vehicle installments today — with per-client breakdown
+    vehicle_due_qs = PaymentSchedule.objects.filter(
         due_date=today,
-    ).aggregate(total=Sum('amount_due'))['total'] or Decimal('0.00')
+        is_paid=False,
+    ).select_related(
+        'installment_plan__client_vehicle__client',
+        'installment_plan__client_vehicle__vehicle',
+    )
+    daily_expected_today = vehicle_due_qs.aggregate(
+        total=Sum('amount_due')
+    )['total'] or Decimal('0.00')
+    daily_due_vehicle_clients = []
+    for _sched in vehicle_due_qs:
+        _cv = _sched.installment_plan.client_vehicle
+        _cl = _cv.client
+        daily_due_vehicle_clients.append({
+            'client_id':   _cl.pk,
+            'client_name': _cl.get_full_name(),
+            'phone':       _cl.phone_primary or '',
+            'vehicle':     str(_cv.vehicle),
+            'cv_id':       _cv.pk,
+            'amount_due':  float(_sched.amount_due),
+            'amount_paid': float(_sched.amount_paid),
+        })
 
-    # Insurance expected & collected today
+    # Insurance expected & collected today — with per-client breakdown
     from apps.insurance.models import InsurancePaymentSchedule, InsurancePayment
-    daily_expected_insurance = InsurancePaymentSchedule.objects.filter(
+    insurance_due_qs = InsurancePaymentSchedule.objects.filter(
         due_date=today,
-    ).aggregate(total=Sum('amount_due'))['total'] or Decimal('0.00')
+        is_paid=False,
+    ).select_related('policy__client', 'policy__vehicle')
+    daily_expected_insurance = insurance_due_qs.aggregate(
+        total=Sum('amount_due')
+    )['total'] or Decimal('0.00')
     daily_paid_insurance = InsurancePayment.objects.filter(
         payment_date=today,
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    daily_due_insurance_clients = []
+    for _isched in insurance_due_qs:
+        _pol = _isched.policy
+        _cl  = _pol.client
+        daily_due_insurance_clients.append({
+            'client_id':   _cl.pk if _cl else None,
+            'client_name': _cl.get_full_name() if _cl else '—',
+            'phone':       _cl.phone_primary if _cl else '',
+            'vehicle':     str(_pol.vehicle),
+            'policy_id':   _pol.pk,
+            'amount_due':  float(_isched.amount_due),
+            'amount_paid': float(_isched.amount_paid),
+        })
 
-    # Tracker installments expected today (installments_json stores [{due_date, amount}])
+    # Tracker installments expected today — with per-client breakdown
     import json as _json
     from dateutil.relativedelta import relativedelta as _rd
     _today_str = today.isoformat()
     daily_expected_trackers = Decimal('0.00')
-    for _trk in VehicleTracker.objects.filter(has_payment_plan=True, balance__gt=0):
+    daily_due_tracker_clients = []
+    for _trk in VehicleTracker.objects.select_related(
+        'client_vehicle__client', 'client_vehicle__vehicle'
+    ).filter(has_payment_plan=True, balance__gt=0):
         _raw = _trk.installments_json or '[]'
         try:
             _entries = _json.loads(_raw)
@@ -252,7 +292,19 @@ def get_dashboard_overview_data(user=None):
         for _e in _entries:
             if _e.get('due_date') == _today_str:
                 try:
-                    daily_expected_trackers += Decimal(str(_e.get('amount', '0')))
+                    _amt = Decimal(str(_e.get('amount', '0')))
+                    daily_expected_trackers += _amt
+                    _cv = _trk.client_vehicle
+                    _cl = _cv.client
+                    daily_due_tracker_clients.append({
+                        'client_id':   _cl.pk,
+                        'client_name': _cl.get_full_name(),
+                        'phone':       _cl.phone_primary or '',
+                        'vehicle':     str(_cv.vehicle),
+                        'tracker':     _trk.tracker_name,
+                        'cv_id':       _cv.pk,
+                        'amount_due':  float(_amt),
+                    })
                 except Exception:
                     pass
 
@@ -373,9 +425,12 @@ def get_dashboard_overview_data(user=None):
             'expected_today': float(daily_expected_today),
             'money_in': float(total_payments_today),
             'money_in_count': payments_count_today,
+            'due_vehicle_clients': daily_due_vehicle_clients,
             'expected_insurance': float(daily_expected_insurance),
             'paid_insurance': float(daily_paid_insurance),
+            'due_insurance_clients': daily_due_insurance_clients,
             'expected_trackers': float(daily_expected_trackers),
+            'due_tracker_clients': daily_due_tracker_clients,
             'money_out': float(daily_money_out),
             'overdue_total': float(total_overdue_amount),
             'overdue_schedules': overdue_schedules_qs.count(),

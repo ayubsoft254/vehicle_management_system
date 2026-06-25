@@ -471,67 +471,156 @@
                     </h3>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                    <!-- Vehicle Installments -->
-                    <div class="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
-                        <p class="text-xs font-bold text-blue-700 uppercase tracking-wider mb-3 flex items-center">
-                            <i class="fas fa-car mr-1.5"></i>Vehicle Installments
-                        </p>
-                        <div class="space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-500">Expected Today</span>
-                                <span class="text-sm font-semibold text-blue-700 js-dashboard-currency" data-kes="{{ overview_data.daily.expected_today|default:'0' }}">KES {{ overview_data.daily.expected_today|floatformat:0|default:"0" }}</span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-500">Collected Today</span>
-                                <span class="text-sm font-bold text-green-700 js-dashboard-currency" data-kes="{{ overview_data.daily.money_in|default:'0' }}">KES {{ overview_data.daily.money_in|floatformat:0|default:"0" }}</span>
-                            </div>
-                            <div class="pt-1 border-t border-blue-100 text-xs text-gray-400">{{ overview_data.daily.money_in_count }} payment{{ overview_data.daily.money_in_count|pluralize }} recorded</div>
+                <!-- Summary row -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                    <div class="flex items-center justify-between bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
+                        <div>
+                            <p class="text-xs font-semibold text-blue-700 uppercase tracking-wider">Vehicle Installments</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Expected <span class="font-medium text-blue-700 js-dashboard-currency" data-kes="{{ overview_data.daily.expected_today|default:'0' }}">KES {{ overview_data.daily.expected_today|floatformat:0|default:"0" }}</span></p>
+                            <p class="text-xs text-gray-500">Collected <span class="font-bold text-green-700 js-dashboard-currency" data-kes="{{ overview_data.daily.money_in|default:'0' }}">KES {{ overview_data.daily.money_in|floatformat:0|default:"0" }}</span></p>
                         </div>
+                        <i class="fas fa-car text-blue-300 text-2xl"></i>
                     </div>
+                    <div class="flex items-center justify-between bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3">
+                        <div>
+                            <p class="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Insurance</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Expected <span class="font-medium text-blue-700 js-dashboard-currency" data-kes="{{ overview_data.daily.expected_insurance|default:'0' }}">KES {{ overview_data.daily.expected_insurance|floatformat:0|default:"0" }}</span></p>
+                            <p class="text-xs text-gray-500">Collected <span class="font-bold text-green-700 js-dashboard-currency" data-kes="{{ overview_data.daily.paid_insurance|default:'0' }}">KES {{ overview_data.daily.paid_insurance|floatformat:0|default:"0" }}</span></p>
+                        </div>
+                        <i class="fas fa-shield-alt text-emerald-300 text-2xl"></i>
+                    </div>
+                    <div class="flex items-center justify-between bg-purple-50 border border-purple-100 rounded-lg px-4 py-3">
+                        <div>
+                            <p class="text-xs font-semibold text-purple-700 uppercase tracking-wider">Trackers</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Expected <span class="font-medium text-blue-700 js-dashboard-currency" data-kes="{{ overview_data.daily.expected_trackers|default:'0' }}">KES {{ overview_data.daily.expected_trackers|floatformat:0|default:"0" }}</span></p>
+                        </div>
+                        <i class="fas fa-satellite-dish text-purple-300 text-2xl"></i>
+                    </div>
+                </div>
 
-                    <!-- Insurance -->
-                    <div class="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4">
-                        <p class="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-3 flex items-center">
-                            <i class="fas fa-shield-alt mr-1.5"></i>Insurance
-                        </p>
-                        <div class="space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-500">Expected Today</span>
-                                <span class="text-sm font-semibold text-blue-700 js-dashboard-currency" data-kes="{{ overview_data.daily.expected_insurance|default:'0' }}">KES {{ overview_data.daily.expected_insurance|floatformat:0|default:"0" }}</span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-500">Collected Today</span>
-                                <span class="text-sm font-bold text-green-700 js-dashboard-currency" data-kes="{{ overview_data.daily.paid_insurance|default:'0' }}">KES {{ overview_data.daily.paid_insurance|floatformat:0|default:"0" }}</span>
-                            </div>
-                        </div>
-                    </div>
+                <!-- Clients due today -->
+                <div class="space-y-5">
 
-                    <!-- Trackers -->
-                    <div class="rounded-xl border border-purple-100 bg-purple-50/40 p-4">
-                        <p class="text-xs font-bold text-purple-700 uppercase tracking-wider mb-3 flex items-center">
-                            <i class="fas fa-satellite-dish mr-1.5"></i>Trackers
-                        </p>
-                        <div class="space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-500">Expected Today</span>
-                                <span class="text-sm font-semibold text-blue-700 js-dashboard-currency" data-kes="{{ overview_data.daily.expected_trackers|default:'0' }}">KES {{ overview_data.daily.expected_trackers|floatformat:0|default:"0" }}</span>
-                            </div>
+                    <!-- Vehicle installment clients -->
+                    {% if overview_data.daily.due_vehicle_clients %}
+                    <div>
+                        <h4 class="text-sm font-semibold text-blue-700 mb-2 flex items-center">
+                            <i class="fas fa-car mr-1.5"></i>Vehicle Installment Clients Due Today
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead class="bg-blue-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Client</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Phone</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Vehicle</th>
+                                        <th class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Amount Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    {% for item in overview_data.daily.due_vehicle_clients %}
+                                    <tr class="hover:bg-blue-50/40">
+                                        <td class="px-3 py-2">
+                                            <a href="{% url 'clients:client_detail' item.client_id %}" class="font-semibold text-gray-900 hover:text-blue-600">{{ item.client_name }}</a>
+                                        </td>
+                                        <td class="px-3 py-2 text-gray-600">{{ item.phone|default:"—" }}</td>
+                                        <td class="px-3 py-2 text-gray-600">{{ item.vehicle }}</td>
+                                        <td class="px-3 py-2 text-right font-bold text-blue-700 js-dashboard-currency" data-kes="{{ item.amount_due|default:'0' }}">KES {{ item.amount_due|floatformat:0 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
+                    {% endif %}
 
-                    <!-- Money Out -->
-                    <div class="rounded-xl border border-red-200 bg-red-50 p-4 lg:col-span-3">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-xs font-bold text-red-700 uppercase tracking-wider mb-1 flex items-center">
-                                    <i class="fas fa-arrow-up mr-1.5"></i>Money Out — Expenses Today
-                                </p>
-                                <p class="text-2xl font-bold text-red-800 js-dashboard-currency" data-kes="{{ overview_data.daily.money_out|default:'0' }}">KES {{ overview_data.daily.money_out|floatformat:0|default:"0" }}</p>
-                            </div>
-                            <a href="{% url 'expenses:expense_list' %}" class="text-xs text-red-600 hover:text-red-700 font-medium">View expenses</a>
+                    <!-- Insurance clients -->
+                    {% if overview_data.daily.due_insurance_clients %}
+                    <div>
+                        <h4 class="text-sm font-semibold text-emerald-700 mb-2 flex items-center">
+                            <i class="fas fa-shield-alt mr-1.5"></i>Insurance Clients Due Today
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead class="bg-emerald-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Client</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Phone</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Vehicle</th>
+                                        <th class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Amount Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    {% for item in overview_data.daily.due_insurance_clients %}
+                                    <tr class="hover:bg-emerald-50/40">
+                                        <td class="px-3 py-2">
+                                            {% if item.client_id %}
+                                            <a href="{% url 'clients:client_detail' item.client_id %}" class="font-semibold text-gray-900 hover:text-blue-600">{{ item.client_name }}</a>
+                                            {% else %}
+                                            <span class="font-semibold text-gray-900">{{ item.client_name }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-3 py-2 text-gray-600">{{ item.phone|default:"—" }}</td>
+                                        <td class="px-3 py-2 text-gray-600">{{ item.vehicle }}</td>
+                                        <td class="px-3 py-2 text-right font-bold text-emerald-700 js-dashboard-currency" data-kes="{{ item.amount_due|default:'0' }}">KES {{ item.amount_due|floatformat:0 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
+                    {% endif %}
+
+                    <!-- Tracker clients -->
+                    {% if overview_data.daily.due_tracker_clients %}
+                    <div>
+                        <h4 class="text-sm font-semibold text-purple-700 mb-2 flex items-center">
+                            <i class="fas fa-satellite-dish mr-1.5"></i>Tracker Clients Due Today
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead class="bg-purple-50">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Client</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Phone</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Vehicle</th>
+                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Tracker</th>
+                                        <th class="px-3 py-2 text-right text-xs font-semibold text-gray-500 uppercase">Amount Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    {% for item in overview_data.daily.due_tracker_clients %}
+                                    <tr class="hover:bg-purple-50/40">
+                                        <td class="px-3 py-2">
+                                            <a href="{% url 'clients:client_detail' item.client_id %}" class="font-semibold text-gray-900 hover:text-blue-600">{{ item.client_name }}</a>
+                                        </td>
+                                        <td class="px-3 py-2 text-gray-600">{{ item.phone|default:"—" }}</td>
+                                        <td class="px-3 py-2 text-gray-600">{{ item.vehicle }}</td>
+                                        <td class="px-3 py-2 text-gray-500 text-xs">{{ item.tracker }}</td>
+                                        <td class="px-3 py-2 text-right font-bold text-purple-700 js-dashboard-currency" data-kes="{{ item.amount_due|default:'0' }}">KES {{ item.amount_due|floatformat:0 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if not overview_data.daily.due_vehicle_clients and not overview_data.daily.due_insurance_clients and not overview_data.daily.due_tracker_clients %}
+                    <p class="text-sm text-gray-500 text-center py-4">No scheduled payments due today.</p>
+                    {% endif %}
+
+                </div>
+
+                <!-- Money Out -->
+                <div class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-red-700 uppercase tracking-wider mb-1">
+                            <i class="fas fa-arrow-circle-up mr-1"></i>Money Out — Expenses Today
+                        </p>
+                        <p class="text-2xl font-bold text-red-800 js-dashboard-currency" data-kes="{{ overview_data.daily.money_out|default:'0' }}">KES {{ overview_data.daily.money_out|floatformat:0|default:"0" }}</p>
+                    </div>
+                    <a href="{% url 'expenses:expense_list' %}" class="text-xs text-red-600 hover:text-red-700 font-medium">View expenses</a>
                 </div>
             </div>
             {% endif %}
