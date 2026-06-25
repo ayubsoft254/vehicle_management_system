@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderCurrency(currency) {
         const rate = rates[currency] || 1;
         moneyNodes.forEach((node) => {
-            const kesValue = parseFloat(node.dataset.kes || '0');
+            const kesValue = parseFloat(String(node.dataset.kes || '0').replace(/,/g, ''));
             const converted = kesValue * rate;
             node.textContent = `${currency} ${formatAmount(converted)}`;
         });

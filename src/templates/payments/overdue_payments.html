@@ -377,7 +377,8 @@
         function render(currency) {
             const rate = rates[currency] || 1;
             document.querySelectorAll('.js-currency').forEach((node) => {
-                const kes = parseFloat(node.dataset.kes || '0') || 0;
+                const raw = String(node.dataset.kes || '0').replace(/,/g, '');
+                const kes = parseFloat(raw) || 0;
                 node.textContent = formatMoney(kes * rate, currency);
             });
             localStorage.setItem('paymentsReportCurrency', currency);

@@ -393,7 +393,7 @@
         function render(currency) {
             const rate = rates[currency] || 1;
             priceNodes.forEach(function (node) {
-                const kes = parseFloat(node.dataset.kes || '0');
+                const kes = parseFloat(String(node.dataset.kes || '0').replace(/,/g, ''));
                 node.textContent = 'Negotiable ' + fmt(kes * rate, currency);
             });
         }
