@@ -81,17 +81,22 @@ def payroll_dashboard(request):
 @login_required
 def employee_list(request):
     """Display list of employees."""
-    employees = Employee.objects.all().select_related('user').order_by('employee_id')
-    
+    all_employees = Employee.objects.all().select_related('user')
+
     # Filter by status
-    status_filter = request.GET.get('status')
+    status_filter = request.GET.get('status', '')
     if status_filter:
-        employees = employees.filter(status=status_filter)
-    
+        all_employees = all_employees.filter(status=status_filter)
+
+    # Filter by employment type
+    employment_type_filter = request.GET.get('employment_type', '')
+    if employment_type_filter:
+        all_employees = all_employees.filter(employment_type=employment_type_filter)
+
     # Search
-    query = request.GET.get('q')
+    query = request.GET.get('search', '').strip()
     if query:
-        employees = employees.filter(
+        all_employees = all_employees.filter(
             Q(employee_id__icontains=query) |
             Q(first_name__icontains=query) |
             Q(last_name__icontains=query) |
@@ -99,18 +104,28 @@ def employee_list(request):
             Q(job_title__icontains=query) |
             Q(department__icontains=query)
         )
-    
+
+    all_employees = all_employees.order_by('employee_id')
+
     # Pagination
-    paginator = Paginator(employees, 25)
+    paginator = Paginator(all_employees, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
+    base_qs = Employee.objects.all()
     context = {
+        'employees': page_obj,
         'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
         'status_filter': status_filter,
         'query': query,
+        'total_count': base_qs.count(),
+        'active_count': base_qs.filter(status='ACTIVE').count(),
+        'on_leave_count': base_qs.filter(status='ON_LEAVE').count(),
+        'suspended_count': base_qs.filter(status='SUSPENDED').count(),
+        'terminated_count': base_qs.filter(status__in=['TERMINATED', 'RESIGNED']).count(),
     }
-    
+
     return render(request, 'payroll/employee_list.html', context)
 
 

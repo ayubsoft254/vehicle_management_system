@@ -862,11 +862,8 @@ class ClearingAgent(models.Model):
 
     @property
     def total_owed(self):
-        """Sum of clearance amounts not yet paid to this agent."""
-        return (
-            self.clearance_records.filter(payment_status='unpaid')
-            .aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
-        )
+        """Remaining balance: total billed minus all payments made."""
+        return max(Decimal('0.00'), self.total_billed - self.total_payments_made)
 
     @property
     def total_payments_made(self):
