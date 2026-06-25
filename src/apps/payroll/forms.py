@@ -74,7 +74,7 @@ class SalaryStructureForm(forms.ModelForm):
     class Meta:
         model = SalaryStructure
         fields = [
-            'basic_salary', 'currency',
+            'basic_salary',
             'housing_allowance', 'transport_allowance', 'medical_allowance',
             'meal_allowance', 'other_allowances',
             'commission_enabled', 'commission_amount',
@@ -83,7 +83,6 @@ class SalaryStructureForm(forms.ModelForm):
         ]
         widgets = {
             'basic_salary': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
-            'currency': forms.TextInput(attrs={'class': 'form-control', 'value': 'KES'}),
             'housing_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
             'transport_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
             'medical_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
