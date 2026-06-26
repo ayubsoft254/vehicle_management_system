@@ -2581,8 +2581,14 @@ def record_tracker_payment(request, tracker_pk):
         messages.error(request, 'Invalid payment amount.')
         return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
 
-    if amount > (tracker.balance or Decimal('0.00')):
-        amount = tracker.balance or Decimal('0.00')
+    balance_owed = tracker.balance or Decimal('0.00')
+    if amount > balance_owed:
+        messages.error(
+            request,
+            f'Payment of KES {amount:,.2f} exceeds the tracker balance of KES {balance_owed:,.2f}. '
+            f'Please enter an amount that does not exceed the balance owed.'
+        )
+        return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
 
     tracker.total_paid = (tracker.total_paid or Decimal('0.00')) + amount
     tracker.balance = max(Decimal('0.00'), (tracker.balance or Decimal('0.00')) - amount)

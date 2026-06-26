@@ -654,34 +654,42 @@ def payment_create(request, policy_pk):
     if request.method == 'POST':
         form = InsurancePaymentForm(request.POST)
         if form.is_valid():
-            payment = form.save(commit=False)
-            payment.policy = policy
-            payment.recorded_by = request.user
-            payment.save()
+            payment_amount = form.cleaned_data['amount']
+            if payment_amount > ins_balance_owed:
+                form.add_error(
+                    'amount',
+                    f'Payment of KES {payment_amount:,.2f} exceeds the balance owed of '
+                    f'KES {ins_balance_owed:,.2f}. Please enter a valid amount.'
+                )
+                messages.error(request, 'Please correct the errors below.')
+            else:
+                payment = form.save(commit=False)
+                payment.policy = policy
+                payment.recorded_by = request.user
+                payment.save()
 
-            # Update policy total_paid and balance
-            policy.insurance_total_paid = (policy.insurance_total_paid or Decimal('0.00')) + payment.amount
-            policy.insurance_balance = max(Decimal('0.00'), (policy.selling_price or Decimal('0.00')) - policy.insurance_total_paid)
-            policy.save(update_fields=['insurance_total_paid', 'insurance_balance'])
+                # Update policy total_paid and balance
+                policy.insurance_total_paid = (policy.insurance_total_paid or Decimal('0.00')) + payment.amount
+                policy.insurance_balance = max(Decimal('0.00'), (policy.selling_price or Decimal('0.00')) - policy.insurance_total_paid)
+                policy.save(update_fields=['insurance_total_paid', 'insurance_balance'])
 
-            # Link to oldest unpaid schedule (if policy has payment plan)
-            if policy.has_payment_plan:
-                unpaid_schedule = policy.insurance_payment_schedules.filter(
-                    is_paid=False
-                ).order_by('installment_number').first()
+                # Link to oldest unpaid schedule (if policy has payment plan)
+                if policy.has_payment_plan:
+                    unpaid_schedule = policy.insurance_payment_schedules.filter(
+                        is_paid=False
+                    ).order_by('installment_number').first()
+                    if unpaid_schedule:
+                        unpaid_schedule.mark_as_paid(payment, amount=payment.amount)
 
-                if unpaid_schedule:
-                    unpaid_schedule.mark_as_paid(payment, amount=payment.amount)
+                log_audit(
+                    request.user, 'create', 'InsurancePayment',
+                    f'Recorded payment {payment.receipt_number} for policy {policy.policy_number}'
+                )
 
-            log_audit(
-                request.user, 'create', 'InsurancePayment',
-                f'Recorded payment {payment.receipt_number} for policy {policy.policy_number}'
-            )
-
-            messages.success(request, f'Payment recorded successfully! Receipt: {payment.receipt_number}')
-            if next_url:
-                return redirect(next_url)
-            return redirect('insurance:policy_detail', pk=policy.pk)
+                messages.success(request, f'Payment recorded successfully! Receipt: {payment.receipt_number}')
+                if next_url:
+                    return redirect(next_url)
+                return redirect('insurance:policy_detail', pk=policy.pk)
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
