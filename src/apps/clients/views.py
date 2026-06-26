@@ -1903,6 +1903,7 @@ def _build_agreement_snapshot(client_vehicle):
         },
         'insurance': si,
         'trackers': tracker_snapshots,
+        'paybill': client_vehicle.agreement_paybill or '',
     }
 
 
@@ -1933,6 +1934,7 @@ def download_sales_agreement(request, client_vehicle_pk, version_id=None):
 
         paybill = (
             request.GET.get('paybill', '').strip()
+            or (snapshot.get('paybill') if snapshot else None)
             or client_vehicle.agreement_paybill
             or getattr(django_settings, 'MPESA_SHORTCODE', '4320049')
             or '4320049'
