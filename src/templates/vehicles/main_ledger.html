@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+{% load humanize l10n %}
+
+{% block title %}Main Ledger{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-book-open text-indigo-600"></i>
+                Main Ledger
+            </h1>
+            <p class="text-gray-500 text-sm mt-1">Combined view of all financial activity across sub-ledgers and expenses.</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="get" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">From</label>
+                <input type="date" name="date_from" value="{{ date_from_str }}"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">To</label>
+                <input type="date" name="date_to" value="{{ date_to_str }}"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Category</label>
+                <select name="category"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <option value="">All Categories</option>
+                    <option value="client_payment" {% if category_filter == 'client_payment' %}selected{% endif %}>Client Payments</option>
+                    <option value="supplier" {% if category_filter == 'supplier' %}selected{% endif %}>Japan Suppliers</option>
+                    <option value="clearing" {% if category_filter == 'clearing' %}selected{% endif %}>Clearing Agents</option>
+                    <option value="tracker" {% if category_filter == 'tracker' %}selected{% endif %}>Tracker Agents</option>
+                    <option value="broker" {% if category_filter == 'broker' %}selected{% endif %}>Broker Commissions</option>
+                    <option value="insurance" {% if category_filter == 'insurance' %}selected{% endif %}>Insurance Agents</option>
+                    <option value="expense" {% if category_filter == 'expense' %}selected{% endif %}>General Expenses</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Search</label>
+                <div class="flex gap-2">
+                    <input type="text" name="q" value="{{ search }}" placeholder="Name, ref…"
+                        class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <button type="submit"
+                        class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm transition">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% if search or category_filter %}
+        <div class="mt-2">
+            <a href="{% url 'vehicles:main_ledger' %}?date_from={{ date_from_str }}&date_to={{ date_to_str }}"
+               class="text-xs text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times mr-1"></i>Clear filters
+            </a>
+        </div>
+        {% endif %}
+    </form>
+
+    <!-- Period label -->
+    <p class="text-sm text-gray-500 mb-4">
+        Showing activity from <span class="font-medium text-gray-700">{{ date_from }}</span>
+        to <span class="font-medium text-gray-700">{{ date_to }}</span>
+        &mdash; {{ transactions|length }} transaction{{ transactions|length|pluralize }}
+        {% if category_filter or search %}<span class="text-indigo-600">(filtered)</span>{% endif %}
+    </p>
+
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <!-- Money In -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Money In</span>
+                <span class="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                    <i class="fas fa-arrow-down text-green-600 text-sm"></i>
+                </span>
+            </div>
+            <p class="text-2xl font-bold text-green-600">KES {{ total_in|floatformat:0|intcomma }}</p>
+            <p class="text-xs text-gray-400 mt-1">Client vehicle payments received</p>
+        </div>
+        <!-- Money Out -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Money Out</span>
+                <span class="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                    <i class="fas fa-arrow-up text-red-600 text-sm"></i>
+                </span>
+            </div>
+            <p class="text-2xl font-bold text-red-600">KES {{ total_out|floatformat:0|intcomma }}</p>
+            <p class="text-xs text-gray-400 mt-1">All outgoing payments &amp; expenses</p>
+        </div>
+        <!-- Net Position -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Net Position</span>
+                <span class="h-8 w-8 rounded-full {% if net >= 0 %}bg-indigo-100{% else %}bg-orange-100{% endif %} flex items-center justify-center">
+                    <i class="fas fa-balance-scale {% if net >= 0 %}text-indigo-600{% else %}text-orange-600{% endif %} text-sm"></i>
+                </span>
+            </div>
+            <p class="text-2xl font-bold {% if net >= 0 %}text-indigo-600{% else %}text-orange-600{% endif %}">
+                KES {{ net|floatformat:0|intcomma }}
+            </p>
+            <p class="text-xs text-gray-400 mt-1">{% if net >= 0 %}Surplus{% else %}Deficit{% endif %} for selected period</p>
+        </div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 class="font-semibold text-gray-700 flex items-center gap-2">
+                <i class="fas fa-chart-pie text-indigo-400 text-sm"></i>
+                Category Breakdown
+            </h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                        <th class="px-6 py-3 text-left">Category</th>
+                        <th class="px-6 py-3 text-right">Money In (KES)</th>
+                        <th class="px-6 py-3 text-right">Money Out (KES)</th>
+                        <th class="px-6 py-3 text-right">Net (KES)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for row in category_summary %}
+                    {% if row.money_in > 0 or row.money_out > 0 %}
+                    <tr class="hover:bg-gray-50 transition cursor-pointer"
+                        onclick="window.location='{% url 'vehicles:main_ledger' %}?date_from={{ date_from_str }}&date_to={{ date_to_str }}&category={{ row.key }}'">
+                        <td class="px-6 py-3">
+                            <span class="inline-flex items-center gap-2">
+                                {% if row.color == 'green' %}<span class="h-2 w-2 rounded-full bg-green-400"></span>
+                                {% elif row.color == 'red' %}<span class="h-2 w-2 rounded-full bg-red-400"></span>
+                                {% elif row.color == 'teal' %}<span class="h-2 w-2 rounded-full bg-teal-400"></span>
+                                {% elif row.color == 'purple' %}<span class="h-2 w-2 rounded-full bg-purple-400"></span>
+                                {% elif row.color == 'amber' %}<span class="h-2 w-2 rounded-full bg-amber-400"></span>
+                                {% elif row.color == 'blue' %}<span class="h-2 w-2 rounded-full bg-blue-400"></span>
+                                {% else %}<span class="h-2 w-2 rounded-full bg-gray-400"></span>{% endif %}
+                                <span class="font-medium text-gray-700">{{ row.label }}</span>
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 text-right font-mono">
+                            {% if row.money_in > 0 %}
+                            <span class="text-green-700">{{ row.money_in|floatformat:0|intcomma }}</span>
+                            {% else %}&mdash;{% endif %}
+                        </td>
+                        <td class="px-6 py-3 text-right font-mono">
+                            {% if row.money_out > 0 %}
+                            <span class="text-red-700">{{ row.money_out|floatformat:0|intcomma }}</span>
+                            {% else %}&mdash;{% endif %}
+                        </td>
+                        <td class="px-6 py-3 text-right font-mono font-semibold">
+                            {% with net_row=row.money_in|add:row.money_out %}
+                            {% if row.money_in > 0 %}
+                            <span class="text-green-700">{{ row.money_in|floatformat:0|intcomma }}</span>
+                            {% else %}
+                            <span class="text-red-600">-{{ row.money_out|floatformat:0|intcomma }}</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% empty %}
+                    <tr><td colspan="4" class="px-6 py-8 text-center text-gray-400">No activity in selected period.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="bg-gray-50 border-t-2 border-gray-200 font-semibold text-sm">
+                        <td class="px-6 py-3 text-gray-700">Totals</td>
+                        <td class="px-6 py-3 text-right font-mono text-green-700">{{ total_in|floatformat:0|intcomma }}</td>
+                        <td class="px-6 py-3 text-right font-mono text-red-700">{{ total_out|floatformat:0|intcomma }}</td>
+                        <td class="px-6 py-3 text-right font-mono {% if net >= 0 %}text-indigo-700{% else %}text-orange-700{% endif %}">
+                            {% if net >= 0 %}{{ net|floatformat:0|intcomma }}{% else %}-{{ net|floatformat:0|intcomma|cut:"-" }}{% endif %}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Transaction Ledger -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 class="font-semibold text-gray-700 flex items-center gap-2">
+                <i class="fas fa-list-alt text-indigo-400 text-sm"></i>
+                Transaction Ledger
+            </h2>
+            <span class="text-xs text-gray-400">{{ transactions|length }} entr{{ transactions|length|pluralize:"y,ies" }}</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                        <th class="px-4 py-3 text-left">Date</th>
+                        <th class="px-4 py-3 text-left">Reference</th>
+                        <th class="px-4 py-3 text-left">Description</th>
+                        <th class="px-4 py-3 text-left">Category</th>
+                        <th class="px-4 py-3 text-left">Method</th>
+                        <th class="px-4 py-3 text-right">Money In</th>
+                        <th class="px-4 py-3 text-right">Money Out</th>
+                        <th class="px-4 py-3 text-right">Balance</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for t in transactions %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ t.date }}</td>
+                        <td class="px-4 py-3 text-gray-500 text-xs font-mono whitespace-nowrap">{{ t.ref }}</td>
+                        <td class="px-4 py-3">
+                            <p class="font-medium text-gray-800">{{ t.description }}</p>
+                            {% if t.detail %}<p class="text-xs text-gray-400">{{ t.detail }}</p>{% endif %}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if t.category == 'client_payment' %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>{{ t.category_label }}
+                            </span>
+                            {% elif t.category == 'supplier' %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>{{ t.category_label }}
+                            </span>
+                            {% elif t.category == 'clearing' %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-teal-500"></span>{{ t.category_label }}
+                            </span>
+                            {% elif t.category == 'tracker' %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-purple-500"></span>{{ t.category_label }}
+                            </span>
+                            {% elif t.category == 'broker' %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>{{ t.category_label }}
+                            </span>
+                            {% elif t.category == 'insurance' %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span>{{ t.category_label }}
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                <span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>{{ t.category_label }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{{ t.method }}</td>
+                        <td class="px-4 py-3 text-right font-mono">
+                            {% if t.money_in > 0 %}
+                            <span class="text-green-700 font-semibold">{{ t.money_in|floatformat:0|intcomma }}</span>
+                            {% else %}<span class="text-gray-300">&mdash;</span>{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono">
+                            {% if t.money_out > 0 %}
+                            <span class="text-red-600 font-semibold">{{ t.money_out|floatformat:0|intcomma }}</span>
+                            {% else %}<span class="text-gray-300">&mdash;</span>{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono font-semibold whitespace-nowrap
+                            {% if t.running_balance >= 0 %}text-indigo-700{% else %}text-orange-600{% endif %}">
+                            {% if t.running_balance >= 0 %}
+                            {{ t.running_balance|floatformat:0|intcomma }}
+                            {% else %}
+                            ({{ t.running_balance|floatformat:0|intcomma|cut:"-" }})
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-12 text-center text-gray-400">
+                            <i class="fas fa-inbox text-3xl mb-3 block"></i>
+                            No transactions found for the selected period.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if transactions %}
+                <tfoot>
+                    <tr class="bg-gray-50 border-t-2 border-gray-200 font-semibold text-sm">
+                        <td colspan="5" class="px-4 py-3 text-gray-600">Period Total</td>
+                        <td class="px-4 py-3 text-right font-mono text-green-700">{{ total_in|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right font-mono text-red-700">{{ total_out|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right font-mono font-bold
+                            {% if net >= 0 %}text-indigo-700{% else %}text-orange-700{% endif %}">
+                            {% if net >= 0 %}{{ net|floatformat:0|intcomma }}{% else %}({{ net|floatformat:0|intcomma|cut:"-" }}){% endif %}
+                        </td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

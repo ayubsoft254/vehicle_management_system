@@ -1768,3 +1768,237 @@ def broker_voucher_print(request, payment_pk):
     """Printable voucher for a broker payment."""
     payment = get_object_or_404(BrokerPayment, pk=payment_pk)
     return render(request, 'vehicles/broker_voucher_print.html', {'payment': payment})
+
+
+@login_required
+def main_ledger_view(request):
+    """Combined main ledger aggregating all financial activity."""
+    from apps.payments.models import Payment
+    from apps.insurance.models import InsuranceAgentPayment
+    from apps.expenses.models import Expense
+    from .models import TrackerAgentPayment as _TrackerAgentPayment, ClearingAgentPayment as _ClearingAgentPayment
+    import datetime as dt
+
+    today = dt.date.today()
+
+    # --- Filters ---
+    date_from_str = request.GET.get('date_from', '')
+    date_to_str = request.GET.get('date_to', '')
+    category_filter = request.GET.get('category', '')
+    search = request.GET.get('q', '').strip()
+
+    try:
+        date_from = dt.date.fromisoformat(date_from_str) if date_from_str else today.replace(day=1)
+    except ValueError:
+        date_from = today.replace(day=1)
+
+    try:
+        date_to = dt.date.fromisoformat(date_to_str) if date_to_str else today
+    except ValueError:
+        date_to = today
+
+    ZERO = Decimal('0')
+
+    def date_range(qs, field):
+        return qs.filter(**{f'{field}__gte': date_from, f'{field}__lte': date_to})
+
+    # --- Base querysets ---
+    payments_qs = date_range(
+        Payment.objects.select_related('client_vehicle__client', 'client_vehicle__vehicle'),
+        'payment_date',
+    )
+    supplier_payments_qs = date_range(
+        JapanSupplierPayment.objects.select_related('supplier'), 'payment_date'
+    )
+    clearing_payments_qs = date_range(
+        _ClearingAgentPayment.objects.select_related('agent'), 'payment_date'
+    )
+    tracker_payments_qs = date_range(
+        _TrackerAgentPayment.objects.select_related('agent'), 'payment_date'
+    )
+    broker_payments_qs = date_range(
+        BrokerPayment.objects.select_related('broker'), 'payment_date'
+    )
+    insurance_payments_qs = date_range(
+        InsuranceAgentPayment.objects.select_related('agent'), 'payment_date'
+    )
+    expenses_qs = date_range(
+        Expense.objects.filter(status__in=['APPROVED', 'PAID']).select_related('category'),
+        'expense_date',
+    )
+
+    # Search
+    if search:
+        payments_qs = payments_qs.filter(
+            Q(client_vehicle__client__first_name__icontains=search)
+            | Q(client_vehicle__client__last_name__icontains=search)
+            | Q(receipt_number__icontains=search)
+            | Q(transaction_reference__icontains=search)
+        )
+        expenses_qs = expenses_qs.filter(
+            Q(title__icontains=search) | Q(vendor_name__icontains=search)
+        )
+
+    # Category filter: zero-out sources that aren't selected
+    _ALL = {'client_payment', 'supplier', 'clearing', 'tracker', 'broker', 'insurance', 'expense'}
+    if category_filter and category_filter in _ALL:
+        if category_filter != 'client_payment':
+            payments_qs = payments_qs.none()
+        if category_filter != 'supplier':
+            supplier_payments_qs = supplier_payments_qs.none()
+        if category_filter != 'clearing':
+            clearing_payments_qs = clearing_payments_qs.none()
+        if category_filter != 'tracker':
+            tracker_payments_qs = tracker_payments_qs.none()
+        if category_filter != 'broker':
+            broker_payments_qs = broker_payments_qs.none()
+        if category_filter != 'insurance':
+            insurance_payments_qs = insurance_payments_qs.none()
+        if category_filter != 'expense':
+            expenses_qs = expenses_qs.none()
+
+    # --- Totals ---
+    total_in = payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
+    total_supplier = supplier_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
+    total_clearing = clearing_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
+    total_tracker = tracker_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
+    total_broker = broker_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
+    total_insurance = insurance_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
+    total_expenses = expenses_qs.aggregate(t=Sum('total_amount'))['t'] or ZERO
+    total_out = total_supplier + total_clearing + total_tracker + total_broker + total_insurance + total_expenses
+    net = total_in - total_out
+
+    # --- Build transaction rows ---
+    transactions = []
+
+    for p in payments_qs:
+        client = p.client_vehicle.client
+        transactions.append({
+            'date': p.payment_date,
+            'ref': p.receipt_number or p.transaction_reference or f'PMT-{p.pk}',
+            'description': f"{client.first_name} {client.last_name}",
+            'detail': p.client_vehicle.vehicle.full_name,
+            'category': 'client_payment',
+            'category_label': 'Client Payment',
+            'category_color': 'green',
+            'method': p.get_payment_method_display(),
+            'money_in': p.amount,
+            'money_out': ZERO,
+        })
+
+    for p in supplier_payments_qs:
+        transactions.append({
+            'date': p.payment_date,
+            'ref': p.reference_number or f'SUP-{p.pk}',
+            'description': p.supplier.name,
+            'detail': 'Japan Supplier',
+            'category': 'supplier',
+            'category_label': 'Japan Supplier',
+            'category_color': 'red',
+            'method': p.get_payment_method_display(),
+            'money_in': ZERO,
+            'money_out': p.amount,
+        })
+
+    for p in clearing_payments_qs:
+        transactions.append({
+            'date': p.payment_date,
+            'ref': p.reference_number or f'CLR-{p.pk}',
+            'description': p.agent.name,
+            'detail': 'Clearing Agent',
+            'category': 'clearing',
+            'category_label': 'Clearing Agent',
+            'category_color': 'teal',
+            'method': p.get_payment_method_display(),
+            'money_in': ZERO,
+            'money_out': p.amount,
+        })
+
+    for p in tracker_payments_qs:
+        transactions.append({
+            'date': p.payment_date,
+            'ref': p.reference_number or f'TRK-{p.pk}',
+            'description': p.agent.name,
+            'detail': 'Tracker Agent',
+            'category': 'tracker',
+            'category_label': 'Tracker Agent',
+            'category_color': 'purple',
+            'method': p.get_payment_method_display(),
+            'money_in': ZERO,
+            'money_out': p.amount,
+        })
+
+    for p in broker_payments_qs:
+        transactions.append({
+            'date': p.payment_date,
+            'ref': p.voucher_number or p.reference_number or f'BRK-{p.pk}',
+            'description': p.broker.name,
+            'detail': 'Broker Commission',
+            'category': 'broker',
+            'category_label': 'Broker',
+            'category_color': 'amber',
+            'method': p.get_payment_method_display(),
+            'money_in': ZERO,
+            'money_out': p.amount,
+        })
+
+    for p in insurance_payments_qs:
+        transactions.append({
+            'date': p.payment_date,
+            'ref': p.reference_number or f'INS-{p.pk}',
+            'description': p.agent.name,
+            'detail': 'Insurance Agent',
+            'category': 'insurance',
+            'category_label': 'Insurance Agent',
+            'category_color': 'blue',
+            'method': p.get_payment_method_display(),
+            'money_in': ZERO,
+            'money_out': p.amount,
+        })
+
+    for e in expenses_qs:
+        transactions.append({
+            'date': e.expense_date,
+            'ref': e.invoice_number or f'EXP-{e.pk}',
+            'description': e.title,
+            'detail': e.vendor_name or e.category.name,
+            'category': 'expense',
+            'category_label': e.category.name,
+            'category_color': 'gray',
+            'method': e.get_payment_method_display(),
+            'money_in': ZERO,
+            'money_out': e.total_amount,
+        })
+
+    # Compute running balance (ascending) then reverse for newest-first display
+    transactions.sort(key=lambda x: x['date'])
+    running = ZERO
+    for t in transactions:
+        running += t['money_in'] - t['money_out']
+        t['running_balance'] = running
+    transactions = list(reversed(transactions))
+
+    category_summary = [
+        {'label': 'Client Payments', 'key': 'client_payment', 'color': 'green', 'money_in': total_in, 'money_out': ZERO},
+        {'label': 'Japan Suppliers', 'key': 'supplier', 'color': 'red', 'money_in': ZERO, 'money_out': total_supplier},
+        {'label': 'Clearing Agents', 'key': 'clearing', 'color': 'teal', 'money_in': ZERO, 'money_out': total_clearing},
+        {'label': 'Tracker Agents', 'key': 'tracker', 'color': 'purple', 'money_in': ZERO, 'money_out': total_tracker},
+        {'label': 'Broker Commissions', 'key': 'broker', 'color': 'amber', 'money_in': ZERO, 'money_out': total_broker},
+        {'label': 'Insurance Agents', 'key': 'insurance', 'color': 'blue', 'money_in': ZERO, 'money_out': total_insurance},
+        {'label': 'General Expenses', 'key': 'expense', 'color': 'gray', 'money_in': ZERO, 'money_out': total_expenses},
+    ]
+
+    context = {
+        'date_from': date_from,
+        'date_to': date_to,
+        'date_from_str': date_from.isoformat(),
+        'date_to_str': date_to.isoformat(),
+        'category_filter': category_filter,
+        'search': search,
+        'total_in': total_in,
+        'total_out': total_out,
+        'net': net,
+        'category_summary': category_summary,
+        'transactions': transactions,
+    }
+    return render(request, 'vehicles/main_ledger.html', context)
