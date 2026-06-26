@@ -1264,7 +1264,10 @@ def client_vehicle_detail(request, pk):
         request.user, 'view', 'ClientVehicle',
         f'Viewed vehicle purchase details for {client_vehicle.client.get_full_name()}'
     )
-    
+
+    if is_repossessed:
+        return render(request, 'clients/client_vehicle_repossessed.html', context)
+
     return render(request, 'clients/client_vehicle_detail.html', context)
 
 
