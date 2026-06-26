@@ -1173,6 +1173,15 @@ def client_vehicle_detail(request, pk):
 
     agreement_versions = list(client_vehicle.agreement_versions.order_by('version_number'))
 
+    # Check if this vehicle was repossessed
+    from apps.repossessions.models import Repossession
+    repossession = Repossession.objects.filter(
+        client=client_vehicle.client,
+        vehicle=client_vehicle.vehicle,
+        status='COMPLETED',
+    ).order_by('-completion_date').first()
+    is_repossessed = not client_vehicle.is_active and repossession is not None
+
     # Grand total balance breakdown
     # Use individual row['balance'] for trackers — combined_owed double-counts renewals
     # because both the original tracker and each renewal appear as separate rows
@@ -1221,6 +1230,8 @@ def client_vehicle_detail(request, pk):
         'grand_total_paid': grand_total_paid,
         'grand_total_cost': grand_total_cost,
         'grand_progress': grand_progress,
+        'is_repossessed': is_repossessed,
+        'repossession': repossession,
     }
     
     log_audit(
