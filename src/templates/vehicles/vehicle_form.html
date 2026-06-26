@@ -220,7 +220,81 @@
                     <h2 class="text-lg font-semibold text-gray-900">Pricing &amp; Costs</h2>
                 </div>
 
-                <!-- Purchase date + purchase price -->
+                {% if can_view_prices %}
+                <!-- Step 1: Japan Supplier + Supplier Price (USD) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                    <div>
+                        <label for="japan_supplier_id" class="block text-sm font-medium text-gray-700 mb-1">
+                            Japan Supplier <span class="text-gray-400 font-normal">(optional)</span>
+                        </label>
+                        <select name="japan_supplier_id" id="japan_supplier_id" class="form-input" onchange="toggleJapanSupplierPrice()">
+                            <option value="">— No Supplier / Unknown —</option>
+                            {% for supplier in japan_suppliers %}
+                            <option value="{{ supplier.pk }}" {% if existing_japan_supplier_id == supplier.pk %}selected{% endif %}>{{ supplier.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">Link the purchase to a supplier for ledger tracking.</p>
+                    </div>
+                    <div id="japan-supplier-price-row" class="{% if not existing_japan_supplier_id %}hidden{% endif %}">
+                        <label for="japan_supplier_price_usd" class="block text-sm font-medium text-gray-700 mb-1">
+                            Supplier Price (USD) <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-gray-400 text-sm font-medium">$</span>
+                            </div>
+                            <input type="number" name="japan_supplier_price_usd" id="japan_supplier_price_usd"
+                                step="0.01" min="0"
+                                value="{{ existing_japan_supplier_price_usd|default:'' }}"
+                                placeholder="e.g. 8500"
+                                class="form-input pl-10"
+                                oninput="syncSupplierUsdToTracking()">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">Auto-fills the KES purchase price below using the live rate.</p>
+                    </div>
+                </div>
+
+                <!-- Step 2: Exchange Rate Panel -->
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm font-semibold text-amber-800">USD / KES Exchange Rate</p>
+                        <button type="button" id="fetchRateBtn"
+                            class="px-3 py-1 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition flex items-center gap-1">
+                            <i class="fas fa-sync-alt"></i> Fetch Live Rate
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Rate (KES per 1 USD)</label>
+                            <input type="number" id="id_purchase_usd_rate" name="purchase_usd_rate"
+                                value="{{ form.purchase_usd_rate.value|default:'' }}"
+                                step="0.0001" min="0" placeholder="e.g. 130.00"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm">
+                            <p id="rateStatus" class="text-xs text-gray-400 mt-1"></p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Purchase Price (USD)</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span class="text-gray-400 text-xs font-medium">$</span>
+                                </div>
+                                <input type="number" id="id_purchase_price_usd" name="purchase_price_usd"
+                                    value="{{ form.purchase_price_usd.value|default:'' }}"
+                                    step="0.01" min="0" placeholder="auto-filled from supplier price"
+                                    class="w-full pl-8 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm">
+                            </div>
+                        </div>
+                        <div class="flex items-end">
+                            <div class="bg-white border border-gray-200 rounded-lg p-3 w-full text-center">
+                                <p class="text-xs text-gray-500 mb-1">KES Equivalent</p>
+                                <p id="usdKesEquivalent" class="text-sm font-bold text-gray-800">—</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Purchase Date + Purchase Price (KES) -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
                     <div>
                         <label for="{{ form.purchase_date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
@@ -240,81 +314,11 @@
                             </div>
                             {{ form.purchase_price }}
                         </div>
+                        <p class="text-xs text-gray-400 mt-1">Auto-filled from supplier price × rate. You can edit manually.</p>
                         {% if form.purchase_price.errors %}<p class="mt-1 text-xs text-red-600">{{ form.purchase_price.errors.0 }}</p>{% endif %}
-                    </div>
-                    <div>
-                        <label for="japan_supplier_id" class="block text-sm font-medium text-gray-700 mb-1">
-                            Japan Supplier <span class="text-gray-400 font-normal">(optional)</span>
-                        </label>
-                        <select name="japan_supplier_id" id="japan_supplier_id" class="form-input" onchange="toggleJapanSupplierPrice()">
-                            <option value="">— No Supplier / Unknown —</option>
-                            {% for supplier in japan_suppliers %}
-                            <option value="{{ supplier.pk }}" {% if existing_japan_supplier_id == supplier.pk %}selected{% endif %}>{{ supplier.name }}</option>
-                            {% endfor %}
-                        </select>
-                        <p class="text-xs text-gray-400 mt-1">Link the purchase price to a supplier for ledger tracking.</p>
-                    </div>
-                    <div id="japan-supplier-price-row" class="{% if not existing_japan_supplier_id %}hidden{% endif %}">
-                        <label for="japan_supplier_price_usd" class="block text-sm font-medium text-gray-700 mb-1">
-                            Supplier Price (USD) <span class="text-red-500">*</span>
-                        </label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span class="text-gray-400 text-sm font-medium">$</span>
-                            </div>
-                            <input type="number" name="japan_supplier_price_usd" id="japan_supplier_price_usd"
-                                step="0.01" min="0"
-                                value="{{ existing_japan_supplier_price_usd|default:'' }}"
-                                placeholder="e.g. 8500"
-                                class="form-input pl-10">
-                        </div>
-                        <p class="text-xs text-gray-400 mt-1">Amount owed to this supplier in USD.</p>
                     </div>
                     {% endif %}
                 </div>
-                {% if can_view_prices %}
-                <!-- USD Purchase Price Panel -->
-                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-                    <div class="flex items-center justify-between mb-3">
-                        <p class="text-sm font-semibold text-amber-800">USD Purchase Tracking</p>
-                        <button type="button" id="fetchRateBtn"
-                            class="px-3 py-1 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition flex items-center gap-1">
-                            <i class="fas fa-sync-alt"></i> Fetch Live Rate
-                        </button>
-                    </div>
-                    <p class="text-xs text-amber-600 mb-3">Record the USD value at purchase so you can track profitability when selling at a later exchange rate.</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Rate (KES per 1 USD)</label>
-                            <div class="relative">
-                                <input type="number" id="id_purchase_usd_rate" name="purchase_usd_rate"
-                                    value="{{ form.purchase_usd_rate.value|default:'' }}"
-                                    step="0.0001" min="0" placeholder="e.g. 130.00"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm">
-                            </div>
-                            <p id="rateStatus" class="text-xs text-gray-400 mt-1"></p>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Purchase Price (USD)</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <span class="text-gray-400 text-xs font-medium">$</span>
-                                </div>
-                                <input type="number" id="id_purchase_price_usd" name="purchase_price_usd"
-                                    value="{{ form.purchase_price_usd.value|default:'' }}"
-                                    step="0.01" min="0" placeholder="e.g. 8500"
-                                    class="w-full pl-8 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm">
-                            </div>
-                        </div>
-                        <div class="flex items-end">
-                            <div class="bg-white border border-gray-200 rounded-lg p-3 w-full text-center">
-                                <p class="text-xs text-gray-500 mb-1">KES Equivalent</p>
-                                <p id="usdKesEquivalent" class="text-sm font-bold text-gray-800">—</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
                 <!-- Additional cost components -->
                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Additional Cost Components</p>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
@@ -823,7 +827,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!rateEl) return;
 
-        function updateEquiv() {
+        // forceKes=true: always overwrite the KES field (user actively changed a field)
+        // forceKes=false: only fill KES if it is currently empty (page-load / auto-sync)
+        function updateEquiv(forceKes) {
             var rate = parseFloat(rateEl.value) || 0;
             var usd  = parseFloat(usdEl.value) || 0;
             if (rate > 0 && usd > 0) {
@@ -831,7 +837,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (equivEl) {
                     equivEl.textContent = 'KES ' + kes.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 }
-                if (kesEl) {
+                if (kesEl && (forceKes || !parseFloat(kesEl.value))) {
                     kesEl.value = Math.round(kes);
                     kesEl.dispatchEvent(new Event('input'));
                 }
@@ -845,11 +851,12 @@ document.addEventListener('DOMContentLoaded', function () {
             var kes  = parseFloat(kesEl ? kesEl.value : 0) || 0;
             if (rate > 0 && kes > 0 && usdEl && !usdEl.value) {
                 usdEl.value = (kes / rate).toFixed(2);
-                updateEquiv();
+                updateEquiv(false);
             }
         }
 
-        function fetchLiveRate(callback) {
+        // forceKes=true when the user explicitly clicks "Fetch Live Rate"
+        function fetchLiveRate(callback, forceKes) {
             if (statusEl) statusEl.textContent = 'Fetching live rate…';
             fetch('https://open.er-api.com/v6/latest/USD')
                 .then(function (r) { return r.json(); })
@@ -858,7 +865,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (rate) {
                         rateEl.value = rate.toFixed(4);
                         if (statusEl) statusEl.textContent = 'Live: 1 USD = KES ' + rate.toFixed(2) + ' (as of ' + (data.time_last_update_utc || 'now') + ')';
-                        updateEquiv();
+                        updateEquiv(forceKes);
                         autoFillUsdFromKes();
                     } else {
                         if (statusEl) statusEl.textContent = 'Could not read rate from API.';
@@ -871,8 +878,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
         }
 
-        if (rateEl) rateEl.addEventListener('input', function () { updateEquiv(); autoFillUsdFromKes(); });
-        if (usdEl)  usdEl.addEventListener('input', updateEquiv);
+        if (rateEl) rateEl.addEventListener('input', function () { updateEquiv(true); autoFillUsdFromKes(); });
+        if (usdEl)  usdEl.addEventListener('input', function () { updateEquiv(true); });
 
         if (fetchBtn) {
             fetchBtn.addEventListener('click', function () {
@@ -881,16 +888,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 fetchLiveRate(function () {
                     fetchBtn.disabled = false;
                     fetchBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Fetch Live Rate';
-                });
+                }, true);
             });
         }
 
-        // Auto-fetch rate on load if field is empty
+        // Auto-fetch rate on load if field is empty (fill KES only if KES also empty)
         if (rateEl && !rateEl.value) {
-            fetchLiveRate(null);
+            fetchLiveRate(null, false);
         }
 
-        updateEquiv();
+        updateEquiv(false);
     })();
 });
 </script>
@@ -906,10 +913,35 @@ function toggleJapanSupplierPrice() {
         row.classList.add('hidden');
         const input = document.getElementById('japan_supplier_price_usd');
         if (input) input.value = '';
+        // Clear the tracking panel USD field when supplier is removed
+        const trackingUsd = document.getElementById('id_purchase_price_usd');
+        if (trackingUsd) trackingUsd.value = '';
     }
 }
-// Run on page load to handle edit mode
-document.addEventListener('DOMContentLoaded', toggleJapanSupplierPrice);
+
+// Called from oninput on the supplier price field — user is actively changing it
+function syncSupplierUsdToTracking() {
+    const supplierUsd = document.getElementById('japan_supplier_price_usd');
+    const trackingUsd = document.getElementById('id_purchase_price_usd');
+    if (supplierUsd && trackingUsd) {
+        trackingUsd.value = supplierUsd.value;
+        // Dispatch with forceKes marker so updateEquiv overwrites the KES field
+        const evt = new Event('input');
+        evt._forceKes = true;
+        trackingUsd.dispatchEvent(evt);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    toggleJapanSupplierPrice();
+    // On page load: silently mirror supplier price into the tracking USD field
+    // so the KES-equivalent display is correct, but do NOT overwrite an existing KES price.
+    const supplierUsd = document.getElementById('japan_supplier_price_usd');
+    const trackingUsd = document.getElementById('id_purchase_price_usd');
+    if (supplierUsd && supplierUsd.value && trackingUsd && !trackingUsd.value) {
+        trackingUsd.value = supplierUsd.value;
+    }
+});
 </script>
 
 <style>
