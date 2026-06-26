@@ -102,6 +102,7 @@ urlpatterns = [
     path('<int:client_pk>/documents/', views.document_list, name='document_list'),
     path('<int:client_pk>/upload-document/', views.upload_document, name='upload_document'),
     path('documents/<int:pk>/delete/', views.document_delete, name='document_delete'),
+    path('documents/<int:pk>/download/', views.download_client_document, name='download_client_document'),
     
     # ==================== INSTALLMENT PLAN URLS ====================
     

@@ -2146,6 +2146,21 @@ def document_list(request, client_pk):
 
 
 @login_required
+def download_client_document(request, pk):
+    """Download a client document file."""
+    import os
+    from django.http import HttpResponse, Http404
+    document = get_object_or_404(ClientDocument, pk=pk)
+    try:
+        filename = os.path.basename(document.file.name)
+        response = HttpResponse(document.file.read(), content_type='application/octet-stream')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    except Exception:
+        raise Http404("File not found.")
+
+
+@login_required
 def document_delete(request, pk):
     """
     Delete a client document
