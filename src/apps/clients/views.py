@@ -989,6 +989,7 @@ def assign_vehicle(request, client_pk):
             {'id': b.pk, 'name': b.name, 'id_number': b.id_number, 'phone': b.phone}
             for b in brokers
         ]),
+        'default_paybill': '4320049',
     }
 
     return render(request, 'clients/assign_vehicle.html', context)
@@ -1649,6 +1650,11 @@ def client_vehicle_update(request, pk):
     except InstallmentPlan.DoesNotExist:
         pass
 
+    _saved_paybill = client_vehicle.agreement_paybill or '4320049'
+    _known_paybills = {'4320049', '4162495'}
+    _paybill_selection = _saved_paybill if _saved_paybill in _known_paybills else 'custom'
+    _custom_paybill_value = _saved_paybill if _saved_paybill not in _known_paybills else ''
+
     context = {
         'form': form,
         'client': client_vehicle.client,
@@ -1670,6 +1676,8 @@ def client_vehicle_update(request, pk):
             {'id': b.pk, 'name': b.name, 'id_number': b.id_number, 'phone': b.phone}
             for b in brokers
         ]),
+        'default_paybill': _paybill_selection,
+        'default_custom_paybill': _custom_paybill_value,
     }
 
     return render(request, 'clients/assign_vehicle.html', context)

@@ -767,31 +767,32 @@
             <div class="p-6">
                 <p class="text-sm text-gray-500 mb-4">Select the paybill number to print on the sales agreement for M-Pesa payments.</p>
                 <div class="flex flex-wrap gap-3" id="paybill-options">
-                    <label class="flex items-center gap-2 cursor-pointer px-4 py-2.5 border-2 rounded-lg transition paybill-option selected-paybill" data-value="4320049">
-                        <input type="radio" name="agreement_paybill" value="4320049" class="hidden" checked>
+                    <label class="flex items-center gap-2 cursor-pointer px-4 py-2.5 border-2 rounded-lg transition paybill-option{% if default_paybill == '4320049' or not default_paybill %} selected-paybill{% endif %}" data-value="4320049">
+                        <input type="radio" name="agreement_paybill" value="4320049" class="hidden"{% if default_paybill == '4320049' or not default_paybill %} checked{% endif %}>
                         <span class="w-4 h-4 rounded-full border-2 border-current flex items-center justify-center flex-shrink-0 paybill-dot">
                             <span class="w-2 h-2 rounded-full bg-current paybill-inner hidden"></span>
                         </span>
                         <span class="font-medium text-sm">Paybill 1 &mdash; <span class="font-mono">4320049</span></span>
                     </label>
-                    <label class="flex items-center gap-2 cursor-pointer px-4 py-2.5 border-2 rounded-lg transition paybill-option" data-value="4162495">
-                        <input type="radio" name="agreement_paybill" value="4162495" class="hidden">
+                    <label class="flex items-center gap-2 cursor-pointer px-4 py-2.5 border-2 rounded-lg transition paybill-option{% if default_paybill == '4162495' %} selected-paybill{% endif %}" data-value="4162495">
+                        <input type="radio" name="agreement_paybill" value="4162495" class="hidden"{% if default_paybill == '4162495' %} checked{% endif %}>
                         <span class="w-4 h-4 rounded-full border-2 border-current flex items-center justify-center flex-shrink-0 paybill-dot">
                             <span class="w-2 h-2 rounded-full bg-current paybill-inner hidden"></span>
                         </span>
                         <span class="font-medium text-sm">Paybill 2 &mdash; <span class="font-mono">4162495</span></span>
                     </label>
-                    <label class="flex items-center gap-2 cursor-pointer px-4 py-2.5 border-2 rounded-lg transition paybill-option" data-value="custom">
-                        <input type="radio" name="agreement_paybill" value="custom" class="hidden">
+                    <label class="flex items-center gap-2 cursor-pointer px-4 py-2.5 border-2 rounded-lg transition paybill-option{% if default_paybill == 'custom' %} selected-paybill{% endif %}" data-value="custom">
+                        <input type="radio" name="agreement_paybill" value="custom" class="hidden"{% if default_paybill == 'custom' %} checked{% endif %}>
                         <span class="w-4 h-4 rounded-full border-2 border-current flex items-center justify-center flex-shrink-0 paybill-dot">
                             <span class="w-2 h-2 rounded-full bg-current paybill-inner hidden"></span>
                         </span>
                         <span class="font-medium text-sm">Custom</span>
                     </label>
                 </div>
-                <div id="custom-paybill-section" class="hidden mt-4">
+                <div id="custom-paybill-section" class="{% if default_paybill == 'custom' %}{% else %}hidden {% endif %}mt-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Enter Custom Paybill Number</label>
                     <input type="text" id="custom-paybill-input" name="custom_paybill_value" placeholder="e.g. 1234567"
+                        value="{{ default_custom_paybill|default:'' }}"
                         class="form-input w-full sm:w-64 font-mono" maxlength="20">
                 </div>
             </div>
