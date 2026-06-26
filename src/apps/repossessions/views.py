@@ -41,6 +41,17 @@ def _recalculate_client_debt(client):
     client.save(update_fields=['current_debt'])
 
 
+def _stop_installment_plan(client_vehicle):
+    """Deactivate the installment plan and remove unpaid future schedules."""
+    try:
+        plan = client_vehicle.installment_plan
+        plan.payment_schedules.filter(is_paid=False).delete()
+        plan.is_active = False
+        plan.save(update_fields=['is_active'])
+    except Exception:
+        pass
+
+
 def _apply_repossessed_vehicle_pricing(repossession):
     """When repossession starts, reprices the vehicle to debt + newly added additional costs."""
     vehicle = repossession.vehicle
@@ -550,6 +561,7 @@ def repossession_complete(request, pk):
                         client_vehicle.is_active = False
                         client_vehicle.date_paid_off = completion_date
                         client_vehicle.save(update_fields=['balance', 'is_paid_off', 'is_active', 'date_paid_off'])
+                        _stop_installment_plan(client_vehicle)
                         _recalculate_client_debt(repossession.client)
                 elif resolution_type == 'RETURNED':
                     vehicle.status = VehicleStatus.SOLD
@@ -566,7 +578,13 @@ def repossession_complete(request, pk):
                     client_vehicle.save(update_fields=['purchase_price', 'balance', 'is_paid_off', 'date_paid_off', 'is_active'])
                     _recalculate_client_debt(repossession.client)
                 else:
+                    # Vehicle fully repossessed — deactivate the client record and stop future schedules
                     vehicle.status = VehicleStatus.REPOSSESSED
+                    if client_vehicle:
+                        client_vehicle.is_active = False
+                        client_vehicle.save(update_fields=['is_active'])
+                        _stop_installment_plan(client_vehicle)
+                        _recalculate_client_debt(repossession.client)
 
                 vehicle.save(update_fields=['selling_price', 'status'])
 
