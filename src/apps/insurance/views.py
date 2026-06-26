@@ -359,7 +359,10 @@ def policy_renew(request, pk):
                 if ins_has_plan and ins_installments:
                     from apps.insurance.models import InsurancePaymentSchedule
                     from datetime import datetime as _dt
-                    for idx, row in enumerate(ins_installments, start=1):
+                    # Delete any auto-generated schedules created by model's save()
+                    InsurancePaymentSchedule.objects.filter(policy=new_policy).delete()
+                    valid_idx = 1
+                    for row in ins_installments:
                         try:
                             due_date = _dt.strptime(str(row.get('due_date', '')).strip(), '%Y-%m-%d').date()
                         except Exception:
@@ -369,10 +372,11 @@ def policy_renew(request, pk):
                             continue
                         InsurancePaymentSchedule.objects.create(
                             policy=new_policy,
-                            installment_number=idx,
+                            installment_number=valid_idx,
                             due_date=due_date,
                             amount_due=amount_due,
                         )
+                        valid_idx += 1
 
                 # Save certificate if uploaded
                 cert = form.cleaned_data.get('new_certificate')
@@ -398,14 +402,25 @@ def policy_renew(request, pk):
             messages.error(request, 'Please correct the errors below.')
     else:
         form = PolicyRenewalForm(old_policy=old_policy)
-    
+
+    # Pass raw POST values back for JS to restore flex state on re-render
+    recalled = {}
+    if request.method == 'POST':
+        recalled = {
+            'payment_type': request.POST.get('insurance_payment_type', 'full'),
+            'payment_method': request.POST.get('insurance_payment_method', 'cash'),
+            'deposit': request.POST.get('insurance_deposit', ''),
+            'flex_json': request.POST.get('insurance_flexible_installments_json', '[]'),
+        }
+
     context = {
         'form': form,
         'old_policy': old_policy,
         'title': f'Renew Policy: {old_policy.policy_number}',
-        'button_text': 'Renew Policy'
+        'button_text': 'Renew Policy',
+        'recalled': recalled,
     }
-    
+
     return render(request, 'insurance/policy_renew.html', context)
 
 

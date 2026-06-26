@@ -1093,9 +1093,10 @@ def client_vehicle_detail(request, pk):
 
         if ins_pol.has_payment_plan and ins_schedules.exists():
             # Deposit counts as first payment; schedules cover the installments after deposit
+            ins_schedule_paid = ins_schedules.aggregate(total=models.Sum('amount_paid'))['total'] or Decimal('0.00')
             ins_total_paid = (ins_pol.insurance_deposit or Decimal('0.00')) + ins_schedule_paid
-            ins_total_due = ins_schedules.aggregate(total=models.Sum('amount_due'))['total'] or Decimal('0.00')
-            ins_balance = max(Decimal('0.00'), ins_total_due - ins_schedule_paid)
+            # Anchor balance to selling_price so it's correct regardless of how installments were entered
+            ins_balance = max(Decimal('0.00'), (ins_pol.selling_price or Decimal('0.00')) - ins_total_paid)
             ins_next_payment = ins_schedules.filter(is_paid=False).order_by('due_date').first()
             ins_monthly = ins_pol.insurance_monthly_installment or (
                 ins_next_payment.amount_due if ins_next_payment else Decimal('0.00')
@@ -1172,8 +1173,10 @@ def client_vehicle_detail(request, pk):
     agreement_versions = list(client_vehicle.agreement_versions.order_by('version_number'))
 
     # Grand total balance breakdown
+    # Use individual row['balance'] for trackers — combined_owed double-counts renewals
+    # because both the original tracker and each renewal appear as separate rows
     total_insurance_balance = sum((row['balance'] for row in insurance_policy_list), Decimal('0.00'))
-    total_tracker_balance = sum((row['combined_owed'] for row in tracker_payment_rows), Decimal('0.00'))
+    total_tracker_balance = sum((row['balance'] for row in tracker_payment_rows), Decimal('0.00'))
     grand_total_balance = client_vehicle.balance + total_insurance_balance + total_tracker_balance
 
     from django.conf import settings as django_settings

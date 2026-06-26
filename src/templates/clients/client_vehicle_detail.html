@@ -334,6 +334,7 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price (KES)</label>
                                 <input type="number" name="selling_price" step="0.01" min="0" placeholder="0.00"
                                     id="trk-selling-price-{{ tracker.pk }}"
+                                    oninput="trkSyncFlexJson('{{ tracker.pk }}')"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
                             </div>
                         </div>
@@ -381,6 +382,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Amount (KES)</label>
                             <input type="number" name="deposit" step="0.01" min="0" placeholder="0.00"
                                 id="trk-deposit-{{ tracker.pk }}"
+                                oninput="trkSyncFlexJson('{{ tracker.pk }}')"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
                         </div>
 
@@ -1151,9 +1153,18 @@ function trkSyncFlexJson(pk) {
     document.getElementById('trk-flex-json-' + pk).value = JSON.stringify(rows);
 
     var total = rows.reduce(function(s, r) { return s + parseFloat(r.amount || 0); }, 0);
+    var sellingPrice = parseFloat(document.getElementById('trk-selling-price-' + pk)?.value || 0);
+    var deposit = parseFloat(document.getElementById('trk-deposit-' + pk)?.value || 0);
+    var balanceTarget = Math.max(0, sellingPrice - deposit);
+    var remaining = balanceTarget - total;
+    var ok = Math.abs(remaining) < 0.01;
+
     var summary = document.getElementById('trk-flex-summary-' + pk);
     if (summary) {
-        summary.textContent = rows.length + ' installment(s) — Total: KES ' + total.toLocaleString('en-KE', {minimumFractionDigits: 2});
+        summary.innerHTML =
+            rows.length + ' installment(s) &mdash; Total: KES ' + total.toLocaleString('en-KE', {minimumFractionDigits: 2}) +
+            ' &mdash; Balance remaining: <span style="color:' + (ok ? '#16a34a' : '#dc2626') + ';font-weight:600">KES ' +
+            remaining.toLocaleString('en-KE', {minimumFractionDigits: 2}) + '</span>';
     }
 }
 
