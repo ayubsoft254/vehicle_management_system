@@ -132,6 +132,19 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         except Exception:
             _purchase_date = None
         _other_payment_details = sp.get('other_payment_details', '')
+        # Build flex schedule from snapshot (for flexible payment type)
+        _snap_flex_raw = sp.get('flex_installments', [])
+        _snap_flex_schedules = []
+        for _fi in _snap_flex_raw:
+            _fi_due_str = _fi.get('due_date', '')
+            try:
+                _fi_due = _snap_dt.strptime(_fi_due_str, '%Y-%m-%d').date() if _fi_due_str else None
+            except Exception:
+                _fi_due = None
+            _snap_flex_schedules.append(SimpleNamespace(
+                due_date=_fi_due,
+                amount_due=Decimal(str(_fi.get('amount') or '0')),
+            ))
         # Build insurance from snapshot
         si = snapshot.get('insurance')
         if si:
@@ -212,6 +225,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         _installment_months = client_vehicle.installment_months
         _purchase_date = client_vehicle.purchase_date
         _other_payment_details = getattr(client_vehicle, 'other_payment_details', '') or ''
+        _snap_flex_schedules = []  # not used for live data; plan schedules are read directly
         selected_months = None
         if plan and plan.number_of_installments:
             selected_months = plan.number_of_installments
@@ -772,6 +786,8 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         # Installment table
         if plan:
             schedules = list(plan.payment_schedules.all().order_by('installment_number'))
+        elif _snap_flex_schedules:
+            schedules = _snap_flex_schedules
         else:
             schedules = []
 

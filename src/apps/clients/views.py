@@ -1802,6 +1802,23 @@ def sign_agreement_online(request, pk):
     return render(request, 'clients/sign_agreement_online.html', context)
 
 
+def _capture_flex_installments(client_vehicle):
+    """Return the flex payment schedule as a list of {due_date, amount} dicts."""
+    try:
+        plan = client_vehicle.installment_plan
+        if not plan:
+            return []
+        rows = []
+        for sched in plan.payment_schedules.all().order_by('installment_number'):
+            rows.append({
+                'due_date': sched.due_date.strftime('%Y-%m-%d') if sched.due_date else '',
+                'amount': str(sched.amount_due or '0'),
+            })
+        return rows
+    except Exception:
+        return []
+
+
 def _build_agreement_snapshot(client_vehicle):
     """Capture all agreement-relevant data into a JSON-serialisable dict."""
     vehicle = client_vehicle.vehicle
@@ -1882,6 +1899,7 @@ def _build_agreement_snapshot(client_vehicle):
             'installment_months': client_vehicle.installment_months,
             'purchase_date': client_vehicle.purchase_date.strftime('%Y-%m-%d') if client_vehicle.purchase_date else '',
             'other_payment_details': client_vehicle.other_payment_details or '',
+            'flex_installments': _capture_flex_installments(client_vehicle),
         },
         'insurance': si,
         'trackers': tracker_snapshots,
