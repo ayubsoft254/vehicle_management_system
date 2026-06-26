@@ -1776,10 +1776,76 @@ def main_ledger_view(request):
     from apps.payments.models import Payment
     from apps.insurance.models import InsuranceAgentPayment
     from apps.expenses.models import Expense
-    from .models import TrackerAgentPayment as _TrackerAgentPayment, ClearingAgentPayment as _ClearingAgentPayment
+    from .models import (
+        TrackerAgentPayment as _TrackerAgentPayment,
+        ClearingAgentPayment as _ClearingAgentPayment,
+        ManualLedgerEntry,
+    )
     import datetime as dt
 
     today = dt.date.today()
+
+    # --- Handle POST: record a manual ledger entry ---
+    if request.method == 'POST':
+        raw_date = request.POST.get('entry_date', '').strip()
+        description = request.POST.get('entry_description', '').strip()
+        raw_amount = request.POST.get('entry_amount', '').strip()
+        direction = request.POST.get('entry_direction', '').strip()
+        reference = request.POST.get('entry_reference', '').strip()
+
+        errors = []
+        if not description:
+            errors.append('Description is required.')
+        if not raw_date:
+            errors.append('Date is required.')
+        if direction not in ('in', 'out'):
+            errors.append('Direction must be Money In or Money Out.')
+        amount = None
+        try:
+            amount = Decimal(raw_amount)
+            if amount <= 0:
+                raise ValueError
+        except Exception:
+            errors.append('Amount must be a positive number.')
+
+        entry_date = None
+        try:
+            entry_date = dt.date.fromisoformat(raw_date)
+        except Exception:
+            errors.append('Invalid date.')
+
+        if not errors:
+            ManualLedgerEntry.objects.create(
+                date=entry_date,
+                description=description,
+                amount=amount,
+                direction=direction,
+                reference=reference,
+                recorded_by=request.user,
+            )
+            messages.success(request, f'Entry recorded: {description}')
+        else:
+            for e in errors:
+                messages.error(request, e)
+
+        # Redirect back to main ledger preserving filters
+        redirect_url = request.POST.get('next', request.get_full_path())
+        return redirect(redirect_url.split('?')[0] + '?' + request.POST.get('filter_qs', ''))
+
+    # --- Handle DELETE: remove a manual entry ---
+    if request.method == 'GET' and request.GET.get('delete_entry'):
+        entry_id = request.GET.get('delete_entry')
+        try:
+            entry = ManualLedgerEntry.objects.get(pk=entry_id)
+            entry.delete()
+            messages.success(request, 'Entry deleted.')
+        except ManualLedgerEntry.DoesNotExist:
+            pass
+        # Redirect without the delete param
+        import urllib.parse
+        params = {k: v for k, v in request.GET.items() if k != 'delete_entry'}
+        qs = urllib.parse.urlencode(params)
+        return redirect(f"{request.path}?{qs}" if qs else request.path)
 
     # --- Filters ---
     date_from_str = request.GET.get('date_from', '')
@@ -1826,6 +1892,7 @@ def main_ledger_view(request):
         Expense.objects.filter(status__in=['APPROVED', 'PAID']).select_related('category'),
         'expense_date',
     )
+    manual_qs = date_range(ManualLedgerEntry.objects.select_related('recorded_by'), 'date')
 
     # Search
     if search:
@@ -1838,9 +1905,12 @@ def main_ledger_view(request):
         expenses_qs = expenses_qs.filter(
             Q(title__icontains=search) | Q(vendor_name__icontains=search)
         )
+        manual_qs = manual_qs.filter(
+            Q(description__icontains=search) | Q(reference__icontains=search)
+        )
 
-    # Category filter: zero-out sources that aren't selected
-    _ALL = {'client_payment', 'supplier', 'clearing', 'tracker', 'broker', 'insurance', 'expense'}
+    # Category filter
+    _ALL = {'client_payment', 'supplier', 'clearing', 'tracker', 'broker', 'insurance', 'expense', 'manual'}
     if category_filter and category_filter in _ALL:
         if category_filter != 'client_payment':
             payments_qs = payments_qs.none()
@@ -1856,6 +1926,8 @@ def main_ledger_view(request):
             insurance_payments_qs = insurance_payments_qs.none()
         if category_filter != 'expense':
             expenses_qs = expenses_qs.none()
+        if category_filter != 'manual':
+            manual_qs = manual_qs.none()
 
     # --- Totals ---
     total_in = payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
@@ -1865,8 +1937,12 @@ def main_ledger_view(request):
     total_broker = broker_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
     total_insurance = insurance_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
     total_expenses = expenses_qs.aggregate(t=Sum('total_amount'))['t'] or ZERO
-    total_out = total_supplier + total_clearing + total_tracker + total_broker + total_insurance + total_expenses
-    net = total_in - total_out
+
+    manual_in = manual_qs.filter(direction='in').aggregate(t=Sum('amount'))['t'] or ZERO
+    manual_out = manual_qs.filter(direction='out').aggregate(t=Sum('amount'))['t'] or ZERO
+
+    total_out = total_supplier + total_clearing + total_tracker + total_broker + total_insurance + total_expenses + manual_out
+    net = (total_in + manual_in) - total_out
 
     # --- Build transaction rows ---
     transactions = []
@@ -1884,6 +1960,7 @@ def main_ledger_view(request):
             'method': p.get_payment_method_display(),
             'money_in': p.amount,
             'money_out': ZERO,
+            'manual_id': None,
         })
 
     for p in supplier_payments_qs:
@@ -1898,6 +1975,7 @@ def main_ledger_view(request):
             'method': p.get_payment_method_display(),
             'money_in': ZERO,
             'money_out': p.amount,
+            'manual_id': None,
         })
 
     for p in clearing_payments_qs:
@@ -1912,6 +1990,7 @@ def main_ledger_view(request):
             'method': p.get_payment_method_display(),
             'money_in': ZERO,
             'money_out': p.amount,
+            'manual_id': None,
         })
 
     for p in tracker_payments_qs:
@@ -1926,6 +2005,7 @@ def main_ledger_view(request):
             'method': p.get_payment_method_display(),
             'money_in': ZERO,
             'money_out': p.amount,
+            'manual_id': None,
         })
 
     for p in broker_payments_qs:
@@ -1940,6 +2020,7 @@ def main_ledger_view(request):
             'method': p.get_payment_method_display(),
             'money_in': ZERO,
             'money_out': p.amount,
+            'manual_id': None,
         })
 
     for p in insurance_payments_qs:
@@ -1954,6 +2035,7 @@ def main_ledger_view(request):
             'method': p.get_payment_method_display(),
             'money_in': ZERO,
             'money_out': p.amount,
+            'manual_id': None,
         })
 
     for e in expenses_qs:
@@ -1968,9 +2050,25 @@ def main_ledger_view(request):
             'method': e.get_payment_method_display(),
             'money_in': ZERO,
             'money_out': e.total_amount,
+            'manual_id': None,
         })
 
-    # Compute running balance (ascending) then reverse for newest-first display
+    for e in manual_qs:
+        transactions.append({
+            'date': e.date,
+            'ref': e.reference or f'MAN-{e.pk}',
+            'description': e.description,
+            'detail': f"Recorded by {e.recorded_by.get_full_name() if e.recorded_by else '—'}",
+            'category': 'manual',
+            'category_label': 'Manual Entry',
+            'category_color': 'orange',
+            'method': '—',
+            'money_in': e.amount if e.direction == 'in' else ZERO,
+            'money_out': e.amount if e.direction == 'out' else ZERO,
+            'manual_id': e.pk,
+        })
+
+    # Compute running balance ascending, then reverse for display
     transactions.sort(key=lambda x: x['date'])
     running = ZERO
     for t in transactions:
@@ -1986,7 +2084,19 @@ def main_ledger_view(request):
         {'label': 'Broker Commissions', 'key': 'broker', 'color': 'amber', 'money_in': ZERO, 'money_out': total_broker},
         {'label': 'Insurance Agents', 'key': 'insurance', 'color': 'blue', 'money_in': ZERO, 'money_out': total_insurance},
         {'label': 'General Expenses', 'key': 'expense', 'color': 'gray', 'money_in': ZERO, 'money_out': total_expenses},
+        {'label': 'Manual Entries', 'key': 'manual', 'color': 'orange', 'money_in': manual_in, 'money_out': manual_out},
     ]
+
+    # Build filter querystring for POST redirect
+    import urllib.parse
+    filter_qs = urllib.parse.urlencode({
+        k: v for k, v in {
+            'date_from': date_from_str,
+            'date_to': date_to_str,
+            'category': category_filter,
+            'q': search,
+        }.items() if v
+    })
 
     context = {
         'date_from': date_from,
@@ -1995,10 +2105,12 @@ def main_ledger_view(request):
         'date_to_str': date_to.isoformat(),
         'category_filter': category_filter,
         'search': search,
-        'total_in': total_in,
+        'total_in': total_in + manual_in,
         'total_out': total_out,
         'net': net,
         'category_summary': category_summary,
         'transactions': transactions,
+        'filter_qs': filter_qs,
+        'today_str': today.isoformat(),
     }
     return render(request, 'vehicles/main_ledger.html', context)

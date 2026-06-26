@@ -15,6 +15,10 @@
             </h1>
             <p class="text-gray-500 text-sm mt-1">Combined view of all financial activity across sub-ledgers and expenses.</p>
         </div>
+        <button onclick="document.getElementById('entry-modal').classList.remove('hidden')"
+            class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm transition shadow-sm">
+            <i class="fas fa-plus"></i> Record Entry
+        </button>
     </div>
 
     <!-- Filters -->
@@ -42,6 +46,7 @@
                     <option value="broker" {% if category_filter == 'broker' %}selected{% endif %}>Broker Commissions</option>
                     <option value="insurance" {% if category_filter == 'insurance' %}selected{% endif %}>Insurance Agents</option>
                     <option value="expense" {% if category_filter == 'expense' %}selected{% endif %}>General Expenses</option>
+                    <option value="manual" {% if category_filter == 'manual' %}selected{% endif %}>Manual Entries</option>
                 </select>
             </div>
             <div>
@@ -208,6 +213,7 @@
                         <th class="px-4 py-3 text-right">Money In</th>
                         <th class="px-4 py-3 text-right">Money Out</th>
                         <th class="px-4 py-3 text-right">Balance</th>
+                        <th class="px-4 py-3 text-center w-8"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
@@ -244,6 +250,10 @@
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                                 <span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span>{{ t.category_label }}
                             </span>
+                            {% elif t.category == 'manual' %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-orange-500"></span>{{ t.category_label }}
+                            </span>
                             {% else %}
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                                 <span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>{{ t.category_label }}
@@ -269,10 +279,19 @@
                             ({{ t.running_balance|floatformat:0|intcomma|cut:"-" }})
                             {% endif %}
                         </td>
+                        <td class="px-4 py-3 text-center">
+                            {% if t.manual_id %}
+                            <a href="?delete_entry={{ t.manual_id }}&date_from={{ date_from_str }}&date_to={{ date_to_str }}&category={{ category_filter }}&q={{ search }}"
+                               onclick="return confirm('Delete this entry?')"
+                               class="text-red-400 hover:text-red-600 transition" title="Delete entry">
+                                <i class="fas fa-times-circle"></i>
+                            </a>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="px-6 py-12 text-center text-gray-400">
+                        <td colspan="9" class="px-6 py-12 text-center text-gray-400">
                             <i class="fas fa-inbox text-3xl mb-3 block"></i>
                             No transactions found for the selected period.
                         </td>
@@ -282,7 +301,7 @@
                 {% if transactions %}
                 <tfoot>
                     <tr class="bg-gray-50 border-t-2 border-gray-200 font-semibold text-sm">
-                        <td colspan="5" class="px-4 py-3 text-gray-600">Period Total</td>
+                        <td colspan="6" class="px-4 py-3 text-gray-600">Period Total</td>
                         <td class="px-4 py-3 text-right font-mono text-green-700">{{ total_in|floatformat:0|intcomma }}</td>
                         <td class="px-4 py-3 text-right font-mono text-red-700">{{ total_out|floatformat:0|intcomma }}</td>
                         <td class="px-4 py-3 text-right font-mono font-bold
@@ -297,4 +316,105 @@
     </div>
 
 </div>
+
+<!-- Record Entry Modal -->
+<div id="entry-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h2 class="font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-pencil-alt text-indigo-500"></i>
+                Record Entry
+            </h2>
+            <button onclick="document.getElementById('entry-modal').classList.add('hidden')"
+                class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        </div>
+        <form method="post" action="{% url 'vehicles:main_ledger' %}">
+            {% csrf_token %}
+            <input type="hidden" name="filter_qs" value="{{ filter_qs }}">
+            <div class="px-6 py-5 space-y-4">
+
+                <!-- Direction toggle -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                    <div class="flex rounded-lg border border-gray-200 overflow-hidden">
+                        <label class="flex-1 text-center cursor-pointer">
+                            <input type="radio" name="entry_direction" value="in" class="sr-only" checked
+                                onchange="document.getElementById('entry-modal').dataset.dir='in'; updateDirectionStyle()">
+                            <span id="dir-in-label"
+                                class="block py-2.5 text-sm font-semibold transition bg-green-600 text-white">
+                                <i class="fas fa-arrow-down mr-1"></i> Money In
+                            </span>
+                        </label>
+                        <label class="flex-1 text-center cursor-pointer">
+                            <input type="radio" name="entry_direction" value="out" class="sr-only"
+                                onchange="updateDirectionStyle()">
+                            <span id="dir-out-label"
+                                class="block py-2.5 text-sm font-semibold transition bg-gray-100 text-gray-500">
+                                <i class="fas fa-arrow-up mr-1"></i> Money Out
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Description <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="entry_description" required placeholder="e.g. Rent payment, Loan from partner…"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                </div>
+
+                <!-- Amount -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Amount (KES) <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" name="entry_amount" min="1" step="0.01" required placeholder="0.00"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                </div>
+
+                <!-- Date -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Date <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" name="entry_date" required value="{{ today_str }}"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                </div>
+
+                <!-- Reference (optional) -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Reference <span class="text-gray-400 font-normal">(optional)</span></label>
+                    <input type="text" name="entry_reference" placeholder="Ref no., receipt, note…"
+                        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+                <button type="button" onclick="document.getElementById('entry-modal').classList.add('hidden')"
+                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+                <button type="submit"
+                    class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition">
+                    Save Entry
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function updateDirectionStyle() {
+    const inRadio = document.querySelector('input[name="entry_direction"][value="in"]');
+    const inLabel = document.getElementById('dir-in-label');
+    const outLabel = document.getElementById('dir-out-label');
+    if (inRadio.checked) {
+        inLabel.className = 'block py-2.5 text-sm font-semibold transition bg-green-600 text-white';
+        outLabel.className = 'block py-2.5 text-sm font-semibold transition bg-gray-100 text-gray-500';
+    } else {
+        inLabel.className = 'block py-2.5 text-sm font-semibold transition bg-gray-100 text-gray-500';
+        outLabel.className = 'block py-2.5 text-sm font-semibold transition bg-red-600 text-white';
+    }
+}
+</script>
 {% endblock %}
