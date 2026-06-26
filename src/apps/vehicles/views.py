@@ -537,7 +537,10 @@ def vehicle_update_view(request, pk):
         extra_cost_entries = list(vehicle.extra_costs.values('description', 'amount'))
     
     existing_clearance = vehicle.clearance_records.select_related('agent').first()
-    existing_supplier_record = getattr(vehicle, 'japan_supplier_record', None)
+    try:
+        existing_supplier_record = vehicle.japan_supplier_record
+    except Exception:
+        existing_supplier_record = None
 
     if request.method == 'POST':
         _post_supplier_id = request.POST.get('japan_supplier_id')
@@ -545,7 +548,9 @@ def vehicle_update_view(request, pk):
         _existing_japan_supplier_price_usd = request.POST.get('japan_supplier_price_usd', '')
     else:
         _existing_japan_supplier_id = existing_supplier_record.supplier_id if existing_supplier_record else None
-        _existing_japan_supplier_price_usd = existing_supplier_record.purchase_price if existing_supplier_record else None
+        # Convert Decimal to plain string so Django template won't add thousand separators
+        _price = existing_supplier_record.purchase_price if existing_supplier_record else None
+        _existing_japan_supplier_price_usd = str(_price) if _price is not None else ''
 
     context = {
         'form': form,

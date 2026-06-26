@@ -245,7 +245,7 @@
                             </div>
                             <input type="number" name="japan_supplier_price_usd" id="japan_supplier_price_usd"
                                 step="0.01" min="0"
-                                value="{% if existing_japan_supplier_price_usd %}{{ existing_japan_supplier_price_usd|floatformat:'-2' }}{% endif %}"
+                                value="{{ existing_japan_supplier_price_usd }}"
                                 placeholder="e.g. 8500"
                                 class="form-input pl-10"
                                 oninput="syncSupplierUsdToTracking()">
@@ -267,7 +267,7 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Rate (KES per 1 USD)</label>
                             <input type="number" id="id_purchase_usd_rate" name="purchase_usd_rate"
-                                value="{% if form.purchase_usd_rate.value %}{{ form.purchase_usd_rate.value|floatformat:'-4' }}{% endif %}"
+                                value="{{ form.purchase_usd_rate.value|unlocalize }}"
                                 step="0.0001" min="0" placeholder="e.g. 130.00"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm">
                             <p id="rateStatus" class="text-xs text-gray-400 mt-1"></p>
@@ -279,7 +279,7 @@
                                     <span class="text-gray-400 text-xs font-medium">$</span>
                                 </div>
                                 <input type="number" id="id_purchase_price_usd" name="purchase_price_usd"
-                                    value="{% if form.purchase_price_usd.value %}{{ form.purchase_price_usd.value|floatformat:'-2' }}{% endif %}"
+                                    value="{{ form.purchase_price_usd.value|unlocalize }}"
                                     step="0.01" min="0" placeholder="auto-filled from supplier price"
                                     class="w-full pl-8 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-sm">
                             </div>
