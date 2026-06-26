@@ -25,8 +25,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://taifaassist.xyz',
     'http://localhost:3333',
     'http://127.0.0.1:3333',
-    'hozacars.com',
-    'www.hozacars.com'
+    'https://hozacars.com',
+    'https://www.hozacars.com'
 ]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
