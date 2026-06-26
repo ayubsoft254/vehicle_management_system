@@ -553,6 +553,10 @@ def assign_vehicle(request, client_pk):
                 client_vehicle = form.save(commit=False)
                 client_vehicle.client = client
                 client_vehicle.created_by = request.user
+                _paybill = request.POST.get('agreement_paybill', '').strip()
+                if _paybill == 'custom':
+                    _paybill = request.POST.get('custom_paybill_value', '').strip()
+                client_vehicle.agreement_paybill = _paybill
 
                 def parse_money(value):
                     try:
@@ -1168,7 +1172,11 @@ def client_vehicle_detail(request, pk):
     agreement_versions = list(client_vehicle.agreement_versions.order_by('version_number'))
 
     from django.conf import settings as django_settings
-    default_paybill = getattr(django_settings, 'MPESA_SHORTCODE', '4320049') or '4320049'
+    default_paybill = (
+        client_vehicle.agreement_paybill
+        or getattr(django_settings, 'MPESA_SHORTCODE', '4320049')
+        or '4320049'
+    )
 
     context = {
         'client_vehicle': client_vehicle,
@@ -1882,7 +1890,12 @@ def download_sales_agreement(request, client_vehicle_pk, version_id=None):
             snapshot = version.snapshot
             version_label = f'_v{version.version_number}'
 
-        paybill = request.GET.get('paybill', '').strip() or getattr(django_settings, 'MPESA_SHORTCODE', '4320049') or '4320049'
+        paybill = (
+            request.GET.get('paybill', '').strip()
+            or client_vehicle.agreement_paybill
+            or getattr(django_settings, 'MPESA_SHORTCODE', '4320049')
+            or '4320049'
+        )
         pdf_buffer = generate_sales_agreement_pdf(client_vehicle, snapshot=snapshot, paybill=paybill)
 
         reg_no = (snapshot or {}).get('vehicle', {}).get('registration_number') or client_vehicle.vehicle.registration_number or ''

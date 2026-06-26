@@ -57,27 +57,27 @@
                     <div x-show="open" @click.outside="open = false" x-cloak
                          class="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                         <div class="py-1">
-                            <button onclick="openPaybillModal('{% url 'clients:download_sales_agreement' client_vehicle.pk %}')"
+                            <a href="{% url 'clients:download_sales_agreement' client_vehicle.pk %}"
                                class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                 <i class="fas fa-file-alt mr-2 text-gray-500"></i> Download Latest (Live)
-                            </button>
+                            </a>
                             <hr class="my-1 border-gray-200">
                             {% for version in agreement_versions %}
-                            <button onclick="openPaybillModal('{% url 'clients:download_sales_agreement_version' client_vehicle.pk version.pk %}')"
+                            <a href="{% url 'clients:download_sales_agreement_version' client_vehicle.pk version.pk %}"
                                class="w-full text-left flex items-center px-4 py-2 text-sm {% if forloop.first %}text-blue-700 font-medium{% else %}text-indigo-700{% endif %} hover:bg-gray-100">
                                 <i class="fas fa-download mr-2 {% if forloop.first %}text-blue-500{% else %}text-indigo-500{% endif %}"></i>
                                 v{{ version.version_number }} — {{ version.label }}
                                 {% if forloop.first %}<span class="ml-1 text-xs bg-blue-100 text-blue-700 px-1 rounded">Original</span>{% endif %}
-                            </button>
+                            </a>
                             {% endfor %}
                         </div>
                     </div>
                 </div>
                 {% else %}
-                <button onclick="openPaybillModal('{% url 'clients:download_sales_agreement' client_vehicle.pk %}')"
+                <a href="{% url 'clients:download_sales_agreement' client_vehicle.pk %}"
                    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                     <i class="fas fa-file-pdf mr-2"></i> Print Agreement
-                </button>
+                </a>
                 {% endif %}
                 <a href="{% url 'clients:sign_agreement_online' client_vehicle.pk %}" 
                    class="inline-flex items-center px-4 py-2 {% if client_vehicle.agreement_signature %}bg-green-600 hover:bg-green-700{% else %}bg-purple-600 hover:bg-purple-700{% endif %} text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
@@ -1050,11 +1050,11 @@
                                 <p class="text-xs font-medium text-gray-800 mt-0.5 truncate">{{ version.label }}</p>
                                 <p class="text-xs text-gray-500">{{ version.created_at|date:"d M Y, H:i" }}</p>
                             </div>
-                            <button onclick="openPaybillModal('{% url 'clients:download_sales_agreement_version' client_vehicle.pk version.pk %}')"
+                            <a href="{% url 'clients:download_sales_agreement_version' client_vehicle.pk version.pk %}"
                                title="Download v{{ version.version_number }}"
                                class="ml-2 flex-shrink-0 px-2 py-1 text-xs {% if forloop.first %}bg-blue-600 hover:bg-blue-700{% else %}bg-indigo-600 hover:bg-indigo-700{% endif %} text-white rounded-lg">
                                 <i class="fas fa-download"></i>
-                            </button>
+                            </a>
                         </div>
                         {% endfor %}
                     </div>
@@ -1124,58 +1124,6 @@ function trkSyncFlexJson(pk) {
     }
 }
 
-// ── Paybill modal ──────────────────────────────────────────────────────────
-var _paybillDownloadUrl = '';
-
-function openPaybillModal(baseUrl) {
-    _paybillDownloadUrl = baseUrl;
-    document.getElementById('paybill-modal').classList.remove('hidden');
-    var input = document.getElementById('paybill-modal-input');
-    input.focus();
-    input.select();
-}
-
-function closePaybillModal() {
-    document.getElementById('paybill-modal').classList.add('hidden');
-}
-
-function confirmPaybillDownload() {
-    var paybill = document.getElementById('paybill-modal-input').value.trim();
-    if (!paybill) { return; }
-    var url = _paybillDownloadUrl + '?paybill=' + encodeURIComponent(paybill);
-    window.location.href = url;
-    closePaybillModal();
-}
-
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closePaybillModal();
-});
 </script>
-
-<!-- Paybill modal -->
-<div id="paybill-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-base font-semibold text-gray-900">Set Paybill for Agreement</h3>
-            <button onclick="closePaybillModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
-        </div>
-        <p class="text-sm text-gray-500 mb-4">The paybill number below will be printed on the payment page of the agreement. Change it if needed before downloading.</p>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Paybill Number</label>
-        <input type="text" id="paybill-modal-input"
-               value="{{ default_paybill }}"
-               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-center text-lg tracking-wider"
-               onkeydown="if(event.key==='Enter') confirmPaybillDownload()">
-        <div class="flex gap-3 mt-5">
-            <button onclick="closePaybillModal()"
-                    class="flex-1 px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
-                Cancel
-            </button>
-            <button onclick="confirmPaybillDownload()"
-                    class="flex-1 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition">
-                <i class="fas fa-download mr-1"></i> Download
-            </button>
-        </div>
-    </div>
-</div>
 
 {% endblock %}

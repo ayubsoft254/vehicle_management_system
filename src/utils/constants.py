@@ -44,6 +44,9 @@ class VehicleStatus:
 class VehicleLocation:
     YARD_1 = 'yard_1'
     CFS = 'cfs'
+    CFS1 = 'cfs1'
+    CFS2 = 'cfs2'
+    JAPAN = 'japan'
     YARD_2 = 'yard_2'
     YARD_3 = 'yard_3'
     SHOWROOM = 'showroom'
@@ -51,6 +54,9 @@ class VehicleLocation:
     CHOICES = [
         (YARD_1, 'Yard 1'),
         (CFS, 'CFS'),
+        (CFS1, 'CFS 1'),
+        (CFS2, 'CFS 2'),
+        (JAPAN, 'Japan'),
         (YARD_2, 'Yard 2'),
         (YARD_3, 'Yard 3'),
         (SHOWROOM, 'Showroom'),

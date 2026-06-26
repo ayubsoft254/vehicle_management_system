@@ -620,6 +620,14 @@ class ClientVehicle(models.Model):
         help_text='Commission percentage (e.g., 5.00 for 5%)'
     )
     
+    agreement_paybill = models.CharField(
+        'Agreement Paybill',
+        max_length=20,
+        blank=True,
+        default='',
+        help_text='Paybill number to print on the sales agreement'
+    )
+
     # Metadata
     created_by = models.ForeignKey(
         'authentication.User',
