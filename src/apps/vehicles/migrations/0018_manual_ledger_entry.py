@@ -7,20 +7,6 @@ from django.conf import settings
 from django.db import migrations, models
 
 
-def create_if_not_exists(apps, schema_editor):
-    from django.db import connection
-    if 'vehicles_manualledgerentry' not in connection.introspection.table_names():
-        ManualLedgerEntry = apps.get_model('vehicles', 'ManualLedgerEntry')
-        schema_editor.create_model(ManualLedgerEntry)
-
-
-def drop_if_exists(apps, schema_editor):
-    from django.db import connection
-    if 'vehicles_manualledgerentry' in connection.introspection.table_names():
-        ManualLedgerEntry = apps.get_model('vehicles', 'ManualLedgerEntry')
-        schema_editor.delete_model(ManualLedgerEntry)
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -29,29 +15,22 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.SeparateDatabaseAndState(
-            state_operations=[
-                migrations.CreateModel(
-                    name='ManualLedgerEntry',
-                    fields=[
-                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                        ('date', models.DateField(verbose_name='Date')),
-                        ('description', models.CharField(max_length=500, verbose_name='Description')),
-                        ('amount', models.DecimalField(decimal_places=2, max_digits=12, validators=[django.core.validators.MinValueValidator(Decimal('0.01'))], verbose_name='Amount (KES)')),
-                        ('direction', models.CharField(choices=[('in', 'Money In'), ('out', 'Money Out')], max_length=3, verbose_name='Direction')),
-                        ('reference', models.CharField(blank=True, max_length=100, verbose_name='Reference')),
-                        ('created_at', models.DateTimeField(auto_now_add=True)),
-                        ('recorded_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='manual_ledger_entries', to=settings.AUTH_USER_MODEL)),
-                    ],
-                    options={
-                        'verbose_name': 'Manual Ledger Entry',
-                        'verbose_name_plural': 'Manual Ledger Entries',
-                        'ordering': ['-date', '-created_at'],
-                    },
-                ),
+        migrations.CreateModel(
+            name='ManualLedgerEntry',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('date', models.DateField(verbose_name='Date')),
+                ('description', models.CharField(max_length=500, verbose_name='Description')),
+                ('amount', models.DecimalField(decimal_places=2, max_digits=12, validators=[django.core.validators.MinValueValidator(Decimal('0.01'))], verbose_name='Amount (KES)')),
+                ('direction', models.CharField(choices=[('in', 'Money In'), ('out', 'Money Out')], max_length=3, verbose_name='Direction')),
+                ('reference', models.CharField(blank=True, max_length=100, verbose_name='Reference')),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('recorded_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='manual_ledger_entries', to=settings.AUTH_USER_MODEL)),
             ],
-            database_operations=[
-                migrations.RunPython(create_if_not_exists, drop_if_exists),
-            ],
+            options={
+                'verbose_name': 'Manual Ledger Entry',
+                'verbose_name_plural': 'Manual Ledger Entries',
+                'ordering': ['-date', '-created_at'],
+            },
         ),
     ]
