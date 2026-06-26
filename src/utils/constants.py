@@ -254,12 +254,14 @@ class ClientStatus:
     INACTIVE = 'inactive'
     DEFAULTED = 'defaulted'
     COMPLETED = 'completed'
-    
+    REPOSSESSED = 'repossessed'
+
     CHOICES = [
         (ACTIVE, 'Active'),
         (INACTIVE, 'Inactive'),
         (DEFAULTED, 'Defaulted'),
         (COMPLETED, 'Completed'),
+        (REPOSSESSED, 'Repossessed'),
     ]
 
 # Miscellaneous Expense Types (Dashboard > Others)

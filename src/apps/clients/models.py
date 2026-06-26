@@ -29,6 +29,10 @@ class ClientManager(models.Manager):
         """Get clients who completed payments"""
         return self.filter(status=ClientStatus.COMPLETED)
 
+    def repossessed(self):
+        """Get clients whose vehicle was repossessed"""
+        return self.filter(status=ClientStatus.REPOSSESSED)
+
 
 class Client(models.Model):
     """
@@ -328,6 +332,7 @@ class Client(models.Model):
             ClientStatus.INACTIVE: 'gray',
             ClientStatus.DEFAULTED: 'red',
             ClientStatus.COMPLETED: 'blue',
+            ClientStatus.REPOSSESSED: 'orange',
         }
         return color_map.get(self.status, 'gray')
     

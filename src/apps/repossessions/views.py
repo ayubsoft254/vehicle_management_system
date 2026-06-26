@@ -53,11 +53,11 @@ def _stop_installment_plan(client_vehicle):
 
 
 def _mark_client_defaulted(client):
-    """Set client status to Defaulted if they have no remaining active vehicles."""
+    """Set client status to Repossessed if they have no remaining active vehicles."""
     from utils.constants import ClientStatus
     has_active = client.vehicles.filter(is_active=True).exists()
-    if not has_active and client.status == ClientStatus.ACTIVE:
-        client.status = ClientStatus.DEFAULTED
+    if not has_active and client.status not in (ClientStatus.REPOSSESSED, ClientStatus.COMPLETED):
+        client.status = ClientStatus.REPOSSESSED
         client.save(update_fields=['status'])
 
 
