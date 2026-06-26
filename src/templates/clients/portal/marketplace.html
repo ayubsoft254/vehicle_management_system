@@ -103,7 +103,7 @@
                         </span>
                     </div>
                     
-                    <p class="text-gray-600 text-sm mb-4">{{ vehicle.year }} • {{ vehicle.color }}</p>
+                    <p class="text-gray-600 text-sm mb-4">{{ vehicle.year|stringformat:"d" }} • {{ vehicle.color }}</p>
                     
                     <div class="grid grid-cols-2 gap-3 text-sm mb-4">
                         <div class="flex items-center text-gray-600">

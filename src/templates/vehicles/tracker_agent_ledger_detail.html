@@ -81,7 +81,7 @@
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-800">
                             <a href="{% url 'vehicles:detail' record.vehicle.pk %}" class="text-primary-600 hover:underline">
-                                {{ record.vehicle.make }} {{ record.vehicle.model }} {{ record.vehicle.year }}
+                                {{ record.vehicle.make }} {{ record.vehicle.model }} {{ record.vehicle.year|stringformat:"d" }}
                             </a>
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-600">

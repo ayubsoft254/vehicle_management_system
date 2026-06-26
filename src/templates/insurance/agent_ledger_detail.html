@@ -80,7 +80,7 @@
                             <a href="{% url 'insurance:policy_detail' policy.pk %}" class="text-primary-600 hover:underline font-mono text-xs">{{ policy.policy_number }}</a>
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-800">
-                            {% if policy.vehicle %}{{ policy.vehicle.make }} {{ policy.vehicle.model }} {{ policy.vehicle.year }}{% else %}—{% endif %}
+                            {% if policy.vehicle %}{{ policy.vehicle.make }} {{ policy.vehicle.model }} {{ policy.vehicle.year|stringformat:"d" }}{% else %}—{% endif %}
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-600">
                             {% if policy.client %}{{ policy.client.get_full_name }}{% else %}—{% endif %}

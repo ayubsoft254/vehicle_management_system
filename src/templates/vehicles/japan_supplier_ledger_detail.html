@@ -100,7 +100,7 @@
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3 text-sm">
                             <a href="{% url 'vehicles:detail' record.vehicle.pk %}" class="text-primary-600 hover:underline font-medium">
-                                {{ record.vehicle.make }} {{ record.vehicle.model }} {{ record.vehicle.year }}
+                                {{ record.vehicle.make }} {{ record.vehicle.model }} {{ record.vehicle.year|stringformat:"d" }}
                             </a>
                             {% if record.vehicle.vin %}
                             <p class="text-xs text-gray-400 font-mono">VIN: {{ record.vehicle.vin }}</p>

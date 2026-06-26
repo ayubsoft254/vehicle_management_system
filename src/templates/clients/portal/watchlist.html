@@ -65,7 +65,7 @@
                     <div class="p-6">
                         <h3 class="text-lg font-bold text-gray-900 mb-2">{{ item.auction.title }}</h3>
                         <p class="text-sm text-gray-600 mb-3">
-                            {{ item.auction.vehicle.year }} {{ item.auction.vehicle.make }} {{ item.auction.vehicle.model }}
+                            {{ item.auction.vehicle.year|stringformat:"d" }} {{ item.auction.vehicle.make }} {{ item.auction.vehicle.model }}
                         </p>
                         
                         <!-- Pricing Info -->

@@ -100,7 +100,7 @@
                     {% endif %}
                     <div class="ml-4">
                         <h3 class="font-semibold text-gray-900">{{ vehicle.full_name }}</h3>
-                        <p class="text-sm text-gray-500">{{ vehicle.year }} • {{ vehicle.vin }}</p>
+                        <p class="text-sm text-gray-500">{{ vehicle.year|stringformat:"d" }} • {{ vehicle.vin }}</p>
                     </div>
                 </div>
             </div>

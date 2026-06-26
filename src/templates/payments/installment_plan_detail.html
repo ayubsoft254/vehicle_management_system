@@ -279,7 +279,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-500 uppercase mb-1">Year</label>
-                        <p class="text-sm text-gray-900">{{ plan.client_vehicle.vehicle.year|default:"N/A" }}</p>
+                        <p class="text-sm text-gray-900">{{ plan.client_vehicle.vehicle.year|stringformat:"d"|default:"N/A" }}</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-500 uppercase mb-1">Purchase Date</label>
