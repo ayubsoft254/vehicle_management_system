@@ -1179,6 +1179,15 @@ def client_vehicle_detail(request, pk):
     total_tracker_balance = sum((row['balance'] for row in tracker_payment_rows), Decimal('0.00'))
     grand_total_balance = client_vehicle.balance + total_insurance_balance + total_tracker_balance
 
+    total_insurance_paid = sum((row['total_paid'] for row in insurance_policy_list), Decimal('0.00'))
+    total_tracker_paid = sum((row['total_paid'] for row in tracker_payment_rows), Decimal('0.00'))
+    grand_total_paid = client_vehicle.total_paid + total_insurance_paid + total_tracker_paid
+    grand_total_cost = grand_total_paid + grand_total_balance
+    grand_progress = (
+        (grand_total_paid / grand_total_cost * 100).quantize(Decimal('0.1'))
+        if grand_total_cost > 0 else Decimal('100.0')
+    )
+
     from django.conf import settings as django_settings
     default_paybill = (
         client_vehicle.agreement_paybill
@@ -1208,6 +1217,9 @@ def client_vehicle_detail(request, pk):
         'total_insurance_balance': total_insurance_balance,
         'total_tracker_balance': total_tracker_balance,
         'grand_total_balance': grand_total_balance,
+        'grand_total_paid': grand_total_paid,
+        'grand_total_cost': grand_total_cost,
+        'grand_progress': grand_progress,
     }
     
     log_audit(
