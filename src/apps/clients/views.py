@@ -1171,6 +1171,11 @@ def client_vehicle_detail(request, pk):
 
     agreement_versions = list(client_vehicle.agreement_versions.order_by('version_number'))
 
+    # Grand total balance breakdown
+    total_insurance_balance = sum((row['balance'] for row in insurance_policy_list), Decimal('0.00'))
+    total_tracker_balance = sum((row['combined_owed'] for row in tracker_payment_rows), Decimal('0.00'))
+    grand_total_balance = client_vehicle.balance + total_insurance_balance + total_tracker_balance
+
     from django.conf import settings as django_settings
     default_paybill = (
         client_vehicle.agreement_paybill
@@ -1197,6 +1202,9 @@ def client_vehicle_detail(request, pk):
         'tracker_payment_rows': tracker_payment_rows,
         'tracker_agents': tracker_agents,
         'agreement_versions': agreement_versions,
+        'total_insurance_balance': total_insurance_balance,
+        'total_tracker_balance': total_tracker_balance,
+        'grand_total_balance': grand_total_balance,
     }
     
     log_audit(

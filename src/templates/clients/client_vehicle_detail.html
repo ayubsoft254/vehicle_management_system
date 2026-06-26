@@ -107,7 +107,7 @@
                     <div class="mb-4">
                         <div class="flex items-center justify-between mb-2">
                             <span class="text-sm font-medium text-gray-700">{{ payment_progress|floatformat:1 }}% Complete</span>
-                            <span class="text-sm font-medium text-gray-700">KES {{ client_vehicle.balance|floatformat:2 }} Remaining</span>
+                            <span class="text-sm font-medium text-gray-700">KES {{ client_vehicle.balance|floatformat:2 }} Vehicle Remaining</span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-4">
                             <div class="{% if payment_progress >= 100 %}bg-green-600{% elif payment_progress >= 50 %}bg-blue-600{% else %}bg-yellow-600{% endif %} h-4 rounded-full transition-all duration-300" style="width: {{ payment_progress }}%"></div>
@@ -124,10 +124,43 @@
                             <p class="text-2xl font-bold text-green-900">KES {{ client_vehicle.total_paid|floatformat:2 }}</p>
                         </div>
                         <div class="bg-red-50 rounded-lg p-4">
-                            <p class="text-sm text-red-600 font-medium">Balance</p>
+                            <p class="text-sm text-red-600 font-medium">Vehicle Balance</p>
                             <p class="text-2xl font-bold text-red-900">KES {{ client_vehicle.balance|floatformat:2 }}</p>
                         </div>
                     </div>
+
+                    <!-- Total Outstanding Breakdown -->
+                    {% if total_insurance_balance > 0 or total_tracker_balance > 0 or grand_total_balance > 0 %}
+                    <div class="mt-5 rounded-xl border-2 {% if grand_total_balance > 0 %}border-red-300 bg-red-50{% else %}border-green-300 bg-green-50{% endif %} overflow-hidden">
+                        <div class="px-5 py-3 {% if grand_total_balance > 0 %}bg-red-100{% else %}bg-green-100{% endif %} border-b {% if grand_total_balance > 0 %}border-red-200{% else %}border-green-200{% endif %}">
+                            <p class="text-sm font-semibold {% if grand_total_balance > 0 %}text-red-800{% else %}text-green-800{% endif %} flex items-center gap-2">
+                                <i class="fas fa-calculator"></i> Total Outstanding Balance
+                            </p>
+                        </div>
+                        <div class="px-5 py-4 space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Vehicle balance</span>
+                                <span class="font-medium {% if client_vehicle.balance > 0 %}text-red-700{% else %}text-green-700{% endif %}">KES {{ client_vehicle.balance|floatformat:2 }}</span>
+                            </div>
+                            {% if total_insurance_balance > 0 %}
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Insurance balance</span>
+                                <span class="font-medium text-red-700">KES {{ total_insurance_balance|floatformat:2 }}</span>
+                            </div>
+                            {% endif %}
+                            {% if total_tracker_balance > 0 %}
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Tracker balance</span>
+                                <span class="font-medium text-red-700">KES {{ total_tracker_balance|floatformat:2 }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="pt-2 mt-2 border-t {% if grand_total_balance > 0 %}border-red-200{% else %}border-green-200{% endif %} flex justify-between items-center">
+                                <span class="font-bold {% if grand_total_balance > 0 %}text-red-800{% else %}text-green-800{% endif %}">Total Owed</span>
+                                <span class="text-xl font-extrabold {% if grand_total_balance > 0 %}text-red-700{% else %}text-green-700{% endif %}">KES {{ grand_total_balance|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -169,7 +202,7 @@
 
                         <!-- Remaining Balance -->
                         <div class="bg-red-50 rounded-lg p-4 border border-red-100">
-                            <p class="text-sm text-red-600 font-medium">Remaining Balance</p>
+                            <p class="text-sm text-red-600 font-medium">Vehicle Balance</p>
                             <p class="text-2xl font-bold text-red-900 mt-1">KES {{ client_vehicle.balance|floatformat:2 }}</p>
                             <p class="text-xs text-red-500 mt-1">{{ 100|add:payment_progress|add:-100|floatformat:1 }}% remaining</p>
                         </div>
