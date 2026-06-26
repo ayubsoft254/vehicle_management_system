@@ -422,6 +422,7 @@ def vehicle_create_view(request):
             for description, amount in parsed_entries
         ]
 
+    _post_supplier_id = request.POST.get('japan_supplier_id') if request.method == 'POST' else None
     context = {
         'form': form,
         'title': 'Add New Vehicle',
@@ -430,7 +431,8 @@ def vehicle_create_view(request):
         'clearing_agents': ClearingAgent.objects.filter(is_active=True).order_by('name'),
         'existing_clearing_agent_id': None,
         'japan_suppliers': JapanSupplier.objects.filter(is_active=True).order_by('name'),
-        'existing_japan_supplier_id': None,
+        'existing_japan_supplier_id': int(_post_supplier_id) if _post_supplier_id else None,
+        'existing_japan_supplier_price_usd': request.POST.get('japan_supplier_price_usd', '') if request.method == 'POST' else '',
     }
     return render(request, 'vehicles/vehicle_form.html', context)
 
@@ -536,6 +538,15 @@ def vehicle_update_view(request, pk):
     
     existing_clearance = vehicle.clearance_records.select_related('agent').first()
     existing_supplier_record = getattr(vehicle, 'japan_supplier_record', None)
+
+    if request.method == 'POST':
+        _post_supplier_id = request.POST.get('japan_supplier_id')
+        _existing_japan_supplier_id = int(_post_supplier_id) if _post_supplier_id else None
+        _existing_japan_supplier_price_usd = request.POST.get('japan_supplier_price_usd', '')
+    else:
+        _existing_japan_supplier_id = existing_supplier_record.supplier_id if existing_supplier_record else None
+        _existing_japan_supplier_price_usd = existing_supplier_record.purchase_price if existing_supplier_record else None
+
     context = {
         'form': form,
         'vehicle': vehicle,
@@ -545,8 +556,8 @@ def vehicle_update_view(request, pk):
         'clearing_agents': ClearingAgent.objects.filter(is_active=True).order_by('name'),
         'existing_clearing_agent_id': existing_clearance.agent_id if existing_clearance else None,
         'japan_suppliers': JapanSupplier.objects.filter(is_active=True).order_by('name'),
-        'existing_japan_supplier_id': existing_supplier_record.supplier_id if existing_supplier_record else None,
-        'existing_japan_supplier_price_usd': existing_supplier_record.purchase_price if existing_supplier_record else None,
+        'existing_japan_supplier_id': _existing_japan_supplier_id,
+        'existing_japan_supplier_price_usd': _existing_japan_supplier_price_usd,
     }
     return render(request, 'vehicles/vehicle_form.html', context)
 

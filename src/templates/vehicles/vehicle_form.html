@@ -826,8 +826,15 @@ document.addEventListener('DOMContentLoaded', function () {
         function updateEquiv() {
             var rate = parseFloat(rateEl.value) || 0;
             var usd  = parseFloat(usdEl.value) || 0;
-            if (rate > 0 && usd > 0 && equivEl) {
-                equivEl.textContent = 'KES ' + (rate * usd).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (rate > 0 && usd > 0) {
+                var kes = rate * usd;
+                if (equivEl) {
+                    equivEl.textContent = 'KES ' + kes.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                }
+                if (kesEl) {
+                    kesEl.value = Math.round(kes);
+                    kesEl.dispatchEvent(new Event('input'));
+                }
             } else if (equivEl) {
                 equivEl.textContent = '—';
             }
@@ -842,6 +849,28 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
+        function fetchLiveRate(callback) {
+            if (statusEl) statusEl.textContent = 'Fetching live rate…';
+            fetch('https://open.er-api.com/v6/latest/USD')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var rate = data && data.rates && data.rates.KES ? data.rates.KES : null;
+                    if (rate) {
+                        rateEl.value = rate.toFixed(4);
+                        if (statusEl) statusEl.textContent = 'Live: 1 USD = KES ' + rate.toFixed(2) + ' (as of ' + (data.time_last_update_utc || 'now') + ')';
+                        updateEquiv();
+                        autoFillUsdFromKes();
+                    } else {
+                        if (statusEl) statusEl.textContent = 'Could not read rate from API.';
+                    }
+                    if (callback) callback();
+                })
+                .catch(function () {
+                    if (statusEl) statusEl.textContent = 'Failed to fetch rate. Enter manually.';
+                    if (callback) callback();
+                });
+        }
+
         if (rateEl) rateEl.addEventListener('input', function () { updateEquiv(); autoFillUsdFromKes(); });
         if (usdEl)  usdEl.addEventListener('input', updateEquiv);
 
@@ -849,28 +878,16 @@ document.addEventListener('DOMContentLoaded', function () {
             fetchBtn.addEventListener('click', function () {
                 fetchBtn.disabled = true;
                 fetchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching...';
-                if (statusEl) statusEl.textContent = 'Fetching live rate…';
-                fetch('https://open.er-api.com/v6/latest/USD')
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                        var rate = data && data.rates && data.rates.KES ? data.rates.KES : null;
-                        if (rate) {
-                            rateEl.value = rate.toFixed(4);
-                            if (statusEl) statusEl.textContent = 'Live: 1 USD = KES ' + rate.toFixed(2) + ' (as of ' + (data.time_last_update_utc || 'now') + ')';
-                            updateEquiv();
-                            autoFillUsdFromKes();
-                        } else {
-                            if (statusEl) statusEl.textContent = 'Could not read rate from API response.';
-                        }
-                    })
-                    .catch(function () {
-                        if (statusEl) statusEl.textContent = 'Failed to fetch rate. Enter manually.';
-                    })
-                    .finally(function () {
-                        fetchBtn.disabled = false;
-                        fetchBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Fetch Live Rate';
-                    });
+                fetchLiveRate(function () {
+                    fetchBtn.disabled = false;
+                    fetchBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Fetch Live Rate';
+                });
             });
+        }
+
+        // Auto-fetch rate on load if field is empty
+        if (rateEl && !rateEl.value) {
+            fetchLiveRate(null);
         }
 
         updateEquiv();
