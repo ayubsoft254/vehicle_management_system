@@ -1082,6 +1082,14 @@ class PolicyRenewalForm(forms.Form):
             self.initial.setdefault('vehicle_usage', old_policy.vehicle_usage)
             self.initial.setdefault('insurance_agent', old_policy.insurance_agent_id)
 
+    def clean_new_policy_number(self):
+        number = self.cleaned_data.get('new_policy_number', '').strip()
+        if InsurancePolicy.objects.filter(policy_number=number).exists():
+            raise forms.ValidationError(
+                f'Policy number "{number}" already exists. Please use a different policy number.'
+            )
+        return number
+
 # ==================== INSURANCE AGENT FORM ====================
 
 class InsuranceAgentForm(forms.ModelForm):
