@@ -72,8 +72,8 @@ def _build_due_monitor_stats(today=None):
     """Return live due-date and defaulter metrics for dashboard/reporting widgets."""
     today = today or timezone.now().date()
 
-    due_today_qs = PaymentSchedule.objects.filter(is_paid=False, due_date=today)
-    overdue_qs = PaymentSchedule.objects.filter(is_paid=False, due_date__lt=today)
+    due_today_qs = PaymentSchedule.objects.filter(is_paid=False, due_date=today, installment_plan__is_active=True)
+    overdue_qs = PaymentSchedule.objects.filter(is_paid=False, due_date__lt=today, installment_plan__is_active=True)
 
     due_today_amount = due_today_qs.aggregate(total=Sum(F('amount_due') - F('amount_paid')))['total'] or Decimal('0.00')
     overdue_amount = overdue_qs.aggregate(total=Sum(F('amount_due') - F('amount_paid')))['total'] or Decimal('0.00')
@@ -1855,9 +1855,11 @@ def defaulters_report(request):
     today = timezone.now().date()
 
     # Find every vehicle purchase that still has an outstanding balance.
+    # Exclude deactivated records (repossessed vehicles).
     outstanding_cvs = ClientVehicle.objects.filter(
         balance__gt=0,
         is_paid_off=False,
+        is_active=True,
     ).select_related('client', 'vehicle').order_by('purchase_date')
 
     defaulters = {}
@@ -1867,6 +1869,7 @@ def defaulters_report(request):
         # Find the oldest unpaid, past-due installment for this vehicle.
         overdue_qs = PaymentSchedule.objects.filter(
             installment_plan__client_vehicle=cv,
+            installment_plan__is_active=True,
             is_paid=False,
             due_date__lt=today,
         ).order_by('due_date')

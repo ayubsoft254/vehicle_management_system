@@ -381,40 +381,49 @@ def client_detail(request, pk):
     
     # Get client's vehicles with payment plans
     client_vehicles = ClientVehicle.objects.filter(client=client).select_related('vehicle')
-    
+
+    from apps.repossessions.models import Repossession as _Repo
+    completed_repos = {
+        r.vehicle_id: r
+        for r in _Repo.objects.filter(client=client, status='COMPLETED').order_by('-completion_date')
+    }
+
     # Enrich vehicles with payment plan and schedule information
     vehicles_with_plans = []
     for cv in client_vehicles:
+        repo = completed_repos.get(cv.vehicle_id)
         vehicle_data = {
             'client_vehicle': cv,
             'installment_plan': None,
             'next_payment': None,
             'payment_schedule': None,
             'all_schedules': None,
+            'is_repossessed': repo is not None,
+            'repossession': repo,
         }
-        
+
         # Get installment plan if it exists
         try:
             plan = InstallmentPlan.objects.get(client_vehicle=cv)
             vehicle_data['installment_plan'] = plan
-            
+
             # Get ALL payment schedules for the full breakdown table
             from apps.payments.models import PaymentSchedule
             all_schedules = PaymentSchedule.objects.filter(
                 installment_plan=plan
             ).order_by('installment_number')
             vehicle_data['all_schedules'] = all_schedules
-            
+
             # Get upcoming payment schedule (next 5)
             payment_schedule = all_schedules.filter(is_paid=False)[:5]
             vehicle_data['payment_schedule'] = payment_schedule
-            
+
             # Get next payment
             next_payment = all_schedules.filter(is_paid=False).order_by('due_date').first()
             vehicle_data['next_payment'] = next_payment
         except InstallmentPlan.DoesNotExist:
             pass
-        
+
         vehicles_with_plans.append(vehicle_data)
     
     # Get client's payments
@@ -1180,7 +1189,24 @@ def client_vehicle_detail(request, pk):
         vehicle=client_vehicle.vehicle,
         status='COMPLETED',
     ).order_by('-completion_date').first()
-    is_repossessed = not client_vehicle.is_active and repossession is not None
+    is_repossessed = repossession is not None
+
+    # Retroactively clean up payment schedules and deactivate plan/record for
+    # repos completed before the auto-cleanup code existed
+    if is_repossessed:
+        if not client_vehicle.is_active:
+            pass  # already deactivated
+        else:
+            client_vehicle.is_active = False
+            client_vehicle.save(update_fields=['is_active'])
+        try:
+            _plan = client_vehicle.installment_plan
+            if _plan.is_active:
+                _plan.payment_schedules.filter(is_paid=False).delete()
+                _plan.is_active = False
+                _plan.save(update_fields=['is_active'])
+        except Exception:
+            pass
 
     # Grand total balance breakdown
     # Use individual row['balance'] for trackers — combined_owed double-counts renewals
