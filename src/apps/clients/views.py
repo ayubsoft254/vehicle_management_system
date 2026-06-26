@@ -2052,14 +2052,38 @@ def record_payment(request, client_vehicle_pk):
             messages.error(request, 'Please correct the errors below.')
     else:
         form = PaymentForm(initial={'client_vehicle': client_vehicle})
-    
+
+    # Grand total balance: vehicle + insurance + trackers
+    try:
+        from apps.insurance.models import InsurancePolicy
+        ins_pol = InsurancePolicy.objects.filter(
+            vehicle=client_vehicle.vehicle,
+            client=client_vehicle.client,
+        ).order_by('-created_at').first()
+        ins_balance = max(
+            Decimal('0.00'),
+            (ins_pol.selling_price or Decimal('0.00')) - (ins_pol.insurance_total_paid or Decimal('0.00'))
+        ) if ins_pol else Decimal('0.00')
+    except Exception:
+        ins_balance = Decimal('0.00')
+
+    tracker_balance = sum(
+        (max(Decimal('0.00'), (t.selling_price or Decimal('0.00')) - (t.total_paid or Decimal('0.00')))
+         for t in client_vehicle.trackers.all()),
+        Decimal('0.00')
+    )
+    grand_total_balance = client_vehicle.balance + ins_balance + tracker_balance
+
     context = {
         'form': form,
         'client_vehicle': client_vehicle,
         'title': f'Record Payment for {client_vehicle.client.get_full_name()}',
-        'button_text': 'Record Payment'
+        'button_text': 'Record Payment',
+        'ins_balance': ins_balance,
+        'tracker_balance': tracker_balance,
+        'grand_total_balance': grand_total_balance,
     }
-    
+
     return render(request, 'clients/payment_form.html', context)
 
 

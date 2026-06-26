@@ -834,14 +834,11 @@ class InsurancePaymentForm(forms.ModelForm):
     class Meta:
         model = InsurancePayment
         fields = [
-            'policy', 'amount', 'payment_date', 'payment_method',
+            'amount', 'payment_date', 'payment_method',
             'transaction_reference', 'notes'
         ]
-        
+
         widgets = {
-            'policy': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-            }),
             'amount': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '0.00',

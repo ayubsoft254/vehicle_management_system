@@ -436,6 +436,54 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         ))
         elements.append(Spacer(1, 0.2*cm))
 
+    # Extra Terms and Conditions note (page 1)
+    elements.append(Paragraph('<b>EXTRA TERMS AND CONDITIONS - NOTE:</b> _' + '_' * 80, normal_small))
+    elements.append(Paragraph('_' * 110, normal_small))
+    elements.append(Spacer(1, 0.3*cm))
+
+    # Page 1 — Buyer / Seller signatures
+    sig1_data = [
+        [
+            Paragraph("<b>Buyer's Signature</b>", normal_small),
+            Paragraph('<b>Seller\'s Signature</b>', normal_small),
+        ],
+        [
+            _signature_flowable(getattr(agreement_signature, 'signature_data', ''), width=8*cm, height=2*cm),
+            _signature_flowable(getattr(agreement_signature, 'seller_signature_data', ''), width=8*cm, height=2*cm),
+        ],
+        [
+            Paragraph(f'<b>{client.get_full_name()}</b>', normal_small),
+            Paragraph(getattr(agreement_signature, 'seller_name', '') or 'For HOZA INVESTMENT (K) LTD', normal_small),
+        ],
+    ]
+    sig1_table = Table(sig1_data, colWidths=[9.5*cm, 8.5*cm])
+    sig1_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LINEBELOW', (0, 2), (-1, 2), 0.5, colors.HexColor('#d1d5db')),
+        ('LINEBEFORE', (1, 0), (1, -1), 0.5, colors.HexColor('#e5e7eb')),
+    ]))
+    elements.append(sig1_table)
+
+    # ============================================================
+    # PAGE 2 — INSURANCE & TRACKER DETAILS
+    # ============================================================
+    elements.append(PageBreak())
+
+    # Page 2 mini-header
+    elements.append(Paragraph('<b>HOZA INVESTMENT (K) LTD — INSURANCE &amp; TRACKER DETAILS</b>', title_style))
+    elements.append(Paragraph(
+        f'<b>Vehicle:</b> {vehicle.make or ""} {vehicle.model or ""}  '
+        f'<b>Reg:</b> {vehicle.registration_number or ""}  '
+        f'<b>Client:</b> {client.get_full_name()}',
+        normal_small
+    ))
+    elements.append(Spacer(1, 0.3*cm))
+
     # ---- INSURANCE & TRACKER ADD-ONS ----
     import json as _json_pdf
     from datetime import datetime as _dt_pdf
@@ -482,8 +530,6 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
             ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ])
-
-    elements.append(Paragraph('<b>INSURANCE &amp; TRACKER DETAILS</b>', heading_style))
 
     # ---- INSURANCE TABLE ----
     if insurance_policy:
@@ -639,36 +685,40 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     else:
         elements.append(Paragraph('Tracker: Not included in this sale.', normal_small))
 
-    elements.append(Spacer(1, 0.2*cm))
-
-    # Extra Terms and Conditions note line
-    elements.append(Paragraph('<b>EXTRA TERMS AND CONDITIONS - NOTE:</b> _' + '_' * 80, normal_small))
-    elements.append(Paragraph('_' * 110, normal_small))
     elements.append(Spacer(1, 0.3*cm))
 
-    # Page 1 quick signatures
-    sig1_data = [
+    # Page 2 — Buyer / Seller signatures
+    sig2_data = [
         [
-            Paragraph("<b>Buyer's signature</b>", normal_small),
+            Paragraph("<b>Buyer's Signature</b>", normal_small),
             Paragraph('<b>Seller\'s Signature</b>', normal_small),
         ],
         [
-            _signature_flowable(getattr(agreement_signature, 'signature_data', '')),
-            _signature_flowable(getattr(agreement_signature, 'seller_signature_data', '')),
+            _signature_flowable(getattr(agreement_signature, 'signature_data', ''), width=8*cm, height=2*cm),
+            _signature_flowable(getattr(agreement_signature, 'seller_signature_data', ''), width=8*cm, height=2*cm),
+        ],
+        [
+            Paragraph(f'<b>{client.get_full_name()}</b>', normal_small),
+            Paragraph(getattr(agreement_signature, 'seller_name', '') or 'For HOZA INVESTMENT (K) LTD', normal_small),
         ],
     ]
-    sig1_table = Table(sig1_data, colWidths=[9.5*cm, 8.5*cm])
-    sig1_table.setStyle(TableStyle([
+    sig2_table = Table(sig2_data, colWidths=[9.5*cm, 8.5*cm])
+    sig2_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
         ('RIGHTPADDING', (0, 0), (-1, -1), 2),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LINEBELOW', (0, 2), (-1, 2), 0.5, colors.HexColor('#d1d5db')),
+        ('LINEBEFORE', (1, 0), (1, -1), 0.5, colors.HexColor('#e5e7eb')),
     ]))
-    elements.append(sig1_table)
+    elements.append(sig2_table)
+
+    elements.append(Spacer(1, 0.2*cm))
 
     # ============================================================
-    # PAGE 2 — PAYMENT SCHEDULE (only for non-full payment)
+    # PAGE 3 — PAYMENT SCHEDULE (only for non-full payment)
     # ============================================================
     if not is_full_payment:
         elements.append(PageBreak())
@@ -818,7 +868,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         elements.append(sched_sig_table)
 
     # ============================================================
-    # PAGE 3 — TERMS AND CONDITIONS
+    # PAGE 4 — TERMS AND CONDITIONS
     # ============================================================
     elements.append(PageBreak())
     elements.append(Paragraph('<b>TERMS AND CONDITIONS</b>', heading_style))
@@ -979,7 +1029,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     elements.append(full_sig_table)
 
     # ============================================================
-    # PAGE 4 — PAYMENT DETAILS
+    # PAGE 5 — PAYMENT DETAILS
     # ============================================================
     elements.append(PageBreak())
     elements.append(Paragraph('<b>PAYMENT DETAILS FOR HOZA INVESTMENT K LIMITED</b>', title_style))

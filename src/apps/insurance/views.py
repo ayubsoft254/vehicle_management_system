@@ -646,6 +646,11 @@ def payment_create(request, policy_pk):
     policy = get_object_or_404(InsurancePolicy, pk=policy_pk)
     next_url = request.GET.get('next', '') or request.POST.get('next', '')
 
+    ins_balance_owed = max(
+        Decimal('0.00'),
+        (policy.selling_price or Decimal('0.00')) - (policy.insurance_total_paid or Decimal('0.00'))
+    )
+
     if request.method == 'POST':
         form = InsurancePaymentForm(request.POST)
         if form.is_valid():
@@ -680,7 +685,7 @@ def payment_create(request, policy_pk):
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = InsurancePaymentForm(initial={'policy': policy, 'amount': policy.premium_amount})
+        form = InsurancePaymentForm(initial={'amount': ins_balance_owed})
 
     context = {
         'form': form,
@@ -688,7 +693,8 @@ def payment_create(request, policy_pk):
         'next': next_url,
         'today': timezone.now().date(),
         'title': f'Record Payment for Policy: {policy.policy_number}',
-        'button_text': 'Record Payment'
+        'button_text': 'Record Payment',
+        'ins_balance_owed': ins_balance_owed,
     }
 
     return render(request, 'insurance/payment_form.html', context)
