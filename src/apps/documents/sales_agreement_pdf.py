@@ -16,16 +16,24 @@ from reportlab.lib import colors
 from django.utils import timezone
 
 
-def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
+def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     """
     Generate a PDF sales agreement for a vehicle purchase
-    
+
     Args:
         client_vehicle: ClientVehicle instance
-        
+        snapshot: optional frozen agreement data dict
+        paybill: paybill number to print on payment page (defaults to settings.MPESA_SHORTCODE)
+
     Returns:
         BytesIO object containing the PDF
     """
+    if paybill is None:
+        try:
+            from django.conf import settings
+            paybill = settings.MPESA_SHORTCODE or '4320049'
+        except Exception:
+            paybill = '4320049'
     buffer = BytesIO()
 
     _title_reg = (snapshot or {}).get('vehicle', {}).get('registration_number') or client_vehicle.vehicle.registration_number or ''
@@ -1015,7 +1023,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
 
     elements.append(Paragraph('<b>PAYBILL</b>', paybill_heading_style))
     elements.append(Spacer(1, 0.15*cm))
-    elements.append(Paragraph('<b>4320049</b>', paybill_value_style))
+    elements.append(Paragraph(f'<b>{paybill}</b>', paybill_value_style))
     elements.append(Spacer(1, 0.15*cm))
     elements.append(Paragraph('<b>A/C: REG FOR THE CAR</b>', paybill_account_style))
     elements.append(Spacer(1, 0.25*cm))

@@ -1167,8 +1167,12 @@ def client_vehicle_detail(request, pk):
 
     agreement_versions = list(client_vehicle.agreement_versions.order_by('version_number'))
 
+    from django.conf import settings as django_settings
+    default_paybill = getattr(django_settings, 'MPESA_SHORTCODE', '4320049') or '4320049'
+
     context = {
         'client_vehicle': client_vehicle,
+        'default_paybill': default_paybill,
         'payments': payments,
         'installment_plan': installment_plan,
         'payment_progress': client_vehicle.payment_progress,
@@ -1869,6 +1873,7 @@ def download_sales_agreement(request, client_vehicle_pk, version_id=None):
     try:
         from apps.documents.sales_agreement_pdf import generate_sales_agreement_pdf
         from .models import AgreementVersion
+        from django.conf import settings as django_settings
 
         snapshot = None
         version_label = ''
@@ -1877,7 +1882,8 @@ def download_sales_agreement(request, client_vehicle_pk, version_id=None):
             snapshot = version.snapshot
             version_label = f'_v{version.version_number}'
 
-        pdf_buffer = generate_sales_agreement_pdf(client_vehicle, snapshot=snapshot)
+        paybill = request.GET.get('paybill', '').strip() or getattr(django_settings, 'MPESA_SHORTCODE', '4320049') or '4320049'
+        pdf_buffer = generate_sales_agreement_pdf(client_vehicle, snapshot=snapshot, paybill=paybill)
 
         reg_no = (snapshot or {}).get('vehicle', {}).get('registration_number') or client_vehicle.vehicle.registration_number or ''
         response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
