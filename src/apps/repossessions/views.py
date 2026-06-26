@@ -52,6 +52,15 @@ def _stop_installment_plan(client_vehicle):
         pass
 
 
+def _mark_client_defaulted(client):
+    """Set client status to Defaulted if they have no remaining active vehicles."""
+    from utils.constants import ClientStatus
+    has_active = client.vehicles.filter(is_active=True).exists()
+    if not has_active and client.status == ClientStatus.ACTIVE:
+        client.status = ClientStatus.DEFAULTED
+        client.save(update_fields=['status'])
+
+
 def _apply_repossessed_vehicle_pricing(repossession):
     """When repossession starts, reprices the vehicle to debt + newly added additional costs."""
     vehicle = repossession.vehicle
@@ -563,6 +572,7 @@ def repossession_complete(request, pk):
                         client_vehicle.save(update_fields=['balance', 'is_paid_off', 'is_active', 'date_paid_off'])
                         _stop_installment_plan(client_vehicle)
                         _recalculate_client_debt(repossession.client)
+                        _mark_client_defaulted(repossession.client)
                 elif resolution_type == 'RETURNED':
                     vehicle.status = VehicleStatus.SOLD
                     client_vehicle.purchase_price = (client_vehicle.purchase_price or Decimal('0.00')) + accumulated_costs
@@ -585,6 +595,7 @@ def repossession_complete(request, pk):
                         client_vehicle.save(update_fields=['is_active'])
                         _stop_installment_plan(client_vehicle)
                         _recalculate_client_debt(repossession.client)
+                        _mark_client_defaulted(repossession.client)
 
                 vehicle.save(update_fields=['selling_price', 'status'])
 
