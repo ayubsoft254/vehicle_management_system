@@ -358,9 +358,21 @@ def register_c2b_urls(shortcode: str, consumer_key: str = '', consumer_secret: s
             },
             timeout=25,
         )
-        response.raise_for_status()
         data = response.json()
 
+        # Safaricom uses errorCode/errorMessage for errors, ResponseCode/ResponseDescription for success
+        if data.get('errorCode') or data.get('errorMessage'):
+            error_msg = data.get('errorMessage', 'Unknown Daraja error')
+            error_code = data.get('errorCode', '')
+            if 'invalid access token' in error_msg.lower() or error_code in ('404.001.03', '400.002.02'):
+                error_msg = (
+                    f'Invalid access token for shortcode {shortcode}. '
+                    'Your consumer key/secret may not have C2B API enabled. '
+                    'Go to developer.safaricom.co.ke → your app → APIs and enable "C2B".'
+                )
+            return {'ok': False, 'shortcode': shortcode, 'response': data, 'missing_vars': [], 'error': error_msg}
+
+        response.raise_for_status()
         response_code = str(data.get('ResponseCode', '')).strip()
         ok = response_code == '0' or 'success' in str(data.get('ResponseDescription', '')).lower()
         return {
@@ -371,11 +383,21 @@ def register_c2b_urls(shortcode: str, consumer_key: str = '', consumer_secret: s
         }
     except requests.HTTPError as exc:
         body = ''
+        status_code = None
         if exc.response is not None:
+            status_code = exc.response.status_code
             try:
                 body = exc.response.text
             except Exception:
                 body = ''
+        if status_code in (401, 403) or (body and 'invalid access token' in body.lower()):
+            return {
+                'ok': False, 'missing_vars': [], 'shortcode': shortcode,
+                'error': (
+                    f'Daraja rejected the access token for shortcode {shortcode} (HTTP {status_code}). '
+                    'Make sure C2B API is enabled for this app in the Daraja portal.'
+                ),
+            }
         detail = str(exc)
         if body:
             detail = f'{detail} | Daraja response: {body}'
