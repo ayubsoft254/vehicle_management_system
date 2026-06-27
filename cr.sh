@@ -12,23 +12,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# If no cert file, ask user to paste the PEM content
+# Download the Safaricom production certificate if not present
 if [ ! -f "$CERT_FILE" ]; then
-  echo "Certificate file '$CERT_FILE' not found."
-  echo
-  echo "Paste your Safaricom public key certificate (including -----BEGIN CERTIFICATE----- lines),"
-  echo "then press Enter and Ctrl+D when done:"
-  echo
+  echo "Certificate not found. Downloading Safaricom production certificate..."
+  wget -q -O "$CERT_FILE" https://developer.safaricom.co.ke/sites/default/files/cert/cert_prod/cert.cer
 
-  TEMP_CERT=$(mktemp /tmp/safaricom_cert_XXXXXX.cer)
-  cat > "$TEMP_CERT"
-
-  if [ ! -s "$TEMP_CERT" ]; then
-    echo "No certificate content provided. Exiting."
+  if [ $? -ne 0 ] || [ ! -s "$CERT_FILE" ]; then
+    echo "Download failed. Check your internet connection and try again."
+    rm -f "$CERT_FILE"
     exit 1
   fi
 
-  CERT_FILE="$TEMP_CERT"
+  echo "Certificate saved to $CERT_FILE"
 fi
 
 read -s -p "Enter M-Pesa initiator password: " MPESA_PASSWORD
