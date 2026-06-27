@@ -184,14 +184,30 @@ def initiate_stk_push(
         }
     except requests.HTTPError as exc:
         body = ''
+        status_code = None
         if exc.response is not None:
+            status_code = exc.response.status_code
             try:
                 body = exc.response.text
             except Exception:
                 body = ''
-        detail = str(exc)
-        if body:
-            detail = f'{detail} | Daraja response: {body}'
+        if status_code == 404:
+            detail = (
+                'Daraja returned 404: STK Push (Lipa na M-Pesa Online) is not enabled for '
+                f'shortcode {shortcode} on your Daraja app. '
+                'Go to developer.safaricom.co.ke → your app → APIs and enable '
+                '"Lipa na M-Pesa Online / Express Checkout".'
+            )
+        elif status_code == 401:
+            detail = (
+                'Daraja returned 401: Consumer key/secret are invalid or do not match '
+                f'MPESA_ENV={_clean(getattr(settings, "MPESA_ENV", "sandbox"))}. '
+                'Verify your credentials in the Daraja portal.'
+            )
+        else:
+            detail = str(exc)
+            if body:
+                detail = f'{detail} | Daraja response: {body}'
         return {
             'ok': False,
             'missing_vars': [],
