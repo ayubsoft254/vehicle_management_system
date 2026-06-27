@@ -8,73 +8,154 @@ from django.db import transaction
 from django.utils import timezone
 from django.db import models
 from decimal import Decimal
+import logging
 
-from .models import Payment, InstallmentPlan, PaymentSchedule, PaymentReminder
+from .models import Payment, InstallmentPlan, PaymentSchedule, PaymentReminder, PaybillTransaction
 from apps.clients.models import ClientVehicle, Client
+
+logger = logging.getLogger(__name__)
+
+# ==================== SAFE HELPER FUNCTIONS ====================
+
+def _safe_recalculate_vehicle(client_vehicle):
+    """
+    Safely recalculate vehicle state without raising exceptions
+    that could break the main transaction.
+    """
+    try:
+        if not client_vehicle:
+            return
+        
+        today = timezone.now().date()
+        
+        total_paid = Payment.objects.filter(
+            client_vehicle=client_vehicle,
+            payment_date__lte=today,
+        ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+
+        client_vehicle.total_paid = total_paid
+        client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
+
+        if client_vehicle.balance <= 0:
+            client_vehicle.is_paid_off = True
+            client_vehicle.balance = Decimal('0.00')
+            if not client_vehicle.date_paid_off:
+                client_vehicle.date_paid_off = today
+
+            client = client_vehicle.client
+            if client and client.status != 'completed':
+                client.status = 'completed'
+                client.save(update_fields=['status'])
+
+            try:
+                plan = client_vehicle.installment_plan
+                if plan and (not plan.is_completed or plan.is_active):
+                    plan.is_completed = True
+                    plan.is_active = False
+                    plan.save(update_fields=['is_completed', 'is_active'])
+            except InstallmentPlan.DoesNotExist:
+                pass
+        else:
+            client_vehicle.is_paid_off = False
+            client_vehicle.date_paid_off = None
+
+            client = client_vehicle.client
+            if client and client.status == 'completed':
+                client.status = 'active'
+                client.save(update_fields=['status'])
+
+            try:
+                plan = client_vehicle.installment_plan
+                if plan:
+                    if plan.is_completed:
+                        plan.is_completed = False
+                    if not plan.is_active:
+                        plan.is_active = True
+                    plan.save(update_fields=['is_completed', 'is_active'])
+            except InstallmentPlan.DoesNotExist:
+                pass
+
+        client_vehicle.save(update_fields=['total_paid', 'balance', 'is_paid_off', 'date_paid_off'])
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error recalculating vehicle {client_vehicle.id if client_vehicle else 'unknown'}: {e}")
+        return False
+
+
+def _safe_link_paybill_to_payment(payment):
+    """Safely link a paybill transaction to a payment."""
+    if not payment or not payment.transaction_reference:
+        return False
+    
+    try:
+        paybill_tx = PaybillTransaction.objects.filter(
+            trans_id=payment.transaction_reference,
+            is_linked_to_payment=False
+        ).first()
+        
+        if paybill_tx:
+            paybill_tx.is_linked_to_payment = True
+            paybill_tx.save(update_fields=['is_linked_to_payment'])
+            return True
+    except Exception as e:
+        logger.warning(f"Could not link paybill transaction: {e}")
+    
+    return False
 
 
 def _invalidate_dashboard_metric_cache():
-    """Clear cached widget metrics so dashboard analytics reflect latest payments."""
+    """Safely clear cached metrics."""
     try:
         from apps.dashboard.models import MetricCache
         MetricCache.objects.filter(metric_key__startswith='widget_data_').delete()
     except Exception:
-        # Dashboard cache should never block payment processing.
+        # Dashboard cache should never block payment processing
         pass
 
 
-def _recalculate_client_vehicle_state(client_vehicle):
-    """Recompute totals/balance/is_paid_off for a client vehicle after payment changes."""
-    today = timezone.now().date()
+def _safe_update_payment_schedules(payment):
+    """Safely update payment schedules without breaking main flow."""
+    if not payment or not payment.client_vehicle:
+        return
+    
+    try:
+        if payment.payment_date and payment.payment_date > timezone.now().date():
+            return
 
-    total_paid = Payment.objects.filter(
-        client_vehicle=client_vehicle,
-        payment_date__lte=today,
-    ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
-
-    client_vehicle.total_paid = total_paid
-    client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
-
-    if client_vehicle.balance <= 0:
-        client_vehicle.is_paid_off = True
-        client_vehicle.balance = Decimal('0.00')
-
-        if not client_vehicle.date_paid_off:
-            client_vehicle.date_paid_off = today
-
-        client = client_vehicle.client
-        if client.status != 'completed':
-            client.status = 'completed'
-            client.save(update_fields=['status'])
-
+        client_vehicle = payment.client_vehicle
+        
         try:
             plan = client_vehicle.installment_plan
-            if not plan.is_completed or plan.is_active:
-                plan.is_completed = True
-                plan.is_active = False
-                plan.save(update_fields=['is_completed', 'is_active'])
+            if not plan:
+                return
+            
+            pending_schedules = plan.payment_schedules.filter(
+                is_paid=False
+            ).order_by('installment_number')
+            
+            remaining_amount = payment.amount
+            
+            for schedule in pending_schedules:
+                if remaining_amount <= 0:
+                    break
+                
+                amount_to_apply = min(remaining_amount, schedule.remaining_amount)
+                
+                schedule.amount_paid += amount_to_apply
+                schedule.payment = payment
+                schedule.payment_date = payment.payment_date
+                
+                if schedule.amount_paid >= schedule.amount_due:
+                    schedule.is_paid = True
+                
+                schedule.save()
+                remaining_amount -= amount_to_apply
+                
         except InstallmentPlan.DoesNotExist:
             pass
-    else:
-        client_vehicle.is_paid_off = False
-        client_vehicle.date_paid_off = None
-
-        client = client_vehicle.client
-        if client.status == 'completed':
-            client.status = 'active'
-            client.save(update_fields=['status'])
-
-        try:
-            plan = client_vehicle.installment_plan
-            if plan.is_completed:
-                plan.is_completed = False
-            if not plan.is_active:
-                plan.is_active = True
-            plan.save(update_fields=['is_completed', 'is_active'])
-        except InstallmentPlan.DoesNotExist:
-            pass
-
-    client_vehicle.save(update_fields=['total_paid', 'balance', 'is_paid_off', 'date_paid_off'])
+    except Exception as e:
+        logger.error(f"Error updating payment schedules for payment {payment.id}: {e}")
 
 
 # ==================== PAYMENT SIGNALS ====================
@@ -82,75 +163,137 @@ def _recalculate_client_vehicle_state(client_vehicle):
 @receiver(post_save, sender=Payment)
 def update_client_vehicle_after_payment(sender, instance, created, **kwargs):
     """
-    Update ClientVehicle balance and status after payment is recorded
+    ✅ SAFE: Update ClientVehicle balance and status after payment is recorded
+    Wrapped in try/except to prevent breaking the main transaction
     """
-    _recalculate_client_vehicle_state(instance.client_vehicle)
-    _invalidate_dashboard_metric_cache()
+    try:
+        # Always run in a separate transaction to avoid blocking
+        with transaction.atomic():
+            _safe_recalculate_vehicle(instance.client_vehicle)
+            _invalidate_dashboard_metric_cache()
+            
+            # Link to paybill transaction if this is an M-Pesa payment
+            if instance.payment_method == 'mpesa' and instance.transaction_reference:
+                _safe_link_paybill_to_payment(instance)
+                
+    except Exception as e:
+        logger.error(f"Error in update_client_vehicle_after_payment: {e}")
 
 
 @receiver(post_save, sender=Payment)
 def update_payment_schedules_after_payment(sender, instance, created, **kwargs):
     """
-    Automatically update payment schedules when a payment is recorded
+    ✅ SAFE: Update payment schedules when a payment is recorded
+    Wrapped in try/except to prevent breaking the main transaction
     """
-    if created:
-        if instance.payment_date and instance.payment_date > timezone.now().date():
-            return
+    try:
+        if created:
+            with transaction.atomic():
+                _safe_update_payment_schedules(instance)
+    except Exception as e:
+        logger.error(f"Error in update_payment_schedules_after_payment: {e}")
 
-        client_vehicle = instance.client_vehicle
-        
-        try:
-            plan = client_vehicle.installment_plan
-            
-            # Get unpaid schedules in order
-            pending_schedules = plan.payment_schedules.filter(
-                is_paid=False
-            ).order_by('installment_number')
-            
-            remaining_amount = instance.amount
-            
-            for schedule in pending_schedules:
-                if remaining_amount <= 0:
-                    break
+
+@receiver(post_save, sender=Payment)
+def update_paybill_transaction_status(sender, instance, created, **kwargs):
+    """
+    ✅ SAFE: Update paybill transaction status when payment is created
+    """
+    try:
+        if instance.transaction_reference:
+            with transaction.atomic():
+                paybill_tx = PaybillTransaction.objects.filter(
+                    trans_id=instance.transaction_reference
+                ).first()
                 
-                # Calculate how much to apply to this schedule
-                amount_to_apply = min(remaining_amount, schedule.remaining_amount)
-                
-                # Update the schedule
-                schedule.amount_paid += amount_to_apply
-                schedule.payment = instance
-                schedule.payment_date = instance.payment_date
-                
-                # Mark as paid if fully paid
-                if schedule.amount_paid >= schedule.amount_due:
-                    schedule.is_paid = True
-                
-                schedule.save()
-                
-                remaining_amount -= amount_to_apply
-        
-        except InstallmentPlan.DoesNotExist:
-            # No installment plan exists
-            pass
+                if paybill_tx and not paybill_tx.is_linked_to_payment:
+                    paybill_tx.is_linked_to_payment = True
+                    paybill_tx.save(update_fields=['is_linked_to_payment'])
+    except Exception as e:
+        logger.warning(f"Could not update paybill transaction status: {e}")
 
 
 @receiver(post_delete, sender=Payment)
 def revert_payment_on_delete(sender, instance, **kwargs):
     """
-    Revert balance changes when a payment is deleted
+    ✅ SAFE: Revert balance changes when a payment is deleted
     """
-    client_vehicle = instance.client_vehicle
-    _recalculate_client_vehicle_state(client_vehicle)
-    
-    # Clear payment schedules linked to this payment
-    PaymentSchedule.objects.filter(payment=instance).update(
-        payment=None,
-        amount_paid=Decimal('0.00'),
-        is_paid=False,
-        payment_date=None
-    )
+    try:
+        if instance.client_vehicle:
+            with transaction.atomic():
+                _safe_recalculate_vehicle(instance.client_vehicle)
+                
+                # Clear payment schedules linked to this payment
+                PaymentSchedule.objects.filter(payment=instance).update(
+                    payment=None,
+                    amount_paid=Decimal('0.00'),
+                    is_paid=False,
+                    payment_date=None
+                )
+                _invalidate_dashboard_metric_cache()
+    except Exception as e:
+        logger.error(f"Error in revert_payment_on_delete: {e}")
 
-    _invalidate_dashboard_metric_cache()
+
+# ==================== PAYBILL TRANSACTION SIGNALS ====================
+
+@receiver(post_save, sender=PaybillTransaction)
+def process_paybill_transaction(sender, instance, created, **kwargs):
+    """
+    ✅ SAFE: Process paybill transaction when it's created
+    Only runs if not linked to a payment and amount is valid
+    """
+    try:
+        # Skip if already linked or invalid
+        if not created:
+            return
+        
+        if instance.is_linked_to_payment:
+            return
+        
+        if not instance.trans_id or not instance.trans_amount or instance.trans_amount <= 0:
+            return
+        
+        # Check if this transaction already has a payment
+        existing_payment = Payment.objects.filter(
+            transaction_reference=instance.trans_id,
+            payment_method='mpesa'
+        ).first()
+        
+        if existing_payment:
+            # Link existing payment
+            instance.is_linked_to_payment = True
+            instance.save(update_fields=['is_linked_to_payment'])
+            return
+        
+        # Try to create payment from paybill transaction
+        if not instance.bill_ref_number:
+            return
+        
+        # Find vehicle by bill reference
+        client_vehicle = ClientVehicle.objects.filter(
+            is_active=True,
+            vehicle__registration_number__iexact=instance.bill_ref_number.strip().upper()
+        ).first()
+        
+        if client_vehicle:
+            with transaction.atomic():
+                payment = Payment.objects.create(
+                    client_vehicle=client_vehicle,
+                    amount=instance.trans_amount,
+                    payment_date=instance.trans_time or timezone.now().date(),
+                    payment_method='mpesa',
+                    transaction_reference=instance.trans_id,
+                    recorded_by=None,  # System recorded
+                    notes=f'Paybill payment received. Account ref: {instance.bill_ref_number}'
+                )
+                
+                instance.is_linked_to_payment = True
+                instance.save(update_fields=['is_linked_to_payment'])
+                
+                logger.info(f"✅ Created Payment {payment.receipt_number} from PaybillTransaction {instance.trans_id}")
+    except Exception as e:
+        logger.error(f"Error processing paybill transaction {instance.id}: {e}")
 
 
 # ==================== INSTALLMENT PLAN SIGNALS ====================
@@ -158,105 +301,164 @@ def revert_payment_on_delete(sender, instance, **kwargs):
 @receiver(post_save, sender=InstallmentPlan)
 def generate_schedules_on_plan_creation(sender, instance, created, **kwargs):
     """
-    Automatically generate payment schedules when installment plan is created
+    ✅ SAFE: Generate schedules when plan is created
     """
-    if created:
-        # Generate payment schedules
-        instance.generate_payment_schedule()
+    try:
+        if created:
+            instance.generate_payment_schedule()
+    except Exception as e:
+        logger.error(f"Error generating schedules for plan {instance.id}: {e}")
 
 
 @receiver(post_save, sender=InstallmentPlan)
 def check_plan_completion(sender, instance, created, **kwargs):
     """
-    Check if installment plan should be marked as completed
+    ✅ SAFE: Check if plan should be marked as completed
     """
-    if not created:
-        # Check if all schedules are paid
-        total_schedules = instance.payment_schedules.count()
-        paid_schedules = instance.payment_schedules.filter(is_paid=True).count()
-        
-        if total_schedules > 0 and total_schedules == paid_schedules:
-            if not instance.is_completed:
-                instance.is_completed = True
-                instance.is_active = False
-                
-                # Avoid infinite loop by disconnecting signal temporarily
-                post_save.disconnect(check_plan_completion, sender=InstallmentPlan)
-                instance.save()
-                post_save.connect(check_plan_completion, sender=InstallmentPlan)
+    try:
+        if not created:
+            total_schedules = instance.payment_schedules.count()
+            paid_schedules = instance.payment_schedules.filter(is_paid=True).count()
+            
+            if total_schedules > 0 and total_schedules == paid_schedules:
+                if not instance.is_completed:
+                    instance.is_completed = True
+                    instance.is_active = False
+                    
+                    # Avoid infinite loop
+                    post_save.disconnect(check_plan_completion, sender=InstallmentPlan)
+                    instance.save()
+                    post_save.connect(check_plan_completion, sender=InstallmentPlan)
+    except Exception as e:
+        logger.error(f"Error checking plan completion for {instance.id}: {e}")
 
 
 @receiver(pre_save, sender=InstallmentPlan)
 def calculate_end_date(sender, instance, **kwargs):
     """
-    Calculate end date if not provided
+    ✅ SAFE: Calculate end date if not provided
     """
-    if instance.start_date and not instance.end_date:
-        from dateutil.relativedelta import relativedelta
-        instance.end_date = instance.start_date + relativedelta(
-            months=instance.number_of_installments
-        )
+    try:
+        if instance.start_date and not instance.end_date:
+            from dateutil.relativedelta import relativedelta
+            instance.end_date = instance.start_date + relativedelta(
+                months=instance.number_of_installments
+            )
+    except Exception as e:
+        logger.error(f"Error calculating end date: {e}")
 
 
 # ==================== PAYMENT SCHEDULE SIGNALS ====================
 
 @receiver(post_save, sender=PaymentSchedule)
-def check_overdue_schedules(sender, instance, created, **kwargs):
+def update_client_status_on_schedule_change(sender, instance, created, **kwargs):
     """
-    Check for overdue schedules and update client status
+    ✅ SAFE: Update client status based on payment history
     """
-    if not instance.is_paid and instance.is_overdue:
-        client = instance.installment_plan.client_vehicle.client
+    try:
+        if not instance.installment_plan or not instance.installment_plan.client_vehicle:
+            return
         
-        # Count overdue schedules for this client
+        client = instance.installment_plan.client_vehicle.client
+        if not client:
+            return
+        
+        # Only check overdue if schedule is not paid
+        if not instance.is_paid and instance.is_overdue:
+            overdue_count = PaymentSchedule.objects.filter(
+                installment_plan__client_vehicle__client=client,
+                is_paid=False,
+                due_date__lt=timezone.now().date()
+            ).count()
+            
+            if overdue_count > 0 and client.status == 'active':
+                client.status = 'defaulted'
+                client.save()
+    except Exception as e:
+        logger.error(f"Error updating client status: {e}")
+
+
+@receiver(post_save, sender=PaymentSchedule)
+def create_reminder_on_due_date(sender, instance, created, **kwargs):
+    """
+    ✅ SAFE: Create reminder when schedule is approaching due date
+    """
+    try:
+        if not instance.is_paid:
+            today = timezone.now().date()
+            days_until_due = (instance.due_date - today).days
+            
+            if days_until_due == 3:
+                existing_reminder = PaymentReminder.objects.filter(
+                    payment_schedule=instance,
+                    reminder_date__date=today
+                ).exists()
+                
+                if not existing_reminder:
+                    client = instance.installment_plan.client_vehicle.client
+                    vehicle = instance.installment_plan.client_vehicle.vehicle
+                    
+                    message = (
+                        f"Dear {client.get_full_name()}, "
+                        f"payment of KES {instance.amount_due:,.2f} "
+                        f"for {vehicle} is due on {instance.due_date.strftime('%d/%m/%Y')}."
+                    )
+                    
+                    PaymentReminder.objects.create(
+                        payment_schedule=instance,
+                        reminder_type='sms',
+                        message=message,
+                        status='pending'
+                    )
+    except Exception as e:
+        logger.error(f"Error creating reminder: {e}")
+
+
+@receiver(post_save, sender=PaymentSchedule)
+def auto_update_client_status_on_payment(sender, instance, **kwargs):
+    """
+    ✅ SAFE: Auto-update client status based on payment history
+    """
+    try:
+        if not instance.installment_plan or not instance.installment_plan.client_vehicle:
+            return
+        
+        client = instance.installment_plan.client_vehicle.client
+        if not client:
+            return
+        
         overdue_count = PaymentSchedule.objects.filter(
             installment_plan__client_vehicle__client=client,
             is_paid=False,
             due_date__lt=timezone.now().date()
         ).count()
         
-        # Mark client as defaulted if they have overdue payments
-        if overdue_count > 0 and client.status == 'active':
-            client.status = 'defaulted'
-            client.save()
-
-
-@receiver(post_save, sender=PaymentSchedule)
-def send_reminder_on_due_date(sender, instance, created, **kwargs):
-    """
-    Automatically create reminder when schedule is approaching due date
-    """
-    if not instance.is_paid:
-        today = timezone.now().date()
-        days_until_due = (instance.due_date - today).days
+        active_purchases = ClientVehicle.objects.filter(
+            client=client,
+            is_paid_off=False
+        ).count()
         
-        # Send reminder 3 days before due date
-        if days_until_due == 3:
-            # Check if reminder already sent
-            existing_reminder = PaymentReminder.objects.filter(
-                payment_schedule=instance,
-                reminder_date__date=today
-            ).exists()
+        if overdue_count > 2:
+            if client.status != 'defaulted':
+                client.status = 'defaulted'
+                client.save()
+        elif active_purchases > 0:
+            if client.status != 'active':
+                client.status = 'active'
+                client.save()
+        elif active_purchases == 0:
+            all_paid = ClientVehicle.objects.filter(
+                client=client
+            ).count() == ClientVehicle.objects.filter(
+                client=client,
+                is_paid_off=True
+            ).count()
             
-            if not existing_reminder:
-                # Create reminder
-                client = instance.installment_plan.client_vehicle.client
-                vehicle = instance.installment_plan.client_vehicle.vehicle
-                
-                message = (
-                    f"Dear {client.get_full_name()}, "
-                    f"this is a reminder that your payment of KES {instance.amount_due:,.2f} "
-                    f"for {vehicle} is due on {instance.due_date.strftime('%d/%m/%Y')}. "
-                    f"Please make payment to avoid penalties. "
-                    f"Thank you."
-                )
-                
-                PaymentReminder.objects.create(
-                    payment_schedule=instance,
-                    reminder_type='sms',
-                    message=message,
-                    status='pending'
-                )
+            if all_paid and client.status != 'completed':
+                client.status = 'completed'
+                client.save()
+    except Exception as e:
+        logger.error(f"Error auto-updating client status: {e}")
 
 
 # ==================== PAYMENT REMINDER SIGNALS ====================
@@ -264,152 +466,78 @@ def send_reminder_on_due_date(sender, instance, created, **kwargs):
 @receiver(post_save, sender=PaymentReminder)
 def process_reminder_sending(sender, instance, created, **kwargs):
     """
-    Process reminder sending based on type
+    ✅ SAFE: Process reminder sending
     """
-    if created and instance.status == 'pending':
-        # Here you would integrate with SMS/Email services
-        # For now, we'll just mark as sent
-        
-        # Example integration points:
-        # - SMS: Twilio, Africa's Talking, etc.
-        # - Email: Django email backend
-        # - WhatsApp: Twilio WhatsApp API
-        
-        try:
-            if instance.reminder_type == 'sms':
-                # send_sms(instance.payment_schedule.installment_plan.client_vehicle.client.phone_primary, instance.message)
-                pass
-            elif instance.reminder_type == 'email':
-                # send_email(instance.payment_schedule.installment_plan.client_vehicle.client.email, instance.message)
-                pass
-            
-            # Mark as sent
+    try:
+        if created and instance.status == 'pending':
+            # Mark as sent (actual SMS/Email integration would go here)
             instance.status = 'sent'
             
-            # Avoid infinite loop by disconnecting signal temporarily
             post_save.disconnect(process_reminder_sending, sender=PaymentReminder)
             instance.save()
             post_save.connect(process_reminder_sending, sender=PaymentReminder)
-            
-        except Exception as e:
-            # Mark as failed
-            instance.status = 'failed'
-            
-            # Avoid infinite loop
-            post_save.disconnect(process_reminder_sending, sender=PaymentReminder)
-            instance.save()
-            post_save.connect(process_reminder_sending, sender=PaymentReminder)
+    except Exception as e:
+        logger.error(f"Error sending reminder {instance.id}: {e}")
 
 
-# ==================== CLIENT VEHICLE SIGNALS ====================
+# ==================== VALIDATION SIGNALS ====================
 
-@receiver(post_save, sender=ClientVehicle)
-def update_client_credit_on_vehicle_save(sender, instance, created, **kwargs):
+@receiver(pre_save, sender=Payment)
+def validate_payment_before_save(sender, instance, **kwargs):
     """
-    Update client's available credit when vehicle is assigned
+    ✅ SAFE: Validate payment before saving
     """
-    client = instance.client
-    
-    # Recalculate current debt (sum of all balances)
-    from django.db.models import Sum
-    total_debt = ClientVehicle.objects.filter(
-        client=client,
-        is_paid_off=False
-    ).aggregate(total=Sum('balance'))['total'] or Decimal('0.00')
-    
-    # Update client's available credit (this would be a property in the Client model)
-    # The actual available_credit is calculated as credit_limit - current_debt
+    try:
+        if instance.amount and instance.amount <= 0:
+            raise ValueError("Payment amount must be greater than zero")
+    except Exception as e:
+        logger.error(f"Payment validation error: {e}")
+        raise
 
 
-# ==================== UTILITY SIGNALS ====================
+@receiver(pre_save, sender=PaymentSchedule)
+def validate_schedule_before_save(sender, instance, **kwargs):
+    """
+    ✅ SAFE: Validate payment schedule before saving
+    """
+    try:
+        if instance.amount_due and instance.amount_due <= 0:
+            raise ValueError("Schedule amount must be greater than zero")
+        if instance.amount_paid and instance.amount_paid < 0:
+            raise ValueError("Amount paid cannot be negative")
+    except Exception as e:
+        logger.error(f"Schedule validation error: {e}")
+        raise
+
+
+# ==================== LOGGING SIGNALS ====================
 
 @receiver(post_save, sender=Payment)
 def log_payment_activity(sender, instance, created, **kwargs):
     """
-    Log payment activity for audit trail
+    ✅ SAFE: Log payment activity for audit trail
     """
-    if created:
-        from apps.audit.utils import log_audit
-        
-        # Log the payment
-        log_audit(
-            user=instance.recorded_by,
-            action='create',
-            model_name='Payment',
-            description=f'Payment recorded: {instance.receipt_number} - KES {instance.amount:,.2f}'
-        )
+    try:
+        if created:
+            from apps.audit.utils import log_audit
+            
+            log_audit(
+                user=instance.recorded_by,
+                action='create',
+                model_name='Payment',
+                description=f'Payment recorded: {instance.receipt_number} - KES {instance.amount:,.2f}'
+            )
+    except Exception as e:
+        logger.warning(f"Could not create audit log: {e}")
 
-
-@receiver(post_save, sender=PaymentSchedule)
-def notify_on_payment_completion(sender, instance, **kwargs):
-    """
-    Send notification when payment schedule is completed
-    """
-    if not instance.is_paid:
-        return
-
-    # Placeholder hook: keep this signal side-effect free until a proper
-    # notification integration is implemented.
-    return
-
-
-# ==================== AUTOMATIC STATUS UPDATES ====================
-
-@receiver(post_save, sender=PaymentSchedule)
-def auto_update_client_status_on_payment(sender, instance, **kwargs):
-    """
-    Automatically update client status based on payment history
-    """
-    client = instance.installment_plan.client_vehicle.client
-    
-    # Check for overdue payments
-    overdue_count = PaymentSchedule.objects.filter(
-        installment_plan__client_vehicle__client=client,
-        is_paid=False,
-        due_date__lt=timezone.now().date()
-    ).count()
-    
-    # Count active vehicle purchases
-    active_purchases = ClientVehicle.objects.filter(
-        client=client,
-        is_paid_off=False
-    ).count()
-    
-    # Update status based on payment history
-    if overdue_count > 2:  # More than 2 overdue payments
-        if client.status != 'defaulted':
-            client.status = 'defaulted'
-            client.save()
-    elif active_purchases > 0:
-        if client.status != 'active':
-            client.status = 'active'
-            client.save()
-    elif active_purchases == 0:
-        # Check if all purchases are paid off
-        all_paid = ClientVehicle.objects.filter(
-            client=client
-        ).count() == ClientVehicle.objects.filter(
-            client=client,
-            is_paid_off=True
-        ).count()
-        
-        if all_paid and client.status != 'completed':
-            client.status = 'completed'
-            client.save()
-
-
-# ==================== PERFORMANCE OPTIMIZATION ====================
 
 @receiver(post_save, sender=Payment)
 def update_statistics_cache(sender, instance, created, **kwargs):
     """
-    Update cached statistics after payment is recorded
+    ✅ SAFE: Update cached statistics
     """
-    if created:
-        # Clear or update cached statistics
-        # This would integrate with your caching system (Redis, Memcached, etc.)
-        pass
-
-
-# Import models for signals
-from django.db import models
+    try:
+        if created:
+            _invalidate_dashboard_metric_cache()
+    except Exception as e:
+        logger.debug(f"Could not update statistics cache: {e}")
