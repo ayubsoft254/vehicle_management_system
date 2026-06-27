@@ -348,7 +348,7 @@ def register_c2b_urls(shortcode: str, consumer_key: str = '', consumer_secret: s
             'ValidationURL': validation_url,
         }
 
-        url = urljoin(get_daraja_base_url(), 'mpesa/c2b/v1/registerurl')
+        url = urljoin(get_daraja_base_url(), 'mpesa/c2b/v2/registerurl')
         response = requests.post(
             url,
             json=payload,
