@@ -142,17 +142,76 @@ def _parse_mpesa_datetime(value):
 
 
 def _extract_account_balance(raw_value):
-    """Extract a numeric balance from Daraja AccountBalance string payload."""
+    """
+    Extract a numeric balance from Daraja AccountBalance string payload.
+    Handles the complex format: "Account|KES|balance|...|..."
+    Example: "Utility Account|KES|200153.00|200153.00|0.00|0.00"
+    """
     if raw_value is None:
+        logger.warning("_extract_account_balance: raw_value is None")
         return None
+    
     if isinstance(raw_value, (int, float, Decimal)):
+        logger.info(f"_extract_account_balance: Got numeric value: {raw_value}")
         return Decimal(str(raw_value))
-
-    text = str(raw_value)
-    match = re.search(r'(\d+[\d,]*\.?\d*)', text)
-    if not match:
+    
+    if isinstance(raw_value, str):
+        logger.info(f"_extract_account_balance: Processing string: {raw_value[:200]}...")
+        
+        # Look for Utility Account specifically (this has the actual balance)
+        if 'Utility Account' in raw_value:
+            import re
+            # Pattern: Utility Account|KES|123.45|...
+            match = re.search(r'Utility Account\s*\|\s*KES\s*\|\s*([\d,]+\.?\d*)', raw_value)
+            if match:
+                try:
+                    balance = Decimal(match.group(1).replace(',', ''))
+                    logger.info(f"✅ Found Utility Account balance: {balance}")
+                    return balance
+                except (ValueError, InvalidOperation):
+                    pass
+        
+        # If no Utility Account, try Working Account
+        if 'Working Account' in raw_value:
+            import re
+            match = re.search(r'Working Account\s*\|\s*KES\s*\|\s*([\d,]+\.?\d*)', raw_value)
+            if match:
+                try:
+                    balance = Decimal(match.group(1).replace(',', ''))
+                    logger.info(f"✅ Found Working Account balance: {balance}")
+                    return balance
+                except (ValueError, InvalidOperation):
+                    pass
+        
+        # Fallback: find any balance in the string
+        import re
+        matches = re.findall(r'KES\s*\|\s*([\d,]+\.?\d*)', raw_value)
+        for match in matches:
+            try:
+                balance = Decimal(match.replace(',', ''))
+                if balance > 0:
+                    logger.info(f"✅ Found balance via fallback: {balance}")
+                    return balance
+            except (ValueError, InvalidOperation):
+                continue
+        
+        # One more fallback: find any decimal number in the string
+        matches = re.findall(r'(\d+[\d,]*\.?\d*)', raw_value)
+        if matches:
+            for match in matches:
+                try:
+                    balance = Decimal(match.replace(',', ''))
+                    if balance > 0:
+                        logger.info(f"✅ Found balance via final fallback: {balance}")
+                        return balance
+                except (ValueError, InvalidOperation):
+                    continue
+        
+        logger.warning(f"Could not extract balance from: {raw_value[:100]}...")
         return None
-    return _safe_decimal(match.group(1))
+    
+    logger.warning(f"_extract_account_balance: Unhandled type: {type(raw_value)}")
+    return None
 
 
 def _normalize_account_reference(value):
@@ -2083,7 +2142,7 @@ def stk_push_callback(request):
 def paybill_balance_result_callback(request):
     """
     Daraja account-balance result callback endpoint.
-    Processes balance query results.
+    Processes balance query results with improved balance extraction.
     """
     logger.info("=" * 60)
     logger.info("Balance Result Callback Received")
@@ -2094,44 +2153,59 @@ def paybill_balance_result_callback(request):
         logger.info(f"Payload: {json.dumps(payload, indent=2)}")
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in balance callback: {e}")
-        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Invalid JSON'}, status=400)
+        return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'}, status=200)
     
     # ✅ Validate callback secret
     if not _callback_secret_is_valid(request):
         logger.warning("Unauthorized balance callback attempt - invalid secret")
-        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized'}, status=403)
     
     result = payload.get('Result', {})
     result_code = result.get('ResultCode')
+    result_desc = result.get('ResultDesc', '')
+    
+    logger.info(f"Result Code: {result_code}, Result Desc: {result_desc}")
+    
+    # ✅ Extract balance using improved function
+    balance = None
+    parameters = result.get('ResultParameters', {}).get('ResultParameter', [])
+    
+    if isinstance(parameters, list):
+        for item in parameters:
+            key = str(item.get('Key', '')).lower()
+            value = item.get('Value')
+            logger.info(f"Processing parameter: Key={key}")
+            
+            if key in {'accountbalance', 'availablebalance', 'balance'}:
+                balance = _extract_account_balance(value)
+                if balance is not None:
+                    logger.info(f"✅ EXTRACTED BALANCE: {balance}")
+                    break
+    
+    # If no balance found, log warning
+    if balance is None:
+        logger.warning("No balance could be extracted from the callback payload")
+    
+    # Determine status
     status = (
         PaybillBalanceSnapshot.STATUS_SUCCESS
         if str(result_code) == '0'
         else PaybillBalanceSnapshot.STATUS_FAILED
     )
     
-    # ✅ Extract balance
-    balance = None
-    parameters = result.get('ResultParameters', {}).get('ResultParameter', [])
-    if isinstance(parameters, list):
-        for item in parameters:
-            if str(item.get('Key', '')).lower() in {'accountbalance', 'availablebalance'}:
-                balance = _extract_account_balance(item.get('Value'))
-                if balance is not None:
-                    break
-    
-    # ✅ Create snapshot
-    PaybillBalanceSnapshot.objects.create(
+    # ✅ Create snapshot with extracted balance
+    snapshot = PaybillBalanceSnapshot.objects.create(
         status=status,
         available_balance=balance,
         conversation_id=str(result.get('ConversationID', '')).strip(),
         originator_conversation_id=str(result.get('OriginatorConversationID', '')).strip(),
         result_code=int(result_code) if str(result_code).lstrip('-').isdigit() else None,
-        result_desc=str(result.get('ResultDesc', '')).strip(),
+        result_desc=result_desc,
         raw_payload=payload,
     )
     
-    logger.info(f"✅ Balance snapshot created: Balance={balance}, Status={status}")
-    return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
+    logger.info(f"✅ Balance snapshot created: ID={snapshot.id}, Balance={balance}, Status={status}")
+    return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'}, status=200)
 
 
 @csrf_exempt
