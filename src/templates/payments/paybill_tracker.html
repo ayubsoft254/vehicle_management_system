@@ -76,17 +76,22 @@
         {% endfor %}
     </div>
 
-    <!-- Overall Summary -->
+    <!-- ✅ FIXED: Overall Summary with proper balance display -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm text-gray-600">Latest Balance</p>
             <p class="text-2xl font-bold text-gray-900 mt-1">
                 {% if latest_successful_snapshot and latest_successful_snapshot.available_balance is not None %}
-                KES {{ latest_successful_snapshot.available_balance|floatformat:2 }}
+                    KES {{ latest_successful_snapshot.available_balance|floatformat:2 }}
                 {% else %}
-                --
+                    <span class="text-gray-400">--</span>
                 {% endif %}
             </p>
+            {% if latest_successful_snapshot %}
+                <p class="text-xs text-gray-500 mt-1">
+                    Updated: {{ latest_successful_snapshot.created_at|date:"Y-m-d H:i" }}
+                </p>
+            {% endif %}
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm text-gray-600">
@@ -106,27 +111,90 @@
         </div>
     </div>
 
-    <!-- Balance Request Status -->
+    <!-- ✅ FIXED: Balance Request Status with better display -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-2">Balance Request Status</h2>
-        {% if latest_snapshot %}
-        <div class="flex flex-wrap items-center gap-3 text-sm">
-            <span class="px-2 py-1 rounded-full
+        <div class="flex items-center justify-between mb-2">
+            <h2 class="text-lg font-semibold text-gray-900">Balance Request Status</h2>
+            {% if latest_snapshot %}
+            <span class="px-2 py-1 text-xs rounded-full
                          {% if latest_snapshot.status == 'success' %}bg-green-100 text-green-800
                          {% elif latest_snapshot.status == 'pending' %}bg-yellow-100 text-yellow-800
                          {% elif latest_snapshot.status == 'timeout' %}bg-orange-100 text-orange-800
                          {% else %}bg-red-100 text-red-800{% endif %}">
                 {{ latest_snapshot.get_status_display }}
             </span>
-            <span class="text-gray-600">{{ latest_snapshot.created_at|date:"Y-m-d H:i" }}</span>
+            {% endif %}
+        </div>
+        
+        {% if latest_snapshot %}
+        <div class="flex flex-wrap items-center gap-4 text-sm">
+            <div>
+                <span class="text-gray-500">Requested:</span>
+                <span class="text-gray-700">{{ latest_snapshot.created_at|date:"Y-m-d H:i:s" }}</span>
+            </div>
+            {% if latest_snapshot.available_balance is not None %}
+            <div>
+                <span class="text-gray-500">Balance:</span>
+                <span class="font-bold text-green-700">KES {{ latest_snapshot.available_balance|floatformat:2 }}</span>
+            </div>
+            {% endif %}
             {% if latest_snapshot.result_desc %}
-            <span class="text-gray-700">{{ latest_snapshot.result_desc }}</span>
+            <div>
+                <span class="text-gray-500">Message:</span>
+                <span class="text-gray-700">{{ latest_snapshot.result_desc }}</span>
+            </div>
+            {% endif %}
+            {% if latest_snapshot.conversation_id %}
+            <div>
+                <span class="text-gray-500">Conversation ID:</span>
+                <span class="text-gray-600 font-mono text-xs">{{ latest_snapshot.conversation_id|truncatechars:20 }}</span>
+            </div>
             {% endif %}
         </div>
         {% else %}
-        <p class="text-sm text-gray-500">No balance request has been made yet.</p>
+        <p class="text-sm text-gray-500">No balance request has been made yet. Click "Refresh Balance" to fetch.</p>
         {% endif %}
     </div>
+
+    <!-- ✅ NEW: Debug section - shows raw data (remove in production) -->
+    {% if latest_snapshot %}
+    <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-6">
+        <details>
+            <summary class="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                🔍 Debug Info (Click to expand)
+            </summary>
+            <div class="mt-3 text-xs space-y-2">
+                <div>
+                    <strong>Snapshot ID:</strong> {{ latest_snapshot.id }}
+                </div>
+                <div>
+                    <strong>Status:</strong> {{ latest_snapshot.status }}
+                </div>
+                <div>
+                    <strong>Available Balance:</strong> {{ latest_snapshot.available_balance|default:"None" }}
+                </div>
+                <div>
+                    <strong>Result Code:</strong> {{ latest_snapshot.result_code|default:"None" }}
+                </div>
+                <div>
+                    <strong>Result Description:</strong> {{ latest_snapshot.result_desc|default:"None" }}
+                </div>
+                <div>
+                    <strong>Conversation ID:</strong> {{ latest_snapshot.conversation_id|default:"None" }}
+                </div>
+                <div>
+                    <strong>Created At:</strong> {{ latest_snapshot.created_at|date:"Y-m-d H:i:s" }}
+                </div>
+                {% if latest_snapshot.raw_payload %}
+                <div>
+                    <strong>Raw Payload:</strong>
+                    <pre class="mt-1 p-2 bg-white border border-gray-200 rounded overflow-auto max-h-40">{{ latest_snapshot.raw_payload|pprint }}</pre>
+                </div>
+                {% endif %}
+            </div>
+        </details>
+    </div>
+    {% endif %}
 
     <!-- Transaction Table -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">

@@ -1,4 +1,4 @@
-# daraja.py - Updated version with fixes
+"""Daraja API helpers for paybill operations."""
 
 from __future__ import annotations
 
@@ -54,36 +54,14 @@ def mpesa_is_configured() -> bool:
 
 
 def _absolute_callback_url(url_name: str) -> str:
-    """Construct absolute callback URL from URL name."""
     base_url = _clean(getattr(settings, 'MPESA_RESULT_URL_BASE', ''))
     if not base_url:
         raise DarajaError('MPESA_RESULT_URL_BASE is not configured.')
     if base_url.startswith('http://'):
         raise DarajaError('MPESA_RESULT_URL_BASE must use https:// for Daraja callbacks.')
 
-    try:
-        path = reverse(url_name)
-        return urljoin(base_url.rstrip('/') + '/', path.lstrip('/'))
-    except Exception as e:
-        # ✅ FIX: If reverse fails, construct URL manually
-        # This handles cases where URL names might not match
-        raise DarajaError(f'Failed to resolve URL name "{url_name}": {e}')
-
-
-def _get_callback_url_from_settings(settings_key: str, default_url_name: str) -> str:
-    """
-    ✅ NEW: Get callback URL from settings or construct from URL name.
-    This allows you to override individual callback URLs in .env.
-    """
-    # First check if URL is explicitly set in settings
-    configured = _clean(getattr(settings, settings_key, ''))
-    if configured:
-        if configured.startswith('http://'):
-            raise DarajaError(f'{settings_key} must use https://.')
-        return configured
-    
-    # Fall back to constructing from URL name
-    return _absolute_callback_url(default_url_name)
+    path = reverse(url_name)
+    return urljoin(base_url.rstrip('/') + '/', path.lstrip('/'))
 
 
 def get_access_token() -> str:
@@ -119,8 +97,12 @@ def _normalize_phone_number(phone_number: str) -> str:
 
 
 def _get_stk_callback_url() -> str:
-    """Get STK callback URL from settings or construct it."""
-    return _get_callback_url_from_settings('MPESA_STK_CALLBACK_URL', 'payments:stk_push_callback')
+    configured = _clean(getattr(settings, 'MPESA_STK_CALLBACK_URL', ''))
+    if configured:
+        if configured.startswith('http://'):
+            raise DarajaError('MPESA_STK_CALLBACK_URL must use https://.')
+        return configured
+    return _absolute_callback_url('payments:stk_push_callback')
 
 
 def initiate_stk_push(
@@ -254,22 +236,8 @@ def request_account_balance() -> dict:
 
     try:
         access_token = get_access_token()
-        
-        # ✅ FIX: Use the new helper to get balance callback URLs
-        result_url = _get_callback_url_from_settings(
-            'MPESA_BALANCE_RESULT_URL', 
-            'payments:paybill_balance_result_callback'
-        )
-        timeout_url = _get_callback_url_from_settings(
-            'MPESA_BALANCE_TIMEOUT_URL', 
-            'payments:paybill_balance_timeout_callback'
-        )
-        
-        # ✅ DEBUG: Log the URLs being used
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"Balance Result URL: {result_url}")
-        logger.info(f"Balance Timeout URL: {timeout_url}")
+        result_url = _absolute_callback_url('payments:paybill_balance_result_callback')
+        timeout_url = _absolute_callback_url('payments:paybill_balance_timeout_callback')
 
         payload = {
             'Initiator': _clean(getattr(settings, 'MPESA_INITIATOR_NAME', '')),
@@ -348,11 +316,17 @@ def _get_access_token_for(consumer_key: str, consumer_secret: str) -> str:
 
 
 def register_c2b_urls(shortcode: str, consumer_key: str = '', consumer_secret: str = '') -> dict:
-    """Register C2B validation and confirmation URLs for a paybill shortcode."""
+    """Register C2B validation and confirmation URLs for a paybill shortcode.
+
+    Must be called once per shortcode so Safaricom knows where to POST C2B
+    callbacks.  Pass explicit consumer_key/consumer_secret when the paybill
+    belongs to a different Safaricom account than the primary shortcode.
+    """
     shortcode = _clean(shortcode)
     if not shortcode:
         return {'ok': False, 'missing_vars': [], 'error': 'Shortcode is required.'}
 
+    # Fall back to primary credentials when none supplied
     key = _clean(consumer_key) or _clean(getattr(settings, 'MPESA_CONSUMER_KEY', ''))
     secret = _clean(consumer_secret) or _clean(getattr(settings, 'MPESA_CONSUMER_SECRET', ''))
     if not key or not secret:
@@ -364,16 +338,8 @@ def register_c2b_urls(shortcode: str, consumer_key: str = '', consumer_secret: s
 
     try:
         access_token = _get_access_token_for(key, secret)
-        
-        # ✅ FIX: Use the new helper for C2B URLs
-        confirmation_url = _get_callback_url_from_settings(
-            'MPESA_C2B_CONFIRMATION_URL', 
-            'payments:paybill_confirmation_callback'
-        )
-        validation_url = _get_callback_url_from_settings(
-            'MPESA_C2B_VALIDATION_URL', 
-            'payments:paybill_validation_callback'
-        )
+        confirmation_url = _absolute_callback_url('payments:paybill_confirmation_callback')
+        validation_url = _absolute_callback_url('payments:paybill_validation_callback')
 
         payload = {
             'ShortCode': shortcode,
@@ -394,6 +360,7 @@ def register_c2b_urls(shortcode: str, consumer_key: str = '', consumer_secret: s
         )
         data = response.json()
 
+        # Safaricom uses errorCode/errorMessage for errors, ResponseCode/ResponseDescription for success
         if data.get('errorCode') or data.get('errorMessage'):
             error_msg = data.get('errorMessage', 'Unknown Daraja error')
             error_code = data.get('errorCode', '')
