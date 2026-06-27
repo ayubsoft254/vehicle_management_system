@@ -1616,10 +1616,16 @@ def payment_analytics(request):
 
 @login_required
 def paybill_tracker(request):
-    """Display paybill account balance and incoming transaction history."""
-    all_transactions = PaybillTransaction.objects.all().order_by('-trans_time', '-created_at')
+    """Display paybill account balance and incoming M-Pesa transaction history."""
+    # Backfill: ensure every M-Pesa Payment that has no PaybillTransaction yet
+    # gets a synthetic one so it immediately appears in the tracker.
+    _backfill_paybill_transactions()
 
-    # Optional filter by paybill
+    all_transactions = PaybillTransaction.objects.all().order_by(
+        F('trans_time').desc(nulls_last=True), '-created_at'
+    )
+
+    # Optional filter by paybill shortcode
     paybill_filter = request.GET.get('paybill', '').strip()
     if paybill_filter:
         transactions = all_transactions.filter(business_short_code=paybill_filter)
@@ -1633,11 +1639,11 @@ def paybill_tracker(request):
 
     this_month = timezone.now()
 
-    total_received = transactions.aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00')
+    total_received = transactions.aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00')
     month_received = transactions.filter(
         trans_time__year=this_month.year,
         trans_time__month=this_month.month,
-    ).aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00')
+    ).aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00')
 
     # Per-paybill breakdown
     known_paybills = ['4320049', '4162495']
@@ -1647,11 +1653,11 @@ def paybill_tracker(request):
         paybill_stats.append({
             'code': code,
             'count': qs.count(),
-            'total': qs.aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00'),
+            'total': qs.aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00'),
             'month': qs.filter(
                 trans_time__year=this_month.year,
                 trans_time__month=this_month.month,
-            ).aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00'),
+            ).aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00'),
         })
 
     context = {
@@ -1669,6 +1675,51 @@ def paybill_tracker(request):
 
     log_audit(request.user, 'view', 'Payment', 'Viewed paybill tracker')
     return render(request, 'payments/paybill_tracker.html', context)
+
+
+def _backfill_paybill_transactions():
+    """
+    Create a PaybillTransaction for every M-Pesa Payment that has a
+    transaction_reference but no matching PaybillTransaction yet.
+    Runs on each tracker page load — idempotent and fast once backfilled.
+    """
+    try:
+        existing_ids = set(
+            PaybillTransaction.objects.values_list('trans_id', flat=True)
+        )
+        orphan_payments = Payment.objects.filter(
+            payment_method='mpesa',
+            transaction_reference__isnull=False,
+        ).exclude(
+            transaction_reference__in=existing_ids
+        ).select_related('client_vehicle__vehicle').order_by('-payment_date')[:200]
+
+        shortcode = str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip()
+
+        for pmt in orphan_payments:
+            if not pmt.transaction_reference:
+                continue
+            try:
+                cv = pmt.client_vehicle
+                PaybillTransaction.objects.get_or_create(
+                    trans_id=pmt.transaction_reference,
+                    defaults={
+                        'trans_time': timezone.datetime.combine(
+                            pmt.payment_date, timezone.datetime.min.time(),
+                            tzinfo=timezone.get_current_timezone(),
+                        ),
+                        'trans_amount': pmt.amount,
+                        'business_short_code': shortcode,
+                        'bill_ref_number': cv.vehicle.registration_number if cv and cv.vehicle else '',
+                        'msisdn': '',
+                        'raw_payload': {},
+                        'is_linked_to_payment': True,
+                    },
+                )
+            except Exception:
+                pass
+    except Exception as e:
+        logger.warning(f"Backfill skipped: {e}")
 
 
 @login_required
@@ -1748,69 +1799,27 @@ def register_paybill_c2b(request):
 def paybill_validation_callback(request):
     """
     Daraja C2B validation callback endpoint.
-    Validates that the car registration exists and amount is valid.
+    Always accepts — rejecting here silently blocks the customer's payment and
+    prevents the confirmation callback from ever arriving, so transactions are
+    never recorded. Business-logic checks happen at confirmation time instead.
     """
-    logger.info("=" * 60)
-    logger.info("M-Pesa Validation Callback Received")
-    logger.info(f"Headers: {dict(request.headers)}")
-    
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
-        logger.info(f"Payload: {json.dumps(payload, indent=2)}")
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in validation callback: {e}")
-        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Invalid JSON'}, status=400)
-    
-    # ✅ Validate callback secret
+    except json.JSONDecodeError:
+        # Even on bad JSON we accept so M-Pesa doesn't retry indefinitely
+        return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
+
     if not _callback_secret_is_valid(request):
-        logger.warning("Unauthorized callback attempt - invalid secret")
+        logger.warning("Unauthorized C2B validation attempt")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
-    
-    # ✅ Extract transaction details
+
     bill_ref_number = str(payload.get('BillRefNumber', '')).strip()
     trans_amount = _safe_decimal(payload.get('TransAmount')) or Decimal('0.00')
     trans_id = str(payload.get('TransID', '')).strip()
-    business_shortcode = str(payload.get('BusinessShortCode', '')).strip()
-    msisdn = str(payload.get('MSISDN', '')).strip()
-    
-    logger.info(f"Validation Details: Ref={bill_ref_number}, Amount={trans_amount}, TransID={trans_id}, Shortcode={business_shortcode}")
-    
-    # ✅ Validate the car registration exists
-    client_vehicle = _find_client_vehicle_for_reference(bill_ref_number)
-    
-    if not client_vehicle:
-        logger.warning(f"Vehicle not found for BillRefNumber: {bill_ref_number}")
-        return JsonResponse({
-            'ResultCode': 1, 
-            'ResultDesc': f'Vehicle {bill_ref_number} not found in system'
-        })
-    
-    # ✅ Check if vehicle is active
-    if not client_vehicle.is_active:
-        logger.warning(f"Vehicle {bill_ref_number} is inactive")
-        return JsonResponse({
-            'ResultCode': 1, 
-            'ResultDesc': f'Vehicle {bill_ref_number} is not active'
-        })
-    
-    # ✅ Validate the amount
-    outstanding_balance = client_vehicle.balance or Decimal('0.00')
-    if trans_amount <= 0:
-        logger.warning(f"Invalid amount: {trans_amount}")
-        return JsonResponse({
-            'ResultCode': 1, 
-            'ResultDesc': 'Invalid amount - must be greater than 0'
-        })
-    
-    if trans_amount > outstanding_balance:
-        logger.info(f"Amount {trans_amount} exceeds outstanding balance {outstanding_balance}")
-        return JsonResponse({
-            'ResultCode': 1, 
-            'ResultDesc': f'Amount exceeds outstanding balance of KES {outstanding_balance:,.2f}'
-        })
-    
-    # ✅ Validation passed
-    logger.info(f"✅ Validation PASSED for {bill_ref_number} - Amount {trans_amount}")
+    logger.info(
+        f"C2B Validation: Ref={bill_ref_number}, Amount={trans_amount}, "
+        f"TransID={trans_id} — accepted (validation is permissive)"
+    )
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
@@ -1819,45 +1828,32 @@ def paybill_validation_callback(request):
 def paybill_confirmation_callback(request):
     """
     Daraja C2B confirmation callback endpoint.
-    Processes successful payments and updates records.
+
+    Always stores the PaybillTransaction so it appears in the tracker.
+    The post_save signal (process_paybill_transaction in signals.py) creates
+    the Payment and recalculates the vehicle balance — balance updates are NOT
+    done here to avoid double-counting.
     """
-    logger.info("=" * 60)
-    logger.info("M-Pesa Confirmation Callback Received")
-    logger.info(f"Headers: {dict(request.headers)}")
-    
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
-        logger.info(f"Payload: {json.dumps(payload, indent=2)}")
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in confirmation callback: {e}")
+        logger.error(f"Invalid JSON in C2B confirmation: {e}")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Invalid JSON'}, status=400)
-    
-    # ✅ Validate callback secret
+
     if not _callback_secret_is_valid(request):
-        logger.warning("Unauthorized callback attempt - invalid secret")
+        logger.warning("Unauthorized C2B confirmation attempt")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
-    
-    # ✅ Extract transaction details
+
     trans_id = str(payload.get('TransID', '')).strip()
     if not trans_id:
-        logger.error("Missing TransID in confirmation callback")
+        logger.error("Missing TransID in C2B confirmation")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Missing TransID'}, status=400)
-    
-    # ✅ Check for duplicate transaction
-    existing_transaction = PaybillTransaction.objects.filter(trans_id=trans_id).first()
-    if existing_transaction:
-        logger.info(f"Duplicate transaction {trans_id} - already processed")
+
+    # Idempotent — acknowledge without creating a duplicate
+    if PaybillTransaction.objects.filter(trans_id=trans_id).exists():
+        logger.info(f"C2B duplicate {trans_id} — already stored")
         return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Duplicate - Already Processed'})
-    
-    # ✅ Check for duplicate payment
-    existing_payment = Payment.objects.filter(
-        transaction_reference=trans_id,
-        payment_method='mpesa'
-    ).first()
-    if existing_payment:
-        logger.info(f"Duplicate payment for transaction {trans_id} - already processed")
-        return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Duplicate - Already Processed'})
-    
+
     bill_ref_number = str(payload.get('BillRefNumber', '')).strip()
     trans_amount = _safe_decimal(payload.get('TransAmount')) or Decimal('0.00')
     business_shortcode = str(payload.get('BusinessShortCode', '')).strip()
@@ -1866,110 +1862,34 @@ def paybill_confirmation_callback(request):
     first_name = str(payload.get('FirstName', '')).strip()
     middle_name = str(payload.get('MiddleName', '')).strip()
     last_name = str(payload.get('LastName', '')).strip()
-    
-    logger.info(f"Processing: Ref={bill_ref_number}, Amount={trans_amount}, TransID={trans_id}, Phone={msisdn}")
-    
-    # ✅ Find the client vehicle
-    client_vehicle = _find_client_vehicle_for_reference(bill_ref_number)
-    if not client_vehicle:
-        logger.error(f"Vehicle not found for BillRefNumber: {bill_ref_number}")
-        return JsonResponse({
-            'ResultCode': 1, 
-            'ResultDesc': f'Vehicle {bill_ref_number} not found'
-        })
-    
-    # ✅ Process the payment with atomic transaction
+
+    logger.info(f"C2B Confirmation: Ref={bill_ref_number}, Amount={trans_amount}, TransID={trans_id}")
+
+    # Store the transaction unconditionally so it always appears in the tracker.
+    # The post_save signal (process_paybill_transaction in signals.py) will
+    # create the Payment and recalculate the vehicle balance automatically.
     try:
-        with transaction.atomic():
-            # Create the paybill transaction record
-            transaction_obj = PaybillTransaction.objects.create(
-                trans_id=trans_id,
-                trans_time=trans_time or timezone.now(),
-                trans_amount=trans_amount,
-                business_short_code=business_shortcode,
-                bill_ref_number=bill_ref_number,
-                invoice_number=str(payload.get('InvoiceNumber', '')).strip(),
-                org_account_balance=_safe_decimal(payload.get('OrgAccountBalance')),
-                msisdn=msisdn,
-                first_name=first_name,
-                middle_name=middle_name,
-                last_name=last_name,
-                raw_payload=payload,
-                is_linked_to_payment=True,
-            )
-            
-            # Create the payment record
-            payment = Payment.objects.create(
-                client_vehicle=client_vehicle,
-                amount=trans_amount,
-                payment_date=(trans_time or timezone.now()).date(),
-                payment_method='mpesa',
-                transaction_reference=trans_id,
-                recorded_by=None,  # System recorded
-                notes=f'Paybill payment received. Account ref: {bill_ref_number} from {msisdn}'
-            )
-            
-            logger.info(f"✅ Payment record created: {payment.receipt_number}")
-            
-            # ✅ Update client vehicle balance
-            client_vehicle.total_paid += trans_amount
-            client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
-            
-            # ✅ Check if fully paid
-            if client_vehicle.balance <= 0:
-                client_vehicle.is_paid_off = True
-                client_vehicle.client.status = 'completed'
-                client_vehicle.client.save()
-                logger.info(f"🎉 Vehicle {bill_ref_number} fully paid off!")
-            
-            client_vehicle.save()
-            
-            # ✅ Update payment schedules if installment plan exists
-            update_payment_schedules(payment, client_vehicle)
-            
-            # ✅ Send email notification
-            try:
-                from django.core.mail import send_mail
-                subject = f"Payment Received - {client_vehicle.vehicle.registration_number}"
-                
-                client_name = client_vehicle.client.get_full_name() or "Client"
-                vehicle_reg = client_vehicle.vehicle.registration_number or bill_ref_number
-                
-                message = f"""
-Dear {client_name},
-
-We are pleased to confirm receipt of your payment of KES {trans_amount:,.2f} via M-Pesa Paybill.
-
-Payment Details:
-- Vehicle: {vehicle_reg}
-- Transaction ID: {trans_id}
-- Phone: {msisdn}
-- Date: {(trans_time or timezone.now()).strftime('%Y-%m-%d %H:%M:%S')}
-- Amount: KES {trans_amount:,.2f}
-- Remaining Balance: KES {client_vehicle.balance:,.2f}
-
-Thank you for your payment!
-
-Regards,
-{getattr(settings, 'COMPANY_NAME', 'Hoza Cars')}
-"""
-                send_mail(
-                    subject,
-                    message,
-                    settings.EMAIL_HOST_USER,
-                    [client_vehicle.client.email, settings.EMAIL_HOST_USER],
-                    fail_silently=True,
-                )
-                logger.info(f"Email notification sent to {client_vehicle.client.email}")
-            except Exception as e:
-                logger.error(f"Failed to send email notification: {e}")
-            
-            logger.info(f"✅ Payment {trans_id} processed successfully")
-            return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
-            
+        PaybillTransaction.objects.create(
+            trans_id=trans_id,
+            trans_time=trans_time or timezone.now(),
+            trans_amount=trans_amount,
+            business_short_code=business_shortcode,
+            bill_ref_number=bill_ref_number,
+            invoice_number=str(payload.get('InvoiceNumber', '')).strip(),
+            org_account_balance=_safe_decimal(payload.get('OrgAccountBalance')),
+            msisdn=msisdn,
+            first_name=first_name,
+            middle_name=middle_name,
+            last_name=last_name,
+            raw_payload=payload,
+            is_linked_to_payment=False,
+        )
+        logger.info(f"✅ C2B PaybillTransaction {trans_id} stored — signal will handle Payment creation")
     except Exception as e:
-        logger.error(f"Error processing payment {trans_id}: {str(e)}", exc_info=True)
-        return JsonResponse({'ResultCode': 1, 'ResultDesc': f'Processing error: {str(e)}'})
+        logger.error(f"Error storing C2B transaction {trans_id}: {e}", exc_info=True)
+        # Return 200 anyway — returning ResultCode 1 causes M-Pesa to retry
+
+    return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
 @csrf_exempt
@@ -2068,72 +1988,65 @@ def stk_push_callback(request):
         client_vehicle = stk_request.client_vehicle or _find_client_vehicle_for_reference(account_reference)
         amount = parsed_metadata['amount'] or stk_request.amount
         transaction_reference = parsed_metadata['mpesa_receipt_number']
-        payment_date = (parsed_metadata['transaction_date'] or timezone.now()).date()
+        trans_time = parsed_metadata['transaction_date'] or timezone.now()
+        payment_date = trans_time.date() if hasattr(trans_time, 'date') else timezone.now().date()
         phone_number = parsed_metadata['phone_number'] or stk_request.phone_number
-        
-        if client_vehicle and transaction_reference and amount > 0:
-            logger.info(f"Processing STK payment: Vehicle={account_reference}, Amount={amount}, Receipt={transaction_reference}")
-            
+
+        # Store the transaction record first so it always appears in the tracker,
+        # even if Payment creation below fails. Use checkout_request_id as fallback
+        # trans_id when the M-Pesa receipt number is not yet available.
+        paybill_trans_id = transaction_reference or checkout_request_id
+        if paybill_trans_id and amount and amount > 0:
             try:
-                with transaction.atomic():
-                    # Check for duplicate
-                    existing_payment = Payment.objects.filter(
-                        client_vehicle=client_vehicle,
-                        transaction_reference=transaction_reference,
-                        payment_method='mpesa',
-                    ).first()
-                    
-                    if existing_payment:
-                        stk_request.payment = existing_payment
-                        logger.info(f"STK payment already exists: {existing_payment.receipt_number}")
-                    else:
-                        # Create payment
-                        created_payment = Payment.objects.create(
-                            client_vehicle=client_vehicle,
-                            amount=amount,
-                            payment_date=payment_date,
-                            payment_method='mpesa',
-                            transaction_reference=transaction_reference,
-                            notes=f'M-Pesa STK payment. Account ref: {account_reference or "N/A"}. Phone: {phone_number}.'
-                        )
-                        stk_request.payment = created_payment
-                        logger.info(f"✅ STK Payment created: {created_payment.receipt_number}")
-                        
-                        # Update client vehicle balance
-                        client_vehicle.total_paid += amount
-                        client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
-                        
-                        if client_vehicle.balance <= 0:
-                            client_vehicle.is_paid_off = True
-                            client_vehicle.client.status = 'completed'
-                            client_vehicle.client.save()
-                            logger.info(f"🎉 Vehicle {account_reference} fully paid off via STK!")
-                        
-                        client_vehicle.save()
-                        
-                        # Update payment schedules
-                        update_payment_schedules(created_payment, client_vehicle)
-                    
-                    # Create PaybillTransaction record
-                    PaybillTransaction.objects.update_or_create(
-                        trans_id=transaction_reference,
-                        defaults={
-                            'trans_time': parsed_metadata['transaction_date'] or timezone.now(),
-                            'trans_amount': amount,
-                            'business_short_code': str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip(),
-                            'bill_ref_number': account_reference,
-                            'invoice_number': checkout_request_id,
-                            'msisdn': phone_number,
-                            'raw_payload': payload,
-                            'is_linked_to_payment': True,
-                        },
-                    )
-                    
+                PaybillTransaction.objects.update_or_create(
+                    trans_id=paybill_trans_id,
+                    defaults={
+                        'trans_time': trans_time,
+                        'trans_amount': amount,
+                        'business_short_code': str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip(),
+                        'bill_ref_number': account_reference,
+                        'invoice_number': checkout_request_id,
+                        'msisdn': phone_number,
+                        'raw_payload': payload,
+                        'is_linked_to_payment': False,
+                    },
+                )
+                logger.info(f"✅ STK PaybillTransaction {paybill_trans_id} stored")
             except Exception as e:
-                logger.error(f"Error processing STK payment: {e}", exc_info=True)
-    
+                logger.error(f"Error storing STK PaybillTransaction {paybill_trans_id}: {e}", exc_info=True)
+
+        # Create or link the Payment. The post_save signal on Payment handles
+        # balance recalculation — do NOT update client_vehicle manually here.
+        if client_vehicle and transaction_reference and amount and amount > 0:
+            logger.info(f"Processing STK payment: Vehicle={account_reference}, Amount={amount}, Receipt={transaction_reference}")
+            try:
+                existing_payment = Payment.objects.filter(
+                    transaction_reference=transaction_reference,
+                    payment_method='mpesa',
+                ).first()
+
+                if existing_payment:
+                    stk_request.payment = existing_payment
+                    logger.info(f"STK payment already exists: {existing_payment.receipt_number}")
+                else:
+                    created_payment = Payment.objects.create(
+                        client_vehicle=client_vehicle,
+                        amount=amount,
+                        payment_date=payment_date,
+                        payment_method='mpesa',
+                        transaction_reference=transaction_reference,
+                        notes=(
+                            f'M-Pesa STK payment. Account ref: {account_reference or "N/A"}. '
+                            f'Phone: {phone_number or "N/A"}.'
+                        ),
+                    )
+                    stk_request.payment = created_payment
+                    logger.info(f"✅ STK Payment created: {created_payment.receipt_number}")
+            except Exception as e:
+                logger.error(f"Error creating STK payment: {e}", exc_info=True)
+
     stk_request.save()
-    logger.info(f"✅ STK Callback processed successfully: {checkout_request_id}")
+    logger.info(f"✅ STK Callback processed: {checkout_request_id}")
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 

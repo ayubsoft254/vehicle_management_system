@@ -237,63 +237,108 @@ def revert_payment_on_delete(sender, instance, **kwargs):
 
 # ==================== PAYBILL TRANSACTION SIGNALS ====================
 
+def _normalize_reg(value):
+    """Normalize a vehicle registration number for fuzzy matching."""
+    import re
+    return re.sub(r'[\s\-]', '', str(value or '')).upper()
+
+
+def _find_vehicle_by_bill_ref(bill_ref_number):
+    """Find an active ClientVehicle from a bill reference / account reference."""
+    if not bill_ref_number:
+        return None
+
+    normalized = _normalize_reg(bill_ref_number)
+    if not normalized:
+        return None
+
+    # Exact case-insensitive match first
+    cv = ClientVehicle.objects.select_related('vehicle', 'client').filter(
+        is_active=True,
+        vehicle__registration_number__iexact=bill_ref_number.strip(),
+    ).first()
+    if cv:
+        return cv
+
+    # Normalized match (ignore spaces/dashes)
+    for cv in ClientVehicle.objects.select_related('vehicle', 'client').filter(
+        is_active=True,
+        vehicle__registration_number__isnull=False,
+    ).iterator():
+        if _normalize_reg(cv.vehicle.registration_number) == normalized:
+            return cv
+    return None
+
+
 @receiver(post_save, sender=PaybillTransaction)
 def process_paybill_transaction(sender, instance, created, **kwargs):
     """
-    ✅ SAFE: Process paybill transaction when it's created
-    Only runs if not linked to a payment and amount is valid
+    Create a Payment record from an incoming C2B PaybillTransaction.
+    Only fires on creation. Skipped if a matching Payment already exists.
     """
     try:
-        # Skip if already linked or invalid
         if not created:
             return
-        
-        if instance.is_linked_to_payment:
-            return
-        
+
         if not instance.trans_id or not instance.trans_amount or instance.trans_amount <= 0:
             return
-        
-        # Check if this transaction already has a payment
+
+        # If a Payment with this M-Pesa code already exists (created by the view),
+        # just ensure the link flag is set and exit.
         existing_payment = Payment.objects.filter(
             transaction_reference=instance.trans_id,
             payment_method='mpesa'
         ).first()
-        
+
         if existing_payment:
-            # Link existing payment
-            instance.is_linked_to_payment = True
-            instance.save(update_fields=['is_linked_to_payment'])
-            return
-        
-        # Try to create payment from paybill transaction
-        if not instance.bill_ref_number:
-            return
-        
-        # Find vehicle by bill reference
-        client_vehicle = ClientVehicle.objects.filter(
-            is_active=True,
-            vehicle__registration_number__iexact=instance.bill_ref_number.strip().upper()
-        ).first()
-        
-        if client_vehicle:
-            with transaction.atomic():
-                payment = Payment.objects.create(
-                    client_vehicle=client_vehicle,
-                    amount=instance.trans_amount,
-                    payment_date=instance.trans_time or timezone.now().date(),
-                    payment_method='mpesa',
-                    transaction_reference=instance.trans_id,
-                    recorded_by=None,  # System recorded
-                    notes=f'Paybill payment received. Account ref: {instance.bill_ref_number}'
-                )
-                
+            if not instance.is_linked_to_payment:
                 instance.is_linked_to_payment = True
                 instance.save(update_fields=['is_linked_to_payment'])
-                
-                logger.info(f"✅ Created Payment {payment.receipt_number} from PaybillTransaction {instance.trans_id}")
+            return
+
+        # Transaction was saved but no Payment exists yet — create one if we
+        # can resolve the bill reference to an active vehicle.
+        if not instance.bill_ref_number:
+            logger.warning(
+                f"PaybillTransaction {instance.trans_id}: no bill_ref_number, cannot auto-create payment."
+            )
+            return
+
+        client_vehicle = _find_vehicle_by_bill_ref(instance.bill_ref_number)
+
+        if not client_vehicle:
+            logger.warning(
+                f"PaybillTransaction {instance.trans_id}: vehicle not found for ref "
+                f"'{instance.bill_ref_number}'. Transaction stored as unlinked."
+            )
+            return
+
+        payment_date = (
+            instance.trans_time.date() if instance.trans_time else timezone.now().date()
+        )
+
+        with transaction.atomic():
+            payment = Payment.objects.create(
+                client_vehicle=client_vehicle,
+                amount=instance.trans_amount,
+                payment_date=payment_date,
+                payment_method='mpesa',
+                transaction_reference=instance.trans_id,
+                recorded_by=None,
+                notes=(
+                    f'Paybill payment received. Account ref: {instance.bill_ref_number}. '
+                    f'Phone: {instance.msisdn or "N/A"}.'
+                ),
+            )
+
+            instance.is_linked_to_payment = True
+            instance.save(update_fields=['is_linked_to_payment'])
+
+            logger.info(
+                f"✅ Payment {payment.receipt_number} created from PaybillTransaction {instance.trans_id}"
+            )
     except Exception as e:
-        logger.error(f"Error processing paybill transaction {instance.id}: {e}")
+        logger.error(f"Error processing paybill transaction {getattr(instance, 'id', '?')}: {e}")
 
 
 # ==================== INSTALLMENT PLAN SIGNALS ====================
