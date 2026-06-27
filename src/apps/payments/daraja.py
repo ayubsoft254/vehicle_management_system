@@ -274,3 +274,88 @@ def request_account_balance() -> dict:
             'error': str(exc),
             'missing_vars': [],
         }
+
+
+def _get_access_token_for(consumer_key: str, consumer_secret: str) -> str:
+    """Get a Daraja access token using explicit credentials."""
+    consumer_key = _clean(consumer_key)
+    consumer_secret = _clean(consumer_secret)
+    if not consumer_key or not consumer_secret:
+        raise DarajaError('Consumer key and secret are required.')
+    auth = b64encode(f'{consumer_key}:{consumer_secret}'.encode('utf-8')).decode('utf-8')
+    url = urljoin(get_daraja_base_url(), 'oauth/v1/generate?grant_type=client_credentials')
+    response = requests.get(url, headers={'Authorization': f'Basic {auth}'}, timeout=20)
+    response.raise_for_status()
+    token = response.json().get('access_token')
+    if not token:
+        raise DarajaError('Daraja access token missing from OAuth response.')
+    return token
+
+
+def register_c2b_urls(shortcode: str, consumer_key: str = '', consumer_secret: str = '') -> dict:
+    """Register C2B validation and confirmation URLs for a paybill shortcode.
+
+    Must be called once per shortcode so Safaricom knows where to POST C2B
+    callbacks.  Pass explicit consumer_key/consumer_secret when the paybill
+    belongs to a different Safaricom account than the primary shortcode.
+    """
+    shortcode = _clean(shortcode)
+    if not shortcode:
+        return {'ok': False, 'missing_vars': [], 'error': 'Shortcode is required.'}
+
+    # Fall back to primary credentials when none supplied
+    key = _clean(consumer_key) or _clean(getattr(settings, 'MPESA_CONSUMER_KEY', ''))
+    secret = _clean(consumer_secret) or _clean(getattr(settings, 'MPESA_CONSUMER_SECRET', ''))
+    if not key or not secret:
+        return {
+            'ok': False,
+            'missing_vars': ['MPESA_CONSUMER_KEY', 'MPESA_CONSUMER_SECRET'],
+            'error': 'Consumer key and secret are required for C2B registration.',
+        }
+
+    try:
+        access_token = _get_access_token_for(key, secret)
+        confirmation_url = _absolute_callback_url('payments:paybill_confirmation_callback')
+        validation_url = _absolute_callback_url('payments:paybill_validation_callback')
+
+        payload = {
+            'ShortCode': shortcode,
+            'ResponseType': 'Completed',
+            'ConfirmationURL': confirmation_url,
+            'ValidationURL': validation_url,
+        }
+
+        url = urljoin(get_daraja_base_url(), 'mpesa/c2b/v1/registerurl')
+        response = requests.post(
+            url,
+            json=payload,
+            headers={
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'application/json',
+            },
+            timeout=25,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        response_code = str(data.get('ResponseCode', '')).strip()
+        ok = response_code == '0' or 'success' in str(data.get('ResponseDescription', '')).lower()
+        return {
+            'ok': ok,
+            'shortcode': shortcode,
+            'response': data,
+            'error': '' if ok else data.get('ResponseDescription', 'Registration failed.'),
+        }
+    except requests.HTTPError as exc:
+        body = ''
+        if exc.response is not None:
+            try:
+                body = exc.response.text
+            except Exception:
+                body = ''
+        detail = str(exc)
+        if body:
+            detail = f'{detail} | Daraja response: {body}'
+        return {'ok': False, 'missing_vars': [], 'error': detail}
+    except (requests.RequestException, DarajaError) as exc:
+        return {'ok': False, 'missing_vars': [], 'error': str(exc)}

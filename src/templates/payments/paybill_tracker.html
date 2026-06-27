@@ -16,7 +16,16 @@
                 <button type="submit"
                         class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                     <i class="fas fa-sync mr-2"></i>
-                    Refresh Paybill Balance
+                    Refresh Balance
+                </button>
+            </form>
+            <form method="post" action="{% url 'payments:register_paybill_c2b' %}"
+                  onsubmit="return confirm('Register C2B callback URLs with Safaricom for both paybills (4320049 and 4162495)?\n\nDo this once after deployment or when the callback URL changes.');">
+                {% csrf_token %}
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                    <i class="fas fa-plug mr-2"></i>
+                    Register Callbacks
                 </button>
             </form>
             <a href="{% url 'payments:payment_list' %}"
@@ -35,7 +44,40 @@
     </div>
     {% endif %}
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <!-- Per-Paybill Breakdown -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {% for pb in paybill_stats %}
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="bg-gray-50 px-5 py-3 border-b border-gray-200 flex items-center justify-between">
+                <h2 class="font-semibold text-gray-800">
+                    <i class="fas fa-mobile-alt mr-2 text-green-600"></i>
+                    Paybill <span class="font-mono">{{ pb.code }}</span>
+                </h2>
+                <a href="?paybill={{ pb.code }}"
+                   class="text-xs px-3 py-1 rounded-full {% if paybill_filter == pb.code %}bg-primary-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                    {% if paybill_filter == pb.code %}Filtered{% else %}Filter{% endif %}
+                </a>
+            </div>
+            <div class="px-5 py-4 grid grid-cols-3 gap-4 text-sm">
+                <div>
+                    <p class="text-xs text-gray-500">Transactions</p>
+                    <p class="text-xl font-bold text-gray-900 mt-0.5">{{ pb.count }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500">Total Received</p>
+                    <p class="text-lg font-bold text-green-700 mt-0.5">KES {{ pb.total|floatformat:2 }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500">This Month</p>
+                    <p class="text-lg font-bold text-blue-700 mt-0.5">KES {{ pb.month|floatformat:2 }}</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Overall Summary -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm text-gray-600">Latest Balance</p>
             <p class="text-2xl font-bold text-gray-900 mt-1">
@@ -47,11 +89,15 @@
             </p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <p class="text-sm text-gray-600">Total Transactions</p>
+            <p class="text-sm text-gray-600">
+                {% if paybill_filter %}Transactions ({{ paybill_filter }}){% else %}Total Transactions{% endif %}
+            </p>
             <p class="text-2xl font-bold text-gray-900 mt-1">{{ transactions_count }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <p class="text-sm text-gray-600">Total Received</p>
+            <p class="text-sm text-gray-600">
+                {% if paybill_filter %}Total — {{ paybill_filter }}{% else %}Total Received{% endif %}
+            </p>
             <p class="text-2xl font-bold text-gray-900 mt-1">KES {{ total_received|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
@@ -60,6 +106,7 @@
         </div>
     </div>
 
+    <!-- Balance Request Status -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-2">Balance Request Status</h2>
         {% if latest_snapshot %}
@@ -81,10 +128,30 @@
         {% endif %}
     </div>
 
+    <!-- Transaction Table -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-gray-900">Recent Paybill Transactions</h2>
-            <span class="text-sm text-gray-500">Showing latest {{ transactions|length }}</span>
+        <div class="px-5 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h2 class="text-lg font-semibold text-gray-900">
+                {% if paybill_filter %}
+                Transactions — Paybill {{ paybill_filter }}
+                {% else %}
+                All Paybill Transactions
+                {% endif %}
+            </h2>
+            <div class="flex items-center gap-2">
+                <!-- Filter tabs -->
+                <a href="{% url 'payments:paybill_tracker' %}"
+                   class="text-xs px-3 py-1.5 rounded-full font-medium {% if not paybill_filter %}bg-primary-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                    All
+                </a>
+                {% for pb in paybill_stats %}
+                <a href="?paybill={{ pb.code }}"
+                   class="text-xs px-3 py-1.5 rounded-full font-medium {% if paybill_filter == pb.code %}bg-primary-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                    {{ pb.code }}
+                </a>
+                {% endfor %}
+                <span class="text-sm text-gray-500 ml-2">{{ transactions|length }} shown</span>
+            </div>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -92,6 +159,7 @@
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trans ID</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paybill</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payer</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill Ref</th>
@@ -101,16 +169,23 @@
                 <tbody class="bg-white divide-y divide-gray-100">
                     {% for tx in transactions %}
                     <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 text-sm text-gray-700">{{ tx.trans_time|date:"Y-m-d H:i"|default:"-" }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ tx.trans_time|date:"Y-m-d H:i"|default:"-" }}</td>
                         <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ tx.trans_id }}</td>
+                        <td class="px-4 py-3 text-sm">
+                            {% if tx.business_short_code %}
+                            <span class="px-2 py-0.5 text-xs font-mono rounded bg-gray-100 text-gray-700">{{ tx.business_short_code }}</span>
+                            {% else %}
+                            <span class="text-gray-400">—</span>
+                            {% endif %}
+                        </td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ tx.payer_name }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ tx.msisdn|default:"-" }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ tx.bill_ref_number|default:"-" }}</td>
-                        <td class="px-4 py-3 text-sm text-right font-semibold text-green-700">KES {{ tx.trans_amount|floatformat:2 }}</td>
+                        <td class="px-4 py-3 text-sm text-right font-semibold text-green-700 whitespace-nowrap">KES {{ tx.trans_amount|floatformat:2 }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="px-4 py-8 text-center text-gray-500">No paybill transactions received yet.</td>
+                        <td colspan="7" class="px-4 py-8 text-center text-gray-500">No paybill transactions received yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

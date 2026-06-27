@@ -33,7 +33,7 @@ from .models import (
 )
 from .daraja import (
     request_account_balance, mpesa_is_configured, get_missing_mpesa_vars,
-    initiate_stk_push, _normalize_phone_number,
+    initiate_stk_push, _normalize_phone_number, register_c2b_urls,
 )
 from apps.clients.models import Client, ClientVehicle
 from apps.audit.utils import log_audit
@@ -1435,18 +1435,42 @@ def payment_analytics(request):
 @login_required
 def paybill_tracker(request):
     """Display paybill account balance and incoming transaction history."""
-    transactions = PaybillTransaction.objects.all().order_by('-trans_time', '-created_at')
+    all_transactions = PaybillTransaction.objects.all().order_by('-trans_time', '-created_at')
+
+    # Optional filter by paybill
+    paybill_filter = request.GET.get('paybill', '').strip()
+    if paybill_filter:
+        transactions = all_transactions.filter(business_short_code=paybill_filter)
+    else:
+        transactions = all_transactions
+
     latest_snapshot = PaybillBalanceSnapshot.objects.first()
     latest_successful_snapshot = PaybillBalanceSnapshot.objects.filter(
         status=PaybillBalanceSnapshot.STATUS_SUCCESS
     ).first()
 
-    total_received = transactions.aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00')
     this_month = timezone.now()
+
+    total_received = transactions.aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00')
     month_received = transactions.filter(
         trans_time__year=this_month.year,
         trans_time__month=this_month.month,
     ).aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00')
+
+    # Per-paybill breakdown
+    known_paybills = ['4320049', '4162495']
+    paybill_stats = []
+    for code in known_paybills:
+        qs = all_transactions.filter(business_short_code=code)
+        paybill_stats.append({
+            'code': code,
+            'count': qs.count(),
+            'total': qs.aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00'),
+            'month': qs.filter(
+                trans_time__year=this_month.year,
+                trans_time__month=this_month.month,
+            ).aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00'),
+        })
 
     context = {
         'transactions': transactions[:100],
@@ -1457,6 +1481,8 @@ def paybill_tracker(request):
         'latest_successful_snapshot': latest_successful_snapshot,
         'daraja_configured': mpesa_is_configured(),
         'missing_mpesa_vars': get_missing_mpesa_vars(),
+        'paybill_stats': paybill_stats,
+        'paybill_filter': paybill_filter,
     }
 
     log_audit(request.user, 'view', 'Payment', 'Viewed paybill tracker')
@@ -1488,6 +1514,48 @@ def refresh_paybill_balance(request):
         else:
             messages.error(request, f"Unable to request paybill balance: {result.get('error', 'Unknown error')}")
 
+    return redirect('payments:paybill_tracker')
+
+
+@login_required
+@require_POST
+def register_paybill_c2b(request):
+    """Register C2B callback URLs with Safaricom for all configured paybills."""
+    paybills = [
+        {
+            'shortcode': settings.MPESA_SHORTCODE,
+            'consumer_key': settings.MPESA_CONSUMER_KEY,
+            'consumer_secret': settings.MPESA_CONSUMER_SECRET,
+        },
+        {
+            'shortcode': getattr(settings, 'MPESA_SHORTCODE_2', ''),
+            'consumer_key': getattr(settings, 'MPESA_CONSUMER_KEY_2', ''),
+            'consumer_secret': getattr(settings, 'MPESA_CONSUMER_SECRET_2', ''),
+        },
+    ]
+    results = []
+    for pb in paybills:
+        if not pb['shortcode']:
+            continue
+        result = register_c2b_urls(
+            pb['shortcode'],
+            consumer_key=pb['consumer_key'],
+            consumer_secret=pb['consumer_secret'],
+        )
+        results.append({'code': pb['shortcode'], **result})
+
+    ok_count = sum(1 for r in results if r.get('ok'))
+    fail_count = len(results) - ok_count
+
+    if ok_count == len(results):
+        messages.success(request, f'C2B URLs registered successfully for both paybills.')
+    elif ok_count > 0:
+        messages.warning(request, f'Registered {ok_count} paybill(s), {fail_count} failed. Check errors below.')
+    else:
+        errors = '; '.join(r.get('error', 'Unknown') for r in results if not r.get('ok'))
+        messages.error(request, f'C2B registration failed: {errors}')
+
+    log_audit(request.user, 'action', 'Payment', 'Triggered C2B URL registration for all paybills')
     return redirect('payments:paybill_tracker')
 
 
