@@ -362,15 +362,9 @@ document.querySelector('[name="amount"]')?.addEventListener('input', updateSplit
 // ===== M-Pesa STK Push (single method only) =====
 const STK_INITIATE_URL = '{% url "payments:staff_stk_initiate" client_vehicle.pk %}';
 const STK_STATUS_URL   = '{% url "payments:staff_stk_status" %}';
+const CSRF_TOKEN       = '{{ csrf_token }}';
 
 let stkPollInterval = null;
-
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
-    return '';
-}
 
 function showStkStatus(cls, html) {
     const area = document.getElementById('stk-status-area');
@@ -419,11 +413,18 @@ function initiateStkPush() {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken'),
+            'X-CSRFToken': CSRF_TOKEN,
         },
         body: JSON.stringify({ phone_number: phone, amount: parseFloat(amount) }),
     })
-    .then(r => r.json())
+    .then(r => {
+        if (!r.ok) {
+            return r.text().then(text => {
+                throw new Error('Server error (' + r.status + '): ' + (text.substring(0, 200) || 'No details'));
+            });
+        }
+        return r.json();
+    })
     .then(data => {
         if (!data.ok) {
             showStkStatus('bg-red-50 border border-red-200 text-red-700',
@@ -439,9 +440,9 @@ function initiateStkPush() {
         // Poll every 4 seconds
         stkPollInterval = setInterval(() => pollStkStatus(checkoutId), 4000);
     })
-    .catch(() => {
+    .catch(err => {
         showStkStatus('bg-red-50 border border-red-200 text-red-700',
-            '<i class="fas fa-times-circle mr-1"></i> Network error. Please try again.');
+            '<i class="fas fa-times-circle mr-1"></i> ' + (err.message || 'Request failed. Please try again.'));
         setStkBtnDisabled(false);
     });
 }

@@ -304,7 +304,7 @@ MPESA_RESULT_URL_BASE = config('MPESA_RESULT_URL_BASE', default='')
 MPESA_CALLBACK_SECRET = config('MPESA_CALLBACK_SECRET', default='')
 MPESA_C2B_CONFIRMATION_URL = config('MPESA_C2B_CONFIRMATION_URL', default='https://hozacars.com/confirmation')
 MPESA_C2B_VALIDATION_URL = config('MPESA_C2B_VALIDATION_URL', default='https://hozacars.com/validation')
-MPESA_STK_CALLBACK_URL = config('MPESA_STK_CALLBACK_URL', default='https://hozacars.com/mpesa-callback')
+MPESA_STK_CALLBACK_URL = config('MPESA_STK_CALLBACK_URL', default='https://hozacars.com/payments/mpesa-callback/')
 
 # Secondary paybill (4162495) — separate Safaricom account, C2B tracking only
 MPESA_SHORTCODE_2 = config('MPESA_SHORTCODE_2', default='')
@@ -382,8 +382,9 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
     
     # Additional security
-    CSRF_COOKIE_HTTPONLY = True
-    CSRF_USE_SESSIONS = True
+    CSRF_COOKIE_HTTPONLY = False  # Must be False so JS can read csrftoken cookie for AJAX
+    # CSRF_USE_SESSIONS is intentionally NOT set — it breaks JS AJAX calls that read
+    # the csrftoken cookie via getCookie(). Cookie-based CSRF is still secure.
 
 # ==============================================================================
 # SESSION CONFIGURATION

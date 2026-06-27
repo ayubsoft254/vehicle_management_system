@@ -85,8 +85,15 @@ def get_access_token() -> str:
 
 
 def _normalize_phone_number(phone_number: str) -> str:
-    """Return a cleaned phone number without enforcing a country format."""
-    return ''.join(ch for ch in str(phone_number or '').strip() if ch.isdigit() or ch == '+')
+    """Return phone number in Daraja format: 254XXXXXXXXX (digits only, no + or leading 0)."""
+    digits = ''.join(ch for ch in str(phone_number or '').strip() if ch.isdigit())
+    if digits.startswith('0') and len(digits) == 10:
+        digits = '254' + digits[1:]
+    elif digits.startswith('254') and len(digits) == 12:
+        pass  # already correct
+    elif digits.startswith('7') or digits.startswith('1') and len(digits) == 9:
+        digits = '254' + digits
+    return digits
 
 
 def _get_stk_callback_url() -> str:
