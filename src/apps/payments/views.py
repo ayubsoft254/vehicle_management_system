@@ -38,6 +38,8 @@ from .daraja import (
 )
 from apps.clients.models import Client, ClientVehicle
 from apps.audit.utils import log_audit
+from utils.decorators import module_permission_required
+from utils.constants import AccessLevel
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -333,15 +335,17 @@ def payment_list(request):
             Q(client_vehicle__vehicle__registration_number__icontains=search)
         )
     
-    # Statistics
-    total_payments = payments.aggregate(Sum('amount'))['amount__sum'] or 0
-    payment_count = payments.count()
-    
+    # Statistics (active, non-reversed payments only)
+    active_payments = payments.filter(is_reversed=False)
+    total_payments = active_payments.aggregate(Sum('amount'))['amount__sum'] or 0
+    payment_count = active_payments.count()
+
     # This month statistics
     now = timezone.now()
     this_month_payments = Payment.objects.filter(
         payment_date__year=now.year,
-        payment_date__month=now.month
+        payment_date__month=now.month,
+        is_reversed=False,
     ).aggregate(Sum('amount'))['amount__sum'] or 0
 
     hoza_methods = {'equity_hoza', 'dib_hoza', 'coop_hoza'}
@@ -354,7 +358,7 @@ def payment_list(request):
     hoza_breakdown = {'equity_hoza': Decimal('0.00'), 'dib_hoza': Decimal('0.00'), 'coop_hoza': Decimal('0.00')}
     ke_breakdown = {'kcb_ke': Decimal('0.00'), 'absa_ke': Decimal('0.00'), 'equity_ke': Decimal('0.00')}
 
-    for payment in payments:
+    for payment in active_payments:
         if payment.splits.exists():
             portions = [(split.payment_method, split.amount) for split in payment.splits.all()]
         else:
@@ -505,8 +509,35 @@ def payment_detail(request, pk):
     }
     
     log_audit(request.user, 'view', 'Payment', f'Viewed payment {payment.receipt_number}')
-    
+
     return render(request, 'payments/payment_detail.html', context)
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.FULL_ACCESS)
+@require_POST
+def reverse_payment(request, pk):
+    """
+    Reverse (void) a payment. The payment record is kept for audit purposes
+    but is excluded from balances, totals, and payment schedule progress.
+    """
+    payment = get_object_or_404(Payment, pk=pk)
+    reason = (request.POST.get('reason') or '').strip()
+
+    try:
+        payment.reverse_payment(user=request.user, reason=reason)
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect('payments:payment_detail', pk=pk)
+
+    log_audit(
+        request.user,
+        'update',
+        'Payment',
+        f'Reversed payment {payment.receipt_number} (KES {payment.amount:,.2f}): {reason}'
+    )
+    messages.success(request, f'Payment {payment.receipt_number} has been reversed.')
+    return redirect('payments:payment_detail', pk=pk)
 
 
 @login_required
