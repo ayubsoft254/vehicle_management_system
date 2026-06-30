@@ -10,6 +10,7 @@ urlpatterns = [
     # Payment management
     path('', views.payment_list, name='payment_list'),
     path('<int:pk>/', views.payment_detail, name='payment_detail'),
+    path('<int:pk>/reverse/', views.reverse_payment, name='reverse_payment'),
     path('quick-record/', views.quick_record_payment, name='quick_record_payment'),
     path('record/<int:client_vehicle_pk>/', views.record_payment, name='record_payment'),
     path('withdrawals/new/', views.record_account_withdrawal, name='record_account_withdrawal'),
