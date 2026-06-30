@@ -169,6 +169,9 @@ def payment_list(request):
     cash_total = Decimal('0.00')
     other_total = Decimal('0.00')
 
+    hoza_breakdown = {'equity_hoza': Decimal('0.00'), 'dib_hoza': Decimal('0.00'), 'coop_hoza': Decimal('0.00')}
+    ke_breakdown = {'kcb_ke': Decimal('0.00'), 'absa_ke': Decimal('0.00'), 'equity_ke': Decimal('0.00')}
+
     for payment in payments:
         if payment.splits.exists():
             portions = [(split.payment_method, split.amount) for split in payment.splits.all()]
@@ -180,8 +183,10 @@ def payment_list(request):
             amt = amount or Decimal('0.00')
             if method_value in hoza_methods:
                 hoza_total += amt
+                hoza_breakdown[method_value] = hoza_breakdown.get(method_value, Decimal('0.00')) + amt
             elif method_value.endswith('_ke'):
                 ke_total += amt
+                ke_breakdown[method_value] = ke_breakdown.get(method_value, Decimal('0.00')) + amt
             elif method_value == 'cash':
                 cash_total += amt
             else:
@@ -219,6 +224,8 @@ def payment_list(request):
         'ke_withdrawals_total': ke_withdrawals_total,
         'cash_total': cash_total,
         'other_total': other_total,
+        'hoza_breakdown': hoza_breakdown,
+        'ke_breakdown': ke_breakdown,
         'payment_methods': Payment.PAYMENT_METHOD_CHOICES,
         'recent_withdrawals': recent_withdrawals,
         **due_stats,
@@ -642,7 +649,7 @@ def payment_receipt(request, pk):
             'client_vehicle__client',
             'client_vehicle__vehicle',
             'recorded_by'
-        ),
+        ).prefetch_related('splits'),
         pk=pk
     )
     
