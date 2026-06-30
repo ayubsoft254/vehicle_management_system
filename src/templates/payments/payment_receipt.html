@@ -39,8 +39,22 @@
             </button>
         </div>
 
+        {% if payment.is_reversed %}
+        <div class="mb-4 bg-red-600 text-white rounded-lg p-4 flex items-center gap-3 shadow-lg">
+            <i class="fas fa-ban text-2xl"></i>
+            <div>
+                <p class="font-bold text-lg">VOID &mdash; PAYMENT REVERSED</p>
+                <p class="text-sm text-red-100">
+                    Reversed on {{ payment.reversed_at|date:"F d, Y, g:i A" }}
+                    {% if payment.reversed_by %} by {{ payment.reversed_by.get_full_name|default:payment.reversed_by.username }}{% endif %}.
+                    {% if payment.reversal_reason %}Reason: {{ payment.reversal_reason }}{% endif %}
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Receipt Content -->
-        <div class="bg-white shadow-lg rounded-lg overflow-hidden border-2 border-gray-200">
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden border-2 border-gray-200 {% if payment.is_reversed %}opacity-75{% endif %}">
             
             <!-- Header -->
             <div class="bg-gradient-to-r from-primary-600 to-primary-700 text-white p-8">
