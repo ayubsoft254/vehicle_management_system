@@ -31,6 +31,7 @@ def _safe_recalculate_vehicle(client_vehicle):
         total_paid = Payment.objects.filter(
             client_vehicle=client_vehicle,
             payment_date__lte=today,
+            is_reversed=False,
         ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
 
         client_vehicle.total_paid = total_paid
