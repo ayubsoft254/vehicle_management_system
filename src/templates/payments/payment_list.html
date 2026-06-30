@@ -389,9 +389,14 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for payment in payments %}
-                    <tr class="hover:bg-gray-50 transition-colors duration-150">
+                    <tr class="hover:bg-gray-50 transition-colors duration-150 {% if payment.is_reversed %}bg-red-50{% endif %}">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-medium text-gray-900">{{ payment.receipt_number }}</div>
+                            {% if payment.is_reversed %}
+                            <span class="inline-flex items-center px-2 py-0.5 mt-1 text-xs font-semibold rounded-full bg-red-600 text-white">
+                                <i class="fas fa-ban mr-1"></i> Reversed
+                            </span>
+                            {% endif %}
                             {% if payment.transaction_reference %}
                             <div class="text-xs text-gray-500">Ref: {{ payment.transaction_reference }}</div>
                             {% endif %}
@@ -416,7 +421,7 @@
                             {{ payment.payment_date|date:"M d, Y" }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-semibold text-green-600 js-payment-money" data-kes="{{ payment.amount|default:'0' }}">KES {{ payment.amount|floatformat:2 }}</div>
+                            <div class="text-sm font-semibold js-payment-money {% if payment.is_reversed %}text-red-400 line-through{% else %}text-green-600{% endif %}" data-kes="{{ payment.amount|default:'0' }}">KES {{ payment.amount|floatformat:2 }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
