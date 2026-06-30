@@ -2,7 +2,7 @@
 Models for the payments app
 Handles payment records, installment plans, and payment schedules
 """
-from django.db import models
+from django.db import models, transaction as db_transaction
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.utils import timezone
@@ -183,7 +183,31 @@ class Payment(models.Model):
         related_name='recorded_payments',
         help_text="User who recorded this payment"
     )
-    
+
+    # Reversal Fields
+    is_reversed = models.BooleanField(
+        default=False,
+        help_text="Whether this payment has been reversed/voided"
+    )
+    reversed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this payment was reversed"
+    )
+    reversed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reversed_payments',
+        help_text="User who reversed this payment"
+    )
+    reversal_reason = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Reason this payment was reversed"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -238,6 +262,33 @@ class Payment(models.Model):
     def is_split(self):
         """Check if this payment uses multiple methods"""
         return self.splits.exists()
+
+    def reverse_payment(self, user, reason):
+        """
+        Void this payment: keep the record for audit but exclude it from
+        balances/totals. Linked payment schedules are unlinked so the
+        installment plan recalculates as if the payment never happened.
+        """
+        if self.is_reversed:
+            raise ValueError("This payment has already been reversed.")
+
+        reason = (reason or '').strip()
+        if not reason:
+            raise ValueError("A reason is required to reverse a payment.")
+
+        with db_transaction.atomic():
+            self.is_reversed = True
+            self.reversed_at = timezone.now()
+            self.reversed_by = user
+            self.reversal_reason = reason
+            self.save(update_fields=['is_reversed', 'reversed_at', 'reversed_by', 'reversal_reason'])
+
+            PaymentSchedule.objects.filter(payment=self).update(
+                payment=None,
+                amount_paid=Decimal('0.00'),
+                is_paid=False,
+                payment_date=None,
+            )
 
 
 class AccountWithdrawal(models.Model):
