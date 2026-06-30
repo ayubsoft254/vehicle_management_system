@@ -381,40 +381,49 @@ def client_detail(request, pk):
     
     # Get client's vehicles with payment plans
     client_vehicles = ClientVehicle.objects.filter(client=client).select_related('vehicle')
-    
+
+    from apps.repossessions.models import Repossession as _Repo
+    completed_repos = {
+        r.vehicle_id: r
+        for r in _Repo.objects.filter(client=client, status='COMPLETED').order_by('-completion_date')
+    }
+
     # Enrich vehicles with payment plan and schedule information
     vehicles_with_plans = []
     for cv in client_vehicles:
+        repo = completed_repos.get(cv.vehicle_id)
         vehicle_data = {
             'client_vehicle': cv,
             'installment_plan': None,
             'next_payment': None,
             'payment_schedule': None,
             'all_schedules': None,
+            'is_repossessed': repo is not None,
+            'repossession': repo,
         }
-        
+
         # Get installment plan if it exists
         try:
             plan = InstallmentPlan.objects.get(client_vehicle=cv)
             vehicle_data['installment_plan'] = plan
-            
+
             # Get ALL payment schedules for the full breakdown table
             from apps.payments.models import PaymentSchedule
             all_schedules = PaymentSchedule.objects.filter(
                 installment_plan=plan
             ).order_by('installment_number')
             vehicle_data['all_schedules'] = all_schedules
-            
+
             # Get upcoming payment schedule (next 5)
             payment_schedule = all_schedules.filter(is_paid=False)[:5]
             vehicle_data['payment_schedule'] = payment_schedule
-            
+
             # Get next payment
             next_payment = all_schedules.filter(is_paid=False).order_by('due_date').first()
             vehicle_data['next_payment'] = next_payment
         except InstallmentPlan.DoesNotExist:
             pass
-        
+
         vehicles_with_plans.append(vehicle_data)
     
     # Get client's payments
@@ -553,6 +562,10 @@ def assign_vehicle(request, client_pk):
                 client_vehicle = form.save(commit=False)
                 client_vehicle.client = client
                 client_vehicle.created_by = request.user
+                _paybill = request.POST.get('agreement_paybill', '').strip()
+                if _paybill == 'custom':
+                    _paybill = request.POST.get('custom_paybill_value', '').strip()
+                client_vehicle.agreement_paybill = _paybill
 
                 def parse_money(value):
                     try:
@@ -985,6 +998,7 @@ def assign_vehicle(request, client_pk):
             {'id': b.pk, 'name': b.name, 'id_number': b.id_number, 'phone': b.phone}
             for b in brokers
         ]),
+        'default_paybill': '4320049',
     }
 
     return render(request, 'clients/assign_vehicle.html', context)
@@ -1089,9 +1103,10 @@ def client_vehicle_detail(request, pk):
 
         if ins_pol.has_payment_plan and ins_schedules.exists():
             # Deposit counts as first payment; schedules cover the installments after deposit
+            ins_schedule_paid = ins_schedules.aggregate(total=models.Sum('amount_paid'))['total'] or Decimal('0.00')
             ins_total_paid = (ins_pol.insurance_deposit or Decimal('0.00')) + ins_schedule_paid
-            ins_total_due = ins_schedules.aggregate(total=models.Sum('amount_due'))['total'] or Decimal('0.00')
-            ins_balance = max(Decimal('0.00'), ins_total_due - ins_schedule_paid)
+            # Anchor balance to selling_price so it's correct regardless of how installments were entered
+            ins_balance = max(Decimal('0.00'), (ins_pol.selling_price or Decimal('0.00')) - ins_total_paid)
             ins_next_payment = ins_schedules.filter(is_paid=False).order_by('due_date').first()
             ins_monthly = ins_pol.insurance_monthly_installment or (
                 ins_next_payment.amount_due if ins_next_payment else Decimal('0.00')
@@ -1167,8 +1182,58 @@ def client_vehicle_detail(request, pk):
 
     agreement_versions = list(client_vehicle.agreement_versions.order_by('version_number'))
 
+    # Check if this vehicle was repossessed
+    from apps.repossessions.models import Repossession
+    repossession = Repossession.objects.filter(
+        client=client_vehicle.client,
+        vehicle=client_vehicle.vehicle,
+        status='COMPLETED',
+    ).order_by('-completion_date').first()
+    is_repossessed = repossession is not None
+
+    # Retroactively clean up payment schedules and deactivate plan/record for
+    # repos completed before the auto-cleanup code existed
+    if is_repossessed:
+        if not client_vehicle.is_active:
+            pass  # already deactivated
+        else:
+            client_vehicle.is_active = False
+            client_vehicle.save(update_fields=['is_active'])
+        try:
+            _plan = client_vehicle.installment_plan
+            if _plan.is_active:
+                _plan.payment_schedules.filter(is_paid=False).delete()
+                _plan.is_active = False
+                _plan.save(update_fields=['is_active'])
+        except Exception:
+            pass
+
+    # Grand total balance breakdown
+    # Use individual row['balance'] for trackers — combined_owed double-counts renewals
+    # because both the original tracker and each renewal appear as separate rows
+    total_insurance_balance = sum((row['balance'] for row in insurance_policy_list), Decimal('0.00'))
+    total_tracker_balance = sum((row['balance'] for row in tracker_payment_rows), Decimal('0.00'))
+    grand_total_balance = client_vehicle.balance + total_insurance_balance + total_tracker_balance
+
+    total_insurance_paid = sum((row['total_paid'] for row in insurance_policy_list), Decimal('0.00'))
+    total_tracker_paid = sum((row['total_paid'] for row in tracker_payment_rows), Decimal('0.00'))
+    grand_total_paid = client_vehicle.total_paid + total_insurance_paid + total_tracker_paid
+    grand_total_cost = grand_total_paid + grand_total_balance
+    grand_progress = (
+        (grand_total_paid / grand_total_cost * 100).quantize(Decimal('0.1'))
+        if grand_total_cost > 0 else Decimal('100.0')
+    )
+
+    from django.conf import settings as django_settings
+    default_paybill = (
+        client_vehicle.agreement_paybill
+        or getattr(django_settings, 'MPESA_SHORTCODE', '4320049')
+        or '4320049'
+    )
+
     context = {
         'client_vehicle': client_vehicle,
+        'default_paybill': default_paybill,
         'payments': payments,
         'installment_plan': installment_plan,
         'payment_progress': client_vehicle.payment_progress,
@@ -1185,13 +1250,24 @@ def client_vehicle_detail(request, pk):
         'tracker_payment_rows': tracker_payment_rows,
         'tracker_agents': tracker_agents,
         'agreement_versions': agreement_versions,
+        'total_insurance_balance': total_insurance_balance,
+        'total_tracker_balance': total_tracker_balance,
+        'grand_total_balance': grand_total_balance,
+        'grand_total_paid': grand_total_paid,
+        'grand_total_cost': grand_total_cost,
+        'grand_progress': grand_progress,
+        'is_repossessed': is_repossessed,
+        'repossession': repossession,
     }
     
     log_audit(
         request.user, 'view', 'ClientVehicle',
         f'Viewed vehicle purchase details for {client_vehicle.client.get_full_name()}'
     )
-    
+
+    if is_repossessed:
+        return render(request, 'clients/client_vehicle_repossessed.html', context)
+
     return render(request, 'clients/client_vehicle_detail.html', context)
 
 
@@ -1614,6 +1690,11 @@ def client_vehicle_update(request, pk):
     except InstallmentPlan.DoesNotExist:
         pass
 
+    _saved_paybill = client_vehicle.agreement_paybill or '4320049'
+    _known_paybills = {'4320049', '4162495'}
+    _paybill_selection = _saved_paybill if _saved_paybill in _known_paybills else 'custom'
+    _custom_paybill_value = _saved_paybill if _saved_paybill not in _known_paybills else ''
+
     context = {
         'form': form,
         'client': client_vehicle.client,
@@ -1635,6 +1716,8 @@ def client_vehicle_update(request, pk):
             {'id': b.pk, 'name': b.name, 'id_number': b.id_number, 'phone': b.phone}
             for b in brokers
         ]),
+        'default_paybill': _paybill_selection,
+        'default_custom_paybill': _custom_paybill_value,
     }
 
     return render(request, 'clients/assign_vehicle.html', context)
@@ -1767,6 +1850,23 @@ def sign_agreement_online(request, pk):
     return render(request, 'clients/sign_agreement_online.html', context)
 
 
+def _capture_flex_installments(client_vehicle):
+    """Return the flex payment schedule as a list of {due_date, amount} dicts."""
+    try:
+        plan = client_vehicle.installment_plan
+        if not plan:
+            return []
+        rows = []
+        for sched in plan.payment_schedules.all().order_by('installment_number'):
+            rows.append({
+                'due_date': sched.due_date.strftime('%Y-%m-%d') if sched.due_date else '',
+                'amount': str(sched.amount_due or '0'),
+            })
+        return rows
+    except Exception:
+        return []
+
+
 def _build_agreement_snapshot(client_vehicle):
     """Capture all agreement-relevant data into a JSON-serialisable dict."""
     vehicle = client_vehicle.vehicle
@@ -1847,9 +1947,11 @@ def _build_agreement_snapshot(client_vehicle):
             'installment_months': client_vehicle.installment_months,
             'purchase_date': client_vehicle.purchase_date.strftime('%Y-%m-%d') if client_vehicle.purchase_date else '',
             'other_payment_details': client_vehicle.other_payment_details or '',
+            'flex_installments': _capture_flex_installments(client_vehicle),
         },
         'insurance': si,
         'trackers': tracker_snapshots,
+        'paybill': client_vehicle.agreement_paybill or '',
     }
 
 
@@ -1869,6 +1971,7 @@ def download_sales_agreement(request, client_vehicle_pk, version_id=None):
     try:
         from apps.documents.sales_agreement_pdf import generate_sales_agreement_pdf
         from .models import AgreementVersion
+        from django.conf import settings as django_settings
 
         snapshot = None
         version_label = ''
@@ -1877,7 +1980,14 @@ def download_sales_agreement(request, client_vehicle_pk, version_id=None):
             snapshot = version.snapshot
             version_label = f'_v{version.version_number}'
 
-        pdf_buffer = generate_sales_agreement_pdf(client_vehicle, snapshot=snapshot)
+        paybill = (
+            request.GET.get('paybill', '').strip()
+            or (snapshot.get('paybill') if snapshot else None)
+            or client_vehicle.agreement_paybill
+            or getattr(django_settings, 'MPESA_SHORTCODE', '4320049')
+            or '4320049'
+        )
+        pdf_buffer = generate_sales_agreement_pdf(client_vehicle, snapshot=snapshot, paybill=paybill)
 
         reg_no = (snapshot or {}).get('vehicle', {}).get('registration_number') or client_vehicle.vehicle.registration_number or ''
         response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
@@ -2010,14 +2120,38 @@ def record_payment(request, client_vehicle_pk):
             messages.error(request, 'Please correct the errors below.')
     else:
         form = PaymentForm(initial={'client_vehicle': client_vehicle})
-    
+
+    # Grand total balance: vehicle + insurance + trackers
+    try:
+        from apps.insurance.models import InsurancePolicy
+        ins_pol = InsurancePolicy.objects.filter(
+            vehicle=client_vehicle.vehicle,
+            client=client_vehicle.client,
+        ).order_by('-created_at').first()
+        ins_balance = max(
+            Decimal('0.00'),
+            (ins_pol.selling_price or Decimal('0.00')) - (ins_pol.insurance_total_paid or Decimal('0.00'))
+        ) if ins_pol else Decimal('0.00')
+    except Exception:
+        ins_balance = Decimal('0.00')
+
+    tracker_balance = sum(
+        (max(Decimal('0.00'), (t.selling_price or Decimal('0.00')) - (t.total_paid or Decimal('0.00')))
+         for t in client_vehicle.trackers.all()),
+        Decimal('0.00')
+    )
+    grand_total_balance = client_vehicle.balance + ins_balance + tracker_balance
+
     context = {
         'form': form,
         'client_vehicle': client_vehicle,
         'title': f'Record Payment for {client_vehicle.client.get_full_name()}',
-        'button_text': 'Record Payment'
+        'button_text': 'Record Payment',
+        'ins_balance': ins_balance,
+        'tracker_balance': tracker_balance,
+        'grand_total_balance': grand_total_balance,
     }
-    
+
     return render(request, 'clients/payment_form.html', context)
 
 
@@ -2137,6 +2271,21 @@ def document_list(request, client_pk):
     }
     
     return render(request, 'clients/document_list.html', context)
+
+
+@login_required
+def download_client_document(request, pk):
+    """Download a client document file."""
+    import os
+    from django.http import HttpResponse, Http404
+    document = get_object_or_404(ClientDocument, pk=pk)
+    try:
+        filename = os.path.basename(document.file.name)
+        response = HttpResponse(document.file.read(), content_type='application/octet-stream')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    except Exception:
+        raise Http404("File not found.")
 
 
 @login_required
@@ -2500,8 +2649,14 @@ def record_tracker_payment(request, tracker_pk):
         messages.error(request, 'Invalid payment amount.')
         return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
 
-    if amount > (tracker.balance or Decimal('0.00')):
-        amount = tracker.balance or Decimal('0.00')
+    balance_owed = tracker.balance or Decimal('0.00')
+    if amount > balance_owed:
+        messages.error(
+            request,
+            f'Payment of KES {amount:,.2f} exceeds the tracker balance of KES {balance_owed:,.2f}. '
+            f'Please enter an amount that does not exceed the balance owed.'
+        )
+        return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
 
     tracker.total_paid = (tracker.total_paid or Decimal('0.00')) + amount
     tracker.balance = max(Decimal('0.00'), (tracker.balance or Decimal('0.00')) - amount)

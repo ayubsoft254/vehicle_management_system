@@ -834,14 +834,11 @@ class InsurancePaymentForm(forms.ModelForm):
     class Meta:
         model = InsurancePayment
         fields = [
-            'policy', 'amount', 'payment_date', 'payment_method',
+            'amount', 'payment_date', 'payment_method',
             'transaction_reference', 'notes'
         ]
-        
+
         widgets = {
-            'policy': forms.Select(attrs={
-                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-            }),
             'amount': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': '0.00',
@@ -1081,6 +1078,14 @@ class PolicyRenewalForm(forms.Form):
             self.initial.setdefault('policy_type', old_policy.policy_type)
             self.initial.setdefault('vehicle_usage', old_policy.vehicle_usage)
             self.initial.setdefault('insurance_agent', old_policy.insurance_agent_id)
+
+    def clean_new_policy_number(self):
+        number = self.cleaned_data.get('new_policy_number', '').strip()
+        if InsurancePolicy.objects.filter(policy_number=number).exists():
+            raise forms.ValidationError(
+                f'Policy number "{number}" already exists. Please use a different policy number.'
+            )
+        return number
 
 # ==================== INSURANCE AGENT FORM ====================
 

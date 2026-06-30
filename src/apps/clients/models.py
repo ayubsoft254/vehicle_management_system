@@ -29,6 +29,10 @@ class ClientManager(models.Manager):
         """Get clients who completed payments"""
         return self.filter(status=ClientStatus.COMPLETED)
 
+    def repossessed(self):
+        """Get clients whose vehicle was repossessed"""
+        return self.filter(status=ClientStatus.REPOSSESSED)
+
 
 class Client(models.Model):
     """
@@ -328,6 +332,7 @@ class Client(models.Model):
             ClientStatus.INACTIVE: 'gray',
             ClientStatus.DEFAULTED: 'red',
             ClientStatus.COMPLETED: 'blue',
+            ClientStatus.REPOSSESSED: 'orange',
         }
         return color_map.get(self.status, 'gray')
     
@@ -620,6 +625,14 @@ class ClientVehicle(models.Model):
         help_text='Commission percentage (e.g., 5.00 for 5%)'
     )
     
+    agreement_paybill = models.CharField(
+        'Agreement Paybill',
+        max_length=20,
+        blank=True,
+        default='',
+        help_text='Paybill number to print on the sales agreement'
+    )
+
     # Metadata
     created_by = models.ForeignKey(
         'authentication.User',

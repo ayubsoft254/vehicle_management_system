@@ -11,14 +11,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.SeparateDatabaseAndState(
-            database_operations=[],
-            state_operations=[
-                migrations.AddField(
-                    model_name='vehicletracker',
-                    name='renewal_of',
-                    field=models.ForeignKey(blank=True, help_text='The tracker record this was renewed from', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='renewals', to='clients.vehicletracker'),
-                ),
-            ],
+        migrations.AddField(
+            model_name='vehicletracker',
+            name='renewal_of',
+            field=models.ForeignKey(blank=True, help_text='The tracker record this was renewed from', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='renewals', to='clients.vehicletracker'),
         ),
     ]

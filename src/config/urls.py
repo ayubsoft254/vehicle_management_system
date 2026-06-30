@@ -24,9 +24,9 @@ urlpatterns = [
     # HEALTH CHECK (for Docker and load balancers)
     # ============================================================================
     path('health/', health_check, name='health_check'),
-    path('confirmation', payment_views.paybill_confirmation_callback, name='paybill_confirmation_callback_root'),
-    path('validation', payment_views.paybill_validation_callback, name='paybill_validation_callback_root'),
-    path('mpesa-callback', payment_views.stk_push_callback, name='stk_push_callback_root'),
+    path('confirmation/', payment_views.paybill_confirmation_callback, name='paybill_confirmation_callback_root'),
+    path('validation/', payment_views.paybill_validation_callback, name='paybill_validation_callback_root'),
+    path('mpesa-callback/', payment_views.stk_push_callback, name='stk_push_callback_root'),
     
     # ============================================================================
     # ADMIN

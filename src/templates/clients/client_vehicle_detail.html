@@ -45,10 +45,16 @@
                 </p>
             </div>
             <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
-                <a href="{% url 'clients:record_payment' client_vehicle.pk %}" 
+                {% if not is_repossessed %}
+                <a href="{% url 'clients:record_payment' client_vehicle.pk %}"
                    class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                     <i class="fas fa-money-bill-wave mr-2"></i> Record Payment
                 </a>
+                {% else %}
+                <span class="inline-flex items-center px-4 py-2 bg-orange-100 text-orange-800 font-medium rounded-lg border border-orange-300">
+                    <i class="fas fa-car-crash mr-2"></i> Vehicle Repossessed
+                </span>
+                {% endif %}
                 {% if agreement_versions %}
                 <div class="relative inline-block" x-data="{ open: false }">
                     <button @click="open = !open" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
@@ -58,13 +64,13 @@
                          class="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                         <div class="py-1">
                             <a href="{% url 'clients:download_sales_agreement' client_vehicle.pk %}"
-                               class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                               class="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                 <i class="fas fa-file-alt mr-2 text-gray-500"></i> Download Latest (Live)
                             </a>
                             <hr class="my-1 border-gray-200">
                             {% for version in agreement_versions %}
                             <a href="{% url 'clients:download_sales_agreement_version' client_vehicle.pk version.pk %}"
-                               class="flex items-center px-4 py-2 text-sm {% if forloop.first %}text-blue-700 font-medium{% else %}text-indigo-700{% endif %} hover:bg-gray-100">
+                               class="w-full text-left flex items-center px-4 py-2 text-sm {% if forloop.first %}text-blue-700 font-medium{% else %}text-indigo-700{% endif %} hover:bg-gray-100">
                                 <i class="fas fa-download mr-2 {% if forloop.first %}text-blue-500{% else %}text-indigo-500{% endif %}"></i>
                                 v{{ version.version_number }} — {{ version.label }}
                                 {% if forloop.first %}<span class="ml-1 text-xs bg-blue-100 text-blue-700 px-1 rounded">Original</span>{% endif %}
@@ -104,15 +110,52 @@
                     </h2>
                 </div>
                 <div class="p-6">
-                    <div class="mb-4">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-medium text-gray-700">{{ payment_progress|floatformat:1 }}% Complete</span>
-                            <span class="text-sm font-medium text-gray-700">KES {{ client_vehicle.balance|floatformat:2 }} Remaining</span>
+                    {% if is_repossessed %}
+                    <!-- Repossession banner -->
+                    <div class="mb-4 rounded-xl border-2 border-orange-300 bg-orange-50 overflow-hidden">
+                        <div class="px-5 py-3 bg-orange-100 border-b border-orange-200 flex items-center gap-3">
+                            <i class="fas fa-car-crash text-orange-600 text-xl"></i>
+                            <div>
+                                <p class="font-bold text-orange-800 text-base">Vehicle Repossessed</p>
+                                {% if repossession.completion_date %}
+                                <p class="text-xs text-orange-600">Completed on {{ repossession.completion_date|date:"d M Y" }}{% if repossession.resolution_type %} &mdash; {{ repossession.get_resolution_type_display }}{% endif %}</p>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="w-full bg-gray-200 rounded-full h-4">
-                            <div class="{% if payment_progress >= 100 %}bg-green-600{% elif payment_progress >= 50 %}bg-blue-600{% else %}bg-yellow-600{% endif %} h-4 rounded-full transition-all duration-300" style="width: {{ payment_progress }}%"></div>
+                        <div class="px-5 py-4">
+                            <div class="mb-3">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-sm font-medium text-orange-700">Amount paid before repossession</span>
+                                    <span class="text-sm font-bold text-orange-800">{{ grand_progress|floatformat:1 }}% of total</span>
+                                </div>
+                                <div class="w-full bg-orange-200 rounded-full h-4">
+                                    <div class="bg-orange-500 h-4 rounded-full" style="width: {{ grand_progress }}%"></div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 mt-3 text-sm">
+                                <div>
+                                    <p class="text-orange-600 font-medium">Paid Before Repossession</p>
+                                    <p class="text-xl font-bold text-orange-900">KES {{ grand_total_paid|floatformat:2 }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-orange-600 font-medium">Outstanding at Repossession</p>
+                                    <p class="text-xl font-bold text-orange-900">KES {{ repossession.outstanding_amount|floatformat:2 }}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    {% else %}
+                    <div class="mb-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-700">{{ grand_progress|floatformat:1 }}% Complete</span>
+                            <span class="text-sm font-medium {% if grand_total_balance > 0 %}text-red-600{% else %}text-green-600{% endif %}">KES {{ grand_total_balance|floatformat:2 }} Total Remaining</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-4">
+                            <div class="{% if grand_progress >= 100 %}bg-green-600{% elif grand_progress >= 50 %}bg-blue-600{% else %}bg-yellow-600{% endif %} h-4 rounded-full transition-all duration-300" style="width: {{ grand_progress }}%"></div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">Tracks vehicle + insurance + tracker payments</p>
+                    </div>
+                    {% endif %}
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                         <div class="bg-blue-50 rounded-lg p-4">
@@ -124,10 +167,43 @@
                             <p class="text-2xl font-bold text-green-900">KES {{ client_vehicle.total_paid|floatformat:2 }}</p>
                         </div>
                         <div class="bg-red-50 rounded-lg p-4">
-                            <p class="text-sm text-red-600 font-medium">Balance</p>
+                            <p class="text-sm text-red-600 font-medium">Vehicle Balance</p>
                             <p class="text-2xl font-bold text-red-900">KES {{ client_vehicle.balance|floatformat:2 }}</p>
                         </div>
                     </div>
+
+                    <!-- Total Outstanding Breakdown -->
+                    {% if total_insurance_balance > 0 or total_tracker_balance > 0 or grand_total_balance > 0 %}
+                    <div class="mt-5 rounded-xl border-2 {% if grand_total_balance > 0 %}border-red-300 bg-red-50{% else %}border-green-300 bg-green-50{% endif %} overflow-hidden">
+                        <div class="px-5 py-3 {% if grand_total_balance > 0 %}bg-red-100{% else %}bg-green-100{% endif %} border-b {% if grand_total_balance > 0 %}border-red-200{% else %}border-green-200{% endif %}">
+                            <p class="text-sm font-semibold {% if grand_total_balance > 0 %}text-red-800{% else %}text-green-800{% endif %} flex items-center gap-2">
+                                <i class="fas fa-calculator"></i> Total Outstanding Balance
+                            </p>
+                        </div>
+                        <div class="px-5 py-4 space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Vehicle balance</span>
+                                <span class="font-medium {% if client_vehicle.balance > 0 %}text-red-700{% else %}text-green-700{% endif %}">KES {{ client_vehicle.balance|floatformat:2 }}</span>
+                            </div>
+                            {% if total_insurance_balance > 0 %}
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Insurance balance</span>
+                                <span class="font-medium text-red-700">KES {{ total_insurance_balance|floatformat:2 }}</span>
+                            </div>
+                            {% endif %}
+                            {% if total_tracker_balance > 0 %}
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Tracker balance</span>
+                                <span class="font-medium text-red-700">KES {{ total_tracker_balance|floatformat:2 }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="pt-2 mt-2 border-t {% if grand_total_balance > 0 %}border-red-200{% else %}border-green-200{% endif %} flex justify-between items-center">
+                                <span class="font-bold {% if grand_total_balance > 0 %}text-red-800{% else %}text-green-800{% endif %}">Total Owed</span>
+                                <span class="text-xl font-extrabold {% if grand_total_balance > 0 %}text-red-700{% else %}text-green-700{% endif %}">KES {{ grand_total_balance|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -169,7 +245,7 @@
 
                         <!-- Remaining Balance -->
                         <div class="bg-red-50 rounded-lg p-4 border border-red-100">
-                            <p class="text-sm text-red-600 font-medium">Remaining Balance</p>
+                            <p class="text-sm text-red-600 font-medium">Vehicle Balance</p>
                             <p class="text-2xl font-bold text-red-900 mt-1">KES {{ client_vehicle.balance|floatformat:2 }}</p>
                             <p class="text-xs text-red-500 mt-1">{{ 100|add:payment_progress|add:-100|floatformat:1 }}% remaining</p>
                         </div>
@@ -227,11 +303,17 @@
                                     <td class="px-4 py-3 text-gray-700">{{ tracker.provider|default:"N/A" }}</td>
                                     <td class="px-4 py-3 text-gray-900 font-semibold">KES {{ tracker.selling_price|floatformat:2 }}</td>
                                     <td class="px-4 py-3">
+                                        {% if tracker.renewals.exists %}
+                                        <span class="inline-flex items-center px-3 py-1.5 bg-gray-200 text-gray-400 text-xs font-medium rounded-lg cursor-not-allowed" title="This tracker has been renewed">
+                                            <i class="fas fa-check mr-1"></i>Renewed
+                                        </span>
+                                        {% else %}
                                         <button type="button"
                                             onclick="document.getElementById('modal-renew-tracker-{{ tracker.pk }}').classList.remove('hidden')"
                                             class="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition">
                                             <i class="fas fa-sync-alt mr-1"></i>Renew
                                         </button>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -301,6 +383,7 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price (KES)</label>
                                 <input type="number" name="selling_price" step="0.01" min="0" placeholder="0.00"
                                     id="trk-selling-price-{{ tracker.pk }}"
+                                    oninput="trkSyncFlexJson('{{ tracker.pk }}')"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
                             </div>
                         </div>
@@ -348,6 +431,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Amount (KES)</label>
                             <input type="number" name="deposit" step="0.01" min="0" placeholder="0.00"
                                 id="trk-deposit-{{ tracker.pk }}"
+                                oninput="trkSyncFlexJson('{{ tracker.pk }}')"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
                         </div>
 
@@ -730,8 +814,10 @@
                                         <div>
                                             <label class="block text-xs font-medium text-gray-700 mb-1">Amount (KES)</label>
                                             <input type="number" name="amount" step="0.01" min="0.01"
+                                                max="{{ row.balance|floatformat:2 }}"
                                                 value="{{ row.monthly_installment|floatformat:2 }}"
                                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" required>
+                                            <p class="text-xs text-gray-500 mt-1">Max: KES {{ row.balance|floatformat:2 }}</p>
                                         </div>
                                         <div>
                                             <label class="block text-xs font-medium text-gray-700 mb-1">Payment Method</label>
@@ -865,10 +951,12 @@
                     <h2 class="text-lg font-semibold text-gray-900">
                         <i class="fas fa-history mr-2"></i> Payment History ({{ payments.count }})
                     </h2>
-                    <a href="{% url 'clients:record_payment' client_vehicle.pk %}" 
+                    {% if not is_repossessed %}
+                    <a href="{% url 'clients:record_payment' client_vehicle.pk %}"
                        class="text-sm text-primary-600 hover:text-primary-700 font-medium">
                         <i class="fas fa-plus mr-1"></i> Add Payment
                     </a>
+                    {% endif %}
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -906,10 +994,12 @@
                                     <div class="flex flex-col items-center justify-center">
                                         <i class="fas fa-money-bill-wave text-5xl text-gray-300 mb-3"></i>
                                         <p class="text-gray-500 text-lg">No payments recorded yet</p>
-                                        <a href="{% url 'clients:record_payment' client_vehicle.pk %}" 
+                                        {% if not is_repossessed %}
+                                        <a href="{% url 'clients:record_payment' client_vehicle.pk %}"
                                            class="mt-3 inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
                                             <i class="fas fa-plus mr-2"></i> Record First Payment
                                         </a>
+                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>
@@ -1000,10 +1090,12 @@
                     </h2>
                 </div>
                 <div class="p-4 space-y-2">
+                    {% if not is_repossessed %}
                     <a href="{% url 'clients:record_payment' client_vehicle.pk %}"
                        class="block px-4 py-2 text-sm text-center bg-green-50 hover:bg-green-100 text-green-700 font-medium rounded-lg transition duration-150 ease-in-out">
                         <i class="fas fa-money-bill-wave mr-2"></i> Record Payment
                     </a>
+                    {% endif %}
                     {% if not installment_plan %}
                     <a href="{% url 'clients:create_installment_plan' client_vehicle.pk %}"
                        class="block px-4 py-2 text-sm text-center bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium rounded-lg transition duration-150 ease-in-out">
@@ -1118,10 +1210,21 @@ function trkSyncFlexJson(pk) {
     document.getElementById('trk-flex-json-' + pk).value = JSON.stringify(rows);
 
     var total = rows.reduce(function(s, r) { return s + parseFloat(r.amount || 0); }, 0);
+    var sellingPrice = parseFloat(document.getElementById('trk-selling-price-' + pk)?.value || 0);
+    var deposit = parseFloat(document.getElementById('trk-deposit-' + pk)?.value || 0);
+    var balanceTarget = Math.max(0, sellingPrice - deposit);
+    var remaining = balanceTarget - total;
+    var ok = Math.abs(remaining) < 0.01;
+
     var summary = document.getElementById('trk-flex-summary-' + pk);
     if (summary) {
-        summary.textContent = rows.length + ' installment(s) — Total: KES ' + total.toLocaleString('en-KE', {minimumFractionDigits: 2});
+        summary.innerHTML =
+            rows.length + ' installment(s) &mdash; Total: KES ' + total.toLocaleString('en-KE', {minimumFractionDigits: 2}) +
+            ' &mdash; Balance remaining: <span style="color:' + (ok ? '#16a34a' : '#dc2626') + ';font-weight:600">KES ' +
+            remaining.toLocaleString('en-KE', {minimumFractionDigits: 2}) + '</span>';
     }
 }
+
 </script>
+
 {% endblock %}

@@ -1271,3 +1271,37 @@ class JapanSupplierPayment(models.Model):
 
     def __str__(self):
         return f"Payment KES {self.amount:,.0f} to {self.supplier.name} on {self.payment_date}"
+
+
+# ==================== MANUAL LEDGER ENTRY ====================
+
+class ManualLedgerEntry(models.Model):
+    """Ad-hoc financial entries recorded directly in the main ledger."""
+
+    DIRECTION_CHOICES = [
+        ('in', 'Money In'),
+        ('out', 'Money Out'),
+    ]
+
+    date = models.DateField('Date')
+    description = models.CharField('Description', max_length=500)
+    amount = models.DecimalField(
+        'Amount (KES)', max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
+    direction = models.CharField('Direction', max_length=3, choices=DIRECTION_CHOICES)
+    reference = models.CharField('Reference', max_length=100, blank=True)
+    recorded_by = models.ForeignKey(
+        'authentication.User', on_delete=models.SET_NULL, null=True,
+        related_name='manual_ledger_entries'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+        verbose_name = 'Manual Ledger Entry'
+        verbose_name_plural = 'Manual Ledger Entries'
+
+    def __str__(self):
+        sign = '+' if self.direction == 'in' else '-'
+        return f"{sign}KES {self.amount:,.0f} — {self.description} ({self.date})"

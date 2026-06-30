@@ -1768,3 +1768,349 @@ def broker_voucher_print(request, payment_pk):
     """Printable voucher for a broker payment."""
     payment = get_object_or_404(BrokerPayment, pk=payment_pk)
     return render(request, 'vehicles/broker_voucher_print.html', {'payment': payment})
+
+
+@login_required
+def main_ledger_view(request):
+    """Combined main ledger aggregating all financial activity."""
+    from apps.payments.models import Payment
+    from apps.insurance.models import InsuranceAgentPayment
+    from apps.expenses.models import Expense
+    from .models import (
+        TrackerAgentPayment as _TrackerAgentPayment,
+        ClearingAgentPayment as _ClearingAgentPayment,
+        ManualLedgerEntry,
+    )
+    import datetime as dt
+
+    today = dt.date.today()
+
+    # --- Handle POST: record a manual ledger entry ---
+    if request.method == 'POST':
+        raw_date = request.POST.get('entry_date', '').strip()
+        description = request.POST.get('entry_description', '').strip()
+        raw_amount = request.POST.get('entry_amount', '').strip()
+        direction = request.POST.get('entry_direction', '').strip()
+        reference = request.POST.get('entry_reference', '').strip()
+
+        errors = []
+        if not description:
+            errors.append('Description is required.')
+        if not raw_date:
+            errors.append('Date is required.')
+        if direction not in ('in', 'out'):
+            errors.append('Direction must be Money In or Money Out.')
+        amount = None
+        try:
+            amount = Decimal(raw_amount)
+            if amount <= 0:
+                raise ValueError
+        except Exception:
+            errors.append('Amount must be a positive number.')
+
+        entry_date = None
+        try:
+            entry_date = dt.date.fromisoformat(raw_date)
+        except Exception:
+            errors.append('Invalid date.')
+
+        if not errors:
+            ManualLedgerEntry.objects.create(
+                date=entry_date,
+                description=description,
+                amount=amount,
+                direction=direction,
+                reference=reference,
+                recorded_by=request.user,
+            )
+            messages.success(request, f'Entry recorded: {description}')
+        else:
+            for e in errors:
+                messages.error(request, e)
+
+        # Redirect back to main ledger preserving filters
+        redirect_url = request.POST.get('next', request.get_full_path())
+        return redirect(redirect_url.split('?')[0] + '?' + request.POST.get('filter_qs', ''))
+
+    # --- Handle DELETE: remove a manual entry ---
+    if request.method == 'GET' and request.GET.get('delete_entry'):
+        entry_id = request.GET.get('delete_entry')
+        try:
+            entry = ManualLedgerEntry.objects.get(pk=entry_id)
+            entry.delete()
+            messages.success(request, 'Entry deleted.')
+        except ManualLedgerEntry.DoesNotExist:
+            pass
+        # Redirect without the delete param
+        import urllib.parse
+        params = {k: v for k, v in request.GET.items() if k != 'delete_entry'}
+        qs = urllib.parse.urlencode(params)
+        return redirect(f"{request.path}?{qs}" if qs else request.path)
+
+    # --- Filters ---
+    date_from_str = request.GET.get('date_from', '')
+    date_to_str = request.GET.get('date_to', '')
+    category_filter = request.GET.get('category', '')
+    search = request.GET.get('q', '').strip()
+
+    try:
+        date_from = dt.date.fromisoformat(date_from_str) if date_from_str else today.replace(day=1)
+    except ValueError:
+        date_from = today.replace(day=1)
+
+    try:
+        date_to = dt.date.fromisoformat(date_to_str) if date_to_str else today
+    except ValueError:
+        date_to = today
+
+    ZERO = Decimal('0')
+
+    def date_range(qs, field):
+        return qs.filter(**{f'{field}__gte': date_from, f'{field}__lte': date_to})
+
+    # --- Base querysets ---
+    payments_qs = date_range(
+        Payment.objects.select_related('client_vehicle__client', 'client_vehicle__vehicle'),
+        'payment_date',
+    )
+    supplier_payments_qs = date_range(
+        JapanSupplierPayment.objects.select_related('supplier'), 'payment_date'
+    )
+    clearing_payments_qs = date_range(
+        _ClearingAgentPayment.objects.select_related('agent'), 'payment_date'
+    )
+    tracker_payments_qs = date_range(
+        _TrackerAgentPayment.objects.select_related('agent'), 'payment_date'
+    )
+    broker_payments_qs = date_range(
+        BrokerPayment.objects.select_related('broker'), 'payment_date'
+    )
+    insurance_payments_qs = date_range(
+        InsuranceAgentPayment.objects.select_related('agent'), 'payment_date'
+    )
+    expenses_qs = date_range(
+        Expense.objects.filter(status__in=['APPROVED', 'PAID']).select_related('category'),
+        'expense_date',
+    )
+    manual_qs = date_range(ManualLedgerEntry.objects.select_related('recorded_by'), 'date')
+
+    # Search
+    if search:
+        payments_qs = payments_qs.filter(
+            Q(client_vehicle__client__first_name__icontains=search)
+            | Q(client_vehicle__client__last_name__icontains=search)
+            | Q(receipt_number__icontains=search)
+            | Q(transaction_reference__icontains=search)
+        )
+        expenses_qs = expenses_qs.filter(
+            Q(title__icontains=search) | Q(vendor_name__icontains=search)
+        )
+        manual_qs = manual_qs.filter(
+            Q(description__icontains=search) | Q(reference__icontains=search)
+        )
+
+    # Category filter
+    _ALL = {'client_payment', 'supplier', 'clearing', 'tracker', 'broker', 'insurance', 'expense', 'manual'}
+    if category_filter and category_filter in _ALL:
+        if category_filter != 'client_payment':
+            payments_qs = payments_qs.none()
+        if category_filter != 'supplier':
+            supplier_payments_qs = supplier_payments_qs.none()
+        if category_filter != 'clearing':
+            clearing_payments_qs = clearing_payments_qs.none()
+        if category_filter != 'tracker':
+            tracker_payments_qs = tracker_payments_qs.none()
+        if category_filter != 'broker':
+            broker_payments_qs = broker_payments_qs.none()
+        if category_filter != 'insurance':
+            insurance_payments_qs = insurance_payments_qs.none()
+        if category_filter != 'expense':
+            expenses_qs = expenses_qs.none()
+        if category_filter != 'manual':
+            manual_qs = manual_qs.none()
+
+    # --- Totals ---
+    total_in = payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
+    total_supplier = supplier_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
+    total_clearing = clearing_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
+    total_tracker = tracker_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
+    total_broker = broker_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
+    total_insurance = insurance_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
+    total_expenses = expenses_qs.aggregate(t=Sum('total_amount'))['t'] or ZERO
+
+    manual_in = manual_qs.filter(direction='in').aggregate(t=Sum('amount'))['t'] or ZERO
+    manual_out = manual_qs.filter(direction='out').aggregate(t=Sum('amount'))['t'] or ZERO
+
+    total_out = total_supplier + total_clearing + total_tracker + total_broker + total_insurance + total_expenses + manual_out
+    net = (total_in + manual_in) - total_out
+
+    # --- Build transaction rows ---
+    transactions = []
+
+    for p in payments_qs:
+        client = p.client_vehicle.client
+        transactions.append({
+            'date': p.payment_date,
+            'ref': p.receipt_number or p.transaction_reference or f'PMT-{p.pk}',
+            'description': f"{client.first_name} {client.last_name}",
+            'detail': p.client_vehicle.vehicle.full_name,
+            'category': 'client_payment',
+            'category_label': 'Client Payment',
+            'category_color': 'green',
+            'method': p.get_payment_method_display(),
+            'money_in': p.amount,
+            'money_out': ZERO,
+            'manual_id': None,
+        })
+
+    for p in supplier_payments_qs:
+        transactions.append({
+            'date': p.payment_date,
+            'ref': p.reference_number or f'SUP-{p.pk}',
+            'description': p.supplier.name,
+            'detail': 'Japan Supplier',
+            'category': 'supplier',
+            'category_label': 'Japan Supplier',
+            'category_color': 'red',
+            'method': p.get_payment_method_display(),
+            'money_in': ZERO,
+            'money_out': p.amount,
+            'manual_id': None,
+        })
+
+    for p in clearing_payments_qs:
+        transactions.append({
+            'date': p.payment_date,
+            'ref': p.reference_number or f'CLR-{p.pk}',
+            'description': p.agent.name,
+            'detail': 'Clearing Agent',
+            'category': 'clearing',
+            'category_label': 'Clearing Agent',
+            'category_color': 'teal',
+            'method': p.get_payment_method_display(),
+            'money_in': ZERO,
+            'money_out': p.amount,
+            'manual_id': None,
+        })
+
+    for p in tracker_payments_qs:
+        transactions.append({
+            'date': p.payment_date,
+            'ref': p.reference_number or f'TRK-{p.pk}',
+            'description': p.agent.name,
+            'detail': 'Tracker Agent',
+            'category': 'tracker',
+            'category_label': 'Tracker Agent',
+            'category_color': 'purple',
+            'method': p.get_payment_method_display(),
+            'money_in': ZERO,
+            'money_out': p.amount,
+            'manual_id': None,
+        })
+
+    for p in broker_payments_qs:
+        transactions.append({
+            'date': p.payment_date,
+            'ref': p.voucher_number or p.reference_number or f'BRK-{p.pk}',
+            'description': p.broker.name,
+            'detail': 'Broker Commission',
+            'category': 'broker',
+            'category_label': 'Broker',
+            'category_color': 'amber',
+            'method': p.get_payment_method_display(),
+            'money_in': ZERO,
+            'money_out': p.amount,
+            'manual_id': None,
+        })
+
+    for p in insurance_payments_qs:
+        transactions.append({
+            'date': p.payment_date,
+            'ref': p.reference_number or f'INS-{p.pk}',
+            'description': p.agent.name,
+            'detail': 'Insurance Agent',
+            'category': 'insurance',
+            'category_label': 'Insurance Agent',
+            'category_color': 'blue',
+            'method': p.get_payment_method_display(),
+            'money_in': ZERO,
+            'money_out': p.amount,
+            'manual_id': None,
+        })
+
+    for e in expenses_qs:
+        transactions.append({
+            'date': e.expense_date,
+            'ref': e.invoice_number or f'EXP-{e.pk}',
+            'description': e.title,
+            'detail': e.vendor_name or e.category.name,
+            'category': 'expense',
+            'category_label': e.category.name,
+            'category_color': 'gray',
+            'method': e.get_payment_method_display(),
+            'money_in': ZERO,
+            'money_out': e.total_amount,
+            'manual_id': None,
+        })
+
+    for e in manual_qs:
+        transactions.append({
+            'date': e.date,
+            'ref': e.reference or f'MAN-{e.pk}',
+            'description': e.description,
+            'detail': f"Recorded by {e.recorded_by.get_full_name() if e.recorded_by else '—'}",
+            'category': 'manual',
+            'category_label': 'Manual Entry',
+            'category_color': 'orange',
+            'method': '—',
+            'money_in': e.amount if e.direction == 'in' else ZERO,
+            'money_out': e.amount if e.direction == 'out' else ZERO,
+            'manual_id': e.pk,
+        })
+
+    # Compute running balance ascending, then reverse for display
+    transactions.sort(key=lambda x: x['date'])
+    running = ZERO
+    for t in transactions:
+        running += t['money_in'] - t['money_out']
+        t['running_balance'] = running
+    transactions = list(reversed(transactions))
+
+    category_summary = [
+        {'label': 'Client Payments', 'key': 'client_payment', 'color': 'green', 'money_in': total_in, 'money_out': ZERO},
+        {'label': 'Japan Suppliers', 'key': 'supplier', 'color': 'red', 'money_in': ZERO, 'money_out': total_supplier},
+        {'label': 'Clearing Agents', 'key': 'clearing', 'color': 'teal', 'money_in': ZERO, 'money_out': total_clearing},
+        {'label': 'Tracker Agents', 'key': 'tracker', 'color': 'purple', 'money_in': ZERO, 'money_out': total_tracker},
+        {'label': 'Broker Commissions', 'key': 'broker', 'color': 'amber', 'money_in': ZERO, 'money_out': total_broker},
+        {'label': 'Insurance Agents', 'key': 'insurance', 'color': 'blue', 'money_in': ZERO, 'money_out': total_insurance},
+        {'label': 'General Expenses', 'key': 'expense', 'color': 'gray', 'money_in': ZERO, 'money_out': total_expenses},
+        {'label': 'Manual Entries', 'key': 'manual', 'color': 'orange', 'money_in': manual_in, 'money_out': manual_out},
+    ]
+
+    # Build filter querystring for POST redirect
+    import urllib.parse
+    filter_qs = urllib.parse.urlencode({
+        k: v for k, v in {
+            'date_from': date_from_str,
+            'date_to': date_to_str,
+            'category': category_filter,
+            'q': search,
+        }.items() if v
+    })
+
+    context = {
+        'date_from': date_from,
+        'date_to': date_to,
+        'date_from_str': date_from.isoformat(),
+        'date_to_str': date_to.isoformat(),
+        'category_filter': category_filter,
+        'search': search,
+        'total_in': total_in + manual_in,
+        'total_out': total_out,
+        'net': net,
+        'category_summary': category_summary,
+        'transactions': transactions,
+        'filter_qs': filter_qs,
+        'today_str': today.isoformat(),
+    }
+    return render(request, 'vehicles/main_ledger.html', context)

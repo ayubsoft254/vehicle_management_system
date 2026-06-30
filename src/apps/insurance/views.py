@@ -359,7 +359,10 @@ def policy_renew(request, pk):
                 if ins_has_plan and ins_installments:
                     from apps.insurance.models import InsurancePaymentSchedule
                     from datetime import datetime as _dt
-                    for idx, row in enumerate(ins_installments, start=1):
+                    # Delete any auto-generated schedules created by model's save()
+                    InsurancePaymentSchedule.objects.filter(policy=new_policy).delete()
+                    valid_idx = 1
+                    for row in ins_installments:
                         try:
                             due_date = _dt.strptime(str(row.get('due_date', '')).strip(), '%Y-%m-%d').date()
                         except Exception:
@@ -369,10 +372,11 @@ def policy_renew(request, pk):
                             continue
                         InsurancePaymentSchedule.objects.create(
                             policy=new_policy,
-                            installment_number=idx,
+                            installment_number=valid_idx,
                             due_date=due_date,
                             amount_due=amount_due,
                         )
+                        valid_idx += 1
 
                 # Save certificate if uploaded
                 cert = form.cleaned_data.get('new_certificate')
@@ -398,14 +402,25 @@ def policy_renew(request, pk):
             messages.error(request, 'Please correct the errors below.')
     else:
         form = PolicyRenewalForm(old_policy=old_policy)
-    
+
+    # Pass raw POST values back for JS to restore flex state on re-render
+    recalled = {}
+    if request.method == 'POST':
+        recalled = {
+            'payment_type': request.POST.get('insurance_payment_type', 'full'),
+            'payment_method': request.POST.get('insurance_payment_method', 'cash'),
+            'deposit': request.POST.get('insurance_deposit', ''),
+            'flex_json': request.POST.get('insurance_flexible_installments_json', '[]'),
+        }
+
     context = {
         'form': form,
         'old_policy': old_policy,
         'title': f'Renew Policy: {old_policy.policy_number}',
-        'button_text': 'Renew Policy'
+        'button_text': 'Renew Policy',
+        'recalled': recalled,
     }
-    
+
     return render(request, 'insurance/policy_renew.html', context)
 
 
@@ -631,41 +646,54 @@ def payment_create(request, policy_pk):
     policy = get_object_or_404(InsurancePolicy, pk=policy_pk)
     next_url = request.GET.get('next', '') or request.POST.get('next', '')
 
+    ins_balance_owed = max(
+        Decimal('0.00'),
+        (policy.selling_price or Decimal('0.00')) - (policy.insurance_total_paid or Decimal('0.00'))
+    )
+
     if request.method == 'POST':
         form = InsurancePaymentForm(request.POST)
         if form.is_valid():
-            payment = form.save(commit=False)
-            payment.policy = policy
-            payment.recorded_by = request.user
-            payment.save()
+            payment_amount = form.cleaned_data['amount']
+            if payment_amount > ins_balance_owed:
+                form.add_error(
+                    'amount',
+                    f'Payment of KES {payment_amount:,.2f} exceeds the balance owed of '
+                    f'KES {ins_balance_owed:,.2f}. Please enter a valid amount.'
+                )
+                messages.error(request, 'Please correct the errors below.')
+            else:
+                payment = form.save(commit=False)
+                payment.policy = policy
+                payment.recorded_by = request.user
+                payment.save()
 
-            # Update policy total_paid and balance
-            policy.insurance_total_paid = (policy.insurance_total_paid or Decimal('0.00')) + payment.amount
-            policy.insurance_balance = max(Decimal('0.00'), (policy.selling_price or Decimal('0.00')) - policy.insurance_total_paid)
-            policy.save(update_fields=['insurance_total_paid', 'insurance_balance'])
+                # Update policy total_paid and balance
+                policy.insurance_total_paid = (policy.insurance_total_paid or Decimal('0.00')) + payment.amount
+                policy.insurance_balance = max(Decimal('0.00'), (policy.selling_price or Decimal('0.00')) - policy.insurance_total_paid)
+                policy.save(update_fields=['insurance_total_paid', 'insurance_balance'])
 
-            # Link to oldest unpaid schedule (if policy has payment plan)
-            if policy.has_payment_plan:
-                unpaid_schedule = policy.insurance_payment_schedules.filter(
-                    is_paid=False
-                ).order_by('installment_number').first()
+                # Link to oldest unpaid schedule (if policy has payment plan)
+                if policy.has_payment_plan:
+                    unpaid_schedule = policy.insurance_payment_schedules.filter(
+                        is_paid=False
+                    ).order_by('installment_number').first()
+                    if unpaid_schedule:
+                        unpaid_schedule.mark_as_paid(payment, amount=payment.amount)
 
-                if unpaid_schedule:
-                    unpaid_schedule.mark_as_paid(payment, amount=payment.amount)
+                log_audit(
+                    request.user, 'create', 'InsurancePayment',
+                    f'Recorded payment {payment.receipt_number} for policy {policy.policy_number}'
+                )
 
-            log_audit(
-                request.user, 'create', 'InsurancePayment',
-                f'Recorded payment {payment.receipt_number} for policy {policy.policy_number}'
-            )
-
-            messages.success(request, f'Payment recorded successfully! Receipt: {payment.receipt_number}')
-            if next_url:
-                return redirect(next_url)
-            return redirect('insurance:policy_detail', pk=policy.pk)
+                messages.success(request, f'Payment recorded successfully! Receipt: {payment.receipt_number}')
+                if next_url:
+                    return redirect(next_url)
+                return redirect('insurance:policy_detail', pk=policy.pk)
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = InsurancePaymentForm(initial={'policy': policy, 'amount': policy.premium_amount})
+        form = InsurancePaymentForm(initial={'amount': ins_balance_owed})
 
     context = {
         'form': form,
@@ -673,7 +701,8 @@ def payment_create(request, policy_pk):
         'next': next_url,
         'today': timezone.now().date(),
         'title': f'Record Payment for Policy: {policy.policy_number}',
-        'button_text': 'Record Payment'
+        'button_text': 'Record Payment',
+        'ins_balance_owed': ins_balance_owed,
     }
 
     return render(request, 'insurance/payment_form.html', context)

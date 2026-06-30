@@ -62,6 +62,9 @@ urlpatterns = [
     path('japan-suppliers/<int:supplier_pk>/record-payment/', views.record_japan_supplier_payment, name='record_japan_supplier_payment'),
     path('japan-suppliers/<int:pk>/delete/', views.delete_japan_supplier, name='delete_japan_supplier'),
 
+    # Main Ledger
+    path('main-ledger/', views.main_ledger_view, name='main_ledger'),
+
     # Broker Ledger
     path('brokers/', views.broker_ledger_list, name='broker_ledger_list'),
     path('brokers/<int:pk>/', views.broker_ledger_detail, name='broker_ledger_detail'),

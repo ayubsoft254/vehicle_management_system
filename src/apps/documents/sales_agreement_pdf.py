@@ -16,16 +16,24 @@ from reportlab.lib import colors
 from django.utils import timezone
 
 
-def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
+def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     """
     Generate a PDF sales agreement for a vehicle purchase
-    
+
     Args:
         client_vehicle: ClientVehicle instance
-        
+        snapshot: optional frozen agreement data dict
+        paybill: paybill number to print on payment page (defaults to settings.MPESA_SHORTCODE)
+
     Returns:
         BytesIO object containing the PDF
     """
+    if paybill is None:
+        try:
+            from django.conf import settings
+            paybill = settings.MPESA_SHORTCODE or '4320049'
+        except Exception:
+            paybill = '4320049'
     buffer = BytesIO()
 
     _title_reg = (snapshot or {}).get('vehicle', {}).get('registration_number') or client_vehicle.vehicle.registration_number or ''
@@ -124,6 +132,19 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
         except Exception:
             _purchase_date = None
         _other_payment_details = sp.get('other_payment_details', '')
+        # Build flex schedule from snapshot (for flexible payment type)
+        _snap_flex_raw = sp.get('flex_installments', [])
+        _snap_flex_schedules = []
+        for _fi in _snap_flex_raw:
+            _fi_due_str = _fi.get('due_date', '')
+            try:
+                _fi_due = _snap_dt.strptime(_fi_due_str, '%Y-%m-%d').date() if _fi_due_str else None
+            except Exception:
+                _fi_due = None
+            _snap_flex_schedules.append(SimpleNamespace(
+                due_date=_fi_due,
+                amount_due=Decimal(str(_fi.get('amount') or '0')),
+            ))
         # Build insurance from snapshot
         si = snapshot.get('insurance')
         if si:
@@ -204,6 +225,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
         _installment_months = client_vehicle.installment_months
         _purchase_date = client_vehicle.purchase_date
         _other_payment_details = getattr(client_vehicle, 'other_payment_details', '') or ''
+        _snap_flex_schedules = []  # not used for live data; plan schedules are read directly
         selected_months = None
         if plan and plan.number_of_installments:
             selected_months = plan.number_of_installments
@@ -428,6 +450,54 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
         ))
         elements.append(Spacer(1, 0.2*cm))
 
+    # Extra Terms and Conditions note (page 1)
+    elements.append(Paragraph('<b>EXTRA TERMS AND CONDITIONS - NOTE:</b> _' + '_' * 80, normal_small))
+    elements.append(Paragraph('_' * 110, normal_small))
+    elements.append(Spacer(1, 0.3*cm))
+
+    # Page 1 — Buyer / Seller signatures
+    sig1_data = [
+        [
+            Paragraph("<b>Buyer's Signature</b>", normal_small),
+            Paragraph('<b>Seller\'s Signature</b>', normal_small),
+        ],
+        [
+            _signature_flowable(getattr(agreement_signature, 'signature_data', ''), width=8*cm, height=2*cm),
+            _signature_flowable(getattr(agreement_signature, 'seller_signature_data', ''), width=8*cm, height=2*cm),
+        ],
+        [
+            Paragraph(f'<b>{client.get_full_name()}</b>', normal_small),
+            Paragraph(getattr(agreement_signature, 'seller_name', '') or 'For HOZA INVESTMENT (K) LTD', normal_small),
+        ],
+    ]
+    sig1_table = Table(sig1_data, colWidths=[9.5*cm, 8.5*cm])
+    sig1_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LINEBELOW', (0, 2), (-1, 2), 0.5, colors.HexColor('#d1d5db')),
+        ('LINEBEFORE', (1, 0), (1, -1), 0.5, colors.HexColor('#e5e7eb')),
+    ]))
+    elements.append(sig1_table)
+
+    # ============================================================
+    # PAGE 2 — INSURANCE & TRACKER DETAILS
+    # ============================================================
+    elements.append(PageBreak())
+
+    # Page 2 mini-header
+    elements.append(Paragraph('<b>HOZA INVESTMENT (K) LTD — INSURANCE &amp; TRACKER DETAILS</b>', title_style))
+    elements.append(Paragraph(
+        f'<b>Vehicle:</b> {vehicle.make or ""} {vehicle.model or ""}  '
+        f'<b>Reg:</b> {vehicle.registration_number or ""}  '
+        f'<b>Client:</b> {client.get_full_name()}',
+        normal_small
+    ))
+    elements.append(Spacer(1, 0.3*cm))
+
     # ---- INSURANCE & TRACKER ADD-ONS ----
     import json as _json_pdf
     from datetime import datetime as _dt_pdf
@@ -474,8 +544,6 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
             ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ])
-
-    elements.append(Paragraph('<b>INSURANCE &amp; TRACKER DETAILS</b>', heading_style))
 
     # ---- INSURANCE TABLE ----
     if insurance_policy:
@@ -631,36 +699,40 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
     else:
         elements.append(Paragraph('Tracker: Not included in this sale.', normal_small))
 
-    elements.append(Spacer(1, 0.2*cm))
-
-    # Extra Terms and Conditions note line
-    elements.append(Paragraph('<b>EXTRA TERMS AND CONDITIONS - NOTE:</b> _' + '_' * 80, normal_small))
-    elements.append(Paragraph('_' * 110, normal_small))
     elements.append(Spacer(1, 0.3*cm))
 
-    # Page 1 quick signatures
-    sig1_data = [
+    # Page 2 — Buyer / Seller signatures
+    sig2_data = [
         [
-            Paragraph("<b>Buyer's signature</b>", normal_small),
+            Paragraph("<b>Buyer's Signature</b>", normal_small),
             Paragraph('<b>Seller\'s Signature</b>', normal_small),
         ],
         [
-            _signature_flowable(getattr(agreement_signature, 'signature_data', '')),
-            _signature_flowable(getattr(agreement_signature, 'seller_signature_data', '')),
+            _signature_flowable(getattr(agreement_signature, 'signature_data', ''), width=8*cm, height=2*cm),
+            _signature_flowable(getattr(agreement_signature, 'seller_signature_data', ''), width=8*cm, height=2*cm),
+        ],
+        [
+            Paragraph(f'<b>{client.get_full_name()}</b>', normal_small),
+            Paragraph(getattr(agreement_signature, 'seller_name', '') or 'For HOZA INVESTMENT (K) LTD', normal_small),
         ],
     ]
-    sig1_table = Table(sig1_data, colWidths=[9.5*cm, 8.5*cm])
-    sig1_table.setStyle(TableStyle([
+    sig2_table = Table(sig2_data, colWidths=[9.5*cm, 8.5*cm])
+    sig2_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 2),
         ('RIGHTPADDING', (0, 0), (-1, -1), 2),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LINEBELOW', (0, 2), (-1, 2), 0.5, colors.HexColor('#d1d5db')),
+        ('LINEBEFORE', (1, 0), (1, -1), 0.5, colors.HexColor('#e5e7eb')),
     ]))
-    elements.append(sig1_table)
+    elements.append(sig2_table)
+
+    elements.append(Spacer(1, 0.2*cm))
 
     # ============================================================
-    # PAGE 2 — PAYMENT SCHEDULE (only for non-full payment)
+    # PAGE 3 — PAYMENT SCHEDULE (only for non-full payment)
     # ============================================================
     if not is_full_payment:
         elements.append(PageBreak())
@@ -714,6 +786,8 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
         # Installment table
         if plan:
             schedules = list(plan.payment_schedules.all().order_by('installment_number'))
+        elif _snap_flex_schedules:
+            schedules = _snap_flex_schedules
         else:
             schedules = []
 
@@ -810,7 +884,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
         elements.append(sched_sig_table)
 
     # ============================================================
-    # PAGE 3 — TERMS AND CONDITIONS
+    # PAGE 4 — TERMS AND CONDITIONS
     # ============================================================
     elements.append(PageBreak())
     elements.append(Paragraph('<b>TERMS AND CONDITIONS</b>', heading_style))
@@ -971,7 +1045,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
     elements.append(full_sig_table)
 
     # ============================================================
-    # PAGE 4 — PAYMENT DETAILS
+    # PAGE 5 — PAYMENT DETAILS
     # ============================================================
     elements.append(PageBreak())
     elements.append(Paragraph('<b>PAYMENT DETAILS FOR HOZA INVESTMENT K LIMITED</b>', title_style))
@@ -1015,7 +1089,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None):
 
     elements.append(Paragraph('<b>PAYBILL</b>', paybill_heading_style))
     elements.append(Spacer(1, 0.15*cm))
-    elements.append(Paragraph('<b>4320049</b>', paybill_value_style))
+    elements.append(Paragraph(f'<b>{paybill}</b>', paybill_value_style))
     elements.append(Spacer(1, 0.15*cm))
     elements.append(Paragraph('<b>A/C: REG FOR THE CAR</b>', paybill_account_style))
     elements.append(Spacer(1, 0.25*cm))

@@ -33,6 +33,7 @@ urlpatterns = [
     path('analytics/', views.payment_analytics, name='payment_analytics'),
     path('paybill/', views.paybill_tracker, name='paybill_tracker'),
     path('paybill/refresh-balance/', views.refresh_paybill_balance, name='refresh_paybill_balance'),
+    path('paybill/register-c2b/', views.register_paybill_c2b, name='register_paybill_c2b'),
     path('defaulters/', views.defaulters_report, name='defaulters_report'),
     path('export/csv/', views.export_payments_csv, name='export_payments_csv'),
     path('export/pdf/agreement/<int:client_vehicle_pk>/', views.generate_agreement_pdf_view, name='generate_agreement_pdf'),

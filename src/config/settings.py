@@ -25,6 +25,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://taifaassist.xyz',
     'http://localhost:3333',
     'http://127.0.0.1:3333',
+    'https://hozacars.com',
+    'https://www.hozacars.com'
 ]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -237,7 +239,7 @@ ACCOUNT_RATE_LIMITS = {
 
 # Email confirmation settings
 ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
-ACCOUNT_EMAIL_SUBJECT_PREFIX = '[VSMS] '
+ACCOUNT_EMAIL_SUBJECT_PREFIX = '[HOZACARS] '
 
 # Redirect URLs
 LOGIN_REDIRECT_URL = '/dashboard/'
@@ -290,6 +292,8 @@ TWILIO_PHONE_NUMBER = config('TWILIO_PHONE_NUMBER', default='')
 # ==============================================================================
 
 MPESA_ENV = config('MPESA_ENV', default='sandbox')
+
+# Primary paybill (4320049) — used for STK push and balance checks
 MPESA_CONSUMER_KEY = config('MPESA_CONSUMER_KEY', default='')
 MPESA_CONSUMER_SECRET = config('MPESA_CONSUMER_SECRET', default='')
 MPESA_SHORTCODE = config('MPESA_SHORTCODE', default=config('MPESA_PAYBILL_NUMBER', default=''))
@@ -298,9 +302,14 @@ MPESA_INITIATOR_NAME = config('MPESA_INITIATOR_NAME', default='')
 MPESA_SECURITY_CREDENTIAL = config('MPESA_SECURITY_CREDENTIAL', default='')
 MPESA_RESULT_URL_BASE = config('MPESA_RESULT_URL_BASE', default='')
 MPESA_CALLBACK_SECRET = config('MPESA_CALLBACK_SECRET', default='')
-MPESA_C2B_CONFIRMATION_URL = config('MPESA_C2B_CONFIRMATION_URL', default='https://taifaassist.xyz/confirmation')
-MPESA_C2B_VALIDATION_URL = config('MPESA_C2B_VALIDATION_URL', default='https://taifaassist.xyz/validation')
-MPESA_STK_CALLBACK_URL = config('MPESA_STK_CALLBACK_URL', default='https://taifaassist.xyz/mpesa-callback')
+MPESA_C2B_CONFIRMATION_URL = config('MPESA_C2B_CONFIRMATION_URL', default='https://hozacars.com/confirmation')
+MPESA_C2B_VALIDATION_URL = config('MPESA_C2B_VALIDATION_URL', default='https://hozacars.com/validation')
+MPESA_STK_CALLBACK_URL = config('MPESA_STK_CALLBACK_URL', default='https://hozacars.com/payments/mpesa-callback/')
+
+# Secondary paybill (4162495) — separate Safaricom account, C2B tracking only
+MPESA_SHORTCODE_2 = config('MPESA_SHORTCODE_2', default='')
+MPESA_CONSUMER_KEY_2 = config('MPESA_CONSUMER_KEY_2', default='')
+MPESA_CONSUMER_SECRET_2 = config('MPESA_CONSUMER_SECRET_2', default='')
 
 # ============================================================================== 
 # DOCUSEAL E-SIGNATURE CONFIGURATION
@@ -373,8 +382,9 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
     
     # Additional security
-    CSRF_COOKIE_HTTPONLY = True
-    CSRF_USE_SESSIONS = True
+    CSRF_COOKIE_HTTPONLY = False  # Must be False so JS can read csrftoken cookie for AJAX
+    # CSRF_USE_SESSIONS is intentionally NOT set — it breaks JS AJAX calls that read
+    # the csrftoken cookie via getCookie(). Cookie-based CSRF is still secure.
 
 # ==============================================================================
 # SESSION CONFIGURATION

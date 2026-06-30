@@ -240,6 +240,7 @@ class VehicleForm(forms.ModelForm):
             self.fields['seats'].initial = 5
             self.fields['condition'].initial = 'good'
             self.fields['deposit_required'].initial = 0.0
+            self.fields['website_price'].initial = Decimal('0.00')
     
     def clean_vin(self):
         """Validate VIN is unique (case-insensitive)"""
@@ -311,7 +312,7 @@ class VehicleForm(forms.ModelForm):
 
         selling_price = cleaned_data.get('selling_price')
         if website_price is None:
-            cleaned_data['website_price'] = selling_price
+            cleaned_data['website_price'] = Decimal('0.00')
         else:
             if website_price < 0:
                 raise ValidationError('Website price cannot be negative.')

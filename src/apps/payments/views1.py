@@ -20,7 +20,6 @@ from dateutil.relativedelta import relativedelta
 import csv
 import json
 import re
-import logging
 
 from .models import (
     Payment,
@@ -38,9 +37,6 @@ from .daraja import (
 )
 from apps.clients.models import Client, ClientVehicle
 from apps.audit.utils import log_audit
-
-# Initialize logger
-logger = logging.getLogger(__name__)
 
 
 def _parse_export_currency(request):
@@ -115,184 +111,6 @@ def _build_due_monitor_stats(today=None):
     }
 
 
-def _safe_decimal(value):
-    """Safely convert a value to Decimal."""
-    if value is None:
-        return None
-    text = str(value).strip().replace(',', '')
-    if not text:
-        return None
-    try:
-        return Decimal(text)
-    except Exception:
-        return None
-
-
-def _parse_mpesa_datetime(value):
-    """Parse M-Pesa datetime string to datetime object."""
-    if not value:
-        return None
-    value = str(value).strip()
-    for fmt in ('%Y%m%d%H%M%S', '%Y-%m-%d %H:%M:%S'):
-        try:
-            return datetime.strptime(value, fmt)
-        except ValueError:
-            continue
-    return None
-
-
-def _extract_account_balance(raw_value):
-    """
-    Extract a numeric balance from Daraja AccountBalance string payload.
-    Handles the complex format: "Account|KES|balance|...|..."
-    Example: "Utility Account|KES|200153.00|200153.00|0.00|0.00"
-    """
-    if raw_value is None:
-        logger.warning("_extract_account_balance: raw_value is None")
-        return None
-    
-    if isinstance(raw_value, (int, float, Decimal)):
-        logger.info(f"_extract_account_balance: Got numeric value: {raw_value}")
-        return Decimal(str(raw_value))
-    
-    if isinstance(raw_value, str):
-        logger.info(f"_extract_account_balance: Processing string: {raw_value[:200]}...")
-        
-        # Look for Utility Account specifically (this has the actual balance)
-        if 'Utility Account' in raw_value:
-            import re
-            # Pattern: Utility Account|KES|123.45|...
-            match = re.search(r'Utility Account\s*\|\s*KES\s*\|\s*([\d,]+\.?\d*)', raw_value)
-            if match:
-                try:
-                    balance = Decimal(match.group(1).replace(',', ''))
-                    logger.info(f"✅ Found Utility Account balance: {balance}")
-                    return balance
-                except (ValueError, InvalidOperation):
-                    pass
-        
-        # If no Utility Account, try Working Account
-        if 'Working Account' in raw_value:
-            import re
-            match = re.search(r'Working Account\s*\|\s*KES\s*\|\s*([\d,]+\.?\d*)', raw_value)
-            if match:
-                try:
-                    balance = Decimal(match.group(1).replace(',', ''))
-                    logger.info(f"✅ Found Working Account balance: {balance}")
-                    return balance
-                except (ValueError, InvalidOperation):
-                    pass
-        
-        # Fallback: find any balance in the string
-        import re
-        matches = re.findall(r'KES\s*\|\s*([\d,]+\.?\d*)', raw_value)
-        for match in matches:
-            try:
-                balance = Decimal(match.replace(',', ''))
-                if balance > 0:
-                    logger.info(f"✅ Found balance via fallback: {balance}")
-                    return balance
-            except (ValueError, InvalidOperation):
-                continue
-        
-        # One more fallback: find any decimal number in the string
-        matches = re.findall(r'(\d+[\d,]*\.?\d*)', raw_value)
-        if matches:
-            for match in matches:
-                try:
-                    balance = Decimal(match.replace(',', ''))
-                    if balance > 0:
-                        logger.info(f"✅ Found balance via final fallback: {balance}")
-                        return balance
-                except (ValueError, InvalidOperation):
-                    continue
-        
-        logger.warning(f"Could not extract balance from: {raw_value[:100]}...")
-        return None
-    
-    logger.warning(f"_extract_account_balance: Unhandled type: {type(raw_value)}")
-    return None
-
-
-def _normalize_account_reference(value):
-    """Normalize account references to compare vehicle registration numbers reliably."""
-    return re.sub(r'[^A-Z0-9]', '', str(value or '').upper())
-
-
-def _find_client_vehicle_for_reference(account_reference):
-    """Find a ClientVehicle by account reference (car registration)."""
-    if not account_reference:
-        return None
-
-    normalized = _normalize_account_reference(account_reference)
-    if not normalized:
-        return None
-
-    # Direct match
-    direct_match = ClientVehicle.objects.select_related('vehicle', 'client').filter(
-        is_active=True,
-        vehicle__registration_number__iexact=str(account_reference).strip(),
-    ).first()
-    if direct_match:
-        return direct_match
-
-    # Normalized match
-    for item in ClientVehicle.objects.select_related('vehicle', 'client').filter(
-        is_active=True,
-        vehicle__registration_number__isnull=False,
-    ):
-        if _normalize_account_reference(item.vehicle.registration_number) == normalized:
-            return item
-    return None
-
-
-def _parse_stk_metadata(metadata_items):
-    """Parse STK callback metadata."""
-    details = {
-        'amount': None,
-        'mpesa_receipt_number': '',
-        'transaction_date': None,
-        'phone_number': '',
-    }
-    if not isinstance(metadata_items, list):
-        return details
-
-    for item in metadata_items:
-        name = str(item.get('Name', '')).strip().lower()
-        value = item.get('Value')
-        if name == 'amount':
-            details['amount'] = _safe_decimal(value)
-        elif name == 'mpesareceiptnumber':
-            details['mpesa_receipt_number'] = str(value or '').strip()
-        elif name == 'transactiondate':
-            details['transaction_date'] = _parse_mpesa_datetime(value)
-        elif name == 'phonenumber':
-            details['phone_number'] = str(value or '').strip()
-
-    return details
-
-
-def _callback_secret_is_valid(request):
-    """Validate the callback secret header."""
-    expected_secret = str(getattr(settings, 'MPESA_CALLBACK_SECRET', '') or '').strip()
-    
-    # In development, allow if no secret is set
-    if not expected_secret and getattr(settings, 'MPESA_ENV', '') != 'production':
-        return True
-    
-    provided_secret = (
-        request.headers.get('X-Callback-Secret')
-        or request.META.get('HTTP_X_CALLBACK_SECRET', '')
-    ).strip()
-    
-    # If both are empty, allow (development only)
-    if not expected_secret and not provided_secret:
-        return True
-    
-    # If one is set but doesn't match, reject
-    return provided_secret == expected_secret
-
-
 # ==================== PAYMENT MANAGEMENT VIEWS ====================
 
 @login_required
@@ -351,9 +169,6 @@ def payment_list(request):
     cash_total = Decimal('0.00')
     other_total = Decimal('0.00')
 
-    hoza_breakdown = {'equity_hoza': Decimal('0.00'), 'dib_hoza': Decimal('0.00'), 'coop_hoza': Decimal('0.00')}
-    ke_breakdown = {'kcb_ke': Decimal('0.00'), 'absa_ke': Decimal('0.00'), 'equity_ke': Decimal('0.00')}
-
     for payment in payments:
         if payment.splits.exists():
             portions = [(split.payment_method, split.amount) for split in payment.splits.all()]
@@ -365,10 +180,8 @@ def payment_list(request):
             amt = amount or Decimal('0.00')
             if method_value in hoza_methods:
                 hoza_total += amt
-                hoza_breakdown[method_value] = hoza_breakdown.get(method_value, Decimal('0.00')) + amt
             elif method_value.endswith('_ke'):
                 ke_total += amt
-                ke_breakdown[method_value] = ke_breakdown.get(method_value, Decimal('0.00')) + amt
             elif method_value == 'cash':
                 cash_total += amt
             else:
@@ -406,8 +219,6 @@ def payment_list(request):
         'ke_withdrawals_total': ke_withdrawals_total,
         'cash_total': cash_total,
         'other_total': other_total,
-        'hoza_breakdown': hoza_breakdown,
-        'ke_breakdown': ke_breakdown,
         'payment_methods': Payment.PAYMENT_METHOD_CHOICES,
         'recent_withdrawals': recent_withdrawals,
         **due_stats,
@@ -831,7 +642,7 @@ def payment_receipt(request, pk):
             'client_vehicle__client',
             'client_vehicle__vehicle',
             'recorded_by'
-        ).prefetch_related('splits'),
+        ),
         pk=pk
     )
     
@@ -1623,16 +1434,10 @@ def payment_analytics(request):
 
 @login_required
 def paybill_tracker(request):
-    """Display paybill account balance and incoming M-Pesa transaction history."""
-    # Backfill: ensure every M-Pesa Payment that has no PaybillTransaction yet
-    # gets a synthetic one so it immediately appears in the tracker.
-    _backfill_paybill_transactions()
+    """Display paybill account balance and incoming transaction history."""
+    all_transactions = PaybillTransaction.objects.all().order_by('-trans_time', '-created_at')
 
-    all_transactions = PaybillTransaction.objects.all().order_by(
-        F('trans_time').desc(nulls_last=True), '-created_at'
-    )
-
-    # Optional filter by paybill shortcode
+    # Optional filter by paybill
     paybill_filter = request.GET.get('paybill', '').strip()
     if paybill_filter:
         transactions = all_transactions.filter(business_short_code=paybill_filter)
@@ -1646,11 +1451,11 @@ def paybill_tracker(request):
 
     this_month = timezone.now()
 
-    total_received = transactions.aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00')
+    total_received = transactions.aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00')
     month_received = transactions.filter(
         trans_time__year=this_month.year,
         trans_time__month=this_month.month,
-    ).aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00')
+    ).aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00')
 
     # Per-paybill breakdown
     known_paybills = ['4320049', '4162495']
@@ -1660,11 +1465,11 @@ def paybill_tracker(request):
         paybill_stats.append({
             'code': code,
             'count': qs.count(),
-            'total': qs.aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00'),
+            'total': qs.aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00'),
             'month': qs.filter(
                 trans_time__year=this_month.year,
                 trans_time__month=this_month.month,
-            ).aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00'),
+            ).aggregate(Sum('trans_amount'))['trans_amount__sum'] or Decimal('0.00'),
         })
 
     context = {
@@ -1682,51 +1487,6 @@ def paybill_tracker(request):
 
     log_audit(request.user, 'view', 'Payment', 'Viewed paybill tracker')
     return render(request, 'payments/paybill_tracker.html', context)
-
-
-def _backfill_paybill_transactions():
-    """
-    Create a PaybillTransaction for every M-Pesa Payment that has a
-    transaction_reference but no matching PaybillTransaction yet.
-    Runs on each tracker page load — idempotent and fast once backfilled.
-    """
-    try:
-        existing_ids = set(
-            PaybillTransaction.objects.values_list('trans_id', flat=True)
-        )
-        orphan_payments = Payment.objects.filter(
-            payment_method='mpesa',
-            transaction_reference__isnull=False,
-        ).exclude(
-            transaction_reference__in=existing_ids
-        ).select_related('client_vehicle__vehicle').order_by('-payment_date')[:200]
-
-        shortcode = str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip()
-
-        for pmt in orphan_payments:
-            if not pmt.transaction_reference:
-                continue
-            try:
-                cv = pmt.client_vehicle
-                PaybillTransaction.objects.get_or_create(
-                    trans_id=pmt.transaction_reference,
-                    defaults={
-                        'trans_time': timezone.datetime.combine(
-                            pmt.payment_date, timezone.datetime.min.time(),
-                            tzinfo=timezone.get_current_timezone(),
-                        ),
-                        'trans_amount': pmt.amount,
-                        'business_short_code': shortcode,
-                        'bill_ref_number': cv.vehicle.registration_number if cv and cv.vehicle else '',
-                        'msisdn': '',
-                        'raw_payload': {},
-                        'is_linked_to_payment': True,
-                    },
-                )
-            except Exception:
-                pass
-    except Exception as e:
-        logger.warning(f"Backfill skipped: {e}")
 
 
 @login_required
@@ -1799,102 +1559,170 @@ def register_paybill_c2b(request):
     return redirect('payments:paybill_tracker')
 
 
-# ==================== MPESA CALLBACK VIEWS ====================
+def _safe_decimal(value):
+    if value is None:
+        return None
+    text = str(value).strip().replace(',', '')
+    if not text:
+        return None
+    try:
+        return Decimal(text)
+    except Exception:
+        return None
+
+
+def _parse_mpesa_datetime(value):
+    if not value:
+        return None
+    value = str(value).strip()
+    for fmt in ('%Y%m%d%H%M%S', '%Y-%m-%d %H:%M:%S'):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _extract_account_balance(raw_value):
+    """Extract a numeric balance from Daraja AccountBalance string payload."""
+    if raw_value is None:
+        return None
+    if isinstance(raw_value, (int, float, Decimal)):
+        return Decimal(str(raw_value))
+
+    text = str(raw_value)
+    match = re.search(r'(\d+[\d,]*\.?\d*)', text)
+    if not match:
+        return None
+    return _safe_decimal(match.group(1))
+
+
+def _normalize_account_reference(value):
+    """Normalize account references to compare vehicle registration numbers reliably."""
+    return re.sub(r'[^A-Z0-9]', '', str(value or '').upper())
+
+
+def _find_client_vehicle_for_reference(account_reference):
+    if not account_reference:
+        return None
+
+    normalized = _normalize_account_reference(account_reference)
+    if not normalized:
+        return None
+
+    direct_match = ClientVehicle.objects.select_related('vehicle').filter(
+        is_active=True,
+        vehicle__registration_number__iexact=str(account_reference).strip(),
+    ).first()
+    if direct_match:
+        return direct_match
+
+    for item in ClientVehicle.objects.select_related('vehicle').filter(
+        is_active=True,
+        vehicle__registration_number__isnull=False,
+    ):
+        if _normalize_account_reference(item.vehicle.registration_number) == normalized:
+            return item
+    return None
+
+
+def _parse_stk_metadata(metadata_items):
+    details = {
+        'amount': None,
+        'mpesa_receipt_number': '',
+        'transaction_date': None,
+        'phone_number': '',
+    }
+    if not isinstance(metadata_items, list):
+        return details
+
+    for item in metadata_items:
+        name = str(item.get('Name', '')).strip().lower()
+        value = item.get('Value')
+        if name == 'amount':
+            details['amount'] = _safe_decimal(value)
+        elif name == 'mpesareceiptnumber':
+            details['mpesa_receipt_number'] = str(value or '').strip()
+        elif name == 'transactiondate':
+            details['transaction_date'] = _parse_mpesa_datetime(value)
+        elif name == 'phonenumber':
+            details['phone_number'] = str(value or '').strip()
+
+    return details
+
+
+def _callback_secret_is_valid(request):
+    expected_secret = str(getattr(settings, 'MPESA_CALLBACK_SECRET', '') or '').strip()
+    if not expected_secret:
+        return True
+
+    provided_secret = (
+        request.headers.get('X-Callback-Secret')
+        or request.META.get('HTTP_X_CALLBACK_SECRET', '')
+    ).strip()
+    return provided_secret == expected_secret
+
 
 @csrf_exempt
 @require_POST
 def paybill_validation_callback(request):
-    """
-    Daraja C2B validation callback endpoint.
-    Always accepts — rejecting here silently blocks the customer's payment and
-    prevents the confirmation callback from ever arriving, so transactions are
-    never recorded. Business-logic checks happen at confirmation time instead.
-    """
-    try:
-        payload = json.loads(request.body.decode('utf-8') or '{}')
-    except json.JSONDecodeError:
-        # Even on bad JSON we accept so M-Pesa doesn't retry indefinitely
-        return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
-
+    """Daraja C2B validation callback endpoint."""
     if not _callback_secret_is_valid(request):
-        logger.warning("Unauthorized C2B validation attempt")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
-
-    bill_ref_number = str(payload.get('BillRefNumber', '')).strip()
-    trans_amount = _safe_decimal(payload.get('TransAmount')) or Decimal('0.00')
-    trans_id = str(payload.get('TransID', '')).strip()
-    logger.info(
-        f"C2B Validation: Ref={bill_ref_number}, Amount={trans_amount}, "
-        f"TransID={trans_id} — accepted (validation is permissive)"
-    )
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
 @csrf_exempt
 @require_POST
 def paybill_confirmation_callback(request):
-    """
-    Daraja C2B confirmation callback endpoint.
-
-    Always stores the PaybillTransaction so it appears in the tracker.
-    The post_save signal (process_paybill_transaction in signals.py) creates
-    the Payment and recalculates the vehicle balance — balance updates are NOT
-    done here to avoid double-counting.
-    """
-    try:
-        payload = json.loads(request.body.decode('utf-8') or '{}')
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in C2B confirmation: {e}")
-        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Invalid JSON'}, status=400)
-
+    """Daraja C2B confirmation callback endpoint."""
     if not _callback_secret_is_valid(request):
-        logger.warning("Unauthorized C2B confirmation attempt")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
 
-    trans_id = str(payload.get('TransID', '')).strip()
-    if not trans_id:
-        logger.error("Missing TransID in C2B confirmation")
-        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Missing TransID'}, status=400)
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Invalid JSON'}, status=400)
 
-    # Idempotent — acknowledge without creating a duplicate
-    if PaybillTransaction.objects.filter(trans_id=trans_id).exists():
-        logger.info(f"C2B duplicate {trans_id} — already stored")
-        return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Duplicate - Already Processed'})
+    trans_id = (payload.get('TransID') or '').strip()
+    if not trans_id:
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Missing TransID'}, status=400)
 
     bill_ref_number = str(payload.get('BillRefNumber', '')).strip()
     trans_amount = _safe_decimal(payload.get('TransAmount')) or Decimal('0.00')
-    business_shortcode = str(payload.get('BusinessShortCode', '')).strip()
-    msisdn = str(payload.get('MSISDN', '')).strip()
-    trans_time = _parse_mpesa_datetime(payload.get('TransTime'))
-    first_name = str(payload.get('FirstName', '')).strip()
-    middle_name = str(payload.get('MiddleName', '')).strip()
-    last_name = str(payload.get('LastName', '')).strip()
+    transaction_obj, _ = PaybillTransaction.objects.update_or_create(
+        trans_id=trans_id,
+        defaults={
+            'trans_time': _parse_mpesa_datetime(payload.get('TransTime')),
+            'trans_amount': trans_amount,
+            'business_short_code': str(payload.get('BusinessShortCode', '')).strip(),
+            'bill_ref_number': bill_ref_number,
+            'invoice_number': str(payload.get('InvoiceNumber', '')).strip(),
+            'org_account_balance': _safe_decimal(payload.get('OrgAccountBalance')),
+            'msisdn': str(payload.get('MSISDN', '')).strip(),
+            'first_name': str(payload.get('FirstName', '')).strip(),
+            'middle_name': str(payload.get('MiddleName', '')).strip(),
+            'last_name': str(payload.get('LastName', '')).strip(),
+            'raw_payload': payload,
+        },
+    )
 
-    logger.info(f"C2B Confirmation: Ref={bill_ref_number}, Amount={trans_amount}, TransID={trans_id}")
-
-    # Store the transaction unconditionally so it always appears in the tracker.
-    # The post_save signal (process_paybill_transaction in signals.py) will
-    # create the Payment and recalculate the vehicle balance automatically.
-    try:
-        PaybillTransaction.objects.create(
-            trans_id=trans_id,
-            trans_time=trans_time or timezone.now(),
-            trans_amount=trans_amount,
-            business_short_code=business_shortcode,
-            bill_ref_number=bill_ref_number,
-            invoice_number=str(payload.get('InvoiceNumber', '')).strip(),
-            org_account_balance=_safe_decimal(payload.get('OrgAccountBalance')),
-            msisdn=msisdn,
-            first_name=first_name,
-            middle_name=middle_name,
-            last_name=last_name,
-            raw_payload=payload,
-            is_linked_to_payment=False,
+    client_vehicle = _find_client_vehicle_for_reference(bill_ref_number)
+    if client_vehicle and not Payment.objects.filter(
+        client_vehicle=client_vehicle,
+        transaction_reference=trans_id,
+        payment_method='mpesa',
+    ).exists():
+        Payment.objects.create(
+            client_vehicle=client_vehicle,
+            amount=trans_amount,
+            payment_date=(_parse_mpesa_datetime(payload.get('TransTime')) or timezone.now()).date(),
+            payment_method='mpesa',
+            transaction_reference=trans_id,
+            notes=f'Paybill payment received. Account ref: {bill_ref_number or "N/A"}.',
         )
-        logger.info(f"✅ C2B PaybillTransaction {trans_id} stored — signal will handle Payment creation")
-    except Exception as e:
-        logger.error(f"Error storing C2B transaction {trans_id}: {e}", exc_info=True)
-        # Return 200 anyway — returning ResultCode 1 causes M-Pesa to retry
+        transaction_obj.is_linked_to_payment = True
+        transaction_obj.save(update_fields=['is_linked_to_payment', 'updated_at'])
 
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
@@ -1902,57 +1730,37 @@ def paybill_confirmation_callback(request):
 @csrf_exempt
 @require_POST
 def stk_push_callback(request):
-    """
-    Daraja STK push callback endpoint.
-    Processes STK push responses and creates payments on success.
-    """
-    logger.info("=" * 60)
-    logger.info("STK Push Callback Received")
-    logger.info(f"Headers: {dict(request.headers)}")
-    
+    """Daraja STK push callback endpoint."""
+    if not _callback_secret_is_valid(request):
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
+
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
-        logger.info(f"Payload: {json.dumps(payload, indent=2)}")
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in STK callback: {e}")
+    except json.JSONDecodeError:
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Invalid JSON'}, status=400)
-    
-    # ✅ Validate callback secret
-    if not _callback_secret_is_valid(request):
-        logger.warning("Unauthorized STK callback attempt - invalid secret")
-        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
-    
+
     callback = payload.get('Body', {}).get('stkCallback', {})
     merchant_request_id = str(callback.get('MerchantRequestID', '')).strip()
     checkout_request_id = str(callback.get('CheckoutRequestID', '')).strip()
     result_code_raw = callback.get('ResultCode')
     result_code = int(result_code_raw) if str(result_code_raw).lstrip('-').isdigit() else None
     result_desc = str(callback.get('ResultDesc', '')).strip()
-    
-    logger.info(f"STK Details: CheckoutID={checkout_request_id}, ResultCode={result_code}, ResultDesc={result_desc}")
-    
-    # ✅ Parse metadata
+
     metadata = callback.get('CallbackMetadata', {}).get('Item', [])
     parsed_metadata = _parse_stk_metadata(metadata)
-    
-    logger.info(f"Parsed Metadata: {parsed_metadata}")
-    
-    # ✅ Find the STK request
+
     stk_request = MpesaSTKRequest.objects.filter(
         checkout_request_id=checkout_request_id
     ).order_by('-created_at').first()
-    
     if not stk_request and merchant_request_id:
         stk_request = MpesaSTKRequest.objects.filter(
             merchant_request_id=merchant_request_id
         ).order_by('-created_at').first()
-    
+
     if not stk_request:
-        logger.warning(f"STK request not found for CheckoutID: {checkout_request_id}")
-        # Create a record for tracking
         stk_request = MpesaSTKRequest.objects.create(
             account_reference='',
-            payment_type='unknown',
+            payment_type='',
             phone_number=parsed_metadata['phone_number'],
             amount=parsed_metadata['amount'] or Decimal('0.00'),
             merchant_request_id=merchant_request_id,
@@ -1964,8 +1772,7 @@ def stk_push_callback(request):
             transaction_date=parsed_metadata['transaction_date'],
             raw_callback_payload=payload,
         )
-    
-    # ✅ Determine status
+
     status = MpesaSTKRequest.STATUS_FAILED
     if result_code == 0:
         status = MpesaSTKRequest.STATUS_SUCCESS
@@ -1973,13 +1780,11 @@ def stk_push_callback(request):
         status = MpesaSTKRequest.STATUS_CANCELLED
     elif result_code == 1037:
         status = MpesaSTKRequest.STATUS_TIMEOUT
-    
-    # ✅ Update STK request
+
     stk_request.status = status
     stk_request.result_code = result_code
     stk_request.result_desc = result_desc
     stk_request.raw_callback_payload = payload
-    
     if parsed_metadata['amount'] is not None:
         stk_request.amount = parsed_metadata['amount']
     if parsed_metadata['phone_number']:
@@ -1988,172 +1793,113 @@ def stk_push_callback(request):
         stk_request.mpesa_receipt_number = parsed_metadata['mpesa_receipt_number']
     if parsed_metadata['transaction_date']:
         stk_request.transaction_date = parsed_metadata['transaction_date']
-    
-    # ✅ Process successful payment
+
     if result_code == 0 and not stk_request.payment_id:
         account_reference = stk_request.account_reference
         client_vehicle = stk_request.client_vehicle or _find_client_vehicle_for_reference(account_reference)
         amount = parsed_metadata['amount'] or stk_request.amount
         transaction_reference = parsed_metadata['mpesa_receipt_number']
-        trans_time = parsed_metadata['transaction_date'] or timezone.now()
-        payment_date = trans_time.date() if hasattr(trans_time, 'date') else timezone.now().date()
-        phone_number = parsed_metadata['phone_number'] or stk_request.phone_number
+        payment_date = (parsed_metadata['transaction_date'] or timezone.now()).date()
 
-        # Store the transaction record first so it always appears in the tracker,
-        # even if Payment creation below fails. Use checkout_request_id as fallback
-        # trans_id when the M-Pesa receipt number is not yet available.
-        paybill_trans_id = transaction_reference or checkout_request_id
-        if paybill_trans_id and amount and amount > 0:
-            try:
-                PaybillTransaction.objects.update_or_create(
-                    trans_id=paybill_trans_id,
-                    defaults={
-                        'trans_time': trans_time,
-                        'trans_amount': amount,
-                        'business_short_code': str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip(),
-                        'bill_ref_number': account_reference,
-                        'invoice_number': checkout_request_id,
-                        'msisdn': phone_number,
-                        'raw_payload': payload,
-                        'is_linked_to_payment': False,
-                    },
+        if client_vehicle and transaction_reference:
+            existing_payment = Payment.objects.filter(
+                client_vehicle=client_vehicle,
+                transaction_reference=transaction_reference,
+                payment_method='mpesa',
+            ).first()
+
+            if existing_payment:
+                stk_request.payment = existing_payment
+            else:
+                notes = (
+                    f'M-Pesa STK payment. Account ref: {account_reference or "N/A"}. '
+                    f'Phone: {parsed_metadata["phone_number"] or stk_request.phone_number or "N/A"}.'
                 )
-                logger.info(f"✅ STK PaybillTransaction {paybill_trans_id} stored")
-            except Exception as e:
-                logger.error(f"Error storing STK PaybillTransaction {paybill_trans_id}: {e}", exc_info=True)
-
-        # Create or link the Payment. The post_save signal on Payment handles
-        # balance recalculation — do NOT update client_vehicle manually here.
-        if client_vehicle and transaction_reference and amount and amount > 0:
-            logger.info(f"Processing STK payment: Vehicle={account_reference}, Amount={amount}, Receipt={transaction_reference}")
-            try:
-                existing_payment = Payment.objects.filter(
-                    transaction_reference=transaction_reference,
+                created_payment = Payment.objects.create(
+                    client_vehicle=client_vehicle,
+                    amount=amount,
+                    payment_date=payment_date,
                     payment_method='mpesa',
-                ).first()
+                    transaction_reference=transaction_reference,
+                    notes=notes,
+                )
+                stk_request.payment = created_payment
 
-                if existing_payment:
-                    stk_request.payment = existing_payment
-                    logger.info(f"STK payment already exists: {existing_payment.receipt_number}")
-                else:
-                    created_payment = Payment.objects.create(
-                        client_vehicle=client_vehicle,
-                        amount=amount,
-                        payment_date=payment_date,
-                        payment_method='mpesa',
-                        transaction_reference=transaction_reference,
-                        notes=(
-                            f'M-Pesa STK payment. Account ref: {account_reference or "N/A"}. '
-                            f'Phone: {phone_number or "N/A"}.'
-                        ),
-                    )
-                    stk_request.payment = created_payment
-                    logger.info(f"✅ STK Payment created: {created_payment.receipt_number}")
-            except Exception as e:
-                logger.error(f"Error creating STK payment: {e}", exc_info=True)
+            PaybillTransaction.objects.update_or_create(
+                trans_id=transaction_reference,
+                defaults={
+                    'trans_time': parsed_metadata['transaction_date'] or timezone.now(),
+                    'trans_amount': amount,
+                    'business_short_code': str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip(),
+                    'bill_ref_number': account_reference,
+                    'invoice_number': stk_request.checkout_request_id,
+                    'msisdn': parsed_metadata['phone_number'] or stk_request.phone_number,
+                    'raw_payload': payload,
+                    'is_linked_to_payment': True,
+                },
+            )
 
     stk_request.save()
-    logger.info(f"✅ STK Callback processed: {checkout_request_id}")
+
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
 @csrf_exempt
 @require_POST
 def paybill_balance_result_callback(request):
-    """
-    Daraja account-balance result callback endpoint.
-    Processes balance query results with improved balance extraction.
-    """
-    logger.info("=" * 60)
-    logger.info("Balance Result Callback Received")
-    logger.info(f"Headers: {dict(request.headers)}")
-    
+    """Daraja account-balance result callback endpoint."""
+    if not _callback_secret_is_valid(request):
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
+
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
-        logger.info(f"Payload: {json.dumps(payload, indent=2)}")
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in balance callback: {e}")
-        return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'}, status=200)
-    
-    # ✅ Validate callback secret
-    if not _callback_secret_is_valid(request):
-        logger.warning("Unauthorized balance callback attempt - invalid secret")
-        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized'}, status=403)
-    
+    except json.JSONDecodeError:
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Invalid JSON'}, status=400)
+
     result = payload.get('Result', {})
     result_code = result.get('ResultCode')
-    result_desc = result.get('ResultDesc', '')
-    
-    logger.info(f"Result Code: {result_code}, Result Desc: {result_desc}")
-    
-    # ✅ Extract balance using improved function
-    balance = None
-    parameters = result.get('ResultParameters', {}).get('ResultParameter', [])
-    
-    if isinstance(parameters, list):
-        for item in parameters:
-            key = str(item.get('Key', '')).lower()
-            value = item.get('Value')
-            logger.info(f"Processing parameter: Key={key}")
-            
-            if key in {'accountbalance', 'availablebalance', 'balance'}:
-                balance = _extract_account_balance(value)
-                if balance is not None:
-                    logger.info(f"✅ EXTRACTED BALANCE: {balance}")
-                    break
-    
-    # If no balance found, log warning
-    if balance is None:
-        logger.warning("No balance could be extracted from the callback payload")
-    
-    # Determine status
     status = (
         PaybillBalanceSnapshot.STATUS_SUCCESS
         if str(result_code) == '0'
         else PaybillBalanceSnapshot.STATUS_FAILED
     )
-    
-    # ✅ Create snapshot with extracted balance
-    snapshot = PaybillBalanceSnapshot.objects.create(
+
+    balance = None
+    parameters = result.get('ResultParameters', {}).get('ResultParameter', [])
+    if isinstance(parameters, list):
+        for item in parameters:
+            if str(item.get('Key', '')).lower() in {'accountbalance', 'availablebalance'}:
+                balance = _extract_account_balance(item.get('Value'))
+                if balance is not None:
+                    break
+
+    PaybillBalanceSnapshot.objects.create(
         status=status,
         available_balance=balance,
         conversation_id=str(result.get('ConversationID', '')).strip(),
         originator_conversation_id=str(result.get('OriginatorConversationID', '')).strip(),
         result_code=int(result_code) if str(result_code).lstrip('-').isdigit() else None,
-        result_desc=result_desc,
+        result_desc=str(result.get('ResultDesc', '')).strip(),
         raw_payload=payload,
     )
-    
-    logger.info(f"✅ Balance snapshot created: ID={snapshot.id}, Balance={balance}, Status={status}")
-    return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'}, status=200)
+
+    return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
 @csrf_exempt
 @require_POST
 def paybill_balance_timeout_callback(request):
-    """
-    Daraja account-balance timeout callback endpoint.
-    Handles timeout scenarios for balance queries.
-    """
-    logger.info("=" * 60)
-    logger.info("Balance Timeout Callback Received")
-    logger.info(f"Headers: {dict(request.headers)}")
-    
+    """Daraja account-balance timeout callback endpoint."""
+    if not _callback_secret_is_valid(request):
+        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
+
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
-        logger.info(f"Payload: {json.dumps(payload, indent=2)}")
     except json.JSONDecodeError:
         payload = {'raw': request.body.decode('utf-8', errors='ignore')}
-        logger.warning(f"Invalid JSON in timeout callback: {payload}")
-    
-    # ✅ Validate callback secret
-    if not _callback_secret_is_valid(request):
-        logger.warning("Unauthorized timeout callback attempt - invalid secret")
-        return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
-    
+
     result = payload.get('Result', {}) if isinstance(payload, dict) else {}
-    
-    # ✅ Create timeout snapshot
+
     PaybillBalanceSnapshot.objects.create(
         status=PaybillBalanceSnapshot.STATUS_TIMEOUT,
         conversation_id=str(result.get('ConversationID', '')).strip(),
@@ -2161,39 +1907,8 @@ def paybill_balance_timeout_callback(request):
         result_desc='Daraja callback timeout',
         raw_payload=payload if isinstance(payload, dict) else {'payload': str(payload)},
     )
-    
-    logger.info("✅ Balance timeout recorded")
+
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
-
-
-# ==================== HELPER FUNCTIONS ====================
-
-def update_payment_schedules(payment, client_vehicle):
-    """
-    Update payment schedules when a payment is made
-    """
-    try:
-        plan = client_vehicle.installment_plan
-        pending_schedules = plan.payment_schedules.filter(
-            is_paid=False
-        ).order_by('installment_number')
-        
-        remaining_amount = payment.amount
-        
-        for schedule in pending_schedules:
-            if remaining_amount <= 0:
-                break
-            
-            amount_to_apply = min(remaining_amount, schedule.remaining_amount)
-            schedule.mark_as_paid(payment, amount_to_apply)
-            remaining_amount -= amount_to_apply
-            
-        logger.info(f"Updated {pending_schedules.count()} payment schedules for {client_vehicle.vehicle.registration_number}")
-        
-    except InstallmentPlan.DoesNotExist:
-        pass
-    except Exception as e:
-        logger.error(f"Error updating payment schedules: {e}")
 
 
 @login_required
@@ -2505,6 +2220,32 @@ def generate_payment_tracker_pdf_view(request, client_vehicle_pk):
     )
     
     return generate_payment_tracker_pdf(client_vehicle, currency=currency, fx_rate=fx_rate)
+
+
+# ==================== HELPER FUNCTIONS ====================
+
+def update_payment_schedules(payment, client_vehicle):
+    """
+    Update payment schedules when a payment is made
+    """
+    try:
+        plan = client_vehicle.installment_plan
+        pending_schedules = plan.payment_schedules.filter(
+            is_paid=False
+        ).order_by('installment_number')
+        
+        remaining_amount = payment.amount
+        
+        for schedule in pending_schedules:
+            if remaining_amount <= 0:
+                break
+            
+            amount_to_apply = min(remaining_amount, schedule.remaining_amount)
+            schedule.mark_as_paid(payment, amount_to_apply)
+            remaining_amount -= amount_to_apply
+        
+    except InstallmentPlan.DoesNotExist:
+        pass
 
 
 # ==================== STAFF STK PUSH AJAX ENDPOINTS ====================
