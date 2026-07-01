@@ -556,14 +556,19 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             {% for payment in recent_payments %}
-                            <tr class="hover:bg-gray-50">
+                            <tr class="hover:bg-gray-50 {% if payment.is_reversed %}bg-red-50{% endif %}">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {{ payment.payment_date|date:"M d, Y" }}
+                                    {% if payment.is_reversed %}
+                                    <span class="inline-flex items-center px-2 py-0.5 mt-1 text-xs font-semibold rounded-full bg-red-600 text-white">
+                                        <i class="fas fa-ban mr-1"></i> Reversed
+                                    </span>
+                                    {% endif %}
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-900">
                                     {{ payment.client_vehicle.vehicle.registration_number }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold {% if payment.is_reversed %}text-red-400 line-through{% else %}text-green-600{% endif %}">
                                     KES {{ payment.amount|floatformat:2 }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
