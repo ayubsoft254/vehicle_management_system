@@ -31,7 +31,7 @@ class Command(BaseCommand):
         today = timezone.now().date()
 
         payment_totals = dict(
-            Payment.objects.filter(payment_date__lte=today)
+            Payment.objects.filter(payment_date__lte=today, is_reversed=False)
             .values('client_vehicle_id')
             .annotate(total=Sum('amount'))
             .values_list('client_vehicle_id', 'total')
