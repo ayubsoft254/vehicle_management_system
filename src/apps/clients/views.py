@@ -2385,7 +2385,7 @@ def client_statement(request, client_pk):
     
     # Calculate totals
     total_purchases = client_vehicles.aggregate(Sum('purchase_price'))['purchase_price__sum'] or 0
-    total_paid = payments.aggregate(Sum('amount'))['amount__sum'] or 0
+    total_paid = payments.filter(is_reversed=False).aggregate(Sum('amount'))['amount__sum'] or 0
     total_balance = client_vehicles.aggregate(Sum('balance'))['balance__sum'] or 0
     
     context = {
