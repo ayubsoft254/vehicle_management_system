@@ -290,6 +290,15 @@ class Payment(models.Model):
                 payment_date=None,
             )
 
+            client_vehicle = self.client_vehicle
+            client_vehicle.total_paid = max(
+                client_vehicle.total_paid - self.amount, Decimal('0.00')
+            )
+            client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
+            if client_vehicle.balance > 0:
+                client_vehicle.is_paid_off = False
+            client_vehicle.save(update_fields=['total_paid', 'balance', 'is_paid_off'])
+
 
 class AccountWithdrawal(models.Model):
     """Record withdrawals from HOZA and KE accounts."""
