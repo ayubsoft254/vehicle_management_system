@@ -49,7 +49,26 @@
             }
         }
     </style>
-    
+
+    <!-- Floating horizontal scrollbar for wide tables (keeps a scrollbar
+         reachable even when the table's own scrollbar has scrolled out
+         of view below the fold) -->
+    <style>
+        .floating-scrollbar {
+            position: fixed;
+            bottom: 0;
+            height: 14px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            z-index: 40;
+            display: none;
+            background: transparent;
+        }
+        .floating-scrollbar > div {
+            height: 1px;
+        }
+    </style>
+
     {% block extra_css %}{% endblock %}
 </head>
 <body class="h-full">
@@ -976,6 +995,103 @@
         console.log('  Esc: Close modals/menus');
     </script>
     
+    <!-- ======================================================================
+         FLOATING HORIZONTAL SCROLLBAR
+         Wide tables are wrapped in .overflow-x-auto across the app. On long
+         lists the table's own scrollbar sits below the fold, forcing users
+         to scroll all the way down just to scroll sideways. This mirrors a
+         reachable scrollbar at the bottom of the viewport whenever such a
+         table is on screen but its native scrollbar isn't.
+         ====================================================================== -->
+    <script>
+    (function () {
+        'use strict';
+
+        var registry = [];
+
+        function build(container) {
+            var floater = document.createElement('div');
+            floater.className = 'floating-scrollbar';
+            var spacer = document.createElement('div');
+            floater.appendChild(spacer);
+            document.body.appendChild(floater);
+
+            var syncing = false;
+            floater.addEventListener('scroll', function () {
+                if (syncing) return;
+                syncing = true;
+                container.scrollLeft = floater.scrollLeft;
+                syncing = false;
+            });
+            container.addEventListener('scroll', function () {
+                if (syncing) return;
+                syncing = true;
+                floater.scrollLeft = container.scrollLeft;
+                syncing = false;
+            });
+
+            return { container: container, floater: floater, spacer: spacer };
+        }
+
+        function update(entry) {
+            var container = entry.container;
+            var needsScroll = container.scrollWidth > container.clientWidth + 1;
+            if (!needsScroll) {
+                entry.floater.style.display = 'none';
+                return;
+            }
+
+            var rect = container.getBoundingClientRect();
+            var viewportHeight = window.innerHeight;
+            var visible = rect.top < viewportHeight && rect.bottom > 0;
+            var nativeScrollbarHidden = rect.bottom > viewportHeight;
+
+            if (visible && nativeScrollbarHidden) {
+                entry.floater.style.display = 'block';
+                entry.floater.style.left = rect.left + 'px';
+                entry.floater.style.width = rect.width + 'px';
+                entry.spacer.style.width = container.scrollWidth + 'px';
+                if (entry.floater.scrollLeft !== container.scrollLeft) {
+                    entry.floater.scrollLeft = container.scrollLeft;
+                }
+            } else {
+                entry.floater.style.display = 'none';
+            }
+        }
+
+        function refreshAll() {
+            registry.forEach(update);
+        }
+
+        function scan() {
+            document.querySelectorAll('.overflow-x-auto').forEach(function (container) {
+                if (container.dataset.floatingScrollbar) return;
+                container.dataset.floatingScrollbar = 'true';
+                registry.push(build(container));
+            });
+            refreshAll();
+        }
+
+        var ticking = false;
+        function onScrollOrResize() {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(function () {
+                refreshAll();
+                ticking = false;
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', scan);
+        } else {
+            scan();
+        }
+        window.addEventListener('scroll', onScrollOrResize, { passive: true });
+        window.addEventListener('resize', onScrollOrResize);
+    }());
+    </script>
+
     <!-- ======================================================================
          FORM DRAFT AUTO-SAVE
          Saves every POST form's inputs to localStorage while the user types.
