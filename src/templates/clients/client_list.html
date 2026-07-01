@@ -205,7 +205,7 @@
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Registered
                         </th>
-                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" class="sticky right-0 z-10 bg-gray-50 px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)]">
                             Actions
                         </th>
                     </tr>
@@ -280,9 +280,9 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ client.date_registered|date:"M d, Y" }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <td class="sticky right-0 z-10 bg-white whitespace-nowrap text-right text-sm font-medium px-6 py-4 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)]">
                             <div class="flex items-center justify-end space-x-2">
-                                <a href="{% url 'clients:client_detail' client.pk %}" 
+                                <a href="{% url 'clients:client_detail' client.pk %}"
                                    class="text-primary-600 hover:text-primary-900 transition-colors duration-150" 
                                    title="View Details">
                                     <i class="fas fa-eye"></i>
