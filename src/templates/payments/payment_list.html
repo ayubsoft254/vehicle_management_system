@@ -154,15 +154,27 @@
             <div class="space-y-1">
                 <div class="flex justify-between items-center py-3 px-3 rounded-lg hover:bg-orange-50 transition-colors">
                     <span class="text-sm font-medium text-gray-700">Equity Hoza</span>
-                    <span class="text-sm font-bold text-gray-900">KES {{ hoza_breakdown.equity_hoza|floatformat:2 }}</span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-bold text-gray-900">KES {{ hoza_breakdown.equity_hoza|floatformat:2 }}</span>
+                        <a href="{% url 'payments:account_transactions' 'equity_hoza' %}" class="text-orange-500 hover:text-orange-700" title="View Transactions"><i class="fas fa-list"></i></a>
+                        <a href="{% url 'payments:record_account_withdrawal' %}?payment_method=equity_hoza" class="text-red-500 hover:text-red-700" title="Quick Withdraw"><i class="fas fa-file-export"></i></a>
+                    </div>
                 </div>
                 <div class="flex justify-between items-center py-3 px-3 rounded-lg hover:bg-orange-50 transition-colors">
                     <span class="text-sm font-medium text-gray-700">DIB Hoza</span>
-                    <span class="text-sm font-bold text-gray-900">KES {{ hoza_breakdown.dib_hoza|floatformat:2 }}</span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-bold text-gray-900">KES {{ hoza_breakdown.dib_hoza|floatformat:2 }}</span>
+                        <a href="{% url 'payments:account_transactions' 'dib_hoza' %}" class="text-orange-500 hover:text-orange-700" title="View Transactions"><i class="fas fa-list"></i></a>
+                        <a href="{% url 'payments:record_account_withdrawal' %}?payment_method=dib_hoza" class="text-red-500 hover:text-red-700" title="Quick Withdraw"><i class="fas fa-file-export"></i></a>
+                    </div>
                 </div>
                 <div class="flex justify-between items-center py-3 px-3 rounded-lg hover:bg-orange-50 transition-colors">
                     <span class="text-sm font-medium text-gray-700">COOP Hoza</span>
-                    <span class="text-sm font-bold text-gray-900">KES {{ hoza_breakdown.coop_hoza|floatformat:2 }}</span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-bold text-gray-900">KES {{ hoza_breakdown.coop_hoza|floatformat:2 }}</span>
+                        <a href="{% url 'payments:account_transactions' 'coop_hoza' %}" class="text-orange-500 hover:text-orange-700" title="View Transactions"><i class="fas fa-list"></i></a>
+                        <a href="{% url 'payments:record_account_withdrawal' %}?payment_method=coop_hoza" class="text-red-500 hover:text-red-700" title="Quick Withdraw"><i class="fas fa-file-export"></i></a>
+                    </div>
                 </div>
                 <div class="border-t border-gray-200 mt-2 pt-2">
                     <div class="flex justify-between items-center py-2 px-3 bg-red-50 rounded-lg">
@@ -193,15 +205,27 @@
             <div class="space-y-1">
                 <div class="flex justify-between items-center py-3 px-3 rounded-lg hover:bg-cyan-50 transition-colors">
                     <span class="text-sm font-medium text-gray-700">KCB KE</span>
-                    <span class="text-sm font-bold text-gray-900">KES {{ ke_breakdown.kcb_ke|floatformat:2 }}</span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-bold text-gray-900">KES {{ ke_breakdown.kcb_ke|floatformat:2 }}</span>
+                        <a href="{% url 'payments:account_transactions' 'kcb_ke' %}" class="text-cyan-500 hover:text-cyan-700" title="View Transactions"><i class="fas fa-list"></i></a>
+                        <a href="{% url 'payments:record_account_withdrawal' %}?payment_method=kcb_ke" class="text-red-500 hover:text-red-700" title="Quick Withdraw"><i class="fas fa-file-export"></i></a>
+                    </div>
                 </div>
                 <div class="flex justify-between items-center py-3 px-3 rounded-lg hover:bg-cyan-50 transition-colors">
                     <span class="text-sm font-medium text-gray-700">ABSA KE</span>
-                    <span class="text-sm font-bold text-gray-900">KES {{ ke_breakdown.absa_ke|floatformat:2 }}</span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-bold text-gray-900">KES {{ ke_breakdown.absa_ke|floatformat:2 }}</span>
+                        <a href="{% url 'payments:account_transactions' 'absa_ke' %}" class="text-cyan-500 hover:text-cyan-700" title="View Transactions"><i class="fas fa-list"></i></a>
+                        <a href="{% url 'payments:record_account_withdrawal' %}?payment_method=absa_ke" class="text-red-500 hover:text-red-700" title="Quick Withdraw"><i class="fas fa-file-export"></i></a>
+                    </div>
                 </div>
                 <div class="flex justify-between items-center py-3 px-3 rounded-lg hover:bg-cyan-50 transition-colors">
                     <span class="text-sm font-medium text-gray-700">Equity KE</span>
-                    <span class="text-sm font-bold text-gray-900">KES {{ ke_breakdown.equity_ke|floatformat:2 }}</span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-bold text-gray-900">KES {{ ke_breakdown.equity_ke|floatformat:2 }}</span>
+                        <a href="{% url 'payments:account_transactions' 'equity_ke' %}" class="text-cyan-500 hover:text-cyan-700" title="View Transactions"><i class="fas fa-list"></i></a>
+                        <a href="{% url 'payments:record_account_withdrawal' %}?payment_method=equity_ke" class="text-red-500 hover:text-red-700" title="Quick Withdraw"><i class="fas fa-file-export"></i></a>
+                    </div>
                 </div>
                 <div class="border-t border-gray-200 mt-2 pt-2">
                     <div class="flex justify-between items-center py-2 px-3 bg-red-50 rounded-lg">
