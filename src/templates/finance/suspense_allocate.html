@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Allocate {{ suspense_txn.transaction.reference_number }} - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-xl">
+
+    <div class="mb-6">
+        <div class="flex items-center space-x-3 mb-2">
+            <a href="{% url 'finance:suspense_list' %}" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left"></i></a>
+            <h1 class="text-2xl font-bold text-gray-900">Allocate Payment</h1>
+        </div>
+    </div>
+
+    <div class="mb-4 p-4 bg-white rounded-lg border border-gray-200">
+        <p class="text-sm text-gray-500">{{ suspense_txn.transaction.reference_number }} &middot; {{ suspense_txn.transaction.account.name }}</p>
+        <p class="text-2xl font-bold text-green-700">{{ suspense_txn.transaction.currency }} {{ suspense_txn.transaction.amount|floatformat:2 }}</p>
+        {% if suspense_txn.transaction.description %}<p class="text-sm text-gray-600 mt-1">{{ suspense_txn.transaction.description }}</p>{% endif %}
+    </div>
+
+    {% if form.non_field_errors %}
+    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <form method="post" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Client Vehicle (purchase)</label>
+            {{ form.client_vehicle }}
+            <p class="mt-1 text-xs text-gray-500">Pick this if the payment is for a specific vehicle purchase — sets both client and vehicle.</p>
+        </div>
+        <div class="text-center text-xs text-gray-400">— or —</div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Client</label>
+            {{ form.client }}
+            <p class="mt-1 text-xs text-gray-500">Pick this if the payment belongs to a client but isn't tied to one specific vehicle purchase.</p>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            {{ form.notes }}
+        </div>
+        <div class="flex justify-end gap-3">
+            <a href="{% url 'finance:suspense_list' %}" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>
+            <button type="submit" class="px-6 py-2 bg-primary-600 rounded-lg text-sm font-medium text-white hover:bg-primary-700">Allocate</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

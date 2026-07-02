@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ transfer.transfer_reference }} - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-3xl">
+
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <div class="flex items-center space-x-3 mb-1">
+                <a href="{% url 'finance:account_list' %}" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left"></i></a>
+                <h1 class="text-2xl font-bold text-gray-900">{{ transfer.transfer_reference }}</h1>
+                <span class="px-2 py-1 text-xs font-medium rounded-full
+                    {% if transfer.status == 'approved' %}bg-green-100 text-green-800
+                    {% elif transfer.status == 'pending_approval' %}bg-yellow-100 text-yellow-800
+                    {% else %}bg-red-100 text-red-800{% endif %}">
+                    {{ transfer.get_status_display }}
+                </span>
+            </div>
+        </div>
+        {% if transfer.status == 'pending_approval' and can_approve %}
+        <div class="flex gap-2">
+            <form method="post" action="{% url 'finance:transfer_approve' transfer.pk %}" onsubmit="return confirm('Approve this transfer?');">
+                {% csrf_token %}
+                <button type="submit" class="px-4 py-2 bg-green-600 rounded-lg text-sm font-medium text-white hover:bg-green-700">
+                    <i class="fas fa-check mr-1"></i> Approve
+                </button>
+            </form>
+            <form method="post" action="{% url 'finance:transfer_reject' transfer.pk %}" onsubmit="return confirm('Reject this transfer?');">
+                {% csrf_token %}
+                <button type="submit" class="px-4 py-2 bg-red-600 rounded-lg text-sm font-medium text-white hover:bg-red-700">
+                    <i class="fas fa-times mr-1"></i> Reject
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex items-center justify-center gap-6 text-center">
+            <div>
+                <p class="text-xs text-gray-500 uppercase">From</p>
+                <p class="font-semibold text-gray-900">{{ transfer.from_account.name }}</p>
+            </div>
+            <i class="fas fa-arrow-right text-gray-400 text-xl"></i>
+            <div>
+                <p class="text-xs text-gray-500 uppercase">To</p>
+                <p class="font-semibold text-gray-900">{{ transfer.to_account.name }}</p>
+            </div>
+        </div>
+        <p class="text-center text-2xl font-bold text-gray-900 mt-4">{{ transfer.from_account.currency }} {{ transfer.amount|floatformat:2 }}</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <dl class="space-y-2 text-sm">
+            <div class="flex justify-between"><dt class="text-gray-500">Transfer Date</dt><dd class="text-gray-900">{{ transfer.transfer_date }}</dd></div>
+            <div class="flex justify-between"><dt class="text-gray-500">Created By</dt><dd class="text-gray-900">{{ transfer.created_by|default:"-" }} on {{ transfer.created_at }}</dd></div>
+            {% if transfer.approved_by %}<div class="flex justify-between"><dt class="text-gray-500">Approved By</dt><dd class="text-gray-900">{{ transfer.approved_by }} on {{ transfer.approved_at }}</dd></div>{% endif %}
+            {% if transfer.debit_transaction %}<div class="flex justify-between"><dt class="text-gray-500">Debit Entry</dt><dd><a href="{% url 'finance:transaction_detail' transfer.debit_transaction.pk %}" class="text-primary-600 hover:underline">{{ transfer.debit_transaction.reference_number }}</a></dd></div>{% endif %}
+            {% if transfer.credit_transaction %}<div class="flex justify-between"><dt class="text-gray-500">Credit Entry</dt><dd><a href="{% url 'finance:transaction_detail' transfer.credit_transaction.pk %}" class="text-primary-600 hover:underline">{{ transfer.credit_transaction.reference_number }}</a></dd></div>{% endif %}
+        </dl>
+        {% if transfer.notes %}
+        <p class="text-sm text-gray-600 mt-4 border-t border-gray-100 pt-4">{{ transfer.notes }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -481,10 +481,10 @@ class PaymentForm(forms.ModelForm):
         model = Payment
         fields = [
             'amount', 'payment_date', 'payment_location',
-            'payment_method', 'transaction_reference',
+            'payment_method', 'transaction_reference', 'account',
             'notes'
         ]
-        
+
         widgets = {
             'amount': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
@@ -507,17 +507,32 @@ class PaymentForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': 'Transaction/Reference Number'
             }),
+            'account': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+            }),
             'notes': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': 'Payment notes (Optional)',
                 'rows': 3
             }),
         }
-    
+
     def __init__(self, *args, **kwargs):
         self.client_vehicle = kwargs.pop('client_vehicle', None)
         super().__init__(*args, **kwargs)
-        
+
+        from apps.finance.models import FinancialAccount
+        account_field = self.fields.get('account')
+        if account_field is not None:
+            account_field.queryset = FinancialAccount.objects.filter(status='active')
+            account_field.required = True
+            account_field.label = 'Receiving Account'
+            account_field.empty_label = 'Select the account this payment was received into'
+            if not self.instance.pk:
+                default_account = account_field.queryset.filter(is_default=True).first()
+                if default_account:
+                    account_field.initial = default_account.pk
+
     def clean_amount(self):
         """Validate payment amount"""
         amount = self.cleaned_data.get('amount')

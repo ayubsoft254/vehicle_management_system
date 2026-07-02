@@ -119,6 +119,17 @@
                     {% endif %}
                 </div>
 
+                <!-- Payment Account -->
+                <div>
+                    <label for="{{ form.account.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Payment Account <span class="text-red-600">*</span>
+                    </label>
+                    {{ form.account }}
+                    {% if form.account.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.account.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
                 <!-- Reimbursable -->
                 <div class="flex items-center pt-6">
                     {{ form.is_reimbursable }}

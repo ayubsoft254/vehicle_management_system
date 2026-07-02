@@ -1,0 +1,87 @@
+<!-- PWA: service worker registration + install prompt handling (shared by base.html and account/base_auth.html) -->
+<script>
+(function () {
+    'use strict';
+
+    // ---- Service worker registration ----
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+                .then(function (registration) {
+                    console.log('[PWA] Service worker registered with scope:', registration.scope);
+                })
+                .catch(function (error) {
+                    console.warn('[PWA] Service worker registration failed:', error);
+                });
+        });
+    }
+
+    // ---- Install prompt handling ----
+    var deferredInstallPrompt = null;
+
+    function installButtons() {
+        return document.querySelectorAll('.pwa-install-btn');
+    }
+
+    function iosHints() {
+        return document.querySelectorAll('.pwa-ios-hint');
+    }
+
+    function isStandalone() {
+        return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+            || window.navigator.standalone === true; // iOS Safari
+    }
+
+    function isIos() {
+        return /iphone|ipad|ipod/i.test(window.navigator.userAgent) && !window.MSStream;
+    }
+
+    // Uses the native "hidden" DOM property (not a Tailwind class) so
+    // showing a flex/inline-flex button doesn't fight with Tailwind's own
+    // `.hidden { display: none }` utility for specificity.
+    function showInstallButtons() {
+        installButtons().forEach(function (btn) { btn.hidden = false; });
+    }
+
+    function hideInstallButtons() {
+        installButtons().forEach(function (btn) { btn.hidden = true; });
+    }
+
+    function showIosHints() {
+        iosHints().forEach(function (el) { el.hidden = false; });
+    }
+
+    // Already installed and running as an app: nothing to offer.
+    if (isStandalone()) {
+        hideInstallButtons();
+    } else if (isIos()) {
+        // iOS/iPadOS Safari never fires beforeinstallprompt — show manual instructions instead.
+        showIosHints();
+    }
+
+    window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        if (!isStandalone()) {
+            showInstallButtons();
+        }
+    });
+
+    document.addEventListener('click', function (event) {
+        var btn = event.target.closest('.pwa-install-btn');
+        if (!btn || !deferredInstallPrompt) {
+            return;
+        }
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.finally(function () {
+            deferredInstallPrompt = null;
+            hideInstallButtons();
+        });
+    });
+
+    window.addEventListener('appinstalled', function () {
+        hideInstallButtons();
+        deferredInstallPrompt = null;
+    });
+})();
+</script>

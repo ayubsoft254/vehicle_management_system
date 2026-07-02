@@ -366,24 +366,56 @@ def expense_approve(request, pk):
     return render(request, 'expenses/expense_approve.html', context)
 
 
+# Expense.PAYMENT_METHOD_CHOICES uses different keys/casing than
+# finance.LedgerTransaction.PAYMENT_METHOD_CHOICES.
+_LEDGER_PAYMENT_METHOD_MAP = {
+    'CASH': 'cash',
+    'CARD': 'card',
+    'BANK_TRANSFER': 'bank_transfer',
+    'CHECK': 'cheque',
+    'MOBILE_MONEY': 'mpesa',
+    'OTHER': 'other',
+}
+
+
 @login_required
 @require_http_methods(["POST"])
 def expense_mark_paid(request, pk):
     """Mark expense as paid."""
     expense = get_object_or_404(Expense, pk=pk)
-    
+
     # Check permission
     if not request.user.has_perm('expenses.mark_paid'):
         return JsonResponse({'error': 'Permission denied'}, status=403)
-    
+
     if expense.mark_as_paid():
+        # Money has now actually left the account — post the debit entry.
+        # (Not done at expense_create time: an expense can be drafted/submitted/
+        # approved before the money actually moves.)
+        if expense.account:
+            from apps.finance import services as finance_services
+            finance_services.create_transaction(
+                expense.account,
+                direction='debit',
+                transaction_type='staff_expense',
+                amount=expense.total_amount,
+                created_by=request.user,
+                transaction_date=expense.expense_date,
+                source_module='expenses',
+                related_vehicle=expense.related_vehicle,
+                related_client=expense.related_client,
+                related_party_label=expense.vendor_name,
+                payment_method=_LEDGER_PAYMENT_METHOD_MAP.get(expense.payment_method, 'other'),
+                description=f'Expense: {expense.title} ({expense.category.name})',
+            )
+
         messages.success(request, f'Expense "{expense.title}" marked as paid.')
         return JsonResponse({
             'success': True,
             'message': 'Expense marked as paid.',
             'status': expense.status
         })
-    
+
     return JsonResponse({
         'error': 'Cannot mark as paid',
         'message': f'Expense must be approved first'

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Suspense Payments - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Suspense Payments</h1>
+        <p class="mt-1 text-sm text-gray-600">Unmatched payments waiting to be allocated to a client or vehicle</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Reference</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Account</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Narration</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for item in suspense_items %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm text-gray-700">{{ item.transaction.transaction_date }}</td>
+                    <td class="px-4 py-3 text-sm"><a href="{% url 'finance:transaction_detail' item.transaction.pk %}" class="text-primary-600 hover:underline">{{ item.transaction.reference_number }}</a></td>
+                    <td class="px-4 py-3 text-sm text-gray-700">{{ item.transaction.account.name }}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">{{ item.transaction.description|truncatechars:60 }}</td>
+                    <td class="px-4 py-3 text-sm text-right text-green-700">{{ item.transaction.currency }} {{ item.transaction.amount|floatformat:2 }}</td>
+                    <td class="px-4 py-3 text-right">
+                        {% if can_modify %}
+                        <a href="{% url 'finance:suspense_allocate' item.pk %}" class="px-3 py-1.5 text-xs font-medium bg-primary-50 text-primary-700 rounded-lg hover:bg-primary-100">
+                            <i class="fas fa-link mr-1"></i> Allocate
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-4 py-16 text-center text-gray-500">
+                        <i class="fas fa-check-circle text-4xl text-gray-300 mb-3 block"></i>
+                        No unmatched suspense payments.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>{% block head_title %}{% endblock %} - Vehicle Management System</title>
-    
+
+    {% include "pwa/_pwa_head.html" %}
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -82,6 +84,16 @@
             <div class="mt-6">
                 {% block extra_links %}{% endblock %}
             </div>
+
+            <!-- Install App -->
+            <div class="mt-4 text-center">
+                <button type="button" hidden class="pwa-install-btn inline-flex items-center text-sm font-medium text-primary-700 hover:text-primary-800">
+                    <i class="fas fa-download mr-1.5"></i> Install Hoza App
+                </button>
+                <p hidden class="pwa-ios-hint text-xs text-gray-500 max-w-xs mx-auto">
+                    To install Hoza on iPhone or iPad, open this system in Safari, tap the Share button, then choose "Add to Home Screen".
+                </p>
+            </div>
         </div>
 
         <!-- Footer -->
@@ -91,6 +103,8 @@
             </p>
         </div>
     </div>
+
+    {% include "pwa/_pwa_scripts.html" %}
 
     {% block extra_body %}{% endblock %}
 </body>

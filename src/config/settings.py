@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'apps.payments',
     'apps.payroll',
     'apps.expenses',
+    'apps.finance',
     'apps.repossessions',
     'apps.auctions',
     'apps.insurance',
@@ -519,3 +520,34 @@ INSURANCE_EXPIRY_REMINDER_DAYS = config('INSURANCE_EXPIRY_REMINDER_DAYS', defaul
 
 # Default installment period (months)
 DEFAULT_INSTALLMENT_MONTHS = config('DEFAULT_INSTALLMENT_MONTHS', default=12, cast=int)
+
+# ==============================================================================
+# TEST RUNS ONLY: skip migrations, build tables straight from current models.
+# A handful of historical migrations (clients, insurance, payroll, vehicles)
+# contain raw SQL written for Postgres (bigserial, information_schema, ...)
+# that fails when Django builds a fresh SQLite test database from scratch.
+# This never affects `runserver`/`migrate` — only `manage.py test`.
+# ==============================================================================
+import sys
+
+if 'test' in sys.argv or 'pytest' in sys.modules:
+    class _DisableMigrations:
+        def __contains__(self, item):
+            return True
+
+        def __getitem__(self, item):
+            return None
+
+    MIGRATION_MODULES = _DisableMigrations()
+
+    # {% static %} normally resolves through WhiteNoise's
+    # CompressedManifestStaticFilesStorage, which requires a manifest built
+    # by `collectstatic` — a manifest nobody has generated for this test
+    # environment. `runserver` tolerates a missing/stale manifest entry
+    # (WHITENOISE_USE_FINDERS is on in DEBUG), but the test runner doesn't,
+    # so any template using {% static %} on an uncollected file raises
+    # ValueError. Use plain (non-manifest, non-hashed) static storage for
+    # tests instead — filename hashing/cache-busting is a production
+    # concern that doesn't matter for a test run anyway.
+    STORAGES = dict(STORAGES)
+    STORAGES['staticfiles'] = {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}

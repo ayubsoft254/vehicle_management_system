@@ -25,9 +25,9 @@ class PaymentForm(forms.ModelForm):
         model = Payment
         fields = [
             'amount', 'payment_date', 'payment_method', 'payment_location',
-            'transaction_reference', 'notes'
+            'transaction_reference', 'account', 'notes'
         ]
-        
+
         widgets = {
             'amount': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
@@ -50,20 +50,36 @@ class PaymentForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': 'Where was the payment made? (e.g. Head Office, CBD Branch)'
             }),
+            'account': forms.Select(attrs={
+                'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+            }),
             'notes': forms.Textarea(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
                 'placeholder': 'Additional notes about this payment (Optional)',
                 'rows': 3
             }),
         }
-    
+
     def __init__(self, *args, **kwargs):
         self.client_vehicle = kwargs.pop('client_vehicle', None)
         super().__init__(*args, **kwargs)
-        
+
         # Set default payment date to today
         if not self.instance.pk:
             self.fields['payment_date'].initial = timezone.now().date()
+
+        # Receiving account: which company bank/cash/M-Pesa account the money landed in.
+        from apps.finance.models import FinancialAccount
+        account_field = self.fields.get('account')
+        if account_field is not None:
+            account_field.queryset = FinancialAccount.objects.filter(status='active')
+            account_field.required = True
+            account_field.label = 'Receiving Account'
+            account_field.empty_label = 'Select the account this payment was received into'
+            if not self.instance.pk:
+                default_account = account_field.queryset.filter(is_default=True).first()
+                if default_account:
+                    account_field.initial = default_account.pk
     
     def clean_amount(self):
         """Validate payment amount"""

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ account.name }} Reconciliations - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <div class="flex items-center space-x-3 mb-1">
+                <a href="{% url 'finance:account_detail' account.pk %}" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left"></i></a>
+                <h1 class="text-2xl font-bold text-gray-900">{{ account.name }} - Reconciliations</h1>
+            </div>
+        </div>
+        {% if can_modify %}
+        <a href="{% url 'finance:account_reconciliation_add' account.pk %}" class="inline-flex items-center px-4 py-2 bg-primary-600 rounded-lg text-sm font-medium text-white hover:bg-primary-700">
+            <i class="fas fa-plus mr-2"></i> Start Reconciliation
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Statement Balance</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Book Balance</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Difference</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Reconciled By</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for r in reconciliations %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm text-gray-700">{{ r.reconciliation_date }}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">{{ account.currency }} {{ r.statement_balance|floatformat:2 }}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">{{ account.currency }} {{ r.book_balance|floatformat:2 }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold {% if r.difference == 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                        {{ account.currency }} {{ r.difference|floatformat:2 }}
+                    </td>
+                    <td class="px-4 py-3">
+                        {% if r.status == 'completed' %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Completed</span>
+                        {% else %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">In Progress</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-500">{{ r.reconciled_by|default:"-" }}</td>
+                    <td class="px-4 py-3 text-right">
+                        {% if r.status == 'in_progress' and can_modify %}
+                        <form method="post" action="{% url 'finance:reconciliation_complete' r.pk %}" class="inline" onsubmit="return confirm('Mark this reconciliation as completed?');">
+                            {% csrf_token %}
+                            <button type="submit" class="text-green-600 hover:text-green-800 text-sm"><i class="fas fa-check mr-1"></i>Complete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="px-4 py-16 text-center text-gray-500">
+                        <i class="fas fa-balance-scale text-4xl text-gray-300 mb-3 block"></i>
+                        No reconciliations yet for this account.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

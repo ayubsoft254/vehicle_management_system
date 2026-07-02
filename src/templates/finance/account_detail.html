@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ account.name }} - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <div class="flex items-center space-x-3 mb-1">
+                <a href="{% url 'finance:account_list' %}" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left"></i></a>
+                <h1 class="text-3xl font-bold text-gray-900">{{ account.name }}</h1>
+                {% if account.status == 'active' %}
+                <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
+                {% else %}
+                <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">Inactive</span>
+                {% endif %}
+            </div>
+            <p class="text-sm text-gray-600 ml-10">{{ account.code }} &middot; {{ account.get_account_type_display }}</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'finance:account_ledger' account.pk %}" class="inline-flex items-center px-4 py-2 bg-primary-600 rounded-lg text-sm font-medium text-white hover:bg-primary-700">
+                <i class="fas fa-book-open mr-2"></i> View Ledger
+            </a>
+            {% if can_record and account.allow_manual_transactions %}
+            <a href="{% url 'finance:transaction_add' account.pk %}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-plus mr-2"></i> Add Transaction
+            </a>
+            <a href="{% url 'finance:transfer_add' %}?from_account={{ account.pk }}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-random mr-2"></i> Transfer
+            </a>
+            {% endif %}
+            {% if can_modify %}
+            <a href="{% url 'finance:account_reconciliation_list' account.pk %}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-balance-scale mr-2"></i> Reconcile
+            </a>
+            <a href="{% url 'finance:account_edit' account.pk %}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-edit mr-2"></i> Edit
+            </a>
+            <form method="post" action="{% url 'finance:account_toggle_status' account.pk %}" onsubmit="return confirm('{% if account.status == 'active' %}Deactivate{% else %}Activate{% endif %} this account?');">
+                {% csrf_token %}
+                <button type="submit" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    {% if account.status == 'active' %}
+                    <i class="fas fa-ban mr-2"></i> Deactivate
+                    {% else %}
+                    <i class="fas fa-check mr-2"></i> Activate
+                    {% endif %}
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Balance Breakdown -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase">Opening Balance</p>
+            <p class="text-xl font-bold text-gray-900 mt-1">{{ account.currency }} {{ account.opening_balance|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase">Approved Credits</p>
+            <p class="text-xl font-bold text-green-700 mt-1">{{ account.currency }} {{ account.approved_credits|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase">Approved Debits</p>
+            <p class="text-xl font-bold text-red-700 mt-1">{{ account.currency }} {{ account.approved_debits|floatformat:2 }}</p>
+        </div>
+        <div class="bg-primary-50 rounded-lg shadow-sm border border-primary-200 p-4">
+            <p class="text-xs font-medium text-primary-700 uppercase">Current Approved Balance</p>
+            <p class="text-xl font-bold text-primary-900 mt-1">{{ account.currency }} {{ account.current_balance|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase">Pending Inflows</p>
+            <p class="text-xl font-bold text-blue-700 mt-1">{{ account.currency }} {{ account.pending_inflows|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase">Pending Outflows</p>
+            <p class="text-xl font-bold text-orange-700 mt-1">{{ account.currency }} {{ account.pending_outflows|floatformat:2 }}</p>
+        </div>
+        <div class="bg-green-50 rounded-lg shadow-sm border border-green-200 p-4 sm:col-span-2">
+            <p class="text-xs font-medium text-green-700 uppercase">Available Balance</p>
+            <p class="text-xl font-bold text-green-900 mt-1">{{ account.currency }} {{ account.available_balance|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Account Info -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-4">Account Information</h2>
+            <dl class="space-y-2 text-sm">
+                <div class="flex justify-between"><dt class="text-gray-500">Currency</dt><dd class="text-gray-900">{{ account.currency }}</dd></div>
+                {% if account.bank_name %}<div class="flex justify-between"><dt class="text-gray-500">Bank</dt><dd class="text-gray-900">{{ account.bank_name }}</dd></div>{% endif %}
+                {% if account.branch_name %}<div class="flex justify-between"><dt class="text-gray-500">Branch</dt><dd class="text-gray-900">{{ account.branch_name }}</dd></div>{% endif %}
+                {% if account.account_number %}<div class="flex justify-between"><dt class="text-gray-500">Account No.</dt><dd class="text-gray-900">{{ account.account_number }}</dd></div>{% endif %}
+                {% if account.paybill_number %}<div class="flex justify-between"><dt class="text-gray-500">Paybill</dt><dd class="text-gray-900">{{ account.paybill_number }}</dd></div>{% endif %}
+                {% if account.till_number %}<div class="flex justify-between"><dt class="text-gray-500">Till Number</dt><dd class="text-gray-900">{{ account.till_number }}</dd></div>{% endif %}
+                {% if account.business_shortcode %}<div class="flex justify-between"><dt class="text-gray-500">Shortcode</dt><dd class="text-gray-900">{{ account.business_shortcode }}</dd></div>{% endif %}
+                <div class="flex justify-between"><dt class="text-gray-500">Opening Balance Date</dt><dd class="text-gray-900">{{ account.opening_balance_date }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Requires Approval</dt><dd class="text-gray-900">{{ account.require_approval|yesno:"Yes,No" }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Manual Transactions</dt><dd class="text-gray-900">{{ account.allow_manual_transactions|yesno:"Allowed,Not allowed" }}</dd></div>
+                <div class="flex justify-between"><dt class="text-gray-500">Default Account</dt><dd class="text-gray-900">{{ account.is_default|yesno:"Yes,No" }}</dd></div>
+            </dl>
+            {% if account.description %}
+            <p class="text-sm text-gray-600 mt-4 border-t border-gray-100 pt-4">{{ account.description }}</p>
+            {% endif %}
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-gray-900">Recent Transactions</h2>
+                <a href="{% url 'finance:account_ledger' account.pk %}" class="text-sm text-primary-600 hover:underline">View full ledger &rarr;</a>
+            </div>
+            {% if recent_transactions %}
+            <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead>
+                    <tr class="text-left text-xs font-semibold text-gray-500 uppercase">
+                        <th class="py-2 pr-3">Date</th>
+                        <th class="py-2 pr-3">Reference</th>
+                        <th class="py-2 pr-3">Type</th>
+                        <th class="py-2 pr-3 text-right">Amount</th>
+                        <th class="py-2">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for txn in recent_transactions %}
+                    <tr>
+                        <td class="py-2 pr-3">{{ txn.transaction_date }}</td>
+                        <td class="py-2 pr-3">{{ txn.reference_number }}</td>
+                        <td class="py-2 pr-3">{{ txn.get_transaction_type_display }}</td>
+                        <td class="py-2 pr-3 text-right {% if txn.direction == 'credit' %}text-green-700{% else %}text-red-700{% endif %}">
+                            {% if txn.direction == 'credit' %}+{% else %}-{% endif %}{{ txn.amount|floatformat:2 }}
+                        </td>
+                        <td class="py-2">{{ txn.get_status_display }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <div class="text-center py-10 text-gray-500">
+                <i class="fas fa-book text-3xl text-gray-300 mb-2"></i>
+                <p>No transactions recorded yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

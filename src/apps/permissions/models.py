@@ -191,6 +191,14 @@ class RolePermission(models.Model):
                 'can_delete': False,
                 'can_export': False,
             },
+            # Auditor - Read-only access everywhere, but can export for audit findings
+            UserRole.AUDITOR: {
+                'access_level': AccessLevel.READ_ONLY,
+                'can_create': False,
+                'can_edit': False,
+                'can_delete': False,
+                'can_export': True,
+            },
         }
         
         # Module specific overrides for specific roles
@@ -204,6 +212,7 @@ class RolePermission(models.Model):
                 ModuleName.PAYROLL: AccessLevel.NO_ACCESS,
                 ModuleName.AUDIT: AccessLevel.NO_ACCESS,
                 ModuleName.PERMISSIONS: AccessLevel.NO_ACCESS,
+                ModuleName.FINANCE: AccessLevel.NO_ACCESS,
             },
             UserRole.ACCOUNTANT: {
                 ModuleName.PAYMENTS: AccessLevel.FULL_ACCESS,
@@ -213,6 +222,7 @@ class RolePermission(models.Model):
                 ModuleName.REPOSSESSIONS: AccessLevel.READ_ONLY,
                 ModuleName.AUCTIONS: AccessLevel.READ_ONLY,
                 ModuleName.PERMISSIONS: AccessLevel.NO_ACCESS,
+                ModuleName.FINANCE: AccessLevel.FULL_ACCESS,
             },
             UserRole.AUCTIONEER: {
                 ModuleName.AUCTIONS: AccessLevel.FULL_ACCESS,
@@ -220,12 +230,19 @@ class RolePermission(models.Model):
                 ModuleName.VEHICLES: AccessLevel.READ_ONLY,
                 ModuleName.PAYROLL: AccessLevel.NO_ACCESS,
                 ModuleName.PERMISSIONS: AccessLevel.NO_ACCESS,
+                ModuleName.FINANCE: AccessLevel.NO_ACCESS,
             },
             UserRole.CLERK: {
                 ModuleName.DASHBOARD: AccessLevel.READ_ONLY,
                 ModuleName.VEHICLES: AccessLevel.READ_ONLY,
                 ModuleName.CLIENTS: AccessLevel.READ_ONLY,
                 ModuleName.DOCUMENTS: AccessLevel.READ_ONLY,
+                ModuleName.FINANCE: AccessLevel.READ_ONLY,
+            },
+            UserRole.AUDITOR: {
+                ModuleName.PERMISSIONS: AccessLevel.NO_ACCESS,
+                ModuleName.FINANCE: AccessLevel.READ_ONLY,
+                ModuleName.AUDIT: AccessLevel.READ_ONLY,
             },
         }
         

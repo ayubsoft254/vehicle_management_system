@@ -37,7 +37,7 @@ class ExpenseForm(forms.ModelForm):
         fields = [
             'title', 'description', 'category', 'amount', 'currency',
             'tax_amount', 'expense_date', 'payment_method', 'vendor_name',
-            'invoice_number', 'related_vehicle', 'related_client',
+            'invoice_number', 'related_vehicle', 'related_client', 'account',
             'is_reimbursable', 'notes'
         ]
         widgets = {
@@ -92,6 +92,9 @@ class ExpenseForm(forms.ModelForm):
                 'class': 'form-control select2',
                 'data-placeholder': 'Select client (optional)'
             }),
+            'account': forms.Select(attrs={
+                'class': 'form-control'
+            }),
             'is_reimbursable': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
@@ -115,7 +118,16 @@ class ExpenseForm(forms.ModelForm):
         
         # Filter only active categories
         self.fields['category'].queryset = ExpenseCategory.objects.filter(is_active=True)
-        
+
+        # Payment account: which account this expense will be/was paid from.
+        from apps.finance.models import FinancialAccount
+        account_field = self.fields.get('account')
+        if account_field is not None:
+            account_field.queryset = FinancialAccount.objects.filter(status='active')
+            account_field.required = True
+            account_field.label = 'Payment Account'
+            account_field.empty_label = 'Select the account this expense is paid from'
+
         # Set initial tags if editing
         if self.instance.pk:
             tags = self.instance.tags.all()

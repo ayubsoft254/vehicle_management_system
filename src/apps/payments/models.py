@@ -208,9 +208,21 @@ class Payment(models.Model):
         help_text="Reason this payment was reversed"
     )
 
+    # Finance ledger account this payment was received into (Phase 1 schema-only;
+    # not yet used by forms/views — wired up when the finance module integrates
+    # client payments in a later phase).
+    account = models.ForeignKey(
+        'finance.FinancialAccount',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='payments',
+        help_text="Financial account this payment was received into"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     # Custom Manager
     objects = PaymentManager()
     

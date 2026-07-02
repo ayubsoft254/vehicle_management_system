@@ -989,6 +989,10 @@ class TrackerAgentPayment(models.Model):
     )
     reference_number = models.CharField('Reference / Receipt No.', max_length=100, blank=True)
     notes = models.TextField('Notes', blank=True)
+    account = models.ForeignKey(
+        'finance.FinancialAccount', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='tracker_agent_payments', help_text='Financial account this payment was paid from'
+    )
     recorded_by = models.ForeignKey(
         'authentication.User', on_delete=models.SET_NULL, null=True,
         related_name='tracker_agent_payments'
@@ -1028,6 +1032,10 @@ class ClearingAgentPayment(models.Model):
     )
     reference_number = models.CharField('Reference / Receipt No.', max_length=100, blank=True)
     notes = models.TextField('Notes', blank=True)
+    account = models.ForeignKey(
+        'finance.FinancialAccount', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='clearing_agent_payments', help_text='Financial account this payment was paid from'
+    )
     recorded_by = models.ForeignKey(
         'authentication.User', on_delete=models.SET_NULL, null=True,
         related_name='clearing_agent_payments'
@@ -1117,6 +1125,10 @@ class BrokerPayment(models.Model):
     reference_number = models.CharField('Reference / Receipt No.', max_length=100, blank=True)
     voucher_number = models.CharField('Voucher Number', max_length=50, blank=True, unique=True)
     notes = models.TextField('Notes', blank=True)
+    account = models.ForeignKey(
+        'finance.FinancialAccount', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='broker_payments', help_text='Financial account this payment was paid from'
+    )
     recorded_by = models.ForeignKey(
         'authentication.User', on_delete=models.SET_NULL, null=True,
         related_name='broker_payments_recorded'
@@ -1258,6 +1270,10 @@ class JapanSupplierPayment(models.Model):
     )
     reference_number = models.CharField('Reference / Receipt No.', max_length=100, blank=True)
     notes = models.TextField('Notes', blank=True)
+    account = models.ForeignKey(
+        'finance.FinancialAccount', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='japan_supplier_payments', help_text='Financial account this payment was paid from'
+    )
     recorded_by = models.ForeignKey(
         'authentication.User', on_delete=models.SET_NULL, null=True,
         related_name='japan_supplier_payments'

@@ -11,7 +11,8 @@ class UserRole:
     MANAGER = 'manager'
     CLERK = 'clerk'
     CLIENT = 'client'  # For customer/client portal access
-    
+    AUDITOR = 'auditor'  # Read-only access for financial/compliance audits
+
     CHOICES = [
         (ADMIN, 'Administrator'),
         (SALES, 'Sales Person'),
@@ -20,6 +21,7 @@ class UserRole:
         (MANAGER, 'Manager'),
         (CLERK, 'Clerk'),
         (CLIENT, 'Client'),
+        (AUDITOR, 'Auditor'),
     ]
 
 # Vehicle Status
@@ -178,7 +180,8 @@ class ModuleName:
     REPORTS = 'reports'
     AUDIT = 'audit'
     PERMISSIONS = 'permissions'
-    
+    FINANCE = 'finance'
+
     CHOICES = [
         (DASHBOARD, 'Dashboard'),
         (VEHICLES, 'Vehicle Management'),
@@ -194,6 +197,7 @@ class ModuleName:
         (REPORTS, 'Reports'),
         (AUDIT, 'Audit Logs'),
         (PERMISSIONS, 'Permissions Management'),
+        (FINANCE, 'Finance & Accounts'),
     ]
 
 # Access Levels

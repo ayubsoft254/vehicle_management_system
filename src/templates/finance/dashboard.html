@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Finance Dashboard - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+
+    <!-- Page Header -->
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Finance Dashboard</h1>
+            <p class="mt-1 text-sm text-gray-600">Bank/cash account ledger and transaction control</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'finance:account_list' %}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-list mr-2"></i> All Accounts
+            </a>
+            <a href="{% url 'finance:reports' %}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-chart-bar mr-2"></i> Reports
+            </a>
+            <a href="{% url 'finance:suspense_list' %}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-question-circle mr-2"></i> Suspense
+            </a>
+            {% if can_record %}
+            <a href="{% url 'finance:transfer_add' %}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-random mr-2"></i> Record Transfer
+            </a>
+            {% endif %}
+            {% if can_modify %}
+            <a href="{% url 'finance:account_add' %}" class="inline-flex items-center px-4 py-2 bg-primary-600 rounded-lg text-sm font-medium text-white hover:bg-primary-700">
+                <i class="fas fa-plus mr-2"></i> Add Account
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-blue-900">Total Bank Balance</p>
+                    <p class="text-2xl font-bold text-blue-900 mt-2">KES {{ total_bank_balance|floatformat:2 }}</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-200 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-university text-2xl text-blue-700"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-green-900">Total Cash Balance</p>
+                    <p class="text-2xl font-bold text-green-900 mt-2">KES {{ total_cash_balance|floatformat:2 }}</p>
+                </div>
+                <div class="w-12 h-12 bg-green-200 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-money-bill-wave text-2xl text-green-700"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg shadow-sm border border-emerald-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-emerald-900">Total M-Pesa Balance</p>
+                    <p class="text-2xl font-bold text-emerald-900 mt-2">KES {{ total_mpesa_balance|floatformat:2 }}</p>
+                </div>
+                <div class="w-12 h-12 bg-emerald-200 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-mobile-alt text-2xl text-emerald-700"></i>
+                </div>
+            </div>
+        </div>
+
+        <a href="{% url 'finance:pending_approvals' %}" class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg shadow-sm border border-yellow-200 p-6 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-yellow-900">Pending Approval</p>
+                    <p class="text-3xl font-bold text-yellow-900 mt-2">{{ pending_approval_count }}</p>
+                    <p class="text-xs text-yellow-700 mt-1">transactions</p>
+                </div>
+                <div class="w-12 h-12 bg-yellow-200 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-clock text-2xl text-yellow-700"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase">Approved Credits</p>
+            <p class="text-xl font-bold text-green-700 mt-1">KES {{ total_approved_credits|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase">Approved Debits</p>
+            <p class="text-xl font-bold text-red-700 mt-1">KES {{ total_approved_debits|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase">Pending Inflows</p>
+            <p class="text-xl font-bold text-blue-700 mt-1">KES {{ total_pending_inflows|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase">Pending Outflows</p>
+            <p class="text-xl font-bold text-orange-700 mt-1">KES {{ total_pending_outflows|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    <!-- Account Cards -->
+    <h2 class="text-xl font-bold text-gray-900 mb-4">Accounts</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for account in accounts %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <div class="flex items-start justify-between mb-3">
+                <div>
+                    <h3 class="font-semibold text-gray-900">{{ account.name }}</h3>
+                    <p class="text-xs text-gray-500">{{ account.get_account_type_display }}</p>
+                </div>
+                {% if account.status == 'active' %}
+                <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
+                {% else %}
+                <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">Inactive</span>
+                {% endif %}
+            </div>
+
+            <div class="space-y-1 mb-4">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Approved Balance</span>
+                    <span class="font-semibold text-gray-900">KES {{ account.current_balance|floatformat:2 }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Pending Inflows</span>
+                    <span class="text-blue-700">KES {{ account.pending_inflows|floatformat:2 }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Pending Outflows</span>
+                    <span class="text-orange-700">KES {{ account.pending_outflows|floatformat:2 }}</span>
+                </div>
+                <div class="flex justify-between text-sm border-t border-gray-100 pt-1 mt-1">
+                    <span class="text-gray-700 font-medium">Available Balance</span>
+                    <span class="font-bold text-gray-900">KES {{ account.available_balance|floatformat:2 }}</span>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <a href="{% url 'finance:account_ledger' account.pk %}" class="text-xs px-3 py-1.5 rounded-lg bg-primary-50 text-primary-700 hover:bg-primary-100">
+                    <i class="fas fa-book-open mr-1"></i> Ledger
+                </a>
+                <a href="{% url 'finance:account_detail' account.pk %}" class="text-xs px-3 py-1.5 rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-eye mr-1"></i> Details
+                </a>
+                {% if can_record and account.allow_manual_transactions %}
+                <a href="{% url 'finance:transaction_add' account.pk %}" class="text-xs px-3 py-1.5 rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-plus mr-1"></i> Add Transaction
+                </a>
+                {% endif %}
+                {% if can_modify %}
+                <a href="{% url 'finance:account_edit' account.pk %}" class="text-xs px-3 py-1.5 rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100">
+                    <i class="fas fa-edit mr-1"></i> Edit
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full text-center py-12 bg-white rounded-lg border border-gray-200">
+            <i class="fas fa-university text-4xl text-gray-300 mb-3"></i>
+            <p class="text-gray-500">No accounts yet.</p>
+            {% if can_modify %}
+            <a href="{% url 'finance:account_add' %}" class="text-primary-600 hover:underline text-sm">Add the first account</a>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

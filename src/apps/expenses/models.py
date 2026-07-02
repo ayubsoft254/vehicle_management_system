@@ -168,7 +168,19 @@ class Expense(models.Model):
         blank=True,
         related_name='expenses'
     )
-    
+
+    # Finance ledger account this expense was paid from (Phase 1 schema-only;
+    # not yet used by forms/views — wired up when the finance module integrates
+    # expenses in a later phase).
+    account = models.ForeignKey(
+        'finance.FinancialAccount',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='expenses',
+        help_text="Financial account this expense was paid from"
+    )
+
     # Status and Approval
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
     approved_by = models.ForeignKey(

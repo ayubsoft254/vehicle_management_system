@@ -573,17 +573,22 @@ def record_payment(request, client_vehicle_pk):
                 try:
                     # Calculate total from splits
                     total_amount = sum(Decimal(a) for _, a, _, _ in valid_splits)
-                    
-                    # Create main payment with MIXED method
+                    pre_save_amounts = _snapshot_pending_schedule_amounts(client_vehicle)
+
+                    # Create main payment with MIXED method.
+                    # Payment.save() triggers payments/signals1.py, which recalculates
+                    # client_vehicle.total_paid/balance/is_paid_off and marks off
+                    # instalment schedules — do not duplicate that here.
                     payment = Payment.objects.create(
                         client_vehicle=client_vehicle,
                         amount=total_amount,
-                        payment_date=request.POST.get('payment_date') or timezone.now().date(),
+                        payment_date=_parse_payment_date(request.POST.get('payment_date')),
                         payment_method='mixed',
                         notes=request.POST.get('notes', ''),
                         recorded_by=request.user,
+                        account_id=request.POST.get('account') or None,
                     )
-                    
+
                     # Create split records
                     for method, amount, reference, location in valid_splits:
                         PaymentSplit.objects.create(
@@ -593,17 +598,10 @@ def record_payment(request, client_vehicle_pk):
                             transaction_reference=reference or None,
                             payment_location=(location or '').strip() or None,
                         )
-                    
-                    # Update client vehicle balance
-                    client_vehicle.total_paid += payment.amount
-                    client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
-                    
-                    # Check if fully paid
-                    if client_vehicle.balance <= 0:
-                        client_vehicle.is_paid_off = True
-                        client_vehicle.client.status = 'completed'
-                        client_vehicle.client.save()
-                        
+
+                    client_vehicle.refresh_from_db()
+
+                    if client_vehicle.is_paid_off:
                         messages.success(
                             request,
                             f'Split payment recorded! Vehicle fully paid off! 🎉'
@@ -621,41 +619,38 @@ def record_payment(request, client_vehicle_pk):
                             f'({split_summary}) — '
                             f'Remaining balance: KES {client_vehicle.balance:,.2f}'
                         )
-                    
-                    client_vehicle.save()
-                    
-                    # Update payment schedule if exists
-                    update_payment_schedules(payment, client_vehicle)
-                    
+
+                    # Post to the finance ledger and link it to the instalments it settled
+                    ledger_transaction = _record_finance_ledger_entry(payment, client_vehicle)
+                    _allocate_ledger_transaction_to_schedules(ledger_transaction, client_vehicle, pre_save_amounts)
+
                     log_audit(
                         request.user, 'create', 'Payment',
                         f'Recorded split payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
                     )
-                    
+
                     return redirect('payments:payment_detail', pk=payment.pk)
-                    
-                except (ValueError, Decimal.InvalidOperation) as e:
+
+                except (ValueError, InvalidOperation) as e:
                     messages.error(request, f'Invalid split amounts: {str(e)}')
         else:
             # Single payment (traditional flow)
             form = PaymentForm(request.POST)
             if form.is_valid():
                 with transaction.atomic():
+                    pre_save_amounts = _snapshot_pending_schedule_amounts(client_vehicle)
+
                     payment = form.save(commit=False)
                     payment.client_vehicle = client_vehicle
                     payment.recorded_by = request.user
+                    # Payment.save() triggers payments/signals1.py, which recalculates
+                    # client_vehicle.total_paid/balance/is_paid_off and marks off
+                    # instalment schedules — do not duplicate that here.
                     payment.save()
-                    
-                    # Update client vehicle balance
-                    client_vehicle.total_paid += payment.amount
-                    client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
-                    
-                    # Check if fully paid
-                    if client_vehicle.balance <= 0:
-                        client_vehicle.is_paid_off = True
-                        client_vehicle.client.status = 'completed'
-                        client_vehicle.client.save()
-                        
+
+                    client_vehicle.refresh_from_db()
+
+                    if client_vehicle.is_paid_off:
                         messages.success(
                             request,
                             f'Payment recorded! Vehicle fully paid off! 🎉'
@@ -666,17 +661,16 @@ def record_payment(request, client_vehicle_pk):
                             f'Payment of KES {payment.amount:,.2f} recorded successfully! '
                             f'Remaining balance: KES {client_vehicle.balance:,.2f}'
                         )
-                    
-                    client_vehicle.save()
-                    
-                    # Update payment schedule if exists
-                    update_payment_schedules(payment, client_vehicle)
-                    
+
+                    # Post to the finance ledger and link it to the instalments it settled
+                    ledger_transaction = _record_finance_ledger_entry(payment, client_vehicle)
+                    _allocate_ledger_transaction_to_schedules(ledger_transaction, client_vehicle, pre_save_amounts)
+
                     log_audit(
                         request.user, 'create', 'Payment',
                         f'Recorded payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
                     )
-                    
+
                     return redirect('payments:payment_detail', pk=payment.pk)
             else:
                 messages.error(request, 'Please correct the errors below.')
@@ -722,20 +716,25 @@ def quick_record_payment(request):
                 try:
                     client_vehicle_id = request.POST.get('client_vehicle')
                     client_vehicle = ClientVehicle.objects.get(pk=client_vehicle_id)
-                    
+                    pre_save_amounts = _snapshot_pending_schedule_amounts(client_vehicle)
+
                     # Calculate total from splits
                     total_amount = sum(Decimal(a) for _, a, _, _ in valid_splits)
-                    
-                    # Create main payment with MIXED method
+
+                    # Create main payment with MIXED method.
+                    # Payment.save() triggers payments/signals1.py, which recalculates
+                    # client_vehicle.total_paid/balance/is_paid_off and marks off
+                    # instalment schedules — do not duplicate that here.
                     payment = Payment.objects.create(
                         client_vehicle=client_vehicle,
                         amount=total_amount,
-                        payment_date=request.POST.get('payment_date') or timezone.now().date(),
+                        payment_date=_parse_payment_date(request.POST.get('payment_date')),
                         payment_method='mixed',
                         notes=request.POST.get('notes', ''),
                         recorded_by=request.user,
+                        account_id=request.POST.get('account') or None,
                     )
-                    
+
                     # Create split records
                     for method, amount, reference, location in valid_splits:
                         PaymentSplit.objects.create(
@@ -745,17 +744,10 @@ def quick_record_payment(request):
                             transaction_reference=reference or None,
                             payment_location=(location or '').strip() or None,
                         )
-                    
-                    # Update client vehicle balance
-                    client_vehicle.total_paid += payment.amount
-                    client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
-                    
-                    # Check if fully paid
-                    if client_vehicle.balance <= 0:
-                        client_vehicle.is_paid_off = True
-                        client_vehicle.client.status = 'completed'
-                        client_vehicle.client.save()
-                        
+
+                    client_vehicle.refresh_from_db()
+
+                    if client_vehicle.is_paid_off:
                         messages.success(request, f'Split payment recorded! Vehicle fully paid off! 🎉')
                     else:
                         messages.success(
@@ -763,20 +755,19 @@ def quick_record_payment(request):
                             f'Split payment of KES {payment.amount:,.2f} recorded! '
                             f'Remaining balance: KES {client_vehicle.balance:,.2f}'
                         )
-                    
-                    client_vehicle.save()
-                    
-                    # Update payment schedule if exists
-                    update_payment_schedules(payment, client_vehicle)
-                    
+
+                    # Post to the finance ledger and link it to the instalments it settled
+                    ledger_transaction = _record_finance_ledger_entry(payment, client_vehicle)
+                    _allocate_ledger_transaction_to_schedules(ledger_transaction, client_vehicle, pre_save_amounts)
+
                     log_audit(
                         request.user, 'create', 'Payment',
                         f'Recorded split payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
                     )
-                    
+
                     return redirect('payments:payment_detail', pk=payment.pk)
-                    
-                except (ValueError, Decimal.InvalidOperation, ClientVehicle.DoesNotExist) as e:
+
+                except (ValueError, InvalidOperation, ClientVehicle.DoesNotExist) as e:
                     messages.error(request, f'Error processing split payment: {str(e)}')
         else:
             # Single payment (traditional flow)
@@ -785,19 +776,15 @@ def quick_record_payment(request):
                 with transaction.atomic():
                     payment = form.save(commit=False)
                     payment.recorded_by = request.user
+                    # Payment.save() triggers payments/signals1.py, which recalculates
+                    # client_vehicle.total_paid/balance/is_paid_off and marks off
+                    # instalment schedules — do not duplicate that here.
                     payment.save()
-                    
-                    # Update client vehicle balance
+
                     client_vehicle = payment.client_vehicle
-                    client_vehicle.total_paid += payment.amount
-                    client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
-                    
-                    # Check if fully paid
-                    if client_vehicle.balance <= 0:
-                        client_vehicle.is_paid_off = True
-                        client_vehicle.client.status = 'completed'
-                        client_vehicle.client.save()
-                        
+                    client_vehicle.refresh_from_db()
+
+                    if client_vehicle.is_paid_off:
                         messages.success(request, f'Payment recorded! Vehicle fully paid off! 🎉')
                     else:
                         messages.success(
@@ -805,17 +792,18 @@ def quick_record_payment(request):
                             f'Payment of KES {payment.amount:,.2f} recorded successfully! '
                             f'Remaining balance: KES {client_vehicle.balance:,.2f}'
                         )
-                    
-                    client_vehicle.save()
-                    
-                    # Update payment schedule if exists
-                    update_payment_schedules(payment, client_vehicle)
-                    
+
+                    # Post to the finance ledger. NOTE: this form has no
+                    # pre-save snapshot of schedule amounts (client_vehicle
+                    # isn't resolvable until after the ModelForm saves), so
+                    # no PaymentAllocation is created for this path.
+                    _record_finance_ledger_entry(payment, client_vehicle)
+
                     log_audit(
                         request.user, 'create', 'Payment',
                         f'Recorded payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
                     )
-                    
+
                     return redirect('payments:payment_detail', pk=payment.pk)
             else:
                 messages.error(request, 'Please correct the errors below.')
@@ -2199,32 +2187,118 @@ def paybill_balance_timeout_callback(request):
 
 # ==================== HELPER FUNCTIONS ====================
 
-def update_payment_schedules(payment, client_vehicle):
+# Payment.PAYMENT_METHOD_CHOICES includes specific bank names (equity_hoza, dib_hoza, ...)
+# since the finance ledger now captures *which account* separately via Payment.account,
+# LedgerTransaction.payment_method only needs to capture *how* it was paid.
+_LEDGER_PAYMENT_METHOD_MAP = {
+    'cash': 'cash',
+    'mpesa': 'mpesa',
+    'bank_transfer': 'bank_transfer',
+    'equity_hoza': 'bank_transfer',
+    'dib_hoza': 'bank_transfer',
+    'coop_hoza': 'bank_transfer',
+    'kcb_ke': 'bank_transfer',
+    'absa_ke': 'bank_transfer',
+    'equity_ke': 'bank_transfer',
+    'cheque': 'cheque',
+    'card': 'card',
+    'mixed': 'other',
+    'other': 'other',
+}
+
+
+def _parse_payment_date(raw_value):
+    """Parse a raw POST 'payment_date' string (split-payment branches build
+    Payment via .objects.create() directly, bypassing PaymentForm's date
+    cleaning). Falls back to today if missing/unparseable."""
+    if not raw_value:
+        return timezone.now().date()
+    if isinstance(raw_value, str):
+        try:
+            return datetime.strptime(raw_value, '%Y-%m-%d').date()
+        except ValueError:
+            return timezone.now().date()
+    return raw_value
+
+
+def _record_finance_ledger_entry(payment, client_vehicle):
     """
-    Update payment schedules when a payment is made
+    Post a credit entry to the payment's receiving account and return it.
+    Returns None if no account was selected (older payments, or automated
+    inflows such as M-Pesa callbacks that aren't yet reconciled to an account).
+    """
+    if not payment.account:
+        return None
+
+    from apps.finance import services as finance_services
+
+    has_plan = InstallmentPlan.objects.filter(client_vehicle=client_vehicle, is_active=True).exists()
+    return finance_services.create_transaction(
+        payment.account,
+        direction='credit',
+        transaction_type='hire_purchase_instalment' if has_plan else 'client_vehicle_payment',
+        amount=payment.amount,
+        created_by=payment.recorded_by,
+        transaction_date=payment.payment_date,
+        source_module='payments',
+        related_client=client_vehicle.client,
+        related_vehicle=client_vehicle.vehicle,
+        payment_method=_LEDGER_PAYMENT_METHOD_MAP.get(payment.payment_method, 'other'),
+        description=f'Payment {payment.receipt_number} - {client_vehicle.vehicle}',
+    )
+
+
+def _snapshot_pending_schedule_amounts(client_vehicle):
+    """
+    Capture each pending instalment's amount_paid *before* a new payment is
+    applied, so the amount a specific payment actually settles can be
+    computed afterward by diffing.
+
+    NOTE: schedules are marked paid automatically by the
+    update_payment_schedules_after_payment signal in payments/signals1.py
+    (registered in PaymentsConfig.ready()), which runs synchronously inside
+    Payment.save(). There used to be a second, manual pass over the same
+    schedules here in views.py that duplicated the signal's work — that was
+    a real bug (every payment double-applied: instalments got marked paid
+    twice and totals were double-counted). Do not reintroduce a second
+    schedule-marking pass; only read state after save() and diff it.
     """
     try:
         plan = client_vehicle.installment_plan
-        pending_schedules = plan.payment_schedules.filter(
-            is_paid=False
-        ).order_by('installment_number')
-        
-        remaining_amount = payment.amount
-        
-        for schedule in pending_schedules:
-            if remaining_amount <= 0:
-                break
-            
-            amount_to_apply = min(remaining_amount, schedule.remaining_amount)
-            schedule.mark_as_paid(payment, amount_to_apply)
-            remaining_amount -= amount_to_apply
-            
-        logger.info(f"Updated {pending_schedules.count()} payment schedules for {client_vehicle.vehicle.registration_number}")
-        
     except InstallmentPlan.DoesNotExist:
-        pass
-    except Exception as e:
-        logger.error(f"Error updating payment schedules: {e}")
+        return {}
+    return {
+        schedule.pk: schedule.amount_paid
+        for schedule in plan.payment_schedules.filter(is_paid=False)
+    }
+
+
+def _allocate_ledger_transaction_to_schedules(ledger_transaction, client_vehicle, pre_save_amounts):
+    """
+    Diff each instalment's amount_paid against its pre-payment snapshot
+    (see _snapshot_pending_schedule_amounts) to determine how much of
+    ledger_transaction it consumed, and record that as a PaymentAllocation.
+    Must be called after the triggering Payment has been saved.
+    """
+    if not ledger_transaction or not pre_save_amounts:
+        return
+
+    from apps.finance.models import PaymentAllocation
+
+    try:
+        plan = client_vehicle.installment_plan
+    except InstallmentPlan.DoesNotExist:
+        return
+
+    schedules = plan.payment_schedules.filter(pk__in=pre_save_amounts.keys())
+    for schedule in schedules:
+        applied = schedule.amount_paid - pre_save_amounts.get(schedule.pk, Decimal('0.00'))
+        if applied > 0:
+            PaymentAllocation.objects.create(
+                transaction=ledger_transaction,
+                payment_schedule=schedule,
+                amount_allocated=applied,
+            )
 
 
 @login_required

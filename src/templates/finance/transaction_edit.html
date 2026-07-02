@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Edit {{ transaction.reference_number }} - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-3xl">
+
+    <div class="mb-6">
+        <div class="flex items-center space-x-3 mb-2">
+            <a href="{% url 'finance:transaction_detail' transaction.pk %}" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left"></i></a>
+            <h1 class="text-2xl font-bold text-gray-900">Edit {{ transaction.reference_number }}</h1>
+        </div>
+        <p class="text-sm text-gray-600 ml-10">{{ transaction.account.name }} &middot; currently {{ transaction.get_status_display }}</p>
+    </div>
+
+    <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+        <i class="fas fa-info-circle mr-1"></i> Only draft, pending, or edit-requested transactions can be edited this way.
+        Once approved, a transaction can only be changed via <strong>Reverse</strong> or <strong>Correct</strong> — the original is never overwritten.
+    </div>
+
+    {% if form.non_field_errors %}
+    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-4">Transaction Details</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Date</label>
+                    {{ form.transaction_date }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Type</label>
+                    {{ form.transaction_type }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                    {{ form.amount }}
+                    {% if form.amount.errors %}<p class="mt-1 text-sm text-red-600">{{ form.amount.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                    {{ form.currency }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                    {{ form.payment_method }}
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description / Narration</label>
+                    {{ form.description }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Client</label>
+                    {{ form.related_client }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle</label>
+                    {{ form.related_vehicle }}
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Supplier / Vendor / Auctioneer (free text)</label>
+                    {{ form.related_party_label }}
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Reason for Edit <span class="text-red-600">*</span></label>
+            {{ form.edit_reason }}
+            {% if form.edit_reason.errors %}<p class="mt-1 text-sm text-red-600">{{ form.edit_reason.errors.0 }}</p>{% endif %}
+            <p class="mt-1 text-xs text-gray-500">{{ form.edit_reason.help_text }}</p>
+        </div>
+
+        <div class="flex justify-end gap-3">
+            <a href="{% url 'finance:transaction_detail' transaction.pk %}" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>
+            <button type="submit" class="px-6 py-2 bg-primary-600 rounded-lg text-sm font-medium text-white hover:bg-primary-700">Save Changes</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

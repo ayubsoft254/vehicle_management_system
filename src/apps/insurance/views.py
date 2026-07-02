@@ -1495,6 +1495,7 @@ def record_insurance_agent_payment(request, agent_pk):
     reference_number = request.POST.get('reference_number', '').strip()
     notes = request.POST.get('notes', '').strip()
     payment_date_str = request.POST.get('payment_date', '').strip()
+    account_id = request.POST.get('account') or None
     try:
         amount = Decimal(amount_str)
         if amount <= 0:
@@ -1510,7 +1511,7 @@ def record_insurance_agent_payment(request, agent_pk):
         except ValueError:
             pass
     with transaction.atomic():
-        InsuranceAgentPayment.objects.create(
+        payment = InsuranceAgentPayment.objects.create(
             agent=agent,
             amount=amount,
             payment_method=payment_method,
@@ -1518,7 +1519,24 @@ def record_insurance_agent_payment(request, agent_pk):
             notes=notes,
             payment_date=payment_date,
             recorded_by=request.user,
+            account_id=account_id,
         )
+
+        if payment.account:
+            from apps.finance import services as finance_services
+            finance_services.create_transaction(
+                payment.account,
+                direction='debit',
+                transaction_type='insurance_company_payment',
+                amount=payment.amount,
+                created_by=request.user,
+                transaction_date=payment.payment_date,
+                source_module='insurance',
+                related_party=agent,
+                related_party_label=agent.name,
+                payment_method=payment.payment_method,
+                description=f'Insurance agent payment - {agent.name}',
+            )
 
         # Mark unpaid policies as paid (oldest first) until payment is exhausted
         remaining = amount

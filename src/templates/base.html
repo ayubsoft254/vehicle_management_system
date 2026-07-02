@@ -6,7 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>{% block title %}Vehicle Management System{% endblock %}</title>
-    
+
+    {% include "pwa/_pwa_head.html" %}
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -192,6 +194,14 @@
                             <a href="{% url 'payments:payment_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
                                 <i class="fas fa-credit-card w-5 text-gray-400 group-hover:text-primary-600"></i>
                                 <span class="ml-3 font-medium">Payments</span>
+                            </a>
+                            {% endif %}
+
+                            <!-- Finance -->
+                            {% if user.is_superuser or user|can_access:'finance' %}
+                            <a href="{% url 'finance:finance_dashboard' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-university w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Finance</span>
                             </a>
                             {% endif %}
 
@@ -390,12 +400,21 @@
                         
                         <!-- Right Side Actions -->
                         <div class="flex items-center space-x-4">
+                            <!-- Install App -->
+                            <button type="button" hidden class="pwa-install-btn inline-flex items-center px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors duration-200" aria-label="Install App">
+                                <i class="fas fa-download mr-1.5"></i>
+                                <span class="hidden sm:inline">Install App</span>
+                            </button>
+                            <span hidden class="pwa-ios-hint text-xs text-gray-400" title="To install Hoza on iPhone or iPad, open this system in Safari, tap the Share button, then choose Add to Home Screen.">
+                                <i class="fas fa-info-circle"></i>
+                            </span>
+
                             <!-- Notifications -->
                             <a href="{% url 'notifications:notification_list' %}" class="relative p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-lg transition-colors duration-200" aria-label="Notifications">
                                 <i class="fas fa-bell text-xl"></i>
                                 <span id="notification-badge" class="hidden absolute -top-1 -right-1 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-red-500 text-white text-[10px] leading-[1.1rem] text-center font-semibold"></span>
                             </a>
-                            
+
                             <!-- User Menu Dropdown -->
                             <div class="relative" x-data="{ open: false }">
                                 <button @click="open = !open" class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200">
@@ -415,6 +434,9 @@
                                     <a href="{% url 'account_email' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                         <i class="fas fa-cog mr-2"></i> Settings
                                     </a>
+                                    <button type="button" hidden class="pwa-install-btn w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <i class="fas fa-download mr-2"></i> Install App
+                                    </button>
                                     <div class="border-t border-gray-200 my-1"></div>
                                     <a href="{% url 'account_logout' %}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">
                                         <i class="fas fa-sign-out-alt mr-2"></i> Logout
@@ -1164,6 +1186,8 @@
         }
     }());
     </script>
+
+    {% include "pwa/_pwa_scripts.html" %}
 
     {% block extra_js %}{% endblock %}
 </body>

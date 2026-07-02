@@ -2068,6 +2068,12 @@ def record_payment(request, client_vehicle_pk):
                         except Exception:
                             pass
 
+                from apps.payments.views import (
+                    _snapshot_pending_schedule_amounts,
+                    _allocate_ledger_transaction_to_schedules,
+                )
+                pre_save_amounts = _snapshot_pending_schedule_amounts(client_vehicle)
+
                 payment = form.save(commit=False)
                 payment.client_vehicle = client_vehicle
                 payment.recorded_by = request.user
@@ -2078,6 +2084,9 @@ def record_payment(request, client_vehicle_pk):
                     payment.payment_method = valid_splits[0][0]
                     payment.payment_location = valid_splits[0][3]
 
+                # Payment.save() triggers payments/signals1.py, which recalculates
+                # client_vehicle.total_paid/balance/is_paid_off and marks off
+                # instalment schedules automatically — do not duplicate that here.
                 payment.save()
 
                 # Create PaymentSplit records for multi-method payments
@@ -2091,30 +2100,43 @@ def record_payment(request, client_vehicle_pk):
                             payment_location=loc,
                         )
 
-                # Update payment schedules if an installment plan exists
-                try:
-                    from apps.payments.views import update_payment_schedules
-                    update_payment_schedules(payment, client_vehicle)
-                except Exception:
-                    pass
-
                 client_vehicle.refresh_from_db()
+
+                # Post to the finance ledger and link it to the instalments it settled
+                from apps.finance import services as finance_services
+                ledger_transaction = None
+                if payment.account:
+                    has_plan = InstallmentPlan.objects.filter(client_vehicle=client_vehicle, is_active=True).exists()
+                    ledger_transaction = finance_services.create_transaction(
+                        payment.account,
+                        direction='credit',
+                        transaction_type='hire_purchase_instalment' if has_plan else 'client_vehicle_payment',
+                        amount=payment.amount,
+                        created_by=payment.recorded_by,
+                        transaction_date=payment.payment_date,
+                        source_module='payments',
+                        related_client=client_vehicle.client,
+                        related_vehicle=client_vehicle.vehicle,
+                        description=f'Payment {payment.receipt_number} - {client_vehicle.vehicle}',
+                    )
+                _allocate_ledger_transaction_to_schedules(ledger_transaction, client_vehicle, pre_save_amounts)
+
                 if client_vehicle.is_paid_off:
                     messages.success(
-                        request, 
+                        request,
                         f'Payment recorded! Vehicle fully paid off!'
                     )
                 else:
                     messages.success(
-                        request, 
+                        request,
                         f'Payment of KES {payment.amount:,.2f} recorded successfully!'
                     )
-                
+
                 log_audit(
                     request.user, 'create', 'Payment',
                     f'Recorded payment of KES {payment.amount:,.2f} for {client_vehicle.client.get_full_name()}'
                 )
-                
+
                 return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
         else:
             messages.error(request, 'Please correct the errors below.')

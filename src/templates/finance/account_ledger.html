@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ account.name }} Ledger - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <div class="flex items-center space-x-3 mb-1">
+                <a href="{% url 'finance:account_detail' account.pk %}" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left"></i></a>
+                <h1 class="text-3xl font-bold text-gray-900">{{ account.name }} - Ledger</h1>
+            </div>
+            <p class="text-sm text-gray-600 ml-10">
+                {{ account.get_account_type_display }}
+                {% if account.account_number %}&middot; {{ account.account_number }}{% endif %}
+                {% if account.paybill_number %}&middot; Paybill {{ account.paybill_number }}{% endif %}
+                {% if account.till_number %}&middot; Till {{ account.till_number }}{% endif %}
+            </p>
+        </div>
+        {% if can_record and account.allow_manual_transactions %}
+        <a href="{% url 'finance:transaction_add' account.pk %}" class="inline-flex items-center px-4 py-2 bg-primary-600 rounded-lg text-sm font-medium text-white hover:bg-primary-700">
+            <i class="fas fa-plus mr-2"></i> Add Transaction
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Balance Summary -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+            <p class="text-xs text-gray-500">Opening</p>
+            <p class="text-sm font-bold text-gray-900">{{ account.currency }} {{ account.opening_balance|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+            <p class="text-xs text-gray-500">Approved Credits</p>
+            <p class="text-sm font-bold text-green-700">{{ account.currency }} {{ account.approved_credits|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+            <p class="text-xs text-gray-500">Approved Debits</p>
+            <p class="text-sm font-bold text-red-700">{{ account.currency }} {{ account.approved_debits|floatformat:2 }}</p>
+        </div>
+        <div class="bg-primary-50 rounded-lg shadow-sm border border-primary-200 p-3">
+            <p class="text-xs text-primary-700">Current Balance</p>
+            <p class="text-sm font-bold text-primary-900">{{ account.currency }} {{ account.current_balance|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+            <p class="text-xs text-gray-500">Pending In/Out</p>
+            <p class="text-sm font-bold text-gray-900">
+                <span class="text-blue-700">{{ account.pending_inflows|floatformat:2 }}</span> /
+                <span class="text-orange-700">{{ account.pending_outflows|floatformat:2 }}</span>
+            </p>
+        </div>
+        <div class="bg-green-50 rounded-lg shadow-sm border border-green-200 p-3">
+            <p class="text-xs text-green-700">Available</p>
+            <p class="text-sm font-bold text-green-900">{{ account.currency }} {{ account.available_balance|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="get" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 flex flex-wrap gap-3 items-end">
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">From</label>
+            <input type="date" name="date_from" value="{{ filters.date_from }}" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">To</label>
+            <input type="date" name="date_to" value="{{ filters.date_to }}" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Type</label>
+            <select name="transaction_type" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <option value="">All Types</option>
+                {% for value, label in transaction_types %}
+                <option value="{{ value }}" {% if filters.transaction_type == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Status</label>
+            <select name="status" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <option value="">All Statuses</option>
+                {% for value, label in statuses %}
+                <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex-1 min-w-[200px]">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Search</label>
+            <input type="text" name="search" value="{{ filters.search }}" placeholder="Reference, client, vehicle, description..."
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <button type="submit" class="px-4 py-2 bg-gray-800 text-white text-sm rounded-lg hover:bg-gray-900">
+            <i class="fas fa-filter mr-1"></i> Filter
+        </button>
+        <a href="{% url 'finance:account_ledger' account.pk %}" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Reset</a>
+    </form>
+
+    <!-- Ledger Table -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Reference</th>
+                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Source</th>
+                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Type / Narration</th>
+                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Client / Vehicle</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Debit</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Credit</th>
+                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Method</th>
+                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th class="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Created By</th>
+                    <th class="px-3 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for txn in transactions %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-3 py-3 text-sm text-gray-700 whitespace-nowrap">{{ txn.transaction_date }}</td>
+                    <td class="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
+                        <a href="{% url 'finance:transaction_detail' txn.pk %}" class="text-primary-600 hover:underline">{{ txn.reference_number }}</a>
+                    </td>
+                    <td class="px-3 py-3 text-sm text-gray-500">{{ txn.get_source_module_display }}</td>
+                    <td class="px-3 py-3 text-sm text-gray-700">
+                        <p class="font-medium text-gray-900">{{ txn.get_transaction_type_display }}</p>
+                        {% if txn.description %}<p class="text-xs text-gray-500">{{ txn.description|truncatechars:60 }}</p>{% endif %}
+                    </td>
+                    <td class="px-3 py-3 text-sm text-gray-500">
+                        {% if txn.related_client %}{{ txn.related_client }}{% endif %}
+                        {% if txn.related_vehicle %}<br>{{ txn.related_vehicle }}{% endif %}
+                        {% if txn.related_party_label %}{{ txn.related_party_label }}{% endif %}
+                    </td>
+                    <td class="px-3 py-3 text-sm text-right text-red-700">{% if txn.direction == 'debit' %}{{ txn.amount|floatformat:2 }}{% endif %}</td>
+                    <td class="px-3 py-3 text-sm text-right text-green-700">{% if txn.direction == 'credit' %}{{ txn.amount|floatformat:2 }}{% endif %}</td>
+                    <td class="px-3 py-3 text-sm text-gray-500">{{ txn.get_payment_method_display }}</td>
+                    <td class="px-3 py-3">
+                        <span class="px-2 py-1 text-xs font-medium rounded-full
+                            {% if txn.status == 'approved' %}bg-green-100 text-green-800
+                            {% elif txn.status == 'pending_approval' %}bg-yellow-100 text-yellow-800
+                            {% elif txn.status == 'rejected' or txn.status == 'cancelled' %}bg-red-100 text-red-800
+                            {% elif txn.status == 'reversed' %}bg-purple-100 text-purple-800
+                            {% else %}bg-gray-100 text-gray-600{% endif %}">
+                            {{ txn.get_status_display }}
+                        </span>
+                    </td>
+                    <td class="px-3 py-3 text-sm text-gray-500">{{ txn.created_by }}</td>
+                    <td class="px-3 py-3 text-right whitespace-nowrap">
+                        {% if txn.status == 'pending_approval' and can_approve %}
+                        <form method="post" action="{% url 'finance:transaction_approve' txn.pk %}" class="inline" onsubmit="return confirm('Approve this transaction?');">
+                            {% csrf_token %}
+                            <button type="submit" class="text-green-600 hover:text-green-800 text-sm mr-2" title="Approve"><i class="fas fa-check"></i></button>
+                        </form>
+                        <form method="post" action="{% url 'finance:transaction_reject' txn.pk %}" class="inline" onsubmit="return confirm('Reject this transaction?');">
+                            {% csrf_token %}
+                            <button type="submit" class="text-red-600 hover:text-red-800 text-sm mr-2" title="Reject"><i class="fas fa-times"></i></button>
+                        </form>
+                        {% endif %}
+                        <a href="{% url 'finance:transaction_detail' txn.pk %}" class="text-gray-600 hover:text-gray-800 text-sm" title="View"><i class="fas fa-eye"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11" class="px-4 py-16 text-center text-gray-500">
+                        <i class="fas fa-book text-4xl text-gray-300 mb-3 block"></i>
+                        No ledger transactions recorded yet for this account.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="mt-4 flex justify-center gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Previous</a>
+        {% endif %}
+        <span class="px-3 py-1.5 text-sm text-gray-600">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

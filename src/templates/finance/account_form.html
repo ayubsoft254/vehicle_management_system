@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if account %}Edit Account{% else %}Add Account{% endif %} - Vehicle Management System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+
+    <div class="mb-6">
+        <div class="flex items-center space-x-3 mb-2">
+            <a href="{% if account %}{% url 'finance:account_detail' account.pk %}{% else %}{% url 'finance:account_list' %}{% endif %}" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">{% if account %}Edit Account{% else %}Add Account{% endif %}</h1>
+        </div>
+        <p class="text-sm text-gray-600 ml-10">{% if account %}Update account details{% else %}Add a new bank, cash, M-Pesa or other account{% endif %}</p>
+    </div>
+
+    {% if form.non_field_errors %}
+    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        {{ form.non_field_errors }}
+    </div>
+    {% endif %}
+
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+
+        <!-- Basic Information -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-info-circle text-primary-600 mr-2"></i> Basic Information
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Account Name <span class="text-red-600">*</span></label>
+                    {{ form.name }}
+                    {% if form.name.errors %}<p class="mt-1 text-sm text-red-600">{{ form.name.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Account Code <span class="text-red-600">*</span></label>
+                    {{ form.code }}
+                    {% if form.code.errors %}<p class="mt-1 text-sm text-red-600">{{ form.code.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Account Type <span class="text-red-600">*</span></label>
+                    {{ form.account_type }}
+                    {% if form.account_type.errors %}<p class="mt-1 text-sm text-red-600">{{ form.account_type.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    {{ form.status }}
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    {{ form.description }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Bank / M-Pesa Details -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-university text-blue-600 mr-2"></i> Bank / M-Pesa Details
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                    {{ form.bank_name }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Branch Name</label>
+                    {{ form.branch_name }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                    {{ form.account_number }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Paybill Number</label>
+                    {{ form.paybill_number }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Till Number</label>
+                    {{ form.till_number }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Business Shortcode</label>
+                    {{ form.business_shortcode }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Details -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-money-bill-wave text-green-600 mr-2"></i> Financial Details
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                    {{ form.currency }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Opening Balance</label>
+                    {{ form.opening_balance }}
+                    {% if form.opening_balance.errors %}<p class="mt-1 text-sm text-red-600">{{ form.opening_balance.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Opening Balance Date</label>
+                    {{ form.opening_balance_date }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <i class="fas fa-sliders-h text-gray-600 mr-2"></i> Settings
+            </h2>
+            <div class="space-y-3">
+                <label class="flex items-center gap-2">
+                    {{ form.is_default }}
+                    <span class="text-sm text-gray-700">Suggest this account by default when recording new transactions</span>
+                </label>
+                <label class="flex items-center gap-2">
+                    {{ form.allow_manual_transactions }}
+                    <span class="text-sm text-gray-700">Allow manual transactions on this account</span>
+                </label>
+                <label class="flex items-center gap-2">
+                    {{ form.require_approval }}
+                    <span class="text-sm text-gray-700">Require approval before transactions affect this account's balance</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3">
+            <a href="{% if account %}{% url 'finance:account_detail' account.pk %}{% else %}{% url 'finance:account_list' %}{% endif %}"
+               class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>
+            <button type="submit" class="px-6 py-2 bg-primary-600 rounded-lg text-sm font-medium text-white hover:bg-primary-700">
+                {% if account %}Save Changes{% else %}Create Account{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

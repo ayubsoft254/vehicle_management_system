@@ -1166,6 +1166,10 @@ class InsuranceAgentPayment(models.Model):
     )
     reference_number = models.CharField('Reference / Receipt No.', max_length=100, blank=True)
     notes = models.TextField('Notes', blank=True)
+    account = models.ForeignKey(
+        'finance.FinancialAccount', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='insurance_agent_payments', help_text='Financial account this payment was paid from'
+    )
     recorded_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True,
         related_name='insurance_agent_payments'

@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load humanize %}
+{% load finance_tags %}
 
 {% block title %}{{ supplier.name }} — Japan Supplier Ledger{% endblock %}
 
@@ -232,6 +233,16 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1">Reference / Receipt No.</label>
                 <input type="text" name="reference_number" placeholder="e.g. SWIFT-TRN123456"
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Paying Account <span class="text-red-500">*</span></label>
+                <select name="account" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                    <option value="">Select account...</option>
+                    {% active_finance_accounts as finance_accounts %}
+                    {% for acc in finance_accounts %}
+                    <option value="{{ acc.pk }}">{{ acc.name }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>

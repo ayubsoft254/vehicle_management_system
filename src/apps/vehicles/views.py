@@ -1225,6 +1225,7 @@ def record_tracker_agent_payment(request, agent_pk):
     reference_number = request.POST.get('reference_number', '').strip()
     notes = request.POST.get('notes', '').strip()
     payment_date_str = request.POST.get('payment_date', '').strip()
+    account_id = request.POST.get('account') or None
     try:
         amount = Decimal(amount_str)
         if amount <= 0:
@@ -1240,7 +1241,7 @@ def record_tracker_agent_payment(request, agent_pk):
         except ValueError:
             pass
     with transaction.atomic():
-        TrackerAgentPayment.objects.create(
+        payment = TrackerAgentPayment.objects.create(
             agent=agent,
             amount=amount,
             payment_method=payment_method,
@@ -1248,7 +1249,24 @@ def record_tracker_agent_payment(request, agent_pk):
             notes=notes,
             payment_date=payment_date,
             recorded_by=request.user,
+            account_id=account_id,
         )
+
+        if payment.account:
+            from apps.finance import services as finance_services
+            finance_services.create_transaction(
+                payment.account,
+                direction='debit',
+                transaction_type='tracker_vendor_payment',
+                amount=payment.amount,
+                created_by=request.user,
+                transaction_date=payment.payment_date,
+                source_module='vehicles',
+                related_party=agent,
+                related_party_label=agent.name,
+                payment_method=payment.payment_method,
+                description=f'Tracker agent payment - {agent.name}',
+            )
 
         # Mark unpaid tracker records as paid (oldest first) until payment is exhausted
         remaining = amount
@@ -1290,6 +1308,7 @@ def record_clearing_agent_payment(request, agent_pk):
     reference_number = request.POST.get('reference_number', '').strip()
     notes = request.POST.get('notes', '').strip()
     payment_date_str = request.POST.get('payment_date', '').strip()
+    account_id = request.POST.get('account') or None
     try:
         amount = Decimal(amount_str)
         if amount <= 0:
@@ -1305,7 +1324,7 @@ def record_clearing_agent_payment(request, agent_pk):
         except ValueError:
             pass
     with transaction.atomic():
-        ClearingAgentPayment.objects.create(
+        payment = ClearingAgentPayment.objects.create(
             agent=agent,
             amount=amount,
             payment_method=payment_method,
@@ -1313,7 +1332,24 @@ def record_clearing_agent_payment(request, agent_pk):
             notes=notes,
             payment_date=payment_date,
             recorded_by=request.user,
+            account_id=account_id,
         )
+
+        if payment.account:
+            from apps.finance import services as finance_services
+            finance_services.create_transaction(
+                payment.account,
+                direction='debit',
+                transaction_type='clearing_charges',
+                amount=payment.amount,
+                created_by=request.user,
+                transaction_date=payment.payment_date,
+                source_module='vehicles',
+                related_party=agent,
+                related_party_label=agent.name,
+                payment_method=payment.payment_method,
+                description=f'Clearing agent payment - {agent.name}',
+            )
 
         # Mark unpaid clearance records as paid (oldest first) until payment is exhausted
         remaining = amount
@@ -1437,6 +1473,7 @@ def record_japan_supplier_payment(request, supplier_pk):
     reference_number = request.POST.get('reference_number', '').strip()
     notes = request.POST.get('notes', '').strip()
     payment_date_str = request.POST.get('payment_date', '').strip()
+    account_id = request.POST.get('account') or None
     try:
         amount = Decimal(amount_str)
         if amount <= 0:
@@ -1452,7 +1489,7 @@ def record_japan_supplier_payment(request, supplier_pk):
         except ValueError:
             pass
     with transaction.atomic():
-        JapanSupplierPayment.objects.create(
+        payment = JapanSupplierPayment.objects.create(
             supplier=supplier,
             amount=amount,
             payment_method=payment_method,
@@ -1460,7 +1497,24 @@ def record_japan_supplier_payment(request, supplier_pk):
             notes=notes,
             payment_date=payment_date,
             recorded_by=request.user,
+            account_id=account_id,
         )
+
+        if payment.account:
+            from apps.finance import services as finance_services
+            finance_services.create_transaction(
+                payment.account,
+                direction='debit',
+                transaction_type='supplier_payment',
+                amount=payment.amount,
+                created_by=request.user,
+                transaction_date=payment.payment_date,
+                source_module='vehicles',
+                related_party=supplier,
+                related_party_label=supplier.name,
+                payment_method=payment.payment_method,
+                description=f'Japan supplier payment - {supplier.name}',
+            )
 
         # Mark unpaid records as paid (oldest first) until payment is exhausted
         remaining = amount
@@ -1715,6 +1769,7 @@ def record_broker_payment(request, broker_pk):
     reference_number = request.POST.get('reference_number', '').strip()
     notes = request.POST.get('notes', '').strip()
     payment_date_str = request.POST.get('payment_date', '').strip()
+    account_id = request.POST.get('account') or None
     try:
         amount = Decimal(amount_str)
         if amount <= 0:
@@ -1738,7 +1793,24 @@ def record_broker_payment(request, broker_pk):
             notes=notes,
             payment_date=payment_date,
             recorded_by=request.user,
+            account_id=account_id,
         )
+
+        if payment.account:
+            from apps.finance import services as finance_services
+            finance_services.create_transaction(
+                payment.account,
+                direction='debit',
+                transaction_type='broker_commission',
+                amount=payment.amount,
+                created_by=request.user,
+                transaction_date=payment.payment_date,
+                source_module='vehicles',
+                related_party=broker,
+                related_party_label=broker.name,
+                payment_method=payment.payment_method,
+                description=f'Broker payment {payment.voucher_number} - {broker.name}',
+            )
 
         # Mark unpaid commission records as paid (oldest first) until exhausted
         remaining = amount
