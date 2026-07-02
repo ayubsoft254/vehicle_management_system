@@ -5,6 +5,7 @@ Handles payment recording, installment plans, schedules, and reporting
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.urls import reverse
 from django.db.models import Q, Sum, Count, Avg, F
 from django.db.models.functions import TruncMonth
 from django.http import JsonResponse, HttpResponse
@@ -24,6 +25,7 @@ import logging
 
 from .models import (
     Payment,
+    PaymentSplit,
     AccountWithdrawal,
     InstallmentPlan,
     PaymentSchedule,
@@ -446,7 +448,11 @@ def record_account_withdrawal(request):
             )
             return redirect('payments:payment_list')
     else:
-        form = AccountWithdrawalForm()
+        initial = {}
+        preselect = request.GET.get('payment_method')
+        if preselect in dict(AccountWithdrawal.PAYMENT_METHOD_CHOICES):
+            initial['payment_method'] = preselect
+        form = AccountWithdrawalForm(initial=initial)
 
     context = {
         'form': form,
@@ -485,6 +491,91 @@ def account_withdrawal_list(request):
 
     log_audit(request.user, 'view', 'AccountWithdrawal', 'Viewed account withdrawals list')
     return render(request, 'payments/account_withdrawal_list.html', context)
+
+
+@login_required
+def account_transactions(request, method):
+    """
+    Unified transaction history (additions, reversed payments and
+    withdrawals) for a single HOZA/KE sub-account, so a specific account
+    (e.g. Equity Hoza) can be audited without combing through the full
+    payment list.
+    """
+    method_labels = dict(AccountWithdrawal.PAYMENT_METHOD_CHOICES)
+    if method not in method_labels:
+        messages.error(request, 'Unknown account.')
+        return redirect('payments:payment_list')
+
+    label = method_labels[method]
+    transactions = []
+
+    direct_payments = Payment.objects.filter(payment_method=method).select_related(
+        'client_vehicle__client', 'client_vehicle__vehicle', 'recorded_by'
+    )
+    for payment in direct_payments:
+        transactions.append({
+            'date': payment.payment_date,
+            'sort_key': payment.created_at,
+            'type': 'reversed' if payment.is_reversed else 'addition',
+            'amount': payment.amount,
+            'reference': payment.transaction_reference or payment.receipt_number,
+            'client': payment.client_vehicle.client,
+            'detail_url': reverse('payments:payment_detail', args=[payment.pk]),
+            'recorded_by': payment.recorded_by,
+        })
+
+    split_payments = PaymentSplit.objects.filter(payment_method=method).select_related(
+        'payment__client_vehicle__client', 'payment__client_vehicle__vehicle', 'payment__recorded_by'
+    )
+    for split in split_payments:
+        payment = split.payment
+        transactions.append({
+            'date': payment.payment_date,
+            'sort_key': split.created_at,
+            'type': 'reversed' if payment.is_reversed else 'addition',
+            'amount': split.amount,
+            'reference': split.transaction_reference or payment.receipt_number,
+            'client': payment.client_vehicle.client,
+            'detail_url': reverse('payments:payment_detail', args=[payment.pk]),
+            'recorded_by': payment.recorded_by,
+        })
+
+    withdrawals = AccountWithdrawal.objects.filter(payment_method=method).select_related('recorded_by')
+    for withdrawal in withdrawals:
+        transactions.append({
+            'date': withdrawal.withdrawal_date,
+            'sort_key': withdrawal.created_at,
+            'type': 'withdrawal',
+            'amount': withdrawal.amount,
+            'reference': withdrawal.reason,
+            'client': None,
+            'detail_url': None,
+            'recorded_by': withdrawal.recorded_by,
+        })
+
+    transactions.sort(key=lambda t: (t['date'], t['sort_key']), reverse=True)
+
+    total_additions = sum((t['amount'] for t in transactions if t['type'] == 'addition'), Decimal('0.00'))
+    total_reversed = sum((t['amount'] for t in transactions if t['type'] == 'reversed'), Decimal('0.00'))
+    total_withdrawals = sum((t['amount'] for t in transactions if t['type'] == 'withdrawal'), Decimal('0.00'))
+    net_total = total_additions - total_withdrawals
+
+    paginator = Paginator(transactions, 50)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'method': method,
+        'label': label,
+        'is_hoza': method in AccountWithdrawal.HOZA_METHODS,
+        'transactions': page_obj,
+        'total_additions': total_additions,
+        'total_reversed': total_reversed,
+        'total_withdrawals': total_withdrawals,
+        'net_total': net_total,
+    }
+
+    log_audit(request.user, 'view', 'Payment', f'Viewed {label} account transactions')
+    return render(request, 'payments/account_transactions.html', context)
 
 
 @login_required
