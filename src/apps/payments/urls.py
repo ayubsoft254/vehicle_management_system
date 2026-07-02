@@ -15,6 +15,7 @@ urlpatterns = [
     path('record/<int:client_vehicle_pk>/', views.record_payment, name='record_payment'),
     path('withdrawals/new/', views.record_account_withdrawal, name='record_account_withdrawal'),
     path('withdrawals/', views.account_withdrawal_list, name='account_withdrawal_list'),
+    path('accounts/<str:method>/transactions/', views.account_transactions, name='account_transactions'),
     path('<int:pk>/receipt/', views.payment_receipt, name='payment_receipt'),
     
     # Installment plans
