@@ -12,7 +12,7 @@ from dateutil.relativedelta import relativedelta
 
 from .models import (
     Payment, InstallmentPlan, PaymentSchedule, PaymentReminder, AccountWithdrawal,
-    Account, AccountTransaction, AccountTransfer,
+    Account, AccountTransaction, AccountTransfer, Reconciliation,
 )
 from apps.clients.models import ClientVehicle
 
@@ -173,7 +173,7 @@ class AccountForm(forms.ModelForm):
 
     class Meta:
         model = Account
-        fields = ['name', 'category', 'account_type', 'opening_balance', 'notes']
+        fields = ['name', 'category', 'account_type', 'opening_balance', 'is_suspense', 'notes']
         widgets = {
             'name': forms.TextInput(attrs={'class': _TEXT_INPUT_CLASS, 'placeholder': 'e.g. Family Bank Hoza'}),
             'category': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
@@ -181,6 +181,7 @@ class AccountForm(forms.ModelForm):
             'opening_balance': forms.NumberInput(attrs={
                 'class': _TEXT_INPUT_CLASS, 'placeholder': '0.00', 'step': '0.01', 'min': '0'
             }),
+            'is_suspense': forms.CheckboxInput(attrs={'class': 'h-4 w-4 text-primary-600 rounded'}),
             'notes': forms.Textarea(attrs={'class': _TEXT_INPUT_CLASS, 'rows': 3, 'placeholder': 'Optional notes'}),
         }
 
@@ -270,6 +271,34 @@ class AccountTransferForm(forms.ModelForm):
         if source and destination and source.pk == destination.pk:
             raise ValidationError('Cannot transfer to the same account.')
         return cleaned_data
+
+
+class ReconciliationForm(forms.ModelForm):
+    """Form for requesting a reconciliation against a wrongly-posted account transaction."""
+
+    class Meta:
+        model = Reconciliation
+        fields = [
+            'issue_type', 'correct_account', 'correct_client', 'correct_vehicle',
+            'reason', 'notes',
+        ]
+        widgets = {
+            'issue_type': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
+            'correct_account': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
+            'correct_client': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
+            'correct_vehicle': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
+            'reason': forms.Textarea(attrs={
+                'class': _TEXT_INPUT_CLASS, 'rows': 3, 'placeholder': 'Why this transaction needs correcting'
+            }),
+            'notes': forms.Textarea(attrs={'class': _TEXT_INPUT_CLASS, 'rows': 2, 'placeholder': 'Optional notes'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['correct_account'].queryset = Account.objects.filter(is_active=True)
+        self.fields['correct_account'].required = False
+        self.fields['correct_client'].required = False
+        self.fields['correct_vehicle'].required = False
 
 
 # ==================== INSTALLMENT PLAN FORM ====================
