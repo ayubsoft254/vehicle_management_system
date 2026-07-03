@@ -597,7 +597,87 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
     
     response = HttpResponse(buffer, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="payment_tracker_{client.id_number}_{currency.lower()}.pdf"'
-    
+
+    return response
+
+
+def generate_client_statement_pdf(client, rows, summary):
+    """
+    Generate a client ledger statement PDF from the same (rows, summary) data
+    produced by apps.clients.utils.build_client_ledger, so the PDF always
+    matches the on-screen statement and its CSV/Excel exports.
+    """
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'Title', parent=styles['Title'], fontSize=18,
+        textColor=colors.HexColor('#1e40af'), alignment=TA_CENTER, spaceAfter=20
+    )
+    elements.append(Paragraph("CLIENT STATEMENT", title_style))
+    elements.append(Spacer(1, 0.2 * inch))
+
+    info_text = f"""
+    <b>Client:</b> {client.get_full_name()} (ID: {client.id_number})<br/>
+    <b>Phone:</b> {client.phone_primary}<br/>
+    <b>Generated:</b> {timezone.now().strftime('%d %B %Y')}
+    """
+    elements.append(Paragraph(info_text, styles['Normal']))
+    elements.append(Spacer(1, 0.2 * inch))
+
+    summary_data = [
+        ['Total Expected:', format_currency(summary['total_expected'])],
+        ['Total Paid:', format_currency(summary['total_paid'])],
+        ['Outstanding Balance:', format_currency(summary['outstanding'])],
+        ['Overpayment:', format_currency(summary['overpayment'])],
+        ['Payment Status:', summary['payment_status']],
+    ]
+    summary_table = Table(summary_data, colWidths=[2.5 * inch, 3.5 * inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e5e7eb')),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 0.3 * inch))
+
+    elements.append(Paragraph("<b>LEDGER:</b>", styles['Heading2']))
+    ledger_data = [['Date', 'Reference', 'Type', 'Vehicle', 'Debit', 'Credit', 'Balance']]
+    for row in reversed(rows):
+        ledger_data.append([
+            row['date'].strftime('%d/%m/%Y') if row['date'] else '',
+            row['reference'] or '',
+            row['type_label'],
+            row['related_vehicle'].registration_number if row['related_vehicle'] else '',
+            format_currency(row['debit']) if row['debit'] else '',
+            format_currency(row['credit']) if row['credit'] else '',
+            format_currency(row['running_balance']),
+        ])
+
+    ledger_table = Table(ledger_data, colWidths=[0.8 * inch, 1 * inch, 1 * inch, 1 * inch, 1 * inch, 1 * inch, 1 * inch])
+    ledger_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('ALIGN', (4, 1), (6, -1), 'RIGHT'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3f4f6')]),
+    ]))
+    elements.append(ledger_table)
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="statement_{client.id_number}.pdf"'
     return response
 
 
