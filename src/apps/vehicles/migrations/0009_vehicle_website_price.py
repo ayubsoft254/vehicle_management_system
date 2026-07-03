@@ -5,11 +5,13 @@ from decimal import Decimal
 from django.db import migrations, models
 
 
-def add_website_price_if_missing(apps, schema_editor):
-    table_name = 'vehicles'
-    column_name = 'website_price'
-
-    with schema_editor.connection.cursor() as cursor:
+def _column_exists(schema_editor, table_name, column_name):
+    connection = schema_editor.connection
+    if connection.vendor == 'sqlite':
+        with connection.cursor() as cursor:
+            cursor.execute(f"PRAGMA table_info({table_name})")
+            return any(row[1] == column_name for row in cursor.fetchall())
+    with connection.cursor() as cursor:
         cursor.execute(
             """
             SELECT 1
@@ -18,9 +20,14 @@ def add_website_price_if_missing(apps, schema_editor):
             """,
             [table_name, column_name],
         )
-        exists = cursor.fetchone() is not None
+        return cursor.fetchone() is not None
 
-    if exists:
+
+def add_website_price_if_missing(apps, schema_editor):
+    table_name = 'vehicles'
+    column_name = 'website_price'
+
+    if _column_exists(schema_editor, table_name, column_name):
         return
 
     # Build the field definition Django would have generated, then apply it manually.
@@ -43,18 +50,7 @@ def remove_website_price_if_exists(apps, schema_editor):
     table_name = 'vehicles'
     column_name = 'website_price'
 
-    with schema_editor.connection.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT 1
-            FROM information_schema.columns
-            WHERE table_name = %s AND column_name = %s
-            """,
-            [table_name, column_name],
-        )
-        exists = cursor.fetchone() is not None
-
-    if not exists:
+    if not _column_exists(schema_editor, table_name, column_name):
         return
 
     Vehicle = apps.get_model('vehicles', 'Vehicle')
