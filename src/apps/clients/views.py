@@ -20,8 +20,9 @@ from decimal import Decimal
 from .models import Client, ClientVehicle, ClientDocument, VehicleTracker
 from apps.vehicles.models import TrackerAgent, TrackerRecord
 from apps.payments.models import Payment, PaymentSplit, InstallmentPlan
+from .utils import build_client_ledger
 from .forms import (
-    ClientForm, ClientVehicleForm, PaymentForm, 
+    ClientForm, ClientVehicleForm, PaymentForm,
     ClientDocumentForm, ClientSearchForm, InstallmentPlanForm
 )
 from apps.vehicles.models import Vehicle
@@ -2370,36 +2371,127 @@ def create_installment_plan(request, client_vehicle_pk):
 
 # ==================== REPORTING & EXPORT VIEWS ====================
 
+def _statement_filters(request):
+    """Read date_from/date_to/vehicle/payment_method filters shared by the statement view and its exports."""
+    date_from = request.GET.get('date_from') or None
+    date_to = request.GET.get('date_to') or None
+    vehicle_pk = request.GET.get('vehicle') or None
+    payment_method = request.GET.get('payment_method') or None
+    return date_from, date_to, vehicle_pk, payment_method
+
+
 @login_required
 def client_statement(request, client_pk):
     """
-    Generate client statement showing all transactions
+    Client ledger: chronological debit (vehicle purchase) / credit (payment)
+    rows with a running balance, computed from Payment/ClientVehicle so it
+    always matches the finance ledger - never a stored duplicate.
     """
     client = get_object_or_404(Client, pk=client_pk)
-    
-    # Get all client vehicles and payments
-    client_vehicles = ClientVehicle.objects.filter(client=client).select_related('vehicle')
-    payments = Payment.objects.filter(
-        client_vehicle__client=client
-    ).order_by('payment_date')
-    
-    # Calculate totals
-    total_purchases = client_vehicles.aggregate(Sum('purchase_price'))['purchase_price__sum'] or 0
-    total_paid = payments.filter(is_reversed=False).aggregate(Sum('amount'))['amount__sum'] or 0
-    total_balance = client_vehicles.aggregate(Sum('balance'))['balance__sum'] or 0
-    
+    date_from, date_to, vehicle_pk, payment_method = _statement_filters(request)
+
+    rows, summary = build_client_ledger(
+        client, date_from=date_from, date_to=date_to,
+        vehicle_pk=vehicle_pk, payment_method=payment_method
+    )
+
     context = {
         'client': client,
-        'client_vehicles': client_vehicles,
-        'payments': payments,
-        'total_purchases': total_purchases,
-        'total_paid': total_paid,
-        'total_balance': total_balance,
+        'rows': rows,
+        'summary': summary,
+        'client_vehicles': ClientVehicle.objects.filter(client=client).select_related('vehicle'),
+        'payment_methods': Payment.PAYMENT_METHOD_CHOICES,
+        'date_from': date_from,
+        'date_to': date_to,
+        'vehicle_pk': vehicle_pk,
+        'payment_method': payment_method,
+        'today': timezone.now().date(),
+        'now': timezone.now(),
     }
-    
+
     log_audit(request.user, 'view', 'Client', f'Generated statement for {client.get_full_name()}')
-    
+
     return render(request, 'clients/client_statement.html', context)
+
+
+@login_required
+def export_client_ledger_csv(request, client_pk):
+    """Export the client's ledger (same filters as the statement page) to CSV."""
+    client = get_object_or_404(Client, pk=client_pk)
+    date_from, date_to, vehicle_pk, payment_method = _statement_filters(request)
+    rows, summary = build_client_ledger(
+        client, date_from=date_from, date_to=date_to,
+        vehicle_pk=vehicle_pk, payment_method=payment_method
+    )
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = (
+        f'attachment; filename="statement_{client.pk}_{timezone.now().strftime("%Y%m%d")}.csv"'
+    )
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Date', 'Reference', 'Type', 'Payment Method', 'Description', 'Vehicle',
+        'Debit', 'Credit', 'Running Balance', 'Created By', 'Reconciliation Status', 'Notes'
+    ])
+    for row in reversed(rows):  # chronological order for the export
+        writer.writerow([
+            row['date'], row['reference'], row['type_label'], row['payment_method'],
+            row['narration'], row['related_vehicle'].registration_number if row['related_vehicle'] else '',
+            row['debit'], row['credit'], row['running_balance'],
+            row['created_by'].get_full_name() if row['created_by'] else '',
+            row['reconciliation_status'], row['notes'],
+        ])
+
+    log_audit(request.user, 'export', 'Client', f'Exported ledger CSV for {client.get_full_name()}')
+    return response
+
+
+@login_required
+def export_client_ledger_excel(request, client_pk):
+    """Export the client's ledger (same filters as the statement page) to Excel."""
+    import openpyxl
+    from openpyxl.styles import Font
+
+    client = get_object_or_404(Client, pk=client_pk)
+    date_from, date_to, vehicle_pk, payment_method = _statement_filters(request)
+    rows, summary = build_client_ledger(
+        client, date_from=date_from, date_to=date_to,
+        vehicle_pk=vehicle_pk, payment_method=payment_method
+    )
+
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = 'Client Statement'
+
+    headers = [
+        'Date', 'Reference', 'Type', 'Payment Method', 'Description', 'Vehicle',
+        'Debit', 'Credit', 'Running Balance', 'Created By', 'Reconciliation Status', 'Notes'
+    ]
+    sheet.append(headers)
+    for cell in sheet[1]:
+        cell.font = Font(bold=True)
+
+    for row in reversed(rows):
+        sheet.append([
+            row['date'].strftime('%Y-%m-%d') if row['date'] else '',
+            row['reference'] or '', row['type_label'], row['payment_method'],
+            row['narration'], row['related_vehicle'].registration_number if row['related_vehicle'] else '',
+            float(row['debit']), float(row['credit']), float(row['running_balance']),
+            row['created_by'].get_full_name() if row['created_by'] else '',
+            row['reconciliation_status'], row['notes'],
+        ])
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = (
+        f'attachment; filename="statement_{client.pk}_{timezone.now().strftime("%Y%m%d")}.xlsx"'
+    )
+    workbook.save(response)
+
+    log_audit(request.user, 'export', 'Client', f'Exported ledger Excel for {client.get_full_name()}')
+    return response
 
 
 @login_required
