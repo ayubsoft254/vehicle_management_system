@@ -938,10 +938,11 @@ def reconciliation_create(request, transaction_pk):
         return redirect('payments:account_detail', pk=original.account.pk)
 
     if request.method == 'POST':
-        form = ReconciliationForm(request.POST)
+        # original_transaction is set on the instance before validation, since it's
+        # excluded from the form fields but Reconciliation.clean() requires it to be set.
+        form = ReconciliationForm(request.POST, instance=Reconciliation(original_transaction=original))
         if form.is_valid():
             reconciliation = form.save(commit=False)
-            reconciliation.original_transaction = original
             reconciliation.initiated_by = request.user
             try:
                 reconciliation.full_clean()
@@ -3135,6 +3136,67 @@ def generate_payment_tracker_pdf_view(request, client_vehicle_pk):
     )
     
     return generate_payment_tracker_pdf(client_vehicle, currency=currency, fx_rate=fx_rate)
+
+
+@login_required
+def client_statement_pdf_view(request, client_pk):
+    """Generate and download the client ledger statement PDF (same filters as the on-screen statement)."""
+    from .utils import generate_client_statement_pdf
+    from apps.clients.models import Client
+    from apps.clients.utils import build_client_ledger
+
+    client = get_object_or_404(Client, pk=client_pk)
+    date_from = request.GET.get('date_from') or None
+    date_to = request.GET.get('date_to') or None
+    vehicle_pk = request.GET.get('vehicle') or None
+    payment_method = request.GET.get('payment_method') or None
+
+    rows, summary = build_client_ledger(
+        client, date_from=date_from, date_to=date_to,
+        vehicle_pk=vehicle_pk, payment_method=payment_method
+    )
+
+    log_audit(request.user, 'export', 'Client', f'Generated statement PDF for {client.get_full_name()}')
+
+    return generate_client_statement_pdf(client, rows, summary)
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.READ_WRITE)
+def payment_reconciliation_create(request, payment_pk):
+    """Request a reconciliation against a wrongly-posted client payment."""
+    from .forms import PaymentReconciliationForm
+
+    original = get_object_or_404(Payment, pk=payment_pk)
+
+    if original.is_reversed:
+        messages.error(request, 'This payment has already been reversed and cannot be reconciled again.')
+        return redirect('clients:client_statement', client_pk=original.client_vehicle.client.pk)
+
+    if request.method == 'POST':
+        # original_payment is set on the instance before validation, since it's
+        # excluded from the form fields but Reconciliation.clean() requires it to be set.
+        form = PaymentReconciliationForm(request.POST, instance=Reconciliation(original_payment=original))
+        if form.is_valid():
+            reconciliation = form.save(commit=False)
+            reconciliation.initiated_by = request.user
+            try:
+                reconciliation.full_clean()
+            except DjangoValidationError as e:
+                for err in e.messages:
+                    messages.error(request, err)
+                return render(request, 'payments/payment_reconciliation_form.html', {'form': form, 'original': original})
+            reconciliation.save()
+            log_audit(
+                request.user, 'create', 'Reconciliation',
+                f'Requested reconciliation ({reconciliation.get_issue_type_display()}) on payment #{original.pk}'
+            )
+            messages.success(request, 'Reconciliation request submitted for approval.')
+            return redirect('clients:client_statement', client_pk=original.client_vehicle.client.pk)
+    else:
+        form = PaymentReconciliationForm()
+
+    return render(request, 'payments/payment_reconciliation_form.html', {'form': form, 'original': original})
 
 
 # ==================== STAFF STK PUSH AJAX ENDPOINTS ====================
