@@ -8,6 +8,21 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def _drop_leftover_postgres_objects(apps, schema_editor):
+    if schema_editor.connection.vendor != 'postgresql':
+        return
+    with schema_editor.connection.cursor() as cursor:
+        for statement in (
+            "DROP TABLE IF EXISTS vehicles_japansupplierrecord CASCADE;",
+            "DROP TABLE IF EXISTS vehicles_japansupplierpayment CASCADE;",
+            "DROP TABLE IF EXISTS vehicles_japansupplier CASCADE;",
+            "DROP TYPE IF EXISTS vehicles_japansupplierrecord CASCADE;",
+            "DROP TYPE IF EXISTS vehicles_japansupplierpayment CASCADE;",
+            "DROP TYPE IF EXISTS vehicles_japansupplier CASCADE;",
+        ):
+            cursor.execute(statement)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -16,13 +31,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Drop any leftover types/tables from a previous failed migration attempt (PostgreSQL only).
-        migrations.RunSQL("DROP TABLE IF EXISTS vehicles_japansupplierrecord CASCADE;", migrations.RunSQL.noop),
-        migrations.RunSQL("DROP TABLE IF EXISTS vehicles_japansupplierpayment CASCADE;", migrations.RunSQL.noop),
-        migrations.RunSQL("DROP TABLE IF EXISTS vehicles_japansupplier CASCADE;", migrations.RunSQL.noop),
-        migrations.RunSQL("DROP TYPE IF EXISTS vehicles_japansupplierrecord CASCADE;", migrations.RunSQL.noop),
-        migrations.RunSQL("DROP TYPE IF EXISTS vehicles_japansupplierpayment CASCADE;", migrations.RunSQL.noop),
-        migrations.RunSQL("DROP TYPE IF EXISTS vehicles_japansupplier CASCADE;", migrations.RunSQL.noop),
+        # Drop any leftover types/tables from a previous failed migration attempt (PostgreSQL only;
+        # CASCADE is not valid SQLite syntax, so this is a no-op on SQLite).
+        migrations.RunPython(_drop_leftover_postgres_objects, migrations.RunPython.noop),
         migrations.CreateModel(
             name='JapanSupplier',
             fields=[
