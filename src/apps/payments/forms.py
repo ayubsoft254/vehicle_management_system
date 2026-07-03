@@ -301,6 +301,33 @@ class ReconciliationForm(forms.ModelForm):
         self.fields['correct_vehicle'].required = False
 
 
+class PaymentReconciliationForm(forms.ModelForm):
+    """Form for requesting a reconciliation against a wrongly-posted client payment."""
+
+    class Meta:
+        model = Reconciliation
+        fields = ['issue_type', 'correct_client_vehicle', 'reason', 'notes']
+        widgets = {
+            'issue_type': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
+            'correct_client_vehicle': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
+            'reason': forms.Textarea(attrs={
+                'class': _TEXT_INPUT_CLASS, 'rows': 3, 'placeholder': 'Why this payment needs correcting'
+            }),
+            'notes': forms.Textarea(attrs={'class': _TEXT_INPUT_CLASS, 'rows': 2, 'placeholder': 'Optional notes'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 'wrong_account' doesn't apply to client payments - there's no account field to correct here.
+        self.fields['issue_type'].choices = [
+            c for c in Reconciliation.ISSUE_TYPE_CHOICES if c[0] != 'wrong_account'
+        ]
+        self.fields['correct_client_vehicle'].queryset = ClientVehicle.objects.select_related(
+            'client', 'vehicle'
+        ).order_by('-purchase_date')
+        self.fields['correct_client_vehicle'].required = False
+
+
 # ==================== INSTALLMENT PLAN FORM ====================
 
 class InstallmentPlanForm(forms.ModelForm):
