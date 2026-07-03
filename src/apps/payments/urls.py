@@ -17,6 +17,17 @@ urlpatterns = [
     path('withdrawals/', views.account_withdrawal_list, name='account_withdrawal_list'),
     path('accounts/<str:method>/transactions/', views.account_transactions, name='account_transactions'),
     path('<int:pk>/receipt/', views.payment_receipt, name='payment_receipt'),
+
+    # Finance account breakdown (full pages)
+    path('accounts/hoza/', views.account_breakdown, {'category': 'hoza'}, name='hoza_account_breakdown'),
+    path('accounts/ke/', views.account_breakdown, {'category': 'ke'}, name='ke_account_breakdown'),
+    path('accounts/new/', views.account_create, name='account_create'),
+    path('accounts/transfer/', views.account_transfer_create, name='account_transfer_create'),
+    path('accounts/<int:pk>/detail/', views.account_detail, name='account_detail'),
+    path('accounts/<int:pk>/edit/', views.account_edit, name='account_edit'),
+    path('accounts/<int:pk>/deactivate/', views.account_deactivate, name='account_deactivate'),
+    path('accounts/<int:pk>/activate/', views.account_activate, name='account_activate'),
+    path('accounts/<int:pk>/transactions/new/', views.account_transaction_create, name='account_transaction_create'),
     
     # Installment plans
     path('installment-plans/', views.installment_plan_list, name='installment_plan_list'),
