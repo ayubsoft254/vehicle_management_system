@@ -3,27 +3,32 @@
 from django.db import migrations, models
 
 
-def add_column_if_not_exists(apps, schema_editor):
-    from django.db import connection
+def _column_exists(connection, table_name, column_name):
+    if connection.vendor == 'sqlite':
+        with connection.cursor() as cursor:
+            cursor.execute(f"PRAGMA table_info({table_name})")
+            return any(row[1] == column_name for row in cursor.fetchall())
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT column_name FROM information_schema.columns
-            WHERE table_name = 'client_vehicles' AND column_name = 'agreement_paybill'
-        """)
-        if cursor.fetchone() is None:
+            WHERE table_name = %s AND column_name = %s
+        """, [table_name, column_name])
+        return cursor.fetchone() is not None
+
+
+def add_column_if_not_exists(apps, schema_editor):
+    connection = schema_editor.connection
+    if not _column_exists(connection, 'client_vehicles', 'agreement_paybill'):
+        with connection.cursor() as cursor:
             cursor.execute(
                 "ALTER TABLE client_vehicles ADD COLUMN agreement_paybill varchar(20) NOT NULL DEFAULT ''"
             )
 
 
 def remove_column_if_exists(apps, schema_editor):
-    from django.db import connection
-    with connection.cursor() as cursor:
-        cursor.execute("""
-            SELECT column_name FROM information_schema.columns
-            WHERE table_name = 'client_vehicles' AND column_name = 'agreement_paybill'
-        """)
-        if cursor.fetchone() is not None:
+    connection = schema_editor.connection
+    if _column_exists(connection, 'client_vehicles', 'agreement_paybill'):
+        with connection.cursor() as cursor:
             cursor.execute("ALTER TABLE client_vehicles DROP COLUMN agreement_paybill")
 
 
