@@ -1535,7 +1535,14 @@ class Reconciliation(models.Model):
     ]
 
     original_transaction = models.ForeignKey(
-        AccountTransaction, on_delete=models.PROTECT, related_name='reconciliations'
+        AccountTransaction, on_delete=models.PROTECT, related_name='reconciliations',
+        null=True, blank=True,
+        help_text='Set for account-ledger reconciliations; mutually exclusive with original_payment'
+    )
+    original_payment = models.ForeignKey(
+        'payments.Payment', on_delete=models.PROTECT, related_name='reconciliations',
+        null=True, blank=True,
+        help_text='Set for client-payment reconciliations; mutually exclusive with original_transaction'
     )
 
     issue_type = models.CharField(max_length=20, choices=ISSUE_TYPE_CHOICES)
@@ -1548,6 +1555,10 @@ class Reconciliation(models.Model):
     )
     correct_vehicle = models.ForeignKey(
         'vehicles.Vehicle', on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+    correct_client_vehicle = models.ForeignKey(
+        'clients.ClientVehicle', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        help_text='Used only for payment-path reconciliations (wrong client/vehicle)'
     )
 
     reason = models.TextField()
@@ -1568,6 +1579,9 @@ class Reconciliation(models.Model):
     resulting_transaction = models.ForeignKey(
         AccountTransaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
     )
+    resulting_payment = models.ForeignKey(
+        'payments.Payment', on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -1580,39 +1594,62 @@ class Reconciliation(models.Model):
         ]
 
     def __str__(self):
-        return f"Reconciliation #{self.pk}: {self.get_issue_type_display()} on {self.original_transaction}"
+        original = self.original_payment or self.original_transaction
+        return f"Reconciliation #{self.pk}: {self.get_issue_type_display()} on {original}"
 
     def clean(self):
-        if self.issue_type == 'wrong_account' and not self.correct_account_id:
-            raise ValidationError('Correct account is required for a wrong-account reconciliation.')
-        if self.issue_type == 'wrong_client' and not self.correct_client_id:
-            raise ValidationError('Correct client is required for a wrong-client reconciliation.')
-        if self.issue_type == 'wrong_vehicle' and not self.correct_vehicle_id:
-            raise ValidationError('Correct vehicle is required for a wrong-vehicle reconciliation.')
+        if bool(self.original_transaction_id) == bool(self.original_payment_id):
+            raise ValidationError('Reconciliation must reference exactly one of a transaction or a payment.')
+
+        if self.original_transaction_id:
+            if self.issue_type == 'wrong_account' and not self.correct_account_id:
+                raise ValidationError('Correct account is required for a wrong-account reconciliation.')
+            if self.issue_type == 'wrong_client' and not self.correct_client_id:
+                raise ValidationError('Correct client is required for a wrong-client reconciliation.')
+            if self.issue_type == 'wrong_vehicle' and not self.correct_vehicle_id:
+                raise ValidationError('Correct vehicle is required for a wrong-vehicle reconciliation.')
+        else:
+            if self.issue_type in ('wrong_client', 'wrong_vehicle') and not self.correct_client_vehicle_id:
+                raise ValidationError('Correct client/vehicle is required for this reconciliation.')
 
     def approve(self, user):
         if self.status != 'pending':
             raise ValueError('Only a pending reconciliation can be approved.')
 
         with db_transaction.atomic():
-            original = self.original_transaction
-            original.reverse(user, reason=f'Reconciled ({self.get_issue_type_display()}): {self.reason}')
+            if self.original_payment_id:
+                original = self.original_payment
+                original.reverse_payment(user, reason=f'Reconciled ({self.get_issue_type_display()}): {self.reason}')
 
-            if self.issue_type != 'duplicate':
-                self.resulting_transaction = AccountTransaction.objects.create(
-                    account=self.correct_account or original.account,
-                    transaction_type='correction',
-                    direction=original.direction,
-                    amount=original.amount,
-                    date=original.date,
-                    payment_method=original.payment_method,
-                    reference=original.reference,
-                    narration=f'Correction from reconciliation #{self.pk}: {self.reason}',
-                    related_client=self.correct_client or original.related_client,
-                    related_vehicle=self.correct_vehicle or original.related_vehicle,
-                    created_by=user,
-                    approval_status='approved',
-                )
+                if self.issue_type != 'duplicate':
+                    self.resulting_payment = Payment.objects.create(
+                        client_vehicle=self.correct_client_vehicle or original.client_vehicle,
+                        amount=original.amount,
+                        payment_date=original.payment_date,
+                        payment_method=original.payment_method,
+                        transaction_reference=original.transaction_reference,
+                        notes=f'Correction from reconciliation #{self.pk}: {self.reason}',
+                        recorded_by=user,
+                    )
+            else:
+                original = self.original_transaction
+                original.reverse(user, reason=f'Reconciled ({self.get_issue_type_display()}): {self.reason}')
+
+                if self.issue_type != 'duplicate':
+                    self.resulting_transaction = AccountTransaction.objects.create(
+                        account=self.correct_account or original.account,
+                        transaction_type='correction',
+                        direction=original.direction,
+                        amount=original.amount,
+                        date=original.date,
+                        payment_method=original.payment_method,
+                        reference=original.reference,
+                        narration=f'Correction from reconciliation #{self.pk}: {self.reason}',
+                        related_client=self.correct_client or original.related_client,
+                        related_vehicle=self.correct_vehicle or original.related_vehicle,
+                        created_by=user,
+                        approval_status='approved',
+                    )
 
             self.status = 'approved'
             self.approved_by = user
