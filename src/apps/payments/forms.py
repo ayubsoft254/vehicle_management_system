@@ -10,7 +10,10 @@ from decimal import Decimal
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 
-from .models import Payment, InstallmentPlan, PaymentSchedule, PaymentReminder, AccountWithdrawal
+from .models import (
+    Payment, InstallmentPlan, PaymentSchedule, PaymentReminder, AccountWithdrawal,
+    Account, AccountTransaction, AccountTransfer,
+)
 from apps.clients.models import ClientVehicle
 
 
@@ -158,6 +161,115 @@ class AccountWithdrawalForm(forms.ModelForm):
         if withdrawal_date < one_year_ago:
             raise ValidationError('Withdrawal date cannot be more than 1 year in the past.')
         return withdrawal_date
+
+
+# ==================== ACCOUNT FORMS ====================
+
+_TEXT_INPUT_CLASS = 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+
+
+class AccountForm(forms.ModelForm):
+    """Form for creating and editing finance accounts."""
+
+    class Meta:
+        model = Account
+        fields = ['name', 'category', 'account_type', 'opening_balance', 'notes']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': _TEXT_INPUT_CLASS, 'placeholder': 'e.g. Family Bank Hoza'}),
+            'category': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
+            'account_type': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
+            'opening_balance': forms.NumberInput(attrs={
+                'class': _TEXT_INPUT_CLASS, 'placeholder': '0.00', 'step': '0.01', 'min': '0'
+            }),
+            'notes': forms.Textarea(attrs={'class': _TEXT_INPUT_CLASS, 'rows': 3, 'placeholder': 'Optional notes'}),
+        }
+
+    def clean_opening_balance(self):
+        opening_balance = self.cleaned_data.get('opening_balance')
+        if opening_balance is not None and opening_balance < 0:
+            raise ValidationError('Opening balance cannot be negative.')
+        return opening_balance
+
+
+class AccountTransactionForm(forms.ModelForm):
+    """Form for recording a manual transaction directly against an account."""
+
+    class Meta:
+        model = AccountTransaction
+        fields = [
+            'transaction_type', 'amount', 'date', 'payment_method', 'reference',
+            'related_client', 'related_vehicle', 'narration', 'supporting_document',
+        ]
+        widgets = {
+            'transaction_type': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
+            'amount': forms.NumberInput(attrs={
+                'class': _TEXT_INPUT_CLASS, 'placeholder': '0.00', 'step': '0.01', 'min': '0.01'
+            }),
+            'date': forms.DateInput(attrs={'class': _TEXT_INPUT_CLASS, 'type': 'date'}),
+            'payment_method': forms.TextInput(attrs={
+                'class': _TEXT_INPUT_CLASS, 'placeholder': 'e.g. Cash, Bank, M-Pesa (optional)'
+            }),
+            'reference': forms.TextInput(attrs={'class': _TEXT_INPUT_CLASS, 'placeholder': 'Reference number'}),
+            'related_client': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
+            'related_vehicle': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
+            'narration': forms.Textarea(attrs={
+                'class': _TEXT_INPUT_CLASS, 'rows': 3, 'placeholder': 'Description / narration'
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['transaction_type'].choices = AccountTransaction.USER_SELECTABLE_TYPES
+        self.fields['date'].initial = timezone.now().date()
+        self.fields['related_client'].required = False
+        self.fields['related_vehicle'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        transaction_type = cleaned_data.get('transaction_type')
+        if transaction_type:
+            cleaned_data['direction'] = 'out' if transaction_type in AccountTransaction.OUT_TYPES else 'in'
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.direction = self.cleaned_data['direction']
+        if commit:
+            instance.save()
+        return instance
+
+
+class AccountTransferForm(forms.ModelForm):
+    """Form for transferring funds between two active accounts."""
+
+    class Meta:
+        model = AccountTransfer
+        fields = ['source_account', 'destination_account', 'amount', 'transfer_date', 'reference', 'reason']
+        widgets = {
+            'source_account': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
+            'destination_account': forms.Select(attrs={'class': _TEXT_INPUT_CLASS}),
+            'amount': forms.NumberInput(attrs={
+                'class': _TEXT_INPUT_CLASS, 'placeholder': '0.00', 'step': '0.01', 'min': '0.01'
+            }),
+            'transfer_date': forms.DateInput(attrs={'class': _TEXT_INPUT_CLASS, 'type': 'date'}),
+            'reference': forms.TextInput(attrs={'class': _TEXT_INPUT_CLASS, 'placeholder': 'Reference number'}),
+            'reason': forms.Textarea(attrs={'class': _TEXT_INPUT_CLASS, 'rows': 3, 'placeholder': 'Reason for transfer'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        active_accounts = Account.objects.filter(is_active=True)
+        self.fields['source_account'].queryset = active_accounts
+        self.fields['destination_account'].queryset = active_accounts
+        self.fields['transfer_date'].initial = timezone.now().date()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        source = cleaned_data.get('source_account')
+        destination = cleaned_data.get('destination_account')
+        if source and destination and source.pk == destination.pk:
+            raise ValidationError('Cannot transfer to the same account.')
+        return cleaned_data
 
 
 # ==================== INSTALLMENT PLAN FORM ====================
