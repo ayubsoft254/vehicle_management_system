@@ -5,6 +5,7 @@ Handles payment records, installment plans, and payment schedules
 from django.db import models, transaction as db_transaction
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from decimal import Decimal
 from datetime import timedelta
@@ -1118,3 +1119,338 @@ class PaybillBalanceSnapshot(models.Model):
 
     def __str__(self):
         return f"Paybill balance ({self.get_status_display()}) @ {self.created_at:%Y-%m-%d %H:%M}"
+
+
+# ==================== FINANCE ACCOUNT MODELS ====================
+
+class Account(models.Model):
+    """
+    A real-world financial account (bank, mobile money, cash, etc.).
+
+    The 6 legacy Hoza/KE sub-accounts (Equity Hoza, DIB Hoza, COOP Hoza,
+    KCB KE, ABSA KE, Equity KE) are seeded with payment_method_code set to
+    the matching Payment.PAYMENT_METHOD_CHOICES value, so their ledgers are
+    computed from existing Payment/PaymentSplit/AccountWithdrawal rows
+    without any change to those models. New accounts created afterwards are
+    not tied to a legacy payment_method choice and only move money through
+    AccountTransaction/AccountTransfer records.
+    """
+
+    CATEGORY_CHOICES = [
+        ('hoza', 'Hoza'),
+        ('ke', 'KE'),
+        ('cash', 'Cash'),
+        ('other', 'Other'),
+    ]
+
+    ACCOUNT_TYPE_CHOICES = [
+        ('bank', 'Bank'),
+        ('mobile_money', 'Mobile Money'),
+        ('cash', 'Cash'),
+        ('other', 'Other'),
+    ]
+
+    name = models.CharField(max_length=100)
+
+    category = models.CharField(
+        max_length=10,
+        choices=CATEGORY_CHOICES,
+        help_text='Which breakdown page this account appears on'
+    )
+
+    account_type = models.CharField(
+        max_length=20,
+        choices=ACCOUNT_TYPE_CHOICES,
+        default='bank'
+    )
+
+    payment_method_code = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        unique=True,
+        help_text='Matches Payment.PAYMENT_METHOD_CHOICES for legacy Hoza/KE accounts; blank for new accounts'
+    )
+
+    opening_balance = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0.00')
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        help_text='Inactive accounts cannot receive new transactions/transfers but remain in historical ledgers'
+    )
+
+    notes = models.TextField(blank=True)
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='accounts_created'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category', 'name']
+        verbose_name = 'Account'
+        verbose_name_plural = 'Accounts'
+        indexes = [
+            models.Index(fields=['category']),
+            models.Index(fields=['is_active']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    def _legacy_payment_qs(self):
+        if not self.payment_method_code:
+            return Payment.objects.none()
+        return Payment.objects.filter(payment_method=self.payment_method_code, is_reversed=False)
+
+    def _legacy_split_qs(self):
+        if not self.payment_method_code:
+            return PaymentSplit.objects.none()
+        return PaymentSplit.objects.filter(
+            payment_method=self.payment_method_code, payment__is_reversed=False
+        )
+
+    def _legacy_withdrawal_qs(self):
+        if not self.payment_method_code:
+            return AccountWithdrawal.objects.none()
+        return AccountWithdrawal.objects.filter(payment_method=self.payment_method_code)
+
+    def _active_transactions_qs(self):
+        return self.transactions.filter(is_reversed=False)
+
+    @property
+    def money_in_total(self):
+        total = self._legacy_payment_qs().aggregate(t=models.Sum('amount'))['t'] or Decimal('0.00')
+        total += self._legacy_split_qs().aggregate(t=models.Sum('amount'))['t'] or Decimal('0.00')
+        total += self._active_transactions_qs().filter(direction='in').aggregate(
+            t=models.Sum('amount'))['t'] or Decimal('0.00')
+        return total
+
+    @property
+    def money_out_total(self):
+        total = self._legacy_withdrawal_qs().aggregate(t=models.Sum('amount'))['t'] or Decimal('0.00')
+        total += self._active_transactions_qs().filter(direction='out').aggregate(
+            t=models.Sum('amount'))['t'] or Decimal('0.00')
+        return total
+
+    @property
+    def transfers_in_total(self):
+        return self._active_transactions_qs().filter(
+            transaction_type='transfer_in'
+        ).aggregate(t=models.Sum('amount'))['t'] or Decimal('0.00')
+
+    @property
+    def transfers_out_total(self):
+        return self._active_transactions_qs().filter(
+            transaction_type='transfer_out'
+        ).aggregate(t=models.Sum('amount'))['t'] or Decimal('0.00')
+
+    @property
+    def current_balance(self):
+        return self.opening_balance + self.money_in_total - self.money_out_total
+
+
+class AccountTransfer(models.Model):
+    """
+    A transfer of funds between two accounts. Creates a linked pair of
+    AccountTransaction ledger entries (one 'transfer_out' on the source, one
+    'transfer_in' on the destination) via execute().
+    """
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
+    source_account = models.ForeignKey(
+        Account, on_delete=models.PROTECT, related_name='transfers_out'
+    )
+    destination_account = models.ForeignKey(
+        Account, on_delete=models.PROTECT, related_name='transfers_in'
+    )
+    amount = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
+    transfer_date = models.DateField(default=timezone.now)
+    reference = models.CharField(max_length=100, blank=True)
+    reason = models.TextField(blank=True)
+
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='account_transfers_created'
+    )
+
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='approved')
+    approved_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='account_transfers_approved'
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-transfer_date', '-created_at']
+        verbose_name = 'Account Transfer'
+        verbose_name_plural = 'Account Transfers'
+
+    def __str__(self):
+        return f"Transfer KES {self.amount:,.2f}: {self.source_account} -> {self.destination_account}"
+
+    def clean(self):
+        if self.source_account_id and self.destination_account_id and self.source_account_id == self.destination_account_id:
+            raise ValidationError('Cannot transfer to the same account.')
+        if self.source_account_id and not self.source_account.is_active:
+            raise ValidationError('Source account is inactive.')
+        if self.destination_account_id and not self.destination_account.is_active:
+            raise ValidationError('Destination account is inactive.')
+
+    def execute(self, user):
+        """Create the paired ledger entries. Call once, right after this transfer is saved."""
+        with db_transaction.atomic():
+            AccountTransaction.objects.create(
+                account=self.source_account,
+                transaction_type='transfer_out',
+                direction='out',
+                amount=self.amount,
+                date=self.transfer_date,
+                reference=self.reference,
+                narration=self.reason,
+                transfer=self,
+                created_by=user,
+                approval_status='approved',
+            )
+            AccountTransaction.objects.create(
+                account=self.destination_account,
+                transaction_type='transfer_in',
+                direction='in',
+                amount=self.amount,
+                date=self.transfer_date,
+                reference=self.reference,
+                narration=self.reason,
+                transfer=self,
+                created_by=user,
+                approval_status='approved',
+            )
+
+
+class AccountTransaction(models.Model):
+    """
+    A manual/ad-hoc ledger entry posted directly against an Account.
+    Does not duplicate specialized flows (client payments, supplier/agent/
+    broker/insurance payments) which already have their own models.
+    """
+
+    TRANSACTION_TYPE_CHOICES = [
+        ('money_in', 'Money Received'),
+        ('money_out', 'Money Paid Out'),
+        ('refund', 'Refund'),
+        ('bank_charge', 'Bank Charge'),
+        ('correction', 'Correction'),
+        ('opening_balance_adjustment', 'Opening Balance Adjustment'),
+        ('other_income', 'Other Income'),
+        ('other_expense', 'Other Expense'),
+        ('transfer_in', 'Transfer In'),
+        ('transfer_out', 'Transfer Out'),
+    ]
+
+    # Transaction types that always represent money leaving the account
+    OUT_TYPES = ('money_out', 'bank_charge', 'other_expense', 'transfer_out')
+    # Transaction types the user can pick directly (transfer_* are system-generated only)
+    USER_SELECTABLE_TYPES = [
+        c for c in TRANSACTION_TYPE_CHOICES if c[0] not in ('transfer_in', 'transfer_out')
+    ]
+
+    DIRECTION_CHOICES = [
+        ('in', 'Money In'),
+        ('out', 'Money Out'),
+    ]
+
+    APPROVAL_STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
+    account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name='transactions')
+
+    transaction_type = models.CharField(max_length=30, choices=TRANSACTION_TYPE_CHOICES)
+    direction = models.CharField(max_length=3, choices=DIRECTION_CHOICES)
+
+    amount = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
+    date = models.DateField(default=timezone.now)
+
+    payment_method = models.CharField(max_length=50, blank=True)
+    reference = models.CharField(max_length=100, blank=True)
+    narration = models.TextField(blank=True)
+
+    related_client = models.ForeignKey(
+        'clients.Client', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='account_transactions'
+    )
+    related_vehicle = models.ForeignKey(
+        'vehicles.Vehicle', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='account_transactions'
+    )
+
+    supporting_document = models.FileField(
+        upload_to='account_transactions/%Y/%m/', blank=True, null=True
+    )
+
+    transfer = models.ForeignKey(
+        AccountTransfer, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='ledger_entries'
+    )
+
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='account_transactions_created'
+    )
+
+    approval_status = models.CharField(
+        max_length=10, choices=APPROVAL_STATUS_CHOICES, default='approved'
+    )
+    approved_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='account_transactions_approved'
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    is_reversed = models.BooleanField(default=False)
+    reversed_at = models.DateTimeField(null=True, blank=True)
+    reversed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='account_transactions_reversed'
+    )
+    reversal_reason = models.TextField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+        verbose_name = 'Account Transaction'
+        verbose_name_plural = 'Account Transactions'
+        indexes = [
+            models.Index(fields=['account', 'date']),
+            models.Index(fields=['approval_status']),
+        ]
+
+    def __str__(self):
+        sign = '-' if self.direction == 'out' else '+'
+        return f"{self.account} {sign}KES {self.amount:,.2f} ({self.get_transaction_type_display()})"
