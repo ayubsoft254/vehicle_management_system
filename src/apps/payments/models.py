@@ -1183,6 +1183,11 @@ class Account(models.Model):
         help_text='Inactive accounts cannot receive new transactions/transfers but remain in historical ledgers'
     )
 
+    is_suspense = models.BooleanField(
+        default=False,
+        help_text='Holding account for unclear/unverified payments awaiting allocation'
+    )
+
     notes = models.TextField(blank=True)
 
     created_by = models.ForeignKey(
@@ -1225,39 +1230,57 @@ class Account(models.Model):
             return AccountWithdrawal.objects.none()
         return AccountWithdrawal.objects.filter(payment_method=self.payment_method_code)
 
-    def _active_transactions_qs(self):
-        return self.transactions.filter(is_reversed=False)
+    def _approved_transactions_qs(self):
+        """Non-reversed transactions that have cleared approval and affect the real balance."""
+        return self.transactions.filter(is_reversed=False, approval_status='approved')
+
+    def _pending_transactions_qs(self):
+        return self.transactions.filter(is_reversed=False, approval_status='pending')
 
     @property
     def money_in_total(self):
         total = self._legacy_payment_qs().aggregate(t=models.Sum('amount'))['t'] or Decimal('0.00')
         total += self._legacy_split_qs().aggregate(t=models.Sum('amount'))['t'] or Decimal('0.00')
-        total += self._active_transactions_qs().filter(direction='in').aggregate(
+        total += self._approved_transactions_qs().filter(direction='in').aggregate(
             t=models.Sum('amount'))['t'] or Decimal('0.00')
         return total
 
     @property
     def money_out_total(self):
         total = self._legacy_withdrawal_qs().aggregate(t=models.Sum('amount'))['t'] or Decimal('0.00')
-        total += self._active_transactions_qs().filter(direction='out').aggregate(
+        total += self._approved_transactions_qs().filter(direction='out').aggregate(
             t=models.Sum('amount'))['t'] or Decimal('0.00')
         return total
 
     @property
     def transfers_in_total(self):
-        return self._active_transactions_qs().filter(
+        return self._approved_transactions_qs().filter(
             transaction_type='transfer_in'
         ).aggregate(t=models.Sum('amount'))['t'] or Decimal('0.00')
 
     @property
     def transfers_out_total(self):
-        return self._active_transactions_qs().filter(
+        return self._approved_transactions_qs().filter(
             transaction_type='transfer_out'
         ).aggregate(t=models.Sum('amount'))['t'] or Decimal('0.00')
 
     @property
     def current_balance(self):
         return self.opening_balance + self.money_in_total - self.money_out_total
+
+    @property
+    def pending_money_in(self):
+        return self._pending_transactions_qs().filter(direction='in').aggregate(
+            t=models.Sum('amount'))['t'] or Decimal('0.00')
+
+    @property
+    def pending_money_out(self):
+        return self._pending_transactions_qs().filter(direction='out').aggregate(
+            t=models.Sum('amount'))['t'] or Decimal('0.00')
+
+    @property
+    def pending_balance(self):
+        return self.current_balance + self.pending_money_in - self.pending_money_out
 
 
 class AccountTransfer(models.Model):
@@ -1318,7 +1341,8 @@ class AccountTransfer(models.Model):
             raise ValidationError('Destination account is inactive.')
 
     def execute(self, user):
-        """Create the paired ledger entries. Call once, right after this transfer is saved."""
+        """Create the paired ledger entries. Call once, right after this transfer is saved.
+        The entries inherit this transfer's own approval status."""
         with db_transaction.atomic():
             AccountTransaction.objects.create(
                 account=self.source_account,
@@ -1330,7 +1354,7 @@ class AccountTransfer(models.Model):
                 narration=self.reason,
                 transfer=self,
                 created_by=user,
-                approval_status='approved',
+                approval_status=self.status,
             )
             AccountTransaction.objects.create(
                 account=self.destination_account,
@@ -1342,7 +1366,7 @@ class AccountTransfer(models.Model):
                 narration=self.reason,
                 transfer=self,
                 created_by=user,
-                approval_status='approved',
+                approval_status=self.status,
             )
 
 
@@ -1454,3 +1478,151 @@ class AccountTransaction(models.Model):
     def __str__(self):
         sign = '-' if self.direction == 'out' else '+'
         return f"{self.account} {sign}KES {self.amount:,.2f} ({self.get_transaction_type_display()})"
+
+    def reverse(self, user, reason):
+        """
+        Void this transaction: keep the record for audit but exclude it from
+        balances. Mirrors Payment.reverse_payment.
+        """
+        if self.is_reversed:
+            raise ValueError('This transaction has already been reversed.')
+
+        reason = (reason or '').strip()
+        if not reason:
+            raise ValueError('A reason is required to reverse a transaction.')
+
+        self.is_reversed = True
+        self.reversed_at = timezone.now()
+        self.reversed_by = user
+        self.reversal_reason = reason
+        self.save(update_fields=['is_reversed', 'reversed_at', 'reversed_by', 'reversal_reason'])
+
+    def approve(self, user):
+        self.approval_status = 'approved'
+        self.approved_by = user
+        self.approved_at = timezone.now()
+        self.save(update_fields=['approval_status', 'approved_by', 'approved_at'])
+
+    def reject(self, user):
+        self.approval_status = 'rejected'
+        self.approved_by = user
+        self.approved_at = timezone.now()
+        self.save(update_fields=['approval_status', 'approved_by', 'approved_at'])
+
+
+class Reconciliation(models.Model):
+    """
+    Requests a correction to a wrongly-posted AccountTransaction. Never
+    mutates the original on creation - only on approval does it reverse the
+    original and (unless the issue is a duplicate posting) create a new
+    'correction' entry on the corrected account/client/vehicle.
+    """
+
+    ISSUE_TYPE_CHOICES = [
+        ('wrong_account', 'Wrong Account'),
+        ('wrong_client', 'Wrong Client'),
+        ('wrong_vehicle', 'Wrong Vehicle'),
+        ('unmatched', 'Unmatched / Suspense Payment'),
+        ('wrong_reference', 'Wrong Reference'),
+        ('duplicate', 'Duplicate / Mistaken Posting'),
+        ('other', 'Other'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
+    original_transaction = models.ForeignKey(
+        AccountTransaction, on_delete=models.PROTECT, related_name='reconciliations'
+    )
+
+    issue_type = models.CharField(max_length=20, choices=ISSUE_TYPE_CHOICES)
+
+    correct_account = models.ForeignKey(
+        Account, on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+    correct_client = models.ForeignKey(
+        'clients.Client', on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+    correct_vehicle = models.ForeignKey(
+        'vehicles.Vehicle', on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+
+    reason = models.TextField()
+    notes = models.TextField(blank=True)
+
+    initiated_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reconciliations_initiated'
+    )
+
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    approved_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reconciliations_approved'
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    resulting_transaction = models.ForeignKey(
+        AccountTransaction, on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Reconciliation'
+        verbose_name_plural = 'Reconciliations'
+        indexes = [
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        return f"Reconciliation #{self.pk}: {self.get_issue_type_display()} on {self.original_transaction}"
+
+    def clean(self):
+        if self.issue_type == 'wrong_account' and not self.correct_account_id:
+            raise ValidationError('Correct account is required for a wrong-account reconciliation.')
+        if self.issue_type == 'wrong_client' and not self.correct_client_id:
+            raise ValidationError('Correct client is required for a wrong-client reconciliation.')
+        if self.issue_type == 'wrong_vehicle' and not self.correct_vehicle_id:
+            raise ValidationError('Correct vehicle is required for a wrong-vehicle reconciliation.')
+
+    def approve(self, user):
+        if self.status != 'pending':
+            raise ValueError('Only a pending reconciliation can be approved.')
+
+        with db_transaction.atomic():
+            original = self.original_transaction
+            original.reverse(user, reason=f'Reconciled ({self.get_issue_type_display()}): {self.reason}')
+
+            if self.issue_type != 'duplicate':
+                self.resulting_transaction = AccountTransaction.objects.create(
+                    account=self.correct_account or original.account,
+                    transaction_type='correction',
+                    direction=original.direction,
+                    amount=original.amount,
+                    date=original.date,
+                    payment_method=original.payment_method,
+                    reference=original.reference,
+                    narration=f'Correction from reconciliation #{self.pk}: {self.reason}',
+                    related_client=self.correct_client or original.related_client,
+                    related_vehicle=self.correct_vehicle or original.related_vehicle,
+                    created_by=user,
+                    approval_status='approved',
+                )
+
+            self.status = 'approved'
+            self.approved_by = user
+            self.approved_at = timezone.now()
+            self.save()
+
+    def reject(self, user):
+        if self.status != 'pending':
+            raise ValueError('Only a pending reconciliation can be rejected.')
+        self.status = 'rejected'
+        self.approved_by = user
+        self.approved_at = timezone.now()
+        self.save(update_fields=['status', 'approved_by', 'approved_at'])
