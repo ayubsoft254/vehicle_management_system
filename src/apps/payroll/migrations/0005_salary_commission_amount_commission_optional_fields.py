@@ -10,14 +10,23 @@ def rename_commission_rate_if_needed(apps, schema_editor):
     already-renamed model state will have commission_amount from the start
     and should skip the rename.
     """
-    with schema_editor.connection.cursor() as cursor:
-        cursor.execute("""
-            SELECT COUNT(*)
-            FROM information_schema.columns
-            WHERE table_name = 'payroll_salarystructure'
-              AND column_name = 'commission_rate'
-        """)
-        if cursor.fetchone()[0] > 0:
+    connection = schema_editor.connection
+    if connection.vendor == 'sqlite':
+        with connection.cursor() as cursor:
+            cursor.execute("PRAGMA table_info(payroll_salarystructure)")
+            has_old_column = any(row[1] == 'commission_rate' for row in cursor.fetchall())
+    else:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_name = 'payroll_salarystructure'
+                  AND column_name = 'commission_rate'
+            """)
+            has_old_column = cursor.fetchone()[0] > 0
+
+    if has_old_column:
+        with connection.cursor() as cursor:
             cursor.execute("""
                 ALTER TABLE payroll_salarystructure
                 RENAME COLUMN commission_rate TO commission_amount
