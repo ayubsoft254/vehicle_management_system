@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% load static %}
+{% load permission_tags %}
 
 {% block title %}Client Statement - {{ client.get_full_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
-    
+
     <!-- Print Styles -->
     <style>
         @media print {
@@ -16,26 +17,70 @@
     </style>
 
     <!-- Action Buttons (No Print) -->
-    <div class="flex justify-between items-center mb-6 no-print">
-        <a href="{% url 'clients:client_detail' client.pk %}" 
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6 no-print">
+        <a href="{% url 'clients:client_detail' client.pk %}"
            class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
             <i class="fas fa-arrow-left mr-2"></i> Back to Client
         </a>
-        <div class="flex space-x-2">
-            <button onclick="window.print()" 
+        <div class="flex flex-wrap gap-2">
+            <button onclick="window.print()"
                     class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-print mr-2"></i> Print
             </button>
-            <button onclick="exportToPDF()" 
-                    class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
-                <i class="fas fa-file-pdf mr-2"></i> Export PDF
-            </button>
+            <a href="{% url 'clients:export_client_ledger_csv' client.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}&vehicle={{ vehicle_pk|default:'' }}&payment_method={{ payment_method|default:'' }}"
+               class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-file-csv mr-2"></i> CSV
+            </a>
+            <a href="{% url 'clients:export_client_ledger_excel' client.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}&vehicle={{ vehicle_pk|default:'' }}&payment_method={{ payment_method|default:'' }}"
+               class="inline-flex items-center px-4 py-2 bg-green-700 hover:bg-green-800 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-file-excel mr-2"></i> Excel
+            </a>
+            <a href="{% url 'payments:client_statement_pdf' client.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}&vehicle={{ vehicle_pk|default:'' }}&payment_method={{ payment_method|default:'' }}"
+               class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-file-pdf mr-2"></i> PDF
+            </a>
         </div>
+    </div>
+
+    <!-- Filters (No Print) -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 no-print">
+        <form method="get" class="flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">From</label>
+                <input type="date" name="date_from" value="{{ date_from|default:'' }}"
+                       class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">To</label>
+                <input type="date" name="date_to" value="{{ date_to|default:'' }}"
+                       class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Vehicle</label>
+                <select name="vehicle" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="">All Vehicles</option>
+                    {% for cv in client_vehicles %}
+                    <option value="{{ cv.pk }}" {% if vehicle_pk == cv.pk|stringformat:'s' %}selected{% endif %}>{{ cv.vehicle.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Payment Method</label>
+                <select name="payment_method" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="">All Methods</option>
+                    {% for value, label in payment_methods %}
+                    <option value="{{ value }}" {% if payment_method == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg">Filter</button>
+            <a href="{% url 'clients:client_statement' client.pk %}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">Reset</a>
+        </form>
     </div>
 
     <!-- Statement Content -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-        
+
         <!-- Header -->
         <div class="border-b-2 border-gray-300 pb-6 mb-6">
             <div class="flex justify-between items-start">
@@ -76,31 +121,39 @@
         <!-- Summary -->
         <div class="mb-8">
             <h2 class="text-lg font-semibold text-gray-900 mb-4">Account Summary</h2>
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 <div class="bg-blue-50 p-4 rounded-lg text-center">
-                    <p class="text-sm text-blue-600">Total Purchases</p>
-                    <p class="text-2xl font-bold text-blue-900">KES {{ total_purchases|floatformat:2 }}</p>
+                    <p class="text-sm text-blue-600">Total Expected</p>
+                    <p class="text-xl font-bold text-blue-900">KES {{ summary.total_expected|floatformat:2 }}</p>
                 </div>
                 <div class="bg-green-50 p-4 rounded-lg text-center">
                     <p class="text-sm text-green-600">Total Paid</p>
-                    <p class="text-2xl font-bold text-green-900">KES {{ total_paid|floatformat:2 }}</p>
+                    <p class="text-xl font-bold text-green-900">KES {{ summary.total_paid|floatformat:2 }}</p>
                 </div>
                 <div class="bg-red-50 p-4 rounded-lg text-center">
-                    <p class="text-sm text-red-600">Total Balance</p>
-                    <p class="text-2xl font-bold text-red-900">KES {{ total_balance|floatformat:2 }}</p>
+                    <p class="text-sm text-red-600">Outstanding</p>
+                    <p class="text-xl font-bold text-red-900">KES {{ summary.outstanding|floatformat:2 }}</p>
+                </div>
+                <div class="bg-amber-50 p-4 rounded-lg text-center">
+                    <p class="text-sm text-amber-600">Overpayment</p>
+                    <p class="text-xl font-bold text-amber-900">KES {{ summary.overpayment|floatformat:2 }}</p>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg text-center">
+                    <p class="text-sm text-purple-600">Status</p>
+                    <p class="text-lg font-bold text-purple-900">{{ summary.payment_status }}</p>
                 </div>
             </div>
         </div>
 
-        <!-- Vehicle Purchases -->
+        <!-- Vehicles -->
         <div class="mb-8">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Vehicle Purchases</h2>
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Vehicles</h2>
             <div class="overflow-x-auto">
                 <table class="min-w-full">
                     <thead class="bg-gray-100">
                         <tr>
                             <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700">Vehicle</th>
-                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700">Purchase Date</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700">Sale Type</th>
                             <th class="px-4 py-2 text-right text-xs font-semibold text-gray-700">Purchase Price</th>
                             <th class="px-4 py-2 text-right text-xs font-semibold text-gray-700">Paid</th>
                             <th class="px-4 py-2 text-right text-xs font-semibold text-gray-700">Balance</th>
@@ -108,19 +161,21 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
-                        {% for cv in client_vehicles %}
+                        {% for v in summary.vehicles %}
                         <tr>
                             <td class="px-4 py-3 text-sm">
-                                <p class="font-medium">{{ cv.vehicle.full_name }}</p>
-                                <p class="text-gray-500 text-xs">{{ cv.vehicle.registration_number }}</p>
+                                <a href="{% url 'clients:client_vehicle_detail' v.client_vehicle.pk %}" class="font-medium hover:text-primary-600">{{ v.client_vehicle.vehicle.full_name }}</a>
+                                <p class="text-gray-500 text-xs">{{ v.client_vehicle.vehicle.registration_number }}</p>
                             </td>
-                            <td class="px-4 py-3 text-sm">{{ cv.purchase_date|date:"M d, Y" }}</td>
-                            <td class="px-4 py-3 text-sm text-right">{{ cv.purchase_price|floatformat:2 }}</td>
-                            <td class="px-4 py-3 text-sm text-right text-green-600">{{ cv.total_paid|floatformat:2 }}</td>
-                            <td class="px-4 py-3 text-sm text-right text-red-600">{{ cv.balance|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-sm">{{ v.sale_type }}</td>
+                            <td class="px-4 py-3 text-sm text-right">{{ v.client_vehicle.purchase_price|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-sm text-right text-green-600">{{ v.client_vehicle.total_paid|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-sm text-right text-red-600">{{ v.client_vehicle.balance|floatformat:2 }}</td>
                             <td class="px-4 py-3 text-sm text-center">
-                                {% if cv.is_paid_off %}
+                                {% if v.is_paid_off %}
                                 <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Paid Off</span>
+                                {% elif v.overpayment %}
+                                <span class="px-2 py-1 text-xs rounded-full bg-amber-100 text-amber-800">Overpaid</span>
                                 {% else %}
                                 <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Active</span>
                                 {% endif %}
@@ -132,42 +187,59 @@
             </div>
         </div>
 
-        <!-- Payment History -->
+        <!-- Ledger -->
         <div class="mb-8">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Payment History</h2>
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Ledger</h2>
             <div class="overflow-x-auto">
                 <table class="min-w-full">
                     <thead class="bg-gray-100">
                         <tr>
-                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700">Date</th>
-                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700">Vehicle</th>
-                            <th class="px-4 py-2 text-right text-xs font-semibold text-gray-700">Amount</th>
-                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700">Method</th>
-                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700">Reference</th>
-                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700">Status</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Date</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Reference</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Type</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Method</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Description</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Vehicle</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Debit</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Credit</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold text-gray-700">Balance</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Created By</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700">Reconciliation</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold text-gray-700 no-print">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
-                        {% for payment in payments %}
-                        <tr class="{% if payment.is_reversed %}bg-red-50{% endif %}">
-                            <td class="px-4 py-3 text-sm">{{ payment.payment_date|date:"M d, Y" }}</td>
-                            <td class="px-4 py-3 text-sm">{{ payment.client_vehicle.vehicle.registration_number }}</td>
-                            <td class="px-4 py-3 text-sm text-right font-semibold {% if payment.is_reversed %}text-red-400 line-through{% endif %}">{{ payment.amount|floatformat:2 }}</td>
-                            <td class="px-4 py-3 text-sm">{{ payment.get_payment_method_display }}</td>
-                            <td class="px-4 py-3 text-sm">{{ payment.reference_number|default:"N/A" }}</td>
-                            <td class="px-4 py-3 text-sm">
-                                {% if payment.is_reversed %}
-                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-600 text-white">
-                                    <i class="fas fa-ban mr-1"></i> Reversed
-                                </span>
-                                {% else %}
-                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">Paid</span>
+                        {% for row in rows %}
+                        <tr class="{% if row.is_reversed %}bg-red-50{% endif %}">
+                            <td class="px-3 py-3 text-sm whitespace-nowrap">{{ row.date|date:"M d, Y" }}</td>
+                            <td class="px-3 py-3 text-sm">
+                                {% if row.detail_url %}<a href="{{ row.detail_url }}" class="text-primary-600 hover:text-primary-900">{{ row.reference|default:'—' }}</a>{% else %}{{ row.reference|default:'—' }}{% endif %}
+                            </td>
+                            <td class="px-3 py-3 text-sm">
+                                {{ row.type_label }}
+                                {% if row.is_reversed %}
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-600 text-white ml-1"><i class="fas fa-ban mr-1"></i>Reversed</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-3 py-3 text-sm">{{ row.payment_method|default:'—' }}</td>
+                            <td class="px-3 py-3 text-sm max-w-xs truncate">{{ row.narration|default:'—' }}</td>
+                            <td class="px-3 py-3 text-sm">{{ row.related_vehicle.registration_number|default:'—' }}</td>
+                            <td class="px-3 py-3 text-sm text-right">{% if row.debit %}{{ row.debit|floatformat:2 }}{% else %}—{% endif %}</td>
+                            <td class="px-3 py-3 text-sm text-right {% if row.is_reversed %}line-through text-gray-400{% else %}text-green-600{% endif %}">
+                                {% if row.is_reversed %}{{ row.display_amount|floatformat:2 }}{% elif row.credit %}{{ row.credit|floatformat:2 }}{% else %}—{% endif %}
+                            </td>
+                            <td class="px-3 py-3 text-sm text-right font-semibold">{{ row.running_balance|floatformat:2 }}</td>
+                            <td class="px-3 py-3 text-sm">{% if row.created_by %}{{ row.created_by.get_full_name }}{% else %}—{% endif %}</td>
+                            <td class="px-3 py-3 text-sm">{{ row.reconciliation_status }}</td>
+                            <td class="px-3 py-3 text-sm text-right no-print">
+                                {% if row.can_reconcile and request.user|has_read_write_access:'payments' %}
+                                <a href="{% url 'payments:payment_reconciliation_create' row.payment_pk %}" class="text-yellow-600 hover:text-yellow-800" title="Reconcile"><i class="fas fa-balance-scale"></i></a>
                                 {% endif %}
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">No payments recorded</td>
+                            <td colspan="12" class="px-4 py-6 text-center text-sm text-gray-500">No ledger entries found for the selected filters.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -186,10 +258,4 @@
         </div>
     </div>
 </div>
-
-<script>
-function exportToPDF() {
-    window.print();
-}
-</script>
 {% endblock %}
