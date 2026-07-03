@@ -28,7 +28,17 @@ urlpatterns = [
     path('accounts/<int:pk>/deactivate/', views.account_deactivate, name='account_deactivate'),
     path('accounts/<int:pk>/activate/', views.account_activate, name='account_activate'),
     path('accounts/<int:pk>/transactions/new/', views.account_transaction_create, name='account_transaction_create'),
-    
+
+    # Approvals and reconciliation
+    path('approvals/', views.approval_queue, name='approval_queue'),
+    path('accounts/transactions/<int:pk>/approve/', views.account_transaction_approve, name='account_transaction_approve'),
+    path('accounts/transactions/<int:pk>/reject/', views.account_transaction_reject, name='account_transaction_reject'),
+    path('accounts/transactions/<int:transaction_pk>/reconcile/', views.reconciliation_create, name='reconciliation_create'),
+    path('accounts/transfers/<int:pk>/approve/', views.account_transfer_approve, name='account_transfer_approve'),
+    path('accounts/transfers/<int:pk>/reject/', views.account_transfer_reject, name='account_transfer_reject'),
+    path('reconciliations/<int:pk>/approve/', views.reconciliation_approve, name='reconciliation_approve'),
+    path('reconciliations/<int:pk>/reject/', views.reconciliation_reject, name='reconciliation_reject'),
+
     # Installment plans
     path('installment-plans/', views.installment_plan_list, name='installment_plan_list'),
     path('installment-plans/<int:pk>/', views.installment_plan_detail, name='installment_plan_detail'),
