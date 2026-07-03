@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ account.name }} Ledger{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'payments:payment_list' %}" class="text-gray-700 hover:text-primary-600 inline-flex items-center">
+                    <i class="fas fa-money-bill-wave mr-2"></i>Payments
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <a href="{% if account.category == 'hoza' %}{% url 'payments:hoza_account_breakdown' %}{% else %}{% url 'payments:ke_account_breakdown' %}{% endif %}" class="text-gray-700 hover:text-primary-600">{{ account.get_category_display }} Accounts</a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">{{ account.name }}</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                {{ account.name }}
+                {% if account.is_active %}
+                <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">Active</span>
+                {% else %}
+                <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-700">Inactive</span>
+                {% endif %}
+            </h1>
+            <p class="mt-2 text-gray-600">{{ account.get_category_display }} &middot; {{ account.get_account_type_display }}</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            {% if account.is_active %}
+            <a href="{% url 'payments:account_transaction_create' account.pk %}"
+               class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 shadow-sm">
+                <i class="fas fa-plus-circle mr-2"></i>Add Transaction
+            </a>
+            <a href="{% url 'payments:account_transfer_create' %}?source={{ account.pk }}"
+               class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 shadow-sm">
+                <i class="fas fa-exchange-alt mr-2"></i>Transfer Funds
+            </a>
+            {% endif %}
+            <a href="{% url 'payments:account_edit' account.pk %}"
+               class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition duration-150">
+                <i class="fas fa-edit mr-2"></i>Edit
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-600">Opening Balance</p>
+            <p class="text-lg font-bold text-gray-900">KES {{ opening_balance|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-600">Money In</p>
+            <p class="text-lg font-bold text-green-600">KES {{ money_in_total|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-600">Money Out</p>
+            <p class="text-lg font-bold text-red-600">KES {{ money_out_total|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-600">Transfers In</p>
+            <p class="text-lg font-bold text-green-600">KES {{ transfers_in_total|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <p class="text-xs font-medium text-gray-600">Transfers Out</p>
+            <p class="text-lg font-bold text-red-600">KES {{ transfers_out_total|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-primary-200 p-4">
+            <p class="text-xs font-medium text-gray-600">Current Balance</p>
+            <p class="text-lg font-bold text-primary-700">KES {{ current_balance|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    {% if pending_count %}
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-sm text-yellow-800">
+        <i class="fas fa-clock mr-2"></i>{{ pending_count }} transaction{{ pending_count|pluralize }} pending approval on this account.
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Narration</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Related</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Money In</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Money Out</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approval</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for row in rows %}
+                    <tr class="hover:bg-gray-50 transition-colors duration-150">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ row.date|date:'M d, Y' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {% if row.detail_url %}<a href="{{ row.detail_url }}" class="text-primary-600 hover:text-primary-900">{{ row.reference|default:'—' }}</a>{% else %}{{ row.reference|default:'—' }}{% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ row.type_label }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{{ row.narration|default:'—' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {% if row.related_client %}<a href="{% url 'clients:client_detail' row.related_client.pk %}" class="hover:text-primary-600">{{ row.related_client.get_full_name }}</a>{% else %}—{% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-green-600">{% if row.money_in %}KES {{ row.money_in|floatformat:2 }}{% else %}—{% endif %}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-red-600">{% if row.money_out %}KES {{ row.money_out|floatformat:2 }}{% else %}—{% endif %}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">KES {{ row.running_balance|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{% if row.created_by %}{{ row.created_by.get_full_name }}{% else %}System{% endif %}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if row.approval_status == 'approved' %}
+                            <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">Approved</span>
+                            {% elif row.approval_status == 'pending' %}
+                            <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="px-6 py-10 text-center text-sm text-gray-500">No transactions recorded for this account yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if rows.has_other_pages %}
+    <div class="mt-4">
+        <div class="flex items-center justify-between">
+            <div class="text-sm text-gray-600">Page {{ rows.number }} of {{ rows.paginator.num_pages }}</div>
+            <div class="space-x-2">
+                {% if rows.has_previous %}
+                <a href="?page={{ rows.previous_page_number }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700">Previous</a>
+                {% endif %}
+                {% if rows.has_next %}
+                <a href="?page={{ rows.next_page_number }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700">Next</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

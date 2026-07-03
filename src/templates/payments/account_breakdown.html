@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ category_label }} Account Breakdown{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'payments:payment_list' %}" class="text-gray-700 hover:text-primary-600 inline-flex items-center">
+                    <i class="fas fa-money-bill-wave mr-2"></i>Payments
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">{{ category_label }} Account Breakdown</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <div class="bg-white rounded-lg shadow-sm border {% if is_hoza %}border-orange-200{% else %}border-cyan-200{% endif %} p-6 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <span class="{% if is_hoza %}bg-orange-100{% else %}bg-cyan-100{% endif %} rounded-lg p-1.5">
+                    <i class="fas {% if is_hoza %}fa-layer-group text-orange-600{% else %}fa-university text-cyan-600{% endif %}"></i>
+                </span>
+                {{ category_label }} Account Breakdown
+            </h1>
+            <p class="mt-2 text-gray-600">All {{ category_label }} accounts, balances and activity.</p>
+        </div>
+        <a href="{% url 'payments:account_create' %}?category={{ category }}"
+           class="inline-flex items-center px-4 py-2 {% if is_hoza %}bg-orange-600 hover:bg-orange-700{% else %}bg-cyan-600 hover:bg-cyan-700{% endif %} text-white font-medium rounded-lg transition duration-150 shadow-sm">
+            <i class="fas fa-plus mr-2"></i>Create Account
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <p class="text-sm font-medium text-gray-600">Opening Balance</p>
+            <p class="text-xl font-bold text-gray-900">KES {{ summary.opening_balance|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <p class="text-sm font-medium text-gray-600">Money In</p>
+            <p class="text-xl font-bold text-green-600">KES {{ summary.money_in|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <p class="text-sm font-medium text-gray-600">Money Out</p>
+            <p class="text-xl font-bold text-red-600">KES {{ summary.money_out|floatformat:2 }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border {% if is_hoza %}border-orange-200{% else %}border-cyan-200{% endif %} p-5">
+            <p class="text-sm font-medium text-gray-600">Current Balance</p>
+            <p class="text-xl font-bold {% if is_hoza %}text-orange-700{% else %}text-cyan-700{% endif %}">KES {{ summary.current_balance|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <p class="text-sm font-medium text-gray-600">Transfers In / Out</p>
+            <p class="text-lg font-bold text-gray-900">
+                <span class="text-green-600">+KES {{ summary.transfers_in|floatformat:2 }}</span>
+                &nbsp;/&nbsp;
+                <span class="text-red-600">-KES {{ summary.transfers_out|floatformat:2 }}</span>
+            </p>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <p class="text-sm font-medium text-gray-600">Pending Approvals</p>
+            <p class="text-lg font-bold {% if pending_approvals %}text-yellow-600{% else %}text-gray-900{% endif %}">{{ pending_approvals }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Money In</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Money Out</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for account in accounts %}
+                    <tr class="hover:bg-gray-50 transition-colors duration-150 {% if not account.is_active %}opacity-60{% endif %}">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <a href="{% url 'payments:account_detail' account.pk %}" class="hover:text-primary-600">{{ account.name }}</a>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ account.get_account_type_display }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if account.is_active %}
+                            <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">Active</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-700">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-green-600">KES {{ account.computed_money_in|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-red-600">KES {{ account.computed_money_out|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">KES {{ account.computed_balance|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                            <div class="flex items-center justify-end gap-3">
+                                <a href="{% url 'payments:account_detail' account.pk %}" class="text-primary-600 hover:text-primary-800" title="View Ledger"><i class="fas fa-list"></i></a>
+                                {% if account.is_active %}
+                                <a href="{% url 'payments:account_transaction_create' account.pk %}" class="text-green-600 hover:text-green-800" title="Add Transaction"><i class="fas fa-plus-circle"></i></a>
+                                <a href="{% url 'payments:account_transfer_create' %}?source={{ account.pk }}" class="text-blue-600 hover:text-blue-800" title="Transfer Funds"><i class="fas fa-exchange-alt"></i></a>
+                                {% endif %}
+                                <a href="{% url 'payments:account_edit' account.pk %}" class="text-gray-500 hover:text-gray-800" title="Edit Account"><i class="fas fa-edit"></i></a>
+                                {% if account.is_active %}
+                                <form method="post" action="{% url 'payments:account_deactivate' account.pk %}" onsubmit="return confirm('Deactivate {{ account.name|escapejs }}? It will remain visible in historical ledgers.');" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="text-red-500 hover:text-red-800" title="Deactivate Account"><i class="fas fa-ban"></i></button>
+                                </form>
+                                {% else %}
+                                <form method="post" action="{% url 'payments:account_activate' account.pk %}" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="text-green-600 hover:text-green-800" title="Reactivate Account"><i class="fas fa-check-circle"></i></button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-10 text-center text-sm text-gray-500">No {{ category_label }} accounts yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
