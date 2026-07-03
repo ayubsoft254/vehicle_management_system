@@ -62,6 +62,8 @@ urlpatterns = [
     path('export/pdf/agreement/<int:client_vehicle_pk>/', views.generate_agreement_pdf_view, name='generate_agreement_pdf'),
     path('export/pdf/proforma/<int:client_vehicle_pk>/', views.generate_proforma_invoice_pdf_view, name='generate_proforma_invoice_pdf'),
     path('export/pdf/tracker/<int:client_vehicle_pk>/', views.generate_payment_tracker_pdf_view, name='generate_payment_tracker_pdf'),
+    path('clients/<int:client_pk>/statement/pdf/', views.client_statement_pdf_view, name='client_statement_pdf'),
+    path('<int:payment_pk>/reconcile/', views.payment_reconciliation_create, name='payment_reconciliation_create'),
 
     # Daraja callbacks
     path('paybill/callbacks/validation/', views.paybill_validation_callback, name='paybill_validation_callback'),
