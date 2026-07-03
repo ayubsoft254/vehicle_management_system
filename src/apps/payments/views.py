@@ -37,6 +37,7 @@ from .models import (
     Account,
     AccountTransaction,
     AccountTransfer,
+    Reconciliation,
 )
 from .daraja import (
     request_account_balance, mpesa_is_configured, get_missing_mpesa_vars,
@@ -587,6 +588,22 @@ def account_transactions(request, method):
 CATEGORY_LABELS = {'hoza': 'Hoza', 'ke': 'KE'}
 
 
+def _is_approver(user):
+    """
+    True for users trusted to self-approve account-level actions immediately
+    (same tier as account create/edit/deactivate). Everyone else's account
+    transactions/transfers queue as pending until an approver reviews them.
+    """
+    if user.is_superuser:
+        return True
+    from apps.permissions.models import RolePermission
+    try:
+        permission = RolePermission.objects.get(role=user.role, module_name='payments')
+    except RolePermission.DoesNotExist:
+        return False
+    return permission.access_level == AccessLevel.FULL_ACCESS
+
+
 @login_required
 def account_breakdown(request, category):
     """Full-page account breakdown for the Hoza or KE category (replaces the old modal)."""
@@ -702,9 +719,13 @@ def account_detail(request, pk):
             'detail_url': None,
         })
 
-    for txn in account.transactions.filter(is_reversed=False).select_related(
+    for txn in account.transactions.select_related(
         'created_by', 'related_client', 'related_vehicle'
-    ):
+    ).prefetch_related('reconciliations'):
+        latest_reconciliation = txn.reconciliations.order_by('-created_at').first()
+        # Reversed entries stay visible for audit but no longer affect the running balance.
+        money_in = Decimal('0.00') if txn.is_reversed else (txn.amount if txn.direction == 'in' else Decimal('0.00'))
+        money_out = Decimal('0.00') if txn.is_reversed else (txn.amount if txn.direction == 'out' else Decimal('0.00'))
         rows.append({
             'date': txn.date,
             'sort_key': txn.created_at,
@@ -714,12 +735,17 @@ def account_detail(request, pk):
             'related_client': txn.related_client,
             'related_vehicle': txn.related_vehicle,
             'payment_method': txn.payment_method,
-            'money_in': txn.amount if txn.direction == 'in' else Decimal('0.00'),
-            'money_out': txn.amount if txn.direction == 'out' else Decimal('0.00'),
+            'money_in': money_in,
+            'money_out': money_out,
+            'display_amount': txn.amount,
+            'display_direction': txn.direction,
             'created_by': txn.created_by,
             'approval_status': txn.approval_status,
-            'reconciliation_status': '—',
+            'is_reversed': txn.is_reversed,
+            'reconciliation_status': latest_reconciliation.get_status_display() if latest_reconciliation else '—',
             'detail_url': None,
+            'transaction_pk': txn.pk,
+            'can_reconcile': not txn.is_reversed,
         })
 
     rows.sort(key=lambda r: (r['date'], r['sort_key']))
@@ -740,6 +766,7 @@ def account_detail(request, pk):
         'transfers_in_total': account.transfers_in_total,
         'transfers_out_total': account.transfers_out_total,
         'current_balance': account.current_balance,
+        'pending_balance': account.pending_balance,
         'pending_count': account.transactions.filter(approval_status='pending').count(),
         'rows': page_obj,
     }
@@ -839,12 +866,17 @@ def account_transaction_create(request, pk):
             txn = form.save(commit=False)
             txn.account = account
             txn.created_by = request.user
+            txn.approval_status = 'approved' if _is_approver(request.user) else 'pending'
             txn.save()
             log_audit(
                 request.user, 'create', 'AccountTransaction',
-                f'Recorded {txn.get_transaction_type_display()} of KES {txn.amount:,.2f} on {account.name}'
+                f'Recorded {txn.get_transaction_type_display()} of KES {txn.amount:,.2f} on {account.name} '
+                f'({txn.approval_status})'
             )
-            messages.success(request, 'Transaction recorded.')
+            if txn.approval_status == 'pending':
+                messages.success(request, 'Transaction submitted for approval.')
+            else:
+                messages.success(request, 'Transaction recorded.')
             return redirect('payments:account_detail', pk=account.pk)
     else:
         form = AccountTransactionForm()
@@ -868,6 +900,7 @@ def account_transfer_create(request):
         if form.is_valid():
             transfer = form.save(commit=False)
             transfer.created_by = request.user
+            transfer.status = 'approved' if _is_approver(request.user) else 'pending'
             try:
                 transfer.full_clean()
             except DjangoValidationError as e:
@@ -879,14 +912,178 @@ def account_transfer_create(request):
             log_audit(
                 request.user, 'create', 'AccountTransfer',
                 f'Transferred KES {transfer.amount:,.2f} from {transfer.source_account.name} '
-                f'to {transfer.destination_account.name}'
+                f'to {transfer.destination_account.name} ({transfer.status})'
             )
-            messages.success(request, 'Transfer completed.')
+            if transfer.status == 'pending':
+                messages.success(request, 'Transfer submitted for approval.')
+            else:
+                messages.success(request, 'Transfer completed.')
             return redirect('payments:account_detail', pk=transfer.source_account.pk)
     else:
         form = AccountTransferForm(initial=initial)
 
     return render(request, 'payments/account_transfer_form.html', {'form': form})
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.READ_WRITE)
+def reconciliation_create(request, transaction_pk):
+    """Request a reconciliation against a wrongly-posted account transaction."""
+    from .forms import ReconciliationForm
+
+    original = get_object_or_404(AccountTransaction, pk=transaction_pk)
+
+    if original.is_reversed:
+        messages.error(request, 'This transaction has already been reversed and cannot be reconciled again.')
+        return redirect('payments:account_detail', pk=original.account.pk)
+
+    if request.method == 'POST':
+        form = ReconciliationForm(request.POST)
+        if form.is_valid():
+            reconciliation = form.save(commit=False)
+            reconciliation.original_transaction = original
+            reconciliation.initiated_by = request.user
+            try:
+                reconciliation.full_clean()
+            except DjangoValidationError as e:
+                for err in e.messages:
+                    messages.error(request, err)
+                return render(request, 'payments/reconciliation_form.html', {'form': form, 'original': original})
+            reconciliation.save()
+            log_audit(
+                request.user, 'create', 'Reconciliation',
+                f'Requested reconciliation ({reconciliation.get_issue_type_display()}) on transaction #{original.pk}'
+            )
+            messages.success(request, 'Reconciliation request submitted for approval.')
+            return redirect('payments:account_detail', pk=original.account.pk)
+    else:
+        form = ReconciliationForm()
+
+    return render(request, 'payments/reconciliation_form.html', {'form': form, 'original': original})
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.FULL_ACCESS)
+def approval_queue(request):
+    """List everything awaiting approval: transactions, transfers, reconciliations, plus suspense accounts."""
+    pending_transfers = AccountTransfer.objects.filter(status='pending').select_related(
+        'source_account', 'destination_account', 'created_by'
+    )
+    transfer_entry_ids = AccountTransaction.objects.filter(
+        transfer__in=pending_transfers
+    ).values_list('id', flat=True)
+
+    pending_transactions = AccountTransaction.objects.filter(
+        approval_status='pending'
+    ).exclude(id__in=transfer_entry_ids).select_related('account', 'created_by', 'related_client', 'related_vehicle')
+
+    pending_reconciliations = Reconciliation.objects.filter(status='pending').select_related(
+        'original_transaction__account', 'initiated_by', 'correct_account', 'correct_client', 'correct_vehicle'
+    )
+
+    suspense_accounts = Account.objects.filter(is_suspense=True)
+
+    context = {
+        'pending_transactions': pending_transactions,
+        'pending_transfers': pending_transfers,
+        'pending_reconciliations': pending_reconciliations,
+        'suspense_accounts': suspense_accounts,
+    }
+
+    log_audit(request.user, 'view', 'Account', 'Viewed finance approval queue')
+    return render(request, 'payments/approval_queue.html', context)
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.FULL_ACCESS)
+@require_POST
+def account_transaction_approve(request, pk):
+    txn = get_object_or_404(AccountTransaction, pk=pk)
+    txn.approve(request.user)
+    log_audit(request.user, 'update', 'AccountTransaction', f'Approved transaction #{txn.pk} on {txn.account.name}')
+    messages.success(request, 'Transaction approved.')
+    return redirect('payments:approval_queue')
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.FULL_ACCESS)
+@require_POST
+def account_transaction_reject(request, pk):
+    txn = get_object_or_404(AccountTransaction, pk=pk)
+    txn.reject(request.user)
+    log_audit(request.user, 'update', 'AccountTransaction', f'Rejected transaction #{txn.pk} on {txn.account.name}')
+    messages.success(request, 'Transaction rejected.')
+    return redirect('payments:approval_queue')
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.FULL_ACCESS)
+@require_POST
+def account_transfer_approve(request, pk):
+    transfer = get_object_or_404(AccountTransfer, pk=pk)
+    with transaction.atomic():
+        transfer.status = 'approved'
+        transfer.approved_by = request.user
+        transfer.approved_at = timezone.now()
+        transfer.save(update_fields=['status', 'approved_by', 'approved_at'])
+        for entry in transfer.ledger_entries.all():
+            entry.approve(request.user)
+    log_audit(
+        request.user, 'update', 'AccountTransfer',
+        f'Approved transfer #{transfer.pk}: {transfer.source_account.name} -> {transfer.destination_account.name}'
+    )
+    messages.success(request, 'Transfer approved.')
+    return redirect('payments:approval_queue')
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.FULL_ACCESS)
+@require_POST
+def account_transfer_reject(request, pk):
+    transfer = get_object_or_404(AccountTransfer, pk=pk)
+    with transaction.atomic():
+        transfer.status = 'rejected'
+        transfer.approved_by = request.user
+        transfer.approved_at = timezone.now()
+        transfer.save(update_fields=['status', 'approved_by', 'approved_at'])
+        for entry in transfer.ledger_entries.all():
+            entry.reject(request.user)
+    log_audit(
+        request.user, 'update', 'AccountTransfer',
+        f'Rejected transfer #{transfer.pk}: {transfer.source_account.name} -> {transfer.destination_account.name}'
+    )
+    messages.success(request, 'Transfer rejected.')
+    return redirect('payments:approval_queue')
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.FULL_ACCESS)
+@require_POST
+def reconciliation_approve(request, pk):
+    reconciliation = get_object_or_404(Reconciliation, pk=pk)
+    try:
+        reconciliation.approve(request.user)
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect('payments:approval_queue')
+    log_audit(request.user, 'update', 'Reconciliation', f'Approved reconciliation #{reconciliation.pk}')
+    messages.success(request, 'Reconciliation approved.')
+    return redirect('payments:approval_queue')
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.FULL_ACCESS)
+@require_POST
+def reconciliation_reject(request, pk):
+    reconciliation = get_object_or_404(Reconciliation, pk=pk)
+    try:
+        reconciliation.reject(request.user)
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect('payments:approval_queue')
+    log_audit(request.user, 'update', 'Reconciliation', f'Rejected reconciliation #{reconciliation.pk}')
+    messages.success(request, 'Reconciliation rejected.')
+    return redirect('payments:approval_queue')
 
 
 @login_required
