@@ -13,6 +13,7 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from django.db import transaction
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from datetime import datetime, timedelta
@@ -33,6 +34,9 @@ from .models import (
     MpesaSTKRequest,
     PaybillTransaction,
     PaybillBalanceSnapshot,
+    Account,
+    AccountTransaction,
+    AccountTransfer,
 )
 from .daraja import (
     request_account_balance, mpesa_is_configured, get_missing_mpesa_vars,
@@ -576,6 +580,313 @@ def account_transactions(request, method):
 
     log_audit(request.user, 'view', 'Payment', f'Viewed {label} account transactions')
     return render(request, 'payments/account_transactions.html', context)
+
+
+# ==================== FINANCE ACCOUNT BREAKDOWN VIEWS ====================
+
+CATEGORY_LABELS = {'hoza': 'Hoza', 'ke': 'KE'}
+
+
+@login_required
+def account_breakdown(request, category):
+    """Full-page account breakdown for the Hoza or KE category (replaces the old modal)."""
+    if category not in CATEGORY_LABELS:
+        messages.error(request, 'Unknown account category.')
+        return redirect('payments:payment_list')
+
+    accounts = list(Account.objects.filter(category=category))
+
+    ZERO = Decimal('0.00')
+    summary = {
+        'opening_balance': ZERO,
+        'money_in': ZERO,
+        'money_out': ZERO,
+        'transfers_in': ZERO,
+        'transfers_out': ZERO,
+        'current_balance': ZERO,
+    }
+    for account in accounts:
+        account.computed_money_in = account.money_in_total
+        account.computed_money_out = account.money_out_total
+        account.computed_transfers_in = account.transfers_in_total
+        account.computed_transfers_out = account.transfers_out_total
+        account.computed_balance = account.current_balance
+
+        summary['opening_balance'] += account.opening_balance
+        summary['money_in'] += account.computed_money_in
+        summary['money_out'] += account.computed_money_out
+        summary['transfers_in'] += account.computed_transfers_in
+        summary['transfers_out'] += account.computed_transfers_out
+        summary['current_balance'] += account.computed_balance
+
+    pending_approvals = AccountTransaction.objects.filter(
+        account__category=category, approval_status='pending'
+    ).count()
+
+    context = {
+        'category': category,
+        'category_label': CATEGORY_LABELS[category],
+        'is_hoza': category == 'hoza',
+        'accounts': accounts,
+        'summary': summary,
+        'pending_approvals': pending_approvals,
+    }
+
+    log_audit(request.user, 'view', 'Account', f'Viewed {CATEGORY_LABELS[category]} account breakdown')
+    return render(request, 'payments/account_breakdown.html', context)
+
+
+@login_required
+def account_detail(request, pk):
+    """Full ledger for a single account: opening balance, totals and full transaction history."""
+    account = get_object_or_404(Account, pk=pk)
+
+    rows = []
+
+    for payment in account._legacy_payment_qs().select_related(
+        'client_vehicle__client', 'client_vehicle__vehicle', 'recorded_by'
+    ).exclude(splits__isnull=False):
+        rows.append({
+            'date': payment.payment_date,
+            'sort_key': payment.created_at,
+            'reference': payment.transaction_reference or payment.receipt_number,
+            'type_label': 'Client Payment',
+            'narration': payment.notes or '',
+            'related_client': payment.client_vehicle.client,
+            'related_vehicle': payment.client_vehicle.vehicle,
+            'payment_method': payment.get_payment_method_display(),
+            'money_in': payment.amount,
+            'money_out': Decimal('0.00'),
+            'created_by': payment.recorded_by,
+            'approval_status': 'approved',
+            'reconciliation_status': '—',
+            'detail_url': reverse('payments:payment_detail', args=[payment.pk]),
+        })
+
+    for split in account._legacy_split_qs().select_related(
+        'payment__client_vehicle__client', 'payment__client_vehicle__vehicle', 'payment__recorded_by'
+    ):
+        payment = split.payment
+        rows.append({
+            'date': payment.payment_date,
+            'sort_key': split.created_at,
+            'reference': split.transaction_reference or payment.receipt_number,
+            'type_label': 'Client Payment (split)',
+            'narration': payment.notes or '',
+            'related_client': payment.client_vehicle.client,
+            'related_vehicle': payment.client_vehicle.vehicle,
+            'payment_method': split.get_payment_method_display(),
+            'money_in': split.amount,
+            'money_out': Decimal('0.00'),
+            'created_by': payment.recorded_by,
+            'approval_status': 'approved',
+            'reconciliation_status': '—',
+            'detail_url': reverse('payments:payment_detail', args=[payment.pk]),
+        })
+
+    for withdrawal in account._legacy_withdrawal_qs().select_related('recorded_by'):
+        rows.append({
+            'date': withdrawal.withdrawal_date,
+            'sort_key': withdrawal.created_at,
+            'reference': None,
+            'type_label': 'Withdrawal',
+            'narration': withdrawal.reason or '',
+            'related_client': None,
+            'related_vehicle': None,
+            'payment_method': withdrawal.get_payment_method_display(),
+            'money_in': Decimal('0.00'),
+            'money_out': withdrawal.amount,
+            'created_by': withdrawal.recorded_by,
+            'approval_status': 'approved',
+            'reconciliation_status': '—',
+            'detail_url': None,
+        })
+
+    for txn in account.transactions.filter(is_reversed=False).select_related(
+        'created_by', 'related_client', 'related_vehicle'
+    ):
+        rows.append({
+            'date': txn.date,
+            'sort_key': txn.created_at,
+            'reference': txn.reference,
+            'type_label': txn.get_transaction_type_display(),
+            'narration': txn.narration,
+            'related_client': txn.related_client,
+            'related_vehicle': txn.related_vehicle,
+            'payment_method': txn.payment_method,
+            'money_in': txn.amount if txn.direction == 'in' else Decimal('0.00'),
+            'money_out': txn.amount if txn.direction == 'out' else Decimal('0.00'),
+            'created_by': txn.created_by,
+            'approval_status': txn.approval_status,
+            'reconciliation_status': '—',
+            'detail_url': None,
+        })
+
+    rows.sort(key=lambda r: (r['date'], r['sort_key']))
+    running = account.opening_balance
+    for row in rows:
+        running += row['money_in'] - row['money_out']
+        row['running_balance'] = running
+    rows.reverse()
+
+    paginator = Paginator(rows, 50)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'account': account,
+        'opening_balance': account.opening_balance,
+        'money_in_total': account.money_in_total,
+        'money_out_total': account.money_out_total,
+        'transfers_in_total': account.transfers_in_total,
+        'transfers_out_total': account.transfers_out_total,
+        'current_balance': account.current_balance,
+        'pending_count': account.transactions.filter(approval_status='pending').count(),
+        'rows': page_obj,
+    }
+
+    log_audit(request.user, 'view', 'Account', f'Viewed ledger for {account.name}')
+    return render(request, 'payments/account_detail.html', context)
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.FULL_ACCESS)
+def account_create(request):
+    """Create a new finance account."""
+    from .forms import AccountForm
+
+    initial = {}
+    preselect = request.GET.get('category')
+    if preselect in CATEGORY_LABELS:
+        initial['category'] = preselect
+
+    if request.method == 'POST':
+        form = AccountForm(request.POST)
+        if form.is_valid():
+            account = form.save(commit=False)
+            account.created_by = request.user
+            account.save()
+            log_audit(request.user, 'create', 'Account', f'Created account {account.name}')
+            messages.success(request, f'Account "{account.name}" created.')
+            return redirect('payments:account_detail', pk=account.pk)
+    else:
+        form = AccountForm(initial=initial)
+
+    return render(request, 'payments/account_form.html', {'form': form, 'is_edit': False})
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.FULL_ACCESS)
+def account_edit(request, pk):
+    """Edit an existing finance account."""
+    from .forms import AccountForm
+
+    account = get_object_or_404(Account, pk=pk)
+
+    if request.method == 'POST':
+        form = AccountForm(request.POST, instance=account)
+        if form.is_valid():
+            form.save()
+            log_audit(request.user, 'update', 'Account', f'Edited account {account.name}')
+            messages.success(request, f'Account "{account.name}" updated.')
+            return redirect('payments:account_detail', pk=account.pk)
+    else:
+        form = AccountForm(instance=account)
+
+    return render(request, 'payments/account_form.html', {'form': form, 'is_edit': True, 'account': account})
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.FULL_ACCESS)
+@require_POST
+def account_deactivate(request, pk):
+    """Deactivate an account. Never deletes — history remains intact."""
+    account = get_object_or_404(Account, pk=pk)
+    account.is_active = False
+    account.save(update_fields=['is_active', 'updated_at'])
+    log_audit(request.user, 'update', 'Account', f'Deactivated account {account.name}')
+    messages.success(request, f'Account "{account.name}" deactivated.')
+    return redirect('payments:account_detail', pk=account.pk)
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.FULL_ACCESS)
+@require_POST
+def account_activate(request, pk):
+    """Reactivate a previously deactivated account."""
+    account = get_object_or_404(Account, pk=pk)
+    account.is_active = True
+    account.save(update_fields=['is_active', 'updated_at'])
+    log_audit(request.user, 'update', 'Account', f'Reactivated account {account.name}')
+    messages.success(request, f'Account "{account.name}" reactivated.')
+    return redirect('payments:account_detail', pk=account.pk)
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.READ_WRITE)
+def account_transaction_create(request, pk):
+    """Record a manual transaction directly against an account."""
+    from .forms import AccountTransactionForm
+
+    account = get_object_or_404(Account, pk=pk)
+
+    if not account.is_active:
+        messages.error(request, f'"{account.name}" is inactive and cannot receive new transactions.')
+        return redirect('payments:account_detail', pk=account.pk)
+
+    if request.method == 'POST':
+        form = AccountTransactionForm(request.POST, request.FILES)
+        if form.is_valid():
+            txn = form.save(commit=False)
+            txn.account = account
+            txn.created_by = request.user
+            txn.save()
+            log_audit(
+                request.user, 'create', 'AccountTransaction',
+                f'Recorded {txn.get_transaction_type_display()} of KES {txn.amount:,.2f} on {account.name}'
+            )
+            messages.success(request, 'Transaction recorded.')
+            return redirect('payments:account_detail', pk=account.pk)
+    else:
+        form = AccountTransactionForm()
+
+    return render(request, 'payments/account_transaction_form.html', {'form': form, 'account': account})
+
+
+@login_required
+@module_permission_required('payments', AccessLevel.READ_WRITE)
+def account_transfer_create(request):
+    """Transfer funds between two active accounts."""
+    from .forms import AccountTransferForm
+
+    initial = {}
+    source_pk = request.GET.get('source')
+    if source_pk:
+        initial['source_account'] = source_pk
+
+    if request.method == 'POST':
+        form = AccountTransferForm(request.POST)
+        if form.is_valid():
+            transfer = form.save(commit=False)
+            transfer.created_by = request.user
+            try:
+                transfer.full_clean()
+            except DjangoValidationError as e:
+                for err in e.messages:
+                    messages.error(request, err)
+                return render(request, 'payments/account_transfer_form.html', {'form': form})
+            transfer.save()
+            transfer.execute(request.user)
+            log_audit(
+                request.user, 'create', 'AccountTransfer',
+                f'Transferred KES {transfer.amount:,.2f} from {transfer.source_account.name} '
+                f'to {transfer.destination_account.name}'
+            )
+            messages.success(request, 'Transfer completed.')
+            return redirect('payments:account_detail', pk=transfer.source_account.pk)
+    else:
+        form = AccountTransferForm(initial=initial)
+
+    return render(request, 'payments/account_transfer_form.html', {'form': form})
 
 
 @login_required
