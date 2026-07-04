@@ -47,6 +47,8 @@
                     <option value="insurance" {% if category_filter == 'insurance' %}selected{% endif %}>Insurance Agents</option>
                     <option value="expense" {% if category_filter == 'expense' %}selected{% endif %}>General Expenses</option>
                     <option value="manual" {% if category_filter == 'manual' %}selected{% endif %}>Manual Entries</option>
+                    <option value="loan_disbursed" {% if category_filter == 'loan_disbursed' %}selected{% endif %}>Loans Disbursed</option>
+                    <option value="loan_repayment" {% if category_filter == 'loan_repayment' %}selected{% endif %}>Loan Repayments</option>
                 </select>
             </div>
             <div>
@@ -90,7 +92,7 @@
                 </span>
             </div>
             <p class="text-2xl font-bold text-green-600">KES {{ total_in|floatformat:0|intcomma }}</p>
-            <p class="text-xs text-gray-400 mt-1">Client vehicle payments received</p>
+            <p class="text-xs text-gray-400 mt-1">Client payments, loan repayments &amp; manual entries received</p>
         </div>
         <!-- Money Out -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
@@ -149,6 +151,8 @@
                                 {% elif row.color == 'purple' %}<span class="h-2 w-2 rounded-full bg-purple-400"></span>
                                 {% elif row.color == 'amber' %}<span class="h-2 w-2 rounded-full bg-amber-400"></span>
                                 {% elif row.color == 'blue' %}<span class="h-2 w-2 rounded-full bg-blue-400"></span>
+                                {% elif row.color == 'rose' %}<span class="h-2 w-2 rounded-full bg-rose-400"></span>
+                                {% elif row.color == 'emerald' %}<span class="h-2 w-2 rounded-full bg-emerald-400"></span>
                                 {% else %}<span class="h-2 w-2 rounded-full bg-gray-400"></span>{% endif %}
                                 <span class="font-medium text-gray-700">{{ row.label }}</span>
                             </span>
@@ -253,6 +257,14 @@
                             {% elif t.category == 'manual' %}
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
                                 <span class="h-1.5 w-1.5 rounded-full bg-orange-500"></span>{{ t.category_label }}
+                            </span>
+                            {% elif t.category == 'loan_disbursed' %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span>{{ t.category_label }}
+                            </span>
+                            {% elif t.category == 'loan_repayment' %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>{{ t.category_label }}
                             </span>
                             {% else %}
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
