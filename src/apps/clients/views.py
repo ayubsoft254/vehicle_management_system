@@ -2371,6 +2371,58 @@ def create_installment_plan(request, client_vehicle_pk):
 
 # ==================== REPORTING & EXPORT VIEWS ====================
 
+@login_required
+def client_ledger_list(request):
+    """
+    Client Ledger: every client with total billed, total paid and
+    outstanding balance across their vehicle purchases, linking through to
+    that client's full statement (clients:client_statement) for the
+    itemized debit/credit history.
+    """
+    search = request.GET.get('q', '').strip()
+
+    clients = Client.objects.annotate(
+        total_billed=Coalesce(
+            Sum('vehicles__purchase_price'),
+            Value(Decimal('0.00')),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        ),
+        total_paid=Coalesce(
+            Sum('vehicles__total_paid'),
+            Value(Decimal('0.00')),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        ),
+        outstanding=Coalesce(
+            Sum('vehicles__balance'),
+            Value(Decimal('0.00')),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        ),
+        vehicle_count=Count('vehicles', distinct=True),
+    ).filter(vehicle_count__gt=0).order_by('-outstanding', 'first_name', 'last_name')
+
+    if search:
+        clients = clients.filter(
+            Q(first_name__icontains=search)
+            | Q(last_name__icontains=search)
+            | Q(phone_primary__icontains=search)
+        )
+
+    totals = clients.aggregate(
+        grand_billed=Coalesce(Sum('total_billed'), Value(Decimal('0.00')), output_field=DecimalField(max_digits=14, decimal_places=2)),
+        grand_paid=Coalesce(Sum('total_paid'), Value(Decimal('0.00')), output_field=DecimalField(max_digits=14, decimal_places=2)),
+        grand_outstanding=Coalesce(Sum('outstanding'), Value(Decimal('0.00')), output_field=DecimalField(max_digits=14, decimal_places=2)),
+    )
+
+    context = {
+        'clients': clients,
+        'search': search,
+        'grand_billed': totals['grand_billed'],
+        'grand_paid': totals['grand_paid'],
+        'grand_outstanding': totals['grand_outstanding'],
+    }
+    return render(request, 'clients/client_ledger_list.html', context)
+
+
 def _statement_filters(request):
     """Read date_from/date_to/vehicle/payment_method filters shared by the statement view and its exports."""
     date_from = request.GET.get('date_from') or None
