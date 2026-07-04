@@ -55,6 +55,23 @@
                class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition duration-150">
                 <i class="fas fa-edit mr-2"></i>Edit
             </a>
+            {% if account.is_active %}
+            <form method="post" action="{% url 'payments:account_deactivate' account.pk %}" onsubmit="return confirm('Deactivate {{ account.name|escapejs }}? It will remain visible in historical ledgers.');" class="inline">
+                {% csrf_token %}
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-medium rounded-lg transition duration-150">
+                    <i class="fas fa-ban mr-2"></i>Deactivate
+                </button>
+            </form>
+            {% else %}
+            <form method="post" action="{% url 'payments:account_activate' account.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit"
+                        class="inline-flex items-center px-4 py-2 bg-green-100 hover:bg-green-200 text-green-700 font-medium rounded-lg transition duration-150">
+                    <i class="fas fa-check-circle mr-2"></i>Reactivate
+                </button>
+            </form>
+            {% endif %}
         </div>
     </div>
 
