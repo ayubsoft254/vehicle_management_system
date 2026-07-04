@@ -264,6 +264,17 @@
                                     <i class="fas fa-store w-4 text-red-400 group-hover:text-red-600"></i>
                                     <span class="ml-2">Japan Suppliers</span>
                                 </a>
+                                <div class="border-t border-gray-100 my-1"></div>
+                                <a href="{% url 'clients:client_ledger_list' %}"
+                                   class="flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-cyan-50 hover:text-cyan-700 transition-colors duration-200 group">
+                                    <i class="fas fa-users w-4 text-cyan-400 group-hover:text-cyan-600"></i>
+                                    <span class="ml-2">Client Ledger</span>
+                                </a>
+                                <a href="{% url 'vehicles:business_loan_list' %}"
+                                   class="flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-rose-50 hover:text-rose-700 transition-colors duration-200 group">
+                                    <i class="fas fa-hand-holding-usd w-4 text-rose-400 group-hover:text-rose-600"></i>
+                                    <span class="ml-2">Business Loans</span>
+                                </a>
                             </div>
                             {% endif %}
                             
