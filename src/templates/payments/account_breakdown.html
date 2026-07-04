@@ -94,7 +94,6 @@
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Money In</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Money Out</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -114,31 +113,10 @@
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-green-600">KES {{ account.computed_money_in|floatformat:2 }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-red-600">KES {{ account.computed_money_out|floatformat:2 }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">KES {{ account.computed_balance|floatformat:2 }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
-                            <div class="flex items-center justify-end gap-3">
-                                <a href="{% url 'payments:account_detail' account.pk %}" class="text-primary-600 hover:text-primary-800" title="View Ledger"><i class="fas fa-list"></i></a>
-                                {% if account.is_active %}
-                                <a href="{% url 'payments:account_transaction_create' account.pk %}" class="text-green-600 hover:text-green-800" title="Add Transaction"><i class="fas fa-plus-circle"></i></a>
-                                <a href="{% url 'payments:account_transfer_create' %}?source={{ account.pk }}" class="text-blue-600 hover:text-blue-800" title="Transfer Funds"><i class="fas fa-exchange-alt"></i></a>
-                                {% endif %}
-                                <a href="{% url 'payments:account_edit' account.pk %}" class="text-gray-500 hover:text-gray-800" title="Edit Account"><i class="fas fa-edit"></i></a>
-                                {% if account.is_active %}
-                                <form method="post" action="{% url 'payments:account_deactivate' account.pk %}" onsubmit="return confirm('Deactivate {{ account.name|escapejs }}? It will remain visible in historical ledgers.');" class="inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="text-red-500 hover:text-red-800" title="Deactivate Account"><i class="fas fa-ban"></i></button>
-                                </form>
-                                {% else %}
-                                <form method="post" action="{% url 'payments:account_activate' account.pk %}" class="inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="text-green-600 hover:text-green-800" title="Reactivate Account"><i class="fas fa-check-circle"></i></button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="px-6 py-10 text-center text-sm text-gray-500">No {{ category_label }} accounts yet.</td>
+                        <td colspan="6" class="px-6 py-10 text-center text-sm text-gray-500">No {{ category_label }} accounts yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
