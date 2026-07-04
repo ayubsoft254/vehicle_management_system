@@ -11,8 +11,10 @@ from django.db.models.functions import Coalesce
 from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
-from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord, Broker, BrokerPayment, JapanSupplier, JapanSupplierRecord, JapanSupplierPayment
+from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord, Broker, BrokerPayment, JapanSupplier, JapanSupplierRecord, JapanSupplierPayment, BusinessLoan, BusinessLoanRepayment
 from apps.clients.models import ClientVehicle, Client
+from apps.insurance.models import InsuranceAgent
+from django.contrib.contenttypes.models import ContentType
 from .forms import (
     VehicleForm, VehiclePhotoForm, VehicleSearchForm,
     VehicleStatusChangeForm, BulkVehicleActionForm, VehicleMoveForm,
@@ -1770,6 +1772,182 @@ def broker_voucher_print(request, payment_pk):
     return render(request, 'vehicles/broker_voucher_print.html', {'payment': payment})
 
 
+# ==================== BUSINESS LOANS (MONEY LOANED OUT) ====================
+
+_LOAN_BORROWER_MODELS = {
+    'client': ('clients', 'client'),
+    'broker': ('vehicles', 'broker'),
+    'tracker_agent': ('vehicles', 'trackeragent'),
+    'clearing_agent': ('vehicles', 'clearingagent'),
+    'japan_supplier': ('vehicles', 'japansupplier'),
+    'insurance_agent': ('insurance', 'insuranceagent'),
+}
+
+
+def _borrower_display_name(obj):
+    if hasattr(obj, 'get_full_name'):
+        return obj.get_full_name()
+    return getattr(obj, 'name', str(obj))
+
+
+@login_required
+def business_loan_list(request):
+    """List all money the business has loaned out, with repayment status."""
+    if request.method == 'POST':
+        borrower_type = request.POST.get('borrower_type', 'other')
+        borrower_id = request.POST.get('borrower_id', '').strip()
+        borrower_name = request.POST.get('borrower_name', '').strip()
+        principal_amount_str = request.POST.get('principal_amount', '').strip()
+        date_issued_str = request.POST.get('date_issued', '').strip()
+        expected_repayment_date_str = request.POST.get('expected_repayment_date', '').strip()
+        purpose = request.POST.get('purpose', '').strip()
+        notes = request.POST.get('notes', '').strip()
+
+        errors = []
+        try:
+            principal_amount = Decimal(principal_amount_str)
+            if principal_amount <= 0:
+                raise ValueError
+        except Exception:
+            errors.append('Principal amount must be a positive number.')
+            principal_amount = None
+
+        date_issued = timezone.now().date()
+        if date_issued_str:
+            try:
+                date_issued = datetime.strptime(date_issued_str, '%Y-%m-%d').date()
+            except ValueError:
+                errors.append('Invalid date issued.')
+
+        expected_repayment_date = None
+        if expected_repayment_date_str:
+            try:
+                expected_repayment_date = datetime.strptime(expected_repayment_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                errors.append('Invalid expected repayment date.')
+
+        borrower_ct = None
+        borrower_obj = None
+        if borrower_type in _LOAN_BORROWER_MODELS and borrower_id:
+            app_label, model_name = _LOAN_BORROWER_MODELS[borrower_type]
+            try:
+                borrower_ct = ContentType.objects.get(app_label=app_label, model=model_name)
+                borrower_obj = borrower_ct.model_class().objects.get(pk=borrower_id)
+            except Exception:
+                errors.append('Selected borrower could not be found.')
+                borrower_ct = None
+
+        if borrower_obj is not None:
+            borrower_name = _borrower_display_name(borrower_obj)
+        elif not borrower_name:
+            errors.append('Borrower name is required.')
+
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+        else:
+            loan = BusinessLoan.objects.create(
+                borrower_name=borrower_name,
+                borrower_content_type=borrower_ct,
+                borrower_object_id=borrower_obj.pk if borrower_obj else None,
+                principal_amount=principal_amount,
+                date_issued=date_issued,
+                expected_repayment_date=expected_repayment_date,
+                purpose=purpose,
+                notes=notes,
+                recorded_by=request.user,
+            )
+            messages.success(request, f'Loan of KES {principal_amount:,.2f} to {borrower_name} recorded.')
+            return redirect('vehicles:business_loan_list')
+
+    loans = BusinessLoan.objects.select_related('recorded_by', 'borrower_content_type').all()
+
+    ZERO = Decimal('0.00')
+    grand_principal = loans.aggregate(t=Sum('principal_amount'))['t'] or ZERO
+    grand_repaid = BusinessLoanRepayment.objects.filter(loan__in=loans).aggregate(t=Sum('amount'))['t'] or ZERO
+    grand_outstanding = grand_principal - grand_repaid
+
+    context = {
+        'loans': loans,
+        'grand_principal': grand_principal,
+        'grand_repaid': grand_repaid,
+        'grand_outstanding': grand_outstanding,
+        'today_str': timezone.now().date().isoformat(),
+        'clients': Client.objects.filter(is_active=True).order_by('first_name', 'last_name'),
+        'brokers': Broker.objects.filter(is_active=True).order_by('name'),
+        'tracker_agents': TrackerAgent.objects.filter(is_active=True).order_by('name'),
+        'clearing_agents': ClearingAgent.objects.filter(is_active=True).order_by('name'),
+        'japan_suppliers': JapanSupplier.objects.filter(is_active=True).order_by('name'),
+        'insurance_agents': InsuranceAgent.objects.filter(is_active=True).order_by('name'),
+    }
+    return render(request, 'vehicles/business_loan_list.html', context)
+
+
+@login_required
+def business_loan_detail(request, pk):
+    """Show a business loan's repayment history."""
+    loan = get_object_or_404(BusinessLoan, pk=pk)
+    repayments = loan.repayments.select_related('recorded_by').order_by('-payment_date', '-created_at')
+    context = {
+        'loan': loan,
+        'repayments': repayments,
+    }
+    return render(request, 'vehicles/business_loan_detail.html', context)
+
+
+@login_required
+def record_loan_repayment(request, loan_pk):
+    """Record a repayment received against a business loan."""
+    if request.method != 'POST':
+        messages.error(request, 'Method not allowed.')
+        return redirect('vehicles:business_loan_detail', pk=loan_pk)
+    loan = get_object_or_404(BusinessLoan, pk=loan_pk)
+    amount_str = request.POST.get('amount', '').strip()
+    payment_method = request.POST.get('payment_method', 'bank_transfer')
+    reference_number = request.POST.get('reference_number', '').strip()
+    notes = request.POST.get('notes', '').strip()
+    payment_date_str = request.POST.get('payment_date', '').strip()
+    try:
+        amount = Decimal(amount_str)
+        if amount <= 0:
+            raise ValueError
+    except Exception:
+        messages.error(request, 'Invalid repayment amount.')
+        return redirect('vehicles:business_loan_detail', pk=loan_pk)
+
+    payment_date = timezone.now().date()
+    if payment_date_str:
+        try:
+            payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+
+    BusinessLoanRepayment.objects.create(
+        loan=loan,
+        amount=amount,
+        payment_method=payment_method,
+        reference_number=reference_number,
+        notes=notes,
+        payment_date=payment_date,
+        recorded_by=request.user,
+    )
+    messages.success(request, f'Repayment of KES {amount:,.2f} recorded for {loan.borrower_name}.')
+    return redirect('vehicles:business_loan_detail', pk=loan_pk)
+
+
+@login_required
+def business_loan_write_off(request, pk):
+    """Mark a business loan as written off (uncollectable)."""
+    if request.method != 'POST':
+        messages.error(request, 'Method not allowed.')
+        return redirect('vehicles:business_loan_detail', pk=pk)
+    loan = get_object_or_404(BusinessLoan, pk=pk)
+    loan.status = 'written_off'
+    loan.save(update_fields=['status'])
+    messages.success(request, f'Loan to {loan.borrower_name} marked as written off.')
+    return redirect('vehicles:business_loan_detail', pk=pk)
+
+
 @login_required
 def main_ledger_view(request):
     """Combined main ledger aggregating all financial activity."""
@@ -1780,6 +1958,8 @@ def main_ledger_view(request):
         TrackerAgentPayment as _TrackerAgentPayment,
         ClearingAgentPayment as _ClearingAgentPayment,
         ManualLedgerEntry,
+        BusinessLoan as _BusinessLoan,
+        BusinessLoanRepayment as _BusinessLoanRepayment,
     )
     import datetime as dt
 
@@ -1893,6 +2073,10 @@ def main_ledger_view(request):
         'expense_date',
     )
     manual_qs = date_range(ManualLedgerEntry.objects.select_related('recorded_by'), 'date')
+    loans_qs = date_range(_BusinessLoan.objects.all(), 'date_issued')
+    loan_repayments_qs = date_range(
+        _BusinessLoanRepayment.objects.select_related('loan'), 'payment_date'
+    )
 
     # Search
     if search:
@@ -1908,9 +2092,18 @@ def main_ledger_view(request):
         manual_qs = manual_qs.filter(
             Q(description__icontains=search) | Q(reference__icontains=search)
         )
+        loans_qs = loans_qs.filter(
+            Q(borrower_name__icontains=search) | Q(purpose__icontains=search)
+        )
+        loan_repayments_qs = loan_repayments_qs.filter(
+            Q(loan__borrower_name__icontains=search) | Q(reference_number__icontains=search)
+        )
 
     # Category filter
-    _ALL = {'client_payment', 'supplier', 'clearing', 'tracker', 'broker', 'insurance', 'expense', 'manual'}
+    _ALL = {
+        'client_payment', 'supplier', 'clearing', 'tracker', 'broker', 'insurance',
+        'expense', 'manual', 'loan_disbursed', 'loan_repayment',
+    }
     if category_filter and category_filter in _ALL:
         if category_filter != 'client_payment':
             payments_qs = payments_qs.none()
@@ -1928,6 +2121,10 @@ def main_ledger_view(request):
             expenses_qs = expenses_qs.none()
         if category_filter != 'manual':
             manual_qs = manual_qs.none()
+        if category_filter != 'loan_disbursed':
+            loans_qs = loans_qs.none()
+        if category_filter != 'loan_repayment':
+            loan_repayments_qs = loan_repayments_qs.none()
 
     # --- Totals ---
     total_in = payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
@@ -1937,12 +2134,17 @@ def main_ledger_view(request):
     total_broker = broker_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
     total_insurance = insurance_payments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
     total_expenses = expenses_qs.aggregate(t=Sum('total_amount'))['t'] or ZERO
+    total_loans_disbursed = loans_qs.aggregate(t=Sum('principal_amount'))['t'] or ZERO
+    total_loan_repayments = loan_repayments_qs.aggregate(t=Sum('amount'))['t'] or ZERO
 
     manual_in = manual_qs.filter(direction='in').aggregate(t=Sum('amount'))['t'] or ZERO
     manual_out = manual_qs.filter(direction='out').aggregate(t=Sum('amount'))['t'] or ZERO
 
-    total_out = total_supplier + total_clearing + total_tracker + total_broker + total_insurance + total_expenses + manual_out
-    net = (total_in + manual_in) - total_out
+    total_out = (
+        total_supplier + total_clearing + total_tracker + total_broker + total_insurance
+        + total_expenses + manual_out + total_loans_disbursed
+    )
+    net = (total_in + manual_in + total_loan_repayments) - total_out
 
     # --- Build transaction rows ---
     transactions = []
@@ -2068,6 +2270,36 @@ def main_ledger_view(request):
             'manual_id': e.pk,
         })
 
+    for loan in loans_qs:
+        transactions.append({
+            'date': loan.date_issued,
+            'ref': f'LOAN-{loan.pk}',
+            'description': loan.borrower_name,
+            'detail': loan.purpose or 'Loan Disbursed',
+            'category': 'loan_disbursed',
+            'category_label': 'Loan Disbursed',
+            'category_color': 'rose',
+            'method': '—',
+            'money_in': ZERO,
+            'money_out': loan.principal_amount,
+            'manual_id': None,
+        })
+
+    for r in loan_repayments_qs:
+        transactions.append({
+            'date': r.payment_date,
+            'ref': r.reference_number or f'LR-{r.pk}',
+            'description': r.loan.borrower_name,
+            'detail': 'Loan Repayment',
+            'category': 'loan_repayment',
+            'category_label': 'Loan Repayment',
+            'category_color': 'emerald',
+            'method': r.get_payment_method_display(),
+            'money_in': r.amount,
+            'money_out': ZERO,
+            'manual_id': None,
+        })
+
     # Compute running balance ascending, then reverse for display
     transactions.sort(key=lambda x: x['date'])
     running = ZERO
@@ -2085,6 +2317,8 @@ def main_ledger_view(request):
         {'label': 'Insurance Agents', 'key': 'insurance', 'color': 'blue', 'money_in': ZERO, 'money_out': total_insurance},
         {'label': 'General Expenses', 'key': 'expense', 'color': 'gray', 'money_in': ZERO, 'money_out': total_expenses},
         {'label': 'Manual Entries', 'key': 'manual', 'color': 'orange', 'money_in': manual_in, 'money_out': manual_out},
+        {'label': 'Loans Disbursed', 'key': 'loan_disbursed', 'color': 'rose', 'money_in': ZERO, 'money_out': total_loans_disbursed},
+        {'label': 'Loan Repayments', 'key': 'loan_repayment', 'color': 'emerald', 'money_in': total_loan_repayments, 'money_out': ZERO},
     ]
 
     # Build filter querystring for POST redirect
@@ -2105,7 +2339,7 @@ def main_ledger_view(request):
         'date_to_str': date_to.isoformat(),
         'category_filter': category_filter,
         'search': search,
-        'total_in': total_in + manual_in,
+        'total_in': total_in + manual_in + total_loan_repayments,
         'total_out': total_out,
         'net': net,
         'category_summary': category_summary,
