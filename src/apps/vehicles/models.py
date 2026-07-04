@@ -5,6 +5,8 @@ Manage vehicle inventory with complete specifications and history
 from django.db import models
 from django.db.models import Q
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from decimal import Decimal
 from utils.constants import VehicleStatus, VehicleLocation
@@ -1305,3 +1307,123 @@ class ManualLedgerEntry(models.Model):
     def __str__(self):
         sign = '+' if self.direction == 'in' else '-'
         return f"{sign}KES {self.amount:,.0f} — {self.description} ({self.date})"
+
+
+# ==================== BUSINESS LOAN (MONEY LOANED OUT) ====================
+
+BORROWER_MODEL_LIMIT = models.Q(app_label='clients', model='client') | \
+    models.Q(app_label='vehicles', model='broker') | \
+    models.Q(app_label='vehicles', model='trackeragent') | \
+    models.Q(app_label='vehicles', model='clearingagent') | \
+    models.Q(app_label='vehicles', model='japansupplier') | \
+    models.Q(app_label='insurance', model='insuranceagent')
+
+
+class BusinessLoan(models.Model):
+    """Money the business has loaned out to a client, agent, supplier or other third party."""
+
+    STATUS_CHOICES = [
+        ('outstanding', 'Outstanding'),
+        ('partially_repaid', 'Partially Repaid'),
+        ('fully_repaid', 'Fully Repaid'),
+        ('written_off', 'Written Off'),
+    ]
+
+    borrower_name = models.CharField(
+        'Borrower', max_length=200,
+        help_text='Name of the borrower. Auto-filled when linked below; editable for outside parties.'
+    )
+    borrower_content_type = models.ForeignKey(
+        ContentType, on_delete=models.SET_NULL, null=True, blank=True,
+        limit_choices_to=BORROWER_MODEL_LIMIT, related_name='+',
+    )
+    borrower_object_id = models.PositiveIntegerField(null=True, blank=True)
+    borrower = GenericForeignKey('borrower_content_type', 'borrower_object_id')
+
+    principal_amount = models.DecimalField(
+        'Principal Amount (KES)', max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
+    date_issued = models.DateField('Date Issued', default=timezone.now)
+    expected_repayment_date = models.DateField('Expected Repayment Date', null=True, blank=True)
+    purpose = models.CharField('Purpose', max_length=255, blank=True)
+    notes = models.TextField('Notes', blank=True)
+    status = models.CharField('Status', max_length=20, choices=STATUS_CHOICES, default='outstanding')
+    recorded_by = models.ForeignKey(
+        'authentication.User', on_delete=models.SET_NULL, null=True,
+        related_name='business_loans_issued'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date_issued', '-created_at']
+        verbose_name = 'Business Loan'
+        verbose_name_plural = 'Business Loans'
+
+    def __str__(self):
+        return f"Loan KES {self.principal_amount:,.0f} to {self.borrower_name} on {self.date_issued}"
+
+    @property
+    def total_repaid(self):
+        return self.repayments.aggregate(t=models.Sum('amount'))['t'] or Decimal('0.00')
+
+    @property
+    def balance(self):
+        return self.principal_amount - self.total_repaid
+
+    def refresh_status(self):
+        """Recompute status from repayments. Does not override a manual write-off."""
+        if self.status == 'written_off':
+            return
+        balance = self.balance
+        if balance <= 0:
+            new_status = 'fully_repaid'
+        elif self.total_repaid > 0:
+            new_status = 'partially_repaid'
+        else:
+            new_status = 'outstanding'
+        if new_status != self.status:
+            self.status = new_status
+            self.save(update_fields=['status'])
+
+
+class BusinessLoanRepayment(models.Model):
+    """A repayment received against a BusinessLoan."""
+
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('mpesa', 'M-Pesa'),
+        ('cheque', 'Cheque'),
+        ('other', 'Other'),
+    ]
+
+    loan = models.ForeignKey(BusinessLoan, on_delete=models.CASCADE, related_name='repayments')
+    amount = models.DecimalField(
+        'Amount (KES)', max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
+    payment_date = models.DateField('Payment Date', default=timezone.now)
+    payment_method = models.CharField(
+        'Payment Method', max_length=20,
+        choices=PAYMENT_METHOD_CHOICES, default='bank_transfer'
+    )
+    reference_number = models.CharField('Reference / Receipt No.', max_length=100, blank=True)
+    notes = models.TextField('Notes', blank=True)
+    recorded_by = models.ForeignKey(
+        'authentication.User', on_delete=models.SET_NULL, null=True,
+        related_name='business_loan_repayments'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-payment_date', '-created_at']
+        verbose_name = 'Business Loan Repayment'
+        verbose_name_plural = 'Business Loan Repayments'
+
+    def __str__(self):
+        return f"Repayment KES {self.amount:,.0f} on loan #{self.loan_id} ({self.payment_date})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.loan.refresh_status()
