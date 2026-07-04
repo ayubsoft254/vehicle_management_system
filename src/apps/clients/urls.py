@@ -113,6 +113,7 @@ urlpatterns = [
     # ==================== REPORTING & EXPORT URLS ====================
     
     # Client Statement & Reports
+    path('ledger/', views.client_ledger_list, name='client_ledger_list'),
     path('<int:client_pk>/statement/', views.client_statement, name='client_statement'),
     path('<int:client_pk>/statement/export/csv/', views.export_client_ledger_csv, name='export_client_ledger_csv'),
     path('<int:client_pk>/statement/export/excel/', views.export_client_ledger_excel, name='export_client_ledger_excel'),
