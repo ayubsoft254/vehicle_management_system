@@ -1,6 +1,6 @@
 {% load static %}{
-    "name": "Vehicle Management System",
-    "short_name": "VMS",
+    "name": "Hoza",
+    "short_name": "Hoza",
     "description": "Vehicle sales, client and finance management for HOZA Investments.",
     "start_url": "/",
     "scope": "/",
