@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Auctions Report{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-6xl">
+
+    {% url 'auctions:auction_report_pdf' as export_pdf_url_base %}
+    {% url 'auctions:auction_report_excel' as export_excel_url_base %}
+    {% url 'auctions:auction_report_csv' as export_csv_url_base %}
+    {% with export_pdf_url=export_pdf_url_base|add:'?'|add:request.GET.urlencode export_excel_url=export_excel_url_base|add:'?'|add:request.GET.urlencode export_csv_url=export_csv_url_base|add:'?'|add:request.GET.urlencode report_kicker='Operations' report_title='Auctions Report' %}
+    {% include 'reports/partials/_report_header.html' %}
+    {% endwith %}
+
+    <!-- Filters -->
+    <form method="get" class="bg-white rounded-lg border border-slate-200 p-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">From</label>
+                <input type="date" name="date_from" value="{{ date_from_str }}" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">To</label>
+                <input type="date" name="date_to" value="{{ date_to_str }}" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Status</label>
+                <select name="status" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+                    <option value="">All Statuses</option>
+                    {% for val, label in status_choices %}
+                    <option value="{{ val }}" {% if status == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-md transition">
+                    <i class="fas fa-filter mr-2"></i>Generate
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Auctions</p>
+            <p class="text-xl font-bold mt-1 text-slate-800">{{ auction_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Completed</p>
+            <p class="text-xl font-bold mt-1 text-slate-800">{{ completed_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Sales</p>
+            <p class="text-xl font-bold mt-1 text-emerald-700">KES {{ total_sales|floatformat:0|intcomma }}</p>
+        </div>
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Bids</p>
+            <p class="text-xl font-bold mt-1 text-slate-800">{{ total_bids }}</p>
+        </div>
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Reserve Met</p>
+            <p class="text-xl font-bold mt-1 text-slate-800">{{ reserve_met_count }}</p>
+        </div>
+    </div>
+
+    <!-- By Status -->
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden mb-6">
+        <div class="px-5 py-3 border-b border-slate-100">
+            <h2 class="text-sm font-semibold text-slate-700">By Status</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">Status</th>
+                        <th class="px-5 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase">Count</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in status_breakdown %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3 font-medium text-slate-800">{{ row.status|title }}</td>
+                        <td class="px-5 py-3 text-right text-slate-600">{{ row.count }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="2" class="px-5 py-6 text-center text-slate-400">No auctions in this period.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Detail -->
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3 border-b border-slate-100">
+            <h2 class="text-sm font-semibold text-slate-700">Auction Detail</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">Auction No.</th>
+                        <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">Vehicle</th>
+                        <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">Status</th>
+                        <th class="px-5 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase">Winning Bid</th>
+                        <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">Winner</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for a in auctions %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-3 font-mono text-slate-600">
+                            <a href="{% url 'auctions:auction_detail' a.pk %}" class="hover:text-slate-900">{{ a.auction_number }}</a>
+                        </td>
+                        <td class="px-5 py-3 text-slate-700">{{ a.vehicle.full_name|default:"—" }}</td>
+                        <td class="px-5 py-3 text-slate-600">{{ a.get_status_display }}</td>
+                        <td class="px-5 py-3 text-right font-semibold text-slate-800">KES {{ a.winning_bid_amount|default:0|floatformat:0|intcomma }}</td>
+                        <td class="px-5 py-3 text-slate-600">{{ a.winner.get_full_name|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="px-5 py-6 text-center text-slate-400">No auctions in this period.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
