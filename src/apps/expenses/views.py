@@ -15,6 +15,9 @@ from django.db import transaction
 from datetime import datetime, timedelta
 from decimal import Decimal
 
+from reportlab.platypus import Paragraph, Spacer
+from reportlab.lib.units import inch
+
 from .models import (
     Expense, ExpenseCategory, ExpenseReceipt, ExpenseReport,
     ExpenseTag, RecurringExpense, ExpenseApprovalWorkflow
@@ -824,6 +827,130 @@ def expense_dashboard(request):
     }
     
     return render(request, 'expenses/dashboard.html', context)
+
+
+# ============================================================================
+# Expense Report (filterable, exportable)
+# ============================================================================
+
+def _compute_expense_report_context(request):
+    """Filter + aggregate expenses for the Expense Report — shared by the
+    on-screen view and its PDF/Excel/CSV exports."""
+    today = timezone.now().date()
+    date_from_str = request.GET.get('date_from', '')
+    date_to_str = request.GET.get('date_to', '')
+    category_id = request.GET.get('category', '')
+    status = request.GET.get('status', '')
+
+    try:
+        date_from = datetime.fromisoformat(date_from_str).date() if date_from_str else today.replace(day=1)
+    except ValueError:
+        date_from = today.replace(day=1)
+    try:
+        date_to = datetime.fromisoformat(date_to_str).date() if date_to_str else today
+    except ValueError:
+        date_to = today
+
+    expenses = Expense.objects.filter(
+        expense_date__gte=date_from, expense_date__lte=date_to
+    ).select_related('category', 'submitted_by')
+    if category_id:
+        expenses = expenses.filter(category_id=category_id)
+    if status:
+        expenses = expenses.filter(status=status)
+    expenses = expenses.order_by('-expense_date')
+
+    ZERO = Decimal('0.00')
+    total_amount = expenses.aggregate(t=Sum('total_amount'))['t'] or ZERO
+    paid_amount = expenses.filter(status='PAID').aggregate(t=Sum('total_amount'))['t'] or ZERO
+    approved_amount = expenses.filter(status='APPROVED').aggregate(t=Sum('total_amount'))['t'] or ZERO
+    pending_amount = expenses.filter(status='SUBMITTED').aggregate(t=Sum('total_amount'))['t'] or ZERO
+
+    category_breakdown = list(
+        expenses.values('category__name').annotate(total=Sum('total_amount'), count=Count('id')).order_by('-total')
+    )
+
+    return {
+        'expenses': expenses,
+        'expense_count': expenses.count(),
+        'date_from': date_from,
+        'date_to': date_to,
+        'date_from_str': date_from.isoformat(),
+        'date_to_str': date_to.isoformat(),
+        'category_id': category_id,
+        'status': status,
+        'categories': ExpenseCategory.objects.filter(is_active=True).order_by('name'),
+        'status_choices': Expense.STATUS_CHOICES,
+        'total_amount': total_amount,
+        'paid_amount': paid_amount,
+        'approved_amount': approved_amount,
+        'pending_amount': pending_amount,
+        'category_breakdown': category_breakdown,
+    }
+
+
+@login_required
+def expense_report(request):
+    ctx = _compute_expense_report_context(request)
+    return render(request, 'expenses/expense_report.html', ctx)
+
+
+@login_required
+def expense_report_pdf(request):
+    from utils.report_kit import build_pdf_response, styled_table, kpi_table, fmt_money
+    ctx = _compute_expense_report_context(request)
+
+    def body(elements, styles):
+        elements.append(kpi_table([
+            ('Total Spend', fmt_money(ctx['total_amount'])),
+            ('Paid', fmt_money(ctx['paid_amount'])),
+            ('Approved (unpaid)', fmt_money(ctx['approved_amount'])),
+            ('Pending Approval', fmt_money(ctx['pending_amount'])),
+        ]))
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph('By Category', styles['ReportSectionHeading']))
+        cat_rows = [['Category', 'Count', 'Total']]
+        for c in ctx['category_breakdown']:
+            cat_rows.append([c['category__name'] or '—', str(c['count']), fmt_money(c['total'])])
+        elements.append(styled_table(cat_rows, col_widths=[3 * inch, 1.5 * inch, 1.5 * inch], align_right_from=1))
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph('Expense Detail', styles['ReportSectionHeading']))
+        rows = [['Date', 'Title', 'Category', 'Status', 'Amount']]
+        for e in ctx['expenses']:
+            rows.append([
+                e.expense_date.strftime('%Y-%m-%d'), e.title, e.category.name,
+                e.get_status_display(), fmt_money(e.total_amount),
+            ])
+        elements.append(styled_table(rows, col_widths=[0.9 * inch, 2.2 * inch, 1.5 * inch, 1 * inch, 1.2 * inch], align_right_from=4))
+
+    return build_pdf_response(
+        'expense_report.pdf', 'Expense Report',
+        subtitle=f"{ctx['date_from']} to {ctx['date_to']}", build_body=body,
+    )
+
+
+@login_required
+def expense_report_excel(request):
+    from utils.report_kit import build_excel_response
+    ctx = _compute_expense_report_context(request)
+    headers = ['Date', 'Title', 'Category', 'Status', 'Vendor', 'Amount']
+    rows = [
+        [e.expense_date.strftime('%Y-%m-%d'), e.title, e.category.name, e.get_status_display(), e.vendor_name or '', float(e.total_amount)]
+        for e in ctx['expenses']
+    ]
+    return build_excel_response('expense_report.xlsx', 'Expenses', headers, rows, currency_cols={6})
+
+
+@login_required
+def expense_report_csv(request):
+    from utils.report_kit import build_csv_response
+    ctx = _compute_expense_report_context(request)
+    headers = ['Date', 'Title', 'Category', 'Status', 'Vendor', 'Amount']
+    rows = [
+        [e.expense_date.strftime('%Y-%m-%d'), e.title, e.category.name, e.get_status_display(), e.vendor_name or '', e.total_amount]
+        for e in ctx['expenses']
+    ]
+    return build_csv_response('expense_report.csv', headers, rows)
 
 
 # ============================================================================
