@@ -12,7 +12,11 @@ urlpatterns = [
     path('', views.AuctionListView.as_view(), name='auction_list'),
     path('search/', views.auction_search, name='auction_search'),
     path('dashboard/', views.auction_dashboard, name='dashboard'),
-    
+    path('report/', views.auction_report, name='auction_report'),
+    path('report/export/pdf/', views.auction_report_pdf, name='auction_report_pdf'),
+    path('report/export/excel/', views.auction_report_excel, name='auction_report_excel'),
+    path('report/export/csv/', views.auction_report_csv, name='auction_report_csv'),
+
     # Auction CRUD
     path('create/', views.AuctionCreateView.as_view(), name='auction_create'),
     path('<uuid:pk>/', views.AuctionDetailView.as_view(), name='auction_detail'),
