@@ -13,7 +13,11 @@ urlpatterns = [
     # ========================================================================
     path('', views.document_list, name='document_list'),
     path('search/ajax/', views.ajax_search_documents, name='ajax_search_documents'),
-    
+    path('report/', views.document_report, name='document_report'),
+    path('report/export/pdf/', views.document_report_pdf, name='document_report_pdf'),
+    path('report/export/excel/', views.document_report_excel, name='document_report_excel'),
+    path('report/export/csv/', views.document_report_csv, name='document_report_csv'),
+
     # ========================================================================
     # Document CRUD URLs
     # ========================================================================
