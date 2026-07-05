@@ -5,7 +5,7 @@ Auctions App - Views
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
-from django.db.models import Q, Count, Max, Avg
+from django.db.models import Q, Count, Max, Avg, Sum
 from django.utils import timezone
 from django.http import JsonResponse, HttpResponseForbidden
 from django.views.decorators.http import require_POST
@@ -14,6 +14,10 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.urls import reverse_lazy
 from decimal import Decimal
+from datetime import datetime
+
+from reportlab.platypus import Paragraph, Spacer
+from reportlab.lib.units import inch
 
 from .models import (
     Auction, Bid, AuctionParticipant, 
@@ -625,6 +629,129 @@ def auction_dashboard(request):
     }
     
     return render(request, 'auctions/dashboard.html', context)
+
+
+# ============================================================================
+# AUCTION REPORT (filterable, exportable)
+# ============================================================================
+
+def _compute_auction_report_context(request):
+    """Filter + aggregate auctions for the Auctions Report — shared by the
+    on-screen view and its PDF/Excel/CSV exports."""
+    today = timezone.now().date()
+    date_from_str = request.GET.get('date_from', '')
+    date_to_str = request.GET.get('date_to', '')
+    status = request.GET.get('status', '')
+
+    try:
+        date_from = datetime.fromisoformat(date_from_str).date() if date_from_str else today.replace(day=1)
+    except ValueError:
+        date_from = today.replace(day=1)
+    try:
+        date_to = datetime.fromisoformat(date_to_str).date() if date_to_str else today
+    except ValueError:
+        date_to = today
+
+    auctions = Auction.objects.select_related('vehicle', 'winner').filter(
+        start_date__date__gte=date_from, start_date__date__lte=date_to
+    )
+    if status:
+        auctions = auctions.filter(status=status)
+    auctions = auctions.order_by('-start_date')
+
+    ZERO = Decimal('0.00')
+    completed = auctions.filter(status='completed')
+    total_sales = completed.aggregate(t=Sum('winning_bid_amount'))['t'] or ZERO
+    total_bids = auctions.aggregate(t=Sum('total_bids'))['t'] or 0
+    reserve_met_count = completed.filter(reserve_met=True).count()
+
+    status_breakdown = list(
+        auctions.values('status').annotate(count=Count('id')).order_by('-count')
+    )
+
+    return {
+        'auctions': auctions,
+        'auction_count': auctions.count(),
+        'completed_count': completed.count(),
+        'total_sales': total_sales,
+        'total_bids': total_bids,
+        'reserve_met_count': reserve_met_count,
+        'status_breakdown': status_breakdown,
+        'status_choices': Auction.STATUS_CHOICES,
+        'date_from': date_from,
+        'date_to': date_to,
+        'date_from_str': date_from.isoformat(),
+        'date_to_str': date_to.isoformat(),
+        'status': status,
+    }
+
+
+@login_required
+def auction_report(request):
+    context = _compute_auction_report_context(request)
+    return render(request, 'auctions/auction_report.html', context)
+
+
+@login_required
+def auction_report_pdf(request):
+    from utils.report_kit import build_pdf_response, styled_table, kpi_table, fmt_money
+    ctx = _compute_auction_report_context(request)
+
+    def body(elements, styles):
+        elements.append(kpi_table([
+            ('Auctions', str(ctx['auction_count'])),
+            ('Completed', str(ctx['completed_count'])),
+            ('Total Sales', fmt_money(ctx['total_sales'])),
+            ('Total Bids', str(ctx['total_bids'])),
+            ('Reserve Met', str(ctx['reserve_met_count'])),
+        ]))
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph('Auctions', styles['ReportSectionHeading']))
+        rows = [['Auction No.', 'Vehicle', 'Status', 'Winning Bid', 'Winner']]
+        for a in ctx['auctions']:
+            rows.append([
+                a.auction_number, a.vehicle.full_name if a.vehicle else '—',
+                a.get_status_display(), fmt_money(a.winning_bid_amount or 0),
+                a.winner.get_full_name() if a.winner else '—',
+            ])
+        elements.append(styled_table(rows, col_widths=[1.2 * inch, 1.8 * inch, 1 * inch, 1.2 * inch, 1.5 * inch], align_right_from=3))
+
+    return build_pdf_response(
+        'auction_report.pdf', 'Auctions Report',
+        subtitle=f"{ctx['date_from']} to {ctx['date_to']}", build_body=body,
+    )
+
+
+@login_required
+def auction_report_excel(request):
+    from utils.report_kit import build_excel_response
+    ctx = _compute_auction_report_context(request)
+    headers = ['Auction No.', 'Vehicle', 'Status', 'Starting Price', 'Winning Bid', 'Winner', 'Total Bids']
+    rows = [
+        [
+            a.auction_number, a.vehicle.full_name if a.vehicle else '—', a.get_status_display(),
+            float(a.starting_price), float(a.winning_bid_amount or 0),
+            a.winner.get_full_name() if a.winner else '—', a.total_bids,
+        ]
+        for a in ctx['auctions']
+    ]
+    return build_excel_response('auction_report.xlsx', 'Auctions', headers, rows, currency_cols={4, 5})
+
+
+@login_required
+def auction_report_csv(request):
+    from utils.report_kit import build_csv_response
+    ctx = _compute_auction_report_context(request)
+    headers = ['Auction No.', 'Vehicle', 'Status', 'Starting Price', 'Winning Bid', 'Winner', 'Total Bids']
+    rows = [
+        [
+            a.auction_number, a.vehicle.full_name if a.vehicle else '—', a.get_status_display(),
+            a.starting_price, a.winning_bid_amount or 0,
+            a.winner.get_full_name() if a.winner else '—', a.total_bids,
+        ]
+        for a in ctx['auctions']
+    ]
+    return build_csv_response('auction_report.csv', headers, rows)
 
 
 # ============================================================================
