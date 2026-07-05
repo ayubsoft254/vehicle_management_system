@@ -25,12 +25,11 @@
                 <i class="fas fa-print mr-2"></i>
                 Print Report
             </button>
-            <a id="defaultersExportLink" href="{% url 'payments:export_payments_csv' %}" 
-               class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
-                <i class="fas fa-download mr-2"></i>
-                Export CSV
-            </a>
-            <a href="{% url 'payments:overdue_payments' %}" 
+            {% url 'payments:defaulters_report_export' 'pdf' as export_pdf_url %}
+            {% url 'payments:defaulters_report_export' 'excel' as export_excel_url %}
+            {% url 'payments:defaulters_report_export' 'csv' as export_csv_url %}
+            {% include 'reports/partials/_export_bar.html' %}
+            <a href="{% url 'payments:overdue_payments' %}"
                class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
                 <i class="fas fa-arrow-left mr-2"></i>
                 Back
