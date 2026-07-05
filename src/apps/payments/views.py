@@ -2827,14 +2827,14 @@ def update_payment_schedules(payment, client_vehicle):
         logger.error(f"Error updating payment schedules: {e}")
 
 
-@login_required
-def defaulters_report(request):
+def _compute_defaulters_context(request):
     """
     Generate report of clients with outstanding vehicle balances.
     Source of truth: ClientVehicle.balance > 0 (not limited to clients with
     formal overdue PaymentSchedule records — that approach misses clients who
     owe money but have no installment plan or whose first scheduled payment has
     not yet been recorded as overdue).
+    Shared by the on-screen defaulters report and its PDF/Excel/CSV exports.
     """
     today = timezone.now().date()
 
@@ -2935,10 +2935,31 @@ def defaulters_report(request):
         'moderate_amount': moderate_amount,
         'now': timezone.now(),
     }
+    return context
 
+
+@login_required
+def defaulters_report_view(request):
+    context = _compute_defaulters_context(request)
     log_audit(request.user, 'view', 'Payment', 'Viewed defaulters report')
-
     return render(request, 'payments/defaulters_report.html', context)
+
+
+@login_required
+def defaulters_report_export(request, fmt):
+    """Export the Defaulters Report as PDF/Excel/CSV."""
+    from utils.report_kit import export_rows
+    ctx = _compute_defaulters_context(request)
+    headers = ['Client', 'Phone', 'Vehicle', 'Days Overdue', 'Outstanding', 'Last Payment']
+    rows = [
+        [
+            d['client'].get_full_name(), d['client'].phone_primary or '', d['vehicle'].full_name,
+            d['days_overdue'], float(d['total_outstanding']),
+            d['last_payment_date'].strftime('%Y-%m-%d') if d['last_payment_date'] else '',
+        ]
+        for d in ctx['defaulters']
+    ]
+    return export_rows(fmt, 'defaulters_report', 'Defaulters Report', headers, rows, currency_cols={5})
 
 
 @login_required
