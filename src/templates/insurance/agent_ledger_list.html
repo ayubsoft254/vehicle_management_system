@@ -12,19 +12,15 @@
             <h1 class="text-3xl font-bold text-gray-800 mb-1">Insurance Agent Ledger</h1>
             <p class="text-gray-500 text-sm">Track buying costs, revenue, and outstanding balances per insurance agent</p>
         </div>
-        <div class="mt-4 md:mt-0 flex gap-3">
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            {% url 'insurance:agent_ledger_export' 'pdf' as export_pdf_url %}
+            {% url 'insurance:agent_ledger_export' 'excel' as export_excel_url %}
+            {% url 'insurance:agent_ledger_export' 'csv' as export_csv_url %}
+            {% include 'reports/partials/_export_bar.html' %}
             <button onclick="document.getElementById('addAgentModal').classList.remove('hidden')"
                     class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition">
                 <i class="fas fa-plus mr-2"></i>Add Agent
             </button>
-            <a href="{% url 'insurance:insurance_reports' %}"
-               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
-                <i class="fas fa-chart-bar mr-2"></i>Reports
-            </a>
-            <a href="{% url 'insurance:policy_list' %}"
-               class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition">
-                <i class="fas fa-arrow-left mr-2"></i>Policies
-            </a>
         </div>
     </div>
 
