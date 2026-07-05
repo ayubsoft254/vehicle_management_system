@@ -12,10 +12,11 @@
             <h1 class="text-3xl font-bold text-gray-800 mb-1">Repossession Reports & Analytics</h1>
             <p class="text-gray-500 text-sm">Comprehensive statistics &mdash; as of {{ today|date:"N j, Y" }}</p>
         </div>
-        <div class="mt-4 md:mt-0 flex space-x-3">
-            <button onclick="window.print()" class="inline-flex items-center px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-lg transition text-sm">
-                <i class="fas fa-print mr-2"></i>Print
-            </button>
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            {% url 'repossessions:repossession_reports_pdf' as export_pdf_url %}
+            {% url 'repossessions:repossession_reports_excel' as export_excel_url %}
+            {% url 'repossessions:repossession_reports_csv' as export_csv_url %}
+            {% include 'reports/partials/_export_bar.html' %}
             <a href="{% url 'repossessions:repossession_dashboard' %}" class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition text-sm">
                 <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
             </a>
