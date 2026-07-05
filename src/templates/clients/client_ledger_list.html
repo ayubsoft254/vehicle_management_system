@@ -12,7 +12,13 @@
             <h1 class="text-3xl font-bold text-gray-800 mb-1">Client Ledger</h1>
             <p class="text-gray-500 text-sm">What every client owes and has paid across their vehicle purchases</p>
         </div>
-        <div class="mt-4 md:mt-0 flex gap-3">
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            {% url 'clients:client_ledger_export' 'pdf' as export_pdf_url_base %}
+            {% url 'clients:client_ledger_export' 'excel' as export_excel_url_base %}
+            {% url 'clients:client_ledger_export' 'csv' as export_csv_url_base %}
+            {% with export_pdf_url=export_pdf_url_base|add:'?q='|add:search export_excel_url=export_excel_url_base|add:'?q='|add:search export_csv_url=export_csv_url_base|add:'?q='|add:search %}
+            {% include 'reports/partials/_export_bar.html' %}
+            {% endwith %}
             <a href="{% url 'clients:list' %}"
                class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition">
                 <i class="fas fa-users mr-2"></i>All Clients
