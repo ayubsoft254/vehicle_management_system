@@ -15,7 +15,11 @@ urlpatterns = [
     path('my-expenses/', views.my_expenses, name='my_expenses'),
     path('pending-approval/', views.pending_approval, name='pending_approval'),
     path('dashboard/', views.expense_dashboard, name='expense_dashboard'),
-    
+    path('report/', views.expense_report, name='expense_report'),
+    path('report/export/pdf/', views.expense_report_pdf, name='expense_report_pdf'),
+    path('report/export/excel/', views.expense_report_excel, name='expense_report_excel'),
+    path('report/export/csv/', views.expense_report_csv, name='expense_report_csv'),
+
     # ========================================================================
     # Expense CRUD URLs
     # ========================================================================
