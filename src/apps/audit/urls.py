@@ -20,7 +20,13 @@ urlpatterns = [
     
     # Export
     path('export/', views.audit_export_view, name='export_csv'),
-    
+
+    # Summary Report
+    path('report/', views.audit_report, name='report'),
+    path('report/export/pdf/', views.audit_report_pdf, name='report_pdf'),
+    path('report/export/excel/', views.audit_report_excel, name='report_excel'),
+    path('report/export/csv/', views.audit_report_csv, name='report_csv'),
+
     # Login History
     path('logins/', views.login_history_view, name='login_history'),
     
