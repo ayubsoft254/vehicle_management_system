@@ -79,4 +79,7 @@ urlpatterns = [
     # Reports URLs
     # ========================================================================
     path('reports/', views.payroll_reports, name='payroll_reports'),
+    path('reports/export/pdf/', views.payroll_reports_pdf, name='payroll_reports_pdf'),
+    path('reports/export/excel/', views.payroll_reports_excel, name='payroll_reports_excel'),
+    path('reports/export/csv/', views.payroll_reports_csv, name='payroll_reports_csv'),
 ]
