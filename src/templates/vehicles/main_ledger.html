@@ -15,10 +15,18 @@
             </h1>
             <p class="text-gray-500 text-sm mt-1">Combined view of all financial activity across sub-ledgers and expenses.</p>
         </div>
-        <button onclick="document.getElementById('entry-modal').classList.remove('hidden')"
-            class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm transition shadow-sm">
-            <i class="fas fa-plus"></i> Record Entry
-        </button>
+        <div class="flex flex-wrap gap-2">
+            {% url 'vehicles:main_ledger_export' 'pdf' as export_pdf_url_base %}
+            {% url 'vehicles:main_ledger_export' 'excel' as export_excel_url_base %}
+            {% url 'vehicles:main_ledger_export' 'csv' as export_csv_url_base %}
+            {% with export_pdf_url=export_pdf_url_base|add:'?'|add:filter_qs export_excel_url=export_excel_url_base|add:'?'|add:filter_qs export_csv_url=export_csv_url_base|add:'?'|add:filter_qs %}
+            {% include 'reports/partials/_export_bar.html' %}
+            {% endwith %}
+            <button onclick="document.getElementById('entry-modal').classList.remove('hidden')"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm transition shadow-sm">
+                <i class="fas fa-plus"></i> Record Entry
+            </button>
+        </div>
     </div>
 
     <!-- Filters -->
