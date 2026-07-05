@@ -366,6 +366,18 @@
                     </div>
                 </nav>
                 
+                <!-- Install App (shown only when the app is installable and not yet installed) -->
+                <div id="pwa-install-wrap" class="hidden border-t border-gray-200 p-4">
+                    <button id="pwa-install-btn"
+                            class="w-full flex items-center justify-center px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors duration-200">
+                        <i class="fas fa-download mr-2"></i>Install App
+                    </button>
+                    <p id="pwa-ios-help" class="hidden mt-2 text-xs text-gray-500 leading-relaxed">
+                        Tap <i class="fas fa-arrow-up-from-bracket mx-0.5"></i> <strong>Share</strong> in Safari,
+                        then <strong>Add to Home Screen</strong>.
+                    </p>
+                </div>
+
                 <!-- User Profile Section -->
                 <div class="border-t border-gray-200 p-4">
                     <div class="flex items-center space-x-3">
@@ -1295,15 +1307,55 @@
     }());
     </script>
 
-    <!-- PWA service worker registration -->
+    <!-- PWA: service worker registration + install button -->
     <script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function () {
-            navigator.serviceWorker.register('/serviceworker.js').catch(function (err) {
-                console.warn('Service worker registration failed:', err);
+    (function () {
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/serviceworker.js').catch(function (err) {
+                    console.warn('Service worker registration failed:', err);
+                });
             });
+        }
+
+        var wrap = document.getElementById('pwa-install-wrap');
+        var btn = document.getElementById('pwa-install-btn');
+        var iosHelp = document.getElementById('pwa-ios-help');
+        if (!wrap || !btn) return;
+
+        var deferredPrompt = null;
+        var isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone === true;
+
+        // Chrome/Edge/Android: browser fires this when install criteria are met.
+        window.addEventListener('beforeinstallprompt', function (e) {
+            e.preventDefault();
+            deferredPrompt = e;
+            wrap.classList.remove('hidden');
         });
-    }
+
+        // iOS Safari never fires beforeinstallprompt; show manual instructions.
+        if (isIos && !isStandalone) {
+            wrap.classList.remove('hidden');
+        }
+
+        btn.addEventListener('click', function () {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(function () {
+                    deferredPrompt = null;
+                    wrap.classList.add('hidden');
+                });
+            } else if (isIos && iosHelp) {
+                iosHelp.classList.toggle('hidden');
+            }
+        });
+
+        window.addEventListener('appinstalled', function () {
+            wrap.classList.add('hidden');
+        });
+    }());
     </script>
 
     {% block extra_js %}{% endblock %}
