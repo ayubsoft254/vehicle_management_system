@@ -12,15 +12,15 @@
             <h1 class="text-3xl font-bold text-gray-800 mb-1">Japan Supplier Ledger</h1>
             <p class="text-gray-500 text-sm">Track vehicle purchase costs and outstanding balances per supplier</p>
         </div>
-        <div class="mt-4 md:mt-0 flex gap-3">
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            {% url 'vehicles:party_ledger_export' 'japan_supplier' 'pdf' as export_pdf_url %}
+            {% url 'vehicles:party_ledger_export' 'japan_supplier' 'excel' as export_excel_url %}
+            {% url 'vehicles:party_ledger_export' 'japan_supplier' 'csv' as export_csv_url %}
+            {% include 'reports/partials/_export_bar.html' %}
             <button onclick="document.getElementById('addSupplierModal').classList.remove('hidden')"
                     class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition">
                 <i class="fas fa-plus mr-2"></i>Add Supplier
             </button>
-            <a href="{% url 'vehicles:list' %}"
-               class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition">
-                <i class="fas fa-arrow-left mr-2"></i>Vehicles
-            </a>
         </div>
     </div>
 
