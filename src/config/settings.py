@@ -343,7 +343,7 @@ COMPANY_NAME = config('COMPANY_NAME', default='HOZA INVESTMENT (K) LIMITED')
 COMPANY_ADDRESS = config('COMPANY_ADDRESS', default='P.O BOX 43074-80100 MOMBASA, Kenya')
 COMPANY_PHONE = config('COMPANY_PHONE', default='+254700170447 / +254784170447')
 COMPANY_EMAIL = config('COMPANY_EMAIL', default='hozainvltd@gmail.com')
-COMPANY_WEBSITE = config('COMPANY_WEBSITE', default='')
+COMPANY_WEBSITE = config('COMPANY_WEBSITE', default='https://hozacars.com/')
 COMPANY_PIN = config('COMPANY_PIN', default='PO51811452A')
 
 # ==============================================================================
