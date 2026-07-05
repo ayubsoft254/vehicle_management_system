@@ -11,6 +11,11 @@ from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from datetime import timedelta
 import csv
+from datetime import datetime
+
+from reportlab.platypus import Paragraph, Spacer
+from reportlab.lib.units import inch
+
 from .models import AuditLog, LoginHistory
 from apps.authentication.models import User
 from utils.decorators import role_required, superuser_required
@@ -353,3 +358,130 @@ def audit_cleanup_view(request):
         ).count(),
     }
     return render(request, 'audit/cleanup_confirm.html', context)
+
+
+# ============================================================================
+# AUDIT SUMMARY REPORT (filterable, exportable)
+# ============================================================================
+
+def _compute_audit_report_context(request):
+    """Filter + summarize audit activity — shared by the on-screen report
+    and its PDF/Excel/CSV exports."""
+    today = timezone.now().date()
+    date_from_str = request.GET.get('date_from', '')
+    date_to_str = request.GET.get('date_to', '')
+    action = request.GET.get('action', '')
+
+    try:
+        date_from = datetime.fromisoformat(date_from_str).date() if date_from_str else today - timedelta(days=30)
+    except ValueError:
+        date_from = today - timedelta(days=30)
+    try:
+        date_to = datetime.fromisoformat(date_to_str).date() if date_to_str else today
+    except ValueError:
+        date_to = today
+
+    logs = AuditLog.objects.select_related('user').filter(
+        timestamp__date__gte=date_from, timestamp__date__lte=date_to
+    )
+    if action:
+        logs = logs.filter(action=action)
+    logs = logs.order_by('-timestamp')
+
+    action_breakdown = list(logs.values('action').annotate(count=Count('id')).order_by('-count'))
+    module_breakdown = list(
+        logs.exclude(model_name__isnull=True).exclude(model_name='')
+        .values('model_name').annotate(count=Count('id')).order_by('-count')[:10]
+    )
+    top_users = list(
+        logs.exclude(user__isnull=True)
+        .values('user__first_name', 'user__last_name', 'user__email')
+        .annotate(count=Count('id')).order_by('-count')[:10]
+    )
+
+    return {
+        'logs': logs[:500],
+        'log_count': logs.count(),
+        'action_breakdown': action_breakdown,
+        'module_breakdown': module_breakdown,
+        'top_users': top_users,
+        'action_choices': AuditAction.CHOICES,
+        'action': action,
+        'date_from': date_from,
+        'date_to': date_to,
+        'date_from_str': date_from.isoformat(),
+        'date_to_str': date_to.isoformat(),
+    }
+
+
+@login_required
+@role_required(UserRole.ADMIN, UserRole.MANAGER)
+def audit_report(request):
+    context = _compute_audit_report_context(request)
+    return render(request, 'audit/audit_report.html', context)
+
+
+@login_required
+@role_required(UserRole.ADMIN, UserRole.MANAGER)
+def audit_report_pdf(request):
+    from utils.report_kit import build_pdf_response, styled_table, kpi_table
+    ctx = _compute_audit_report_context(request)
+
+    def body(elements, styles):
+        elements.append(kpi_table([
+            ('Total Actions', str(ctx['log_count'])),
+            ('Active Users', str(len(ctx['top_users']))),
+            ('Modules Touched', str(len(ctx['module_breakdown']))),
+        ]))
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph('By Action Type', styles['ReportSectionHeading']))
+        rows = [['Action', 'Count']]
+        for a in ctx['action_breakdown']:
+            rows.append([a['action'], str(a['count'])])
+        elements.append(styled_table(rows, col_widths=[3 * inch, 1.5 * inch], align_right_from=1))
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph('Top Users', styles['ReportSectionHeading']))
+        user_rows = [['User', 'Actions']]
+        for u in ctx['top_users']:
+            name = f"{u['user__first_name']} {u['user__last_name']}".strip() or u['user__email']
+            user_rows.append([name, str(u['count'])])
+        elements.append(styled_table(user_rows, col_widths=[3 * inch, 1.5 * inch], align_right_from=1))
+
+    return build_pdf_response(
+        'audit_summary.pdf', 'Audit Summary',
+        subtitle=f"{ctx['date_from']} to {ctx['date_to']}", build_body=body,
+    )
+
+
+@login_required
+@role_required(UserRole.ADMIN, UserRole.MANAGER)
+def audit_report_excel(request):
+    from utils.report_kit import build_excel_response
+    ctx = _compute_audit_report_context(request)
+    headers = ['Timestamp', 'User', 'Action', 'Model', 'Description']
+    rows = [
+        [
+            log.timestamp.strftime('%Y-%m-%d %H:%M'),
+            log.user.get_full_name() if log.user else '—',
+            log.get_action_display(), log.model_name or '—', log.description,
+        ]
+        for log in ctx['logs']
+    ]
+    return build_excel_response('audit_summary.xlsx', 'Audit Log', headers, rows)
+
+
+@login_required
+@role_required(UserRole.ADMIN, UserRole.MANAGER)
+def audit_report_csv(request):
+    from utils.report_kit import build_csv_response
+    ctx = _compute_audit_report_context(request)
+    headers = ['Timestamp', 'User', 'Action', 'Model', 'Description']
+    rows = [
+        [
+            log.timestamp.strftime('%Y-%m-%d %H:%M'),
+            log.user.get_full_name() if log.user else '—',
+            log.get_action_display(), log.model_name or '—', log.description,
+        ]
+        for log in ctx['logs']
+    ]
+    return build_csv_response('audit_summary.csv', headers, rows)
