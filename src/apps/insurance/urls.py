@@ -48,7 +48,10 @@ urlpatterns = [
     
     # Reports
     path('reports/', views.insurance_reports, name='insurance_reports'),
-    
+    path('reports/export/pdf/', views.insurance_reports_pdf, name='insurance_reports_pdf'),
+    path('reports/export/excel/', views.insurance_reports_excel, name='insurance_reports_excel'),
+    path('reports/export/csv/', views.insurance_reports_csv, name='insurance_reports_csv'),
+
     # Quote Generator
     path('quote/', views.generate_quote, name='generate_quote'),
     
@@ -85,6 +88,7 @@ urlpatterns = [
 
     # ==================== AGENT LEDGER URLS ====================
     path('agents/', views.agent_ledger_list, name='agent_ledger_list'),
+    path('agents/export/<str:fmt>/', views.agent_ledger_export, name='agent_ledger_export'),
     path('agents/<int:pk>/', views.agent_ledger_detail, name='agent_ledger_detail'),
     path('agents/policies/<int:pk>/mark-paid/', views.agent_ledger_mark_paid, name='agent_ledger_mark_paid'),
     path('agents/<int:agent_pk>/mark-all-paid/', views.agent_ledger_mark_all_paid, name='agent_ledger_mark_all_paid'),
