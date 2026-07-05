@@ -1,10 +1,10 @@
 {% load static %}
 /*
- * VMS service worker.
+ * Hoza service worker.
  * Static assets: cache-first. Pages: network-only with an offline fallback,
  * so authenticated financial data is never served stale from cache.
  */
-const CACHE_NAME = 'vms-v1';
+const CACHE_NAME = 'hoza-v1';
 const OFFLINE_URL = '/offline/';
 
 const PRECACHE_URLS = [
