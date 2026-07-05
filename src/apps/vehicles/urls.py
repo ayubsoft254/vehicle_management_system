@@ -64,6 +64,10 @@ urlpatterns = [
 
     # Main Ledger
     path('main-ledger/', views.main_ledger_view, name='main_ledger'),
+    path('main-ledger/export/<str:fmt>/', views.main_ledger_export, name='main_ledger_export'),
+
+    # Partner ledger exports (broker/tracker_agent/clearing_agent/japan_supplier x pdf/excel/csv)
+    path('ledgers/<str:kind>/export/<str:fmt>/', views.party_ledger_export, name='party_ledger_export'),
 
     # Broker Ledger
     path('brokers/', views.broker_ledger_list, name='broker_ledger_list'),
@@ -75,6 +79,7 @@ urlpatterns = [
 
     # Business Loans (money loaned out by the business)
     path('business-loans/', views.business_loan_list, name='business_loan_list'),
+    path('business-loans/export/<str:fmt>/', views.business_loan_export, name='business_loan_export'),
     path('business-loans/<int:pk>/', views.business_loan_detail, name='business_loan_detail'),
     path('business-loans/<int:loan_pk>/record-repayment/', views.record_loan_repayment, name='record_loan_repayment'),
     path('business-loans/<int:pk>/write-off/', views.business_loan_write_off, name='business_loan_write_off'),
