@@ -7,9 +7,17 @@
 <div class="container mx-auto px-4 py-6">
     
     <!-- Page Header -->
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-900">Payroll Reports & Analytics</h1>
-        <p class="mt-1 text-sm text-gray-600">Comprehensive payroll analysis and insights</p>
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Payroll Reports & Analytics</h1>
+            <p class="mt-1 text-sm text-gray-600">Comprehensive payroll analysis and insights</p>
+        </div>
+        {% url 'payroll:payroll_reports_pdf' as export_pdf_url_base %}
+        {% url 'payroll:payroll_reports_excel' as export_excel_url_base %}
+        {% url 'payroll:payroll_reports_csv' as export_csv_url_base %}
+        {% with export_pdf_url=export_pdf_url_base|add:'?'|add:request.GET.urlencode export_excel_url=export_excel_url_base|add:'?'|add:request.GET.urlencode export_csv_url=export_csv_url_base|add:'?'|add:request.GET.urlencode %}
+        {% include 'reports/partials/_export_bar.html' %}
+        {% endwith %}
     </div>
 
     <!-- Date Range Filter -->
