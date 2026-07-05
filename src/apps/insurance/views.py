@@ -16,6 +16,9 @@ import csv
 import json
 from decimal import Decimal
 
+from reportlab.platypus import Paragraph, Spacer
+from reportlab.lib.units import inch
+
 from .models import InsuranceAgent, InsurancePolicy, InsuranceClaim, InsurancePayment, InsurancePaymentSchedule
 from .forms import (
     InsurancePolicyForm, InsuranceClaimForm,
@@ -1202,10 +1205,10 @@ def policies_by_client(request, client_pk):
     return render(request, 'insurance/policies_by_client.html', context)
 
 
-@login_required
-def insurance_reports(request):
+def _compute_insurance_report_context(request):
     """
-    Insurance reports and analytics page
+    Insurance reports and analytics — shared by the on-screen page and its
+    PDF/Excel/CSV exports.
     """
     from apps.vehicles.models import TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord
     from datetime import date
@@ -1349,7 +1352,7 @@ def insurance_reports(request):
     # --- Clearing agent summary ---
     clearing_summary = ClearingAgent.objects.filter(is_active=True).annotate(
         record_count=Count('clearance_records'),
-        total_billed=Coalesce(Sum('clearance_records__amount'), Value(0, output_field=DecimalField())),
+        total_billed_ann=Coalesce(Sum('clearance_records__amount'), Value(0, output_field=DecimalField())),
         total_owed_ann=Coalesce(
             Sum('clearance_records__amount',
                 filter=Q(clearance_records__payment_status='unpaid')),
@@ -1399,10 +1402,73 @@ def insurance_reports(request):
         'date_from': date_from,
         'date_to': date_to,
         'preset': preset,
+        'policies': policies.select_related('client', 'vehicle', 'insurance_agent'),
     }
+    return context
 
+
+@login_required
+def insurance_reports(request):
+    context = _compute_insurance_report_context(request)
     log_audit(request.user, 'view', 'Insurance', 'Viewed insurance reports')
     return render(request, 'insurance/reports.html', context)
+
+
+@login_required
+def insurance_reports_pdf(request):
+    from utils.report_kit import build_pdf_response, styled_table, kpi_table, fmt_money
+    ctx = _compute_insurance_report_context(request)
+
+    def body(elements, styles):
+        elements.append(kpi_table([
+            ('Policies', str(ctx['total_count'])),
+            ('Total Premium', fmt_money(ctx['total_premium'])),
+            ('Total Profit', fmt_money(ctx['total_profit'])),
+            ('Total Claims', str(ctx['total_claims'])),
+            ('Claimed', fmt_money(ctx['total_claimed'])),
+            ('Settled', fmt_money(ctx['total_settled'])),
+        ]))
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph('Policies', styles['ReportSectionHeading']))
+        rows = [['Policy No.', 'Client', 'Type', 'Premium', 'Status']]
+        for p in ctx['policies']:
+            rows.append([
+                p.policy_number, p.client.get_full_name() if p.client else '—',
+                p.get_policy_type_display(), fmt_money(p.premium_amount), p.get_status_display(),
+            ])
+        elements.append(styled_table(rows, col_widths=[1.3 * inch, 1.8 * inch, 1.5 * inch, 1.2 * inch, 1 * inch], align_right_from=3))
+
+    return build_pdf_response('insurance_report.pdf', 'Insurance Analytics', build_body=body)
+
+
+@login_required
+def insurance_reports_excel(request):
+    from utils.report_kit import build_excel_response
+    ctx = _compute_insurance_report_context(request)
+    headers = ['Policy No.', 'Client', 'Type', 'Buying', 'Selling', 'Premium', 'Status']
+    rows = [
+        [
+            p.policy_number, p.client.get_full_name() if p.client else '—', p.get_policy_type_display(),
+            float(p.buying_price), float(p.selling_price), float(p.premium_amount), p.get_status_display(),
+        ]
+        for p in ctx['policies']
+    ]
+    return build_excel_response('insurance_report.xlsx', 'Policies', headers, rows, currency_cols={4, 5, 6})
+
+
+@login_required
+def insurance_reports_csv(request):
+    from utils.report_kit import build_csv_response
+    ctx = _compute_insurance_report_context(request)
+    headers = ['Policy No.', 'Client', 'Type', 'Buying', 'Selling', 'Premium', 'Status']
+    rows = [
+        [
+            p.policy_number, p.client.get_full_name() if p.client else '—', p.get_policy_type_display(),
+            p.buying_price, p.selling_price, p.premium_amount, p.get_status_display(),
+        ]
+        for p in ctx['policies']
+    ]
+    return build_csv_response('insurance_report.csv', headers, rows)
 
 
 # ==================== INSURANCE AGENT LEDGER VIEWS ====================
@@ -1440,6 +1506,20 @@ def agent_ledger_list(request):
     }
     log_audit(request.user, 'view', 'InsuranceAgent', 'Viewed insurance agent ledger')
     return render(request, 'insurance/agent_ledger_list.html', context)
+
+
+@login_required
+def agent_ledger_export(request, fmt):
+    """Export the insurance agent ledger list as PDF/Excel/CSV."""
+    from utils.report_kit import export_rows
+
+    agents = InsuranceAgent.objects.filter(is_active=True).order_by('name')
+    headers = ['Name', 'Phone', 'Email', 'Total Selling', 'Paid', 'Outstanding']
+    rows = [
+        [a.name, a.phone or '', a.email or '', float(a.total_selling_price), float(a.total_payments_made), float(a.total_owed)]
+        for a in agents
+    ]
+    return export_rows(fmt, 'insurance_agent_ledger', 'Insurance Agent Ledger', headers, rows, currency_cols={4, 5, 6})
 
 
 @login_required
