@@ -16,6 +16,9 @@ from datetime import datetime, timedelta, date
 from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 
+from reportlab.platypus import Paragraph, Spacer
+from reportlab.lib.units import inch
+
 from apps.clients.models import ClientVehicle
 from utils.constants import VehicleStatus
 
@@ -879,9 +882,9 @@ def recovery_attempt_create(request, repossession_pk):
 # Reports and Analytics
 # ============================================================================
 
-@login_required
-def repossession_reports(request):
-    """Display repossession reports and analytics."""
+def _compute_repossession_report_context(request):
+    """Repossession analytics — shared by the on-screen report and its
+    PDF/Excel/CSV exports."""
     today = date.today()
 
     all_repos = Repossession.objects.all()
@@ -988,9 +991,76 @@ def repossession_reports(request):
         'recent_cases': recent_cases,
         'this_month_count': this_month_count,
         'today': today,
+        'all_repos': all_repos.select_related('client', 'vehicle').order_by('-initiated_date'),
     }
+    return context
 
+
+@login_required
+def repossession_reports(request):
+    context = _compute_repossession_report_context(request)
     return render(request, 'repossessions/reports.html', context)
+
+
+@login_required
+def repossession_reports_pdf(request):
+    from utils.report_kit import build_pdf_response, styled_table, kpi_table, fmt_money
+    ctx = _compute_repossession_report_context(request)
+
+    def body(elements, styles):
+        elements.append(kpi_table([
+            ('Total Cases', str(ctx['total_repos'])),
+            ('Active', str(ctx['active_repos'])),
+            ('Completed', str(ctx['completed_count'])),
+            ('Recovered', str(ctx['recovered_count'])),
+            ('Total Outstanding', fmt_money(ctx['financial_summary']['total_outstanding'] or 0)),
+            ('Total Costs', fmt_money(ctx['financial_summary']['total_costs'] or 0)),
+        ]))
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph('Cases', styles['ReportSectionHeading']))
+        rows = [['Date', 'Client', 'Vehicle', 'Status', 'Outstanding']]
+        for r in ctx['all_repos']:
+            rows.append([
+                r.initiated_date.strftime('%Y-%m-%d'),
+                r.client.get_full_name() if r.client else '—',
+                r.vehicle.full_name if r.vehicle else '—',
+                r.get_status_display(), fmt_money(r.outstanding_amount),
+            ])
+        elements.append(styled_table(rows, col_widths=[0.9 * inch, 1.8 * inch, 1.8 * inch, 1.3 * inch, 1.2 * inch], align_right_from=4))
+
+    return build_pdf_response('repossession_report.pdf', 'Repossessions Report', build_body=body)
+
+
+@login_required
+def repossession_reports_excel(request):
+    from utils.report_kit import build_excel_response
+    ctx = _compute_repossession_report_context(request)
+    headers = ['Date', 'Client', 'Vehicle', 'Reason', 'Status', 'Outstanding']
+    rows = [
+        [
+            r.initiated_date.strftime('%Y-%m-%d'), r.client.get_full_name() if r.client else '—',
+            r.vehicle.full_name if r.vehicle else '—', r.get_reason_display(), r.get_status_display(),
+            float(r.outstanding_amount or 0),
+        ]
+        for r in ctx['all_repos']
+    ]
+    return build_excel_response('repossession_report.xlsx', 'Repossessions', headers, rows, currency_cols={6})
+
+
+@login_required
+def repossession_reports_csv(request):
+    from utils.report_kit import build_csv_response
+    ctx = _compute_repossession_report_context(request)
+    headers = ['Date', 'Client', 'Vehicle', 'Reason', 'Status', 'Outstanding']
+    rows = [
+        [
+            r.initiated_date.strftime('%Y-%m-%d'), r.client.get_full_name() if r.client else '—',
+            r.vehicle.full_name if r.vehicle else '—', r.get_reason_display(), r.get_status_display(),
+            r.outstanding_amount or 0,
+        ]
+        for r in ctx['all_repos']
+    ]
+    return build_csv_response('repossession_report.csv', headers, rows)
 
 
 # ============================================================================
