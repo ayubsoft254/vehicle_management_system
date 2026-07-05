@@ -6,7 +6,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import RedirectView
+from django.views.generic import RedirectView, TemplateView
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
@@ -24,6 +24,20 @@ urlpatterns = [
     # HEALTH CHECK (for Docker and load balancers)
     # ============================================================================
     path('health/', health_check, name='health_check'),
+
+    # ============================================================================
+    # PWA (manifest + service worker must live at the root for full app scope)
+    # ============================================================================
+    path('manifest.webmanifest', TemplateView.as_view(
+        template_name='pwa/manifest.webmanifest',
+        content_type='application/manifest+json',
+    ), name='pwa_manifest'),
+    path('serviceworker.js', TemplateView.as_view(
+        template_name='pwa/serviceworker.js',
+        content_type='application/javascript',
+    ), name='pwa_serviceworker'),
+    path('offline/', TemplateView.as_view(template_name='pwa/offline.html'), name='pwa_offline'),
+
     path('confirmation/', payment_views.paybill_confirmation_callback, name='paybill_confirmation_callback_root'),
     path('validation/', payment_views.paybill_validation_callback, name='paybill_validation_callback_root'),
     path('mpesa-callback/', payment_views.stk_push_callback, name='stk_push_callback_root'),
