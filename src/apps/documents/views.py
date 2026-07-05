@@ -7,9 +7,13 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Q
+from django.db.models import Q, Sum, Count
 from django.core.paginator import Paginator
 from django.utils import timezone
+from datetime import datetime
+
+from reportlab.platypus import Paragraph, Spacer
+from reportlab.lib.units import inch
 
 from .models import Document, DocumentCategory, DocumentShare
 from .forms import DocumentForm, DocumentCategoryForm, DocumentShareForm, DocumentSearchForm, BulkDocumentActionForm
@@ -411,5 +415,132 @@ def ajax_search_documents(request):
             'category': doc.category.name if doc.category else '',
             'url': doc.get_absolute_url() if hasattr(doc, 'get_absolute_url') else '',
         } for doc in docs]
-    
+
     return JsonResponse({'documents': documents})
+
+
+# ============================================================================
+# DOCUMENT REPORT (filterable, exportable)
+# ============================================================================
+
+def _compute_document_report_context(request):
+    """Filter + aggregate documents for the Documents Report — shared by the
+    on-screen view and its PDF/Excel/CSV exports."""
+    today = timezone.now().date()
+    date_from_str = request.GET.get('date_from', '')
+    date_to_str = request.GET.get('date_to', '')
+    category_id = request.GET.get('category', '')
+
+    try:
+        date_from = datetime.fromisoformat(date_from_str).date() if date_from_str else today.replace(day=1)
+    except ValueError:
+        date_from = today.replace(day=1)
+    try:
+        date_to = datetime.fromisoformat(date_to_str).date() if date_to_str else today
+    except ValueError:
+        date_to = today
+
+    documents = Document.objects.select_related('category', 'uploaded_by').filter(
+        uploaded_at__date__gte=date_from, uploaded_at__date__lte=date_to
+    )
+    if category_id:
+        documents = documents.filter(category_id=category_id)
+    documents = documents.order_by('-uploaded_at')
+
+    total_size_bytes = documents.aggregate(t=Sum('file_size'))['t'] or 0
+    signed_count = documents.filter(esign_status='completed').count()
+    pending_signature_count = documents.exclude(esign_status='').filter(esign_status='pending').count()
+
+    category_breakdown = list(
+        documents.values('category__name').annotate(count=Count('id')).order_by('-count')
+    )
+
+    return {
+        'documents': documents,
+        'document_count': documents.count(),
+        'total_size_mb': round(total_size_bytes / (1024 * 1024), 2) if total_size_bytes else 0,
+        'signed_count': signed_count,
+        'pending_signature_count': pending_signature_count,
+        'category_breakdown': category_breakdown,
+        'categories': DocumentCategory.objects.all().order_by('name'),
+        'category_id': category_id,
+        'date_from': date_from,
+        'date_to': date_to,
+        'date_from_str': date_from.isoformat(),
+        'date_to_str': date_to.isoformat(),
+    }
+
+
+@login_required
+def document_report(request):
+    context = _compute_document_report_context(request)
+    return render(request, 'documents/document_report.html', context)
+
+
+@login_required
+def document_report_pdf(request):
+    from utils.report_kit import build_pdf_response, styled_table, kpi_table
+    ctx = _compute_document_report_context(request)
+
+    def body(elements, styles):
+        elements.append(kpi_table([
+            ('Documents', str(ctx['document_count'])),
+            ('Total Size', f"{ctx['total_size_mb']} MB"),
+            ('Signed', str(ctx['signed_count'])),
+            ('Pending Signature', str(ctx['pending_signature_count'])),
+        ]))
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph('By Category', styles['ReportSectionHeading']))
+        cat_rows = [['Category', 'Count']]
+        for c in ctx['category_breakdown']:
+            cat_rows.append([c['category__name'] or '—', str(c['count'])])
+        elements.append(styled_table(cat_rows, col_widths=[3 * inch, 1.5 * inch], align_right_from=1))
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph('Documents', styles['ReportSectionHeading']))
+        rows = [['Title', 'Category', 'Uploaded By', 'Uploaded At', 'Signature Status']]
+        for d in ctx['documents']:
+            rows.append([
+                d.title, d.category.name if d.category else '—',
+                d.uploaded_by.get_full_name() if d.uploaded_by else '—',
+                d.uploaded_at.strftime('%Y-%m-%d'), d.esign_status or '—',
+            ])
+        elements.append(styled_table(rows, col_widths=[1.8 * inch, 1.3 * inch, 1.5 * inch, 1 * inch, 1.2 * inch]))
+
+    return build_pdf_response(
+        'document_report.pdf', 'Documents Report',
+        subtitle=f"{ctx['date_from']} to {ctx['date_to']}", build_body=body,
+    )
+
+
+@login_required
+def document_report_excel(request):
+    from utils.report_kit import build_excel_response
+    ctx = _compute_document_report_context(request)
+    headers = ['Title', 'Category', 'Uploaded By', 'Uploaded At', 'Signature Status', 'File Size (KB)']
+    rows = [
+        [
+            d.title, d.category.name if d.category else '—',
+            d.uploaded_by.get_full_name() if d.uploaded_by else '—',
+            d.uploaded_at.strftime('%Y-%m-%d'), d.esign_status or '—',
+            round((d.file_size or 0) / 1024, 1),
+        ]
+        for d in ctx['documents']
+    ]
+    return build_excel_response('document_report.xlsx', 'Documents', headers, rows)
+
+
+@login_required
+def document_report_csv(request):
+    from utils.report_kit import build_csv_response
+    ctx = _compute_document_report_context(request)
+    headers = ['Title', 'Category', 'Uploaded By', 'Uploaded At', 'Signature Status', 'File Size (KB)']
+    rows = [
+        [
+            d.title, d.category.name if d.category else '—',
+            d.uploaded_by.get_full_name() if d.uploaded_by else '—',
+            d.uploaded_at.strftime('%Y-%m-%d'), d.esign_status or '—',
+            round((d.file_size or 0) / 1024, 1),
+        ]
+        for d in ctx['documents']
+    ]
+    return build_csv_response('document_report.csv', headers, rows)
