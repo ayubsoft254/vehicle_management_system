@@ -17,6 +17,9 @@ from datetime import timedelta
 import json
 import os
 
+from reportlab.platypus import Paragraph, Spacer
+from reportlab.lib.units import inch
+
 from .models import (
     Report,
     ReportTemplate,
@@ -461,24 +464,77 @@ def widget_data(request, pk):
 
 @login_required
 def report_dashboard(request):
-    """Main reports dashboard"""
-    
-    user_reports = Report.objects.filter(
-        Q(created_by=request.user) |
-        Q(is_public=True) |
-        Q(allowed_users=request.user)
-    ).distinct()
-    
+    """Report Center: a single categorized index of every standard business
+    report in the system, each a direct filter-and-generate page that
+    exports to PDF/Excel/CSV."""
+    from django.urls import reverse
+
+    def link(name, *args):
+        try:
+            return reverse(name, args=args)
+        except Exception:
+            return '#'
+
+    report_sections = [
+        {
+            'heading': 'Financial',
+            'items': [
+                {'title': 'Financial Overview', 'description': 'Sales, collections, commissions and payouts across the business.', 'icon': 'fa-chart-line', 'url': link('reports:financial_reports')},
+                {'title': 'Main Ledger', 'description': 'Every money-in / money-out transaction across all sub-ledgers.', 'icon': 'fa-book-open', 'url': link('vehicles:main_ledger')},
+                {'title': 'Defaulters Report', 'description': 'Clients with overdue balances, ranked by days overdue.', 'icon': 'fa-exclamation-triangle', 'url': link('payments:defaulters_report')},
+            ],
+        },
+        {
+            'heading': 'Clients & Vehicles',
+            'items': [
+                {'title': 'Client Ledger', 'description': 'What every client owes and has paid across their purchases.', 'icon': 'fa-users', 'url': link('clients:client_ledger_list')},
+                {'title': 'Vehicle Inventory', 'description': 'Stock, status and valuation across the fleet.', 'icon': 'fa-car', 'url': link('vehicles:vehicle_reports')},
+            ],
+        },
+        {
+            'heading': 'Business Partner Ledgers',
+            'items': [
+                {'title': 'Broker Ledger', 'description': 'Commission earned and paid out per broker.', 'icon': 'fa-user-tie', 'url': link('vehicles:broker_ledger_list')},
+                {'title': 'Tracker Agent Ledger', 'description': 'Amounts owed and paid to tracker installation agents.', 'icon': 'fa-satellite-dish', 'url': link('vehicles:tracker_agent_ledger_list')},
+                {'title': 'Clearing Agent Ledger', 'description': 'Amounts owed and paid to clearing agents.', 'icon': 'fa-ship', 'url': link('vehicles:clearing_agent_ledger_list')},
+                {'title': 'Japan Supplier Ledger', 'description': 'Purchases and payments to Japan suppliers.', 'icon': 'fa-store', 'url': link('vehicles:japan_supplier_ledger_list')},
+                {'title': 'Insurance Agent Ledger', 'description': 'Amounts owed and paid to insurance agents.', 'icon': 'fa-handshake', 'url': link('insurance:agent_ledger_list')},
+                {'title': 'Business Loans', 'description': 'Money loaned out by the business and repayment status.', 'icon': 'fa-hand-holding-usd', 'url': link('vehicles:business_loan_list')},
+            ],
+        },
+        {
+            'heading': 'Expenses & Payroll',
+            'items': [
+                {'title': 'Expense Report', 'description': 'Spending by category, status and vendor.', 'icon': 'fa-receipt', 'url': link('expenses:expense_report')},
+                {'title': 'Payroll Report', 'description': 'Gross pay, deductions and net pay by period.', 'icon': 'fa-money-check-alt', 'url': link('payroll:payroll_reports')},
+            ],
+        },
+        {
+            'heading': 'Insurance',
+            'items': [
+                {'title': 'Insurance Analytics', 'description': 'Policy volume, premiums and claims overview.', 'icon': 'fa-shield-alt', 'url': link('insurance:insurance_reports')},
+            ],
+        },
+        {
+            'heading': 'Operations',
+            'items': [
+                {'title': 'Auctions Report', 'description': 'Auction activity, bids and results.', 'icon': 'fa-gavel', 'url': link('auctions:auction_report')},
+                {'title': 'Repossessions Report', 'description': 'Repossession cases, status and recovered value.', 'icon': 'fa-truck-loading', 'url': link('repossessions:repossession_reports')},
+                {'title': 'Documents Report', 'description': 'Document volume by category and signature status.', 'icon': 'fa-folder-open', 'url': link('documents:document_report')},
+            ],
+        },
+        {
+            'heading': 'Compliance',
+            'items': [
+                {'title': 'Audit Summary', 'description': 'System activity by action, module and user.', 'icon': 'fa-history', 'url': link('audit:report')},
+            ],
+        },
+    ]
+
     context = {
-        'total_reports': user_reports.count(),
-        'scheduled_reports': user_reports.filter(is_scheduled=True).count(),
-        'recent_executions': ReportExecution.objects.filter(
-            report__in=user_reports
-        ).order_by('-created_at')[:10],
-        'popular_reports': user_reports.order_by('-execution_count')[:5],
-        'saved_reports_count': SavedReport.objects.filter(user=request.user).count(),
+        'report_sections': report_sections,
     }
-    
+
     return render(request, 'reports/dashboard.html', context)
 
 
@@ -676,16 +732,13 @@ def report_analytics(request):
 # FINANCIAL REPORTS
 # ============================================================================
 
-@login_required
-def financial_reports(request):
-    """Cross-app financial analytics dashboard."""
+def _build_financial_overview_context():
+    """Cross-app financial analytics, shared by the on-screen report and its PDF/Excel/CSV exports."""
     from django.db.models import DecimalField, Value, F
     from django.db.models.functions import Coalesce
     from apps.clients.models import ClientVehicle
     from apps.vehicles.models import Vehicle, TrackerRecord, ClearanceRecord
     from apps.insurance.models import InsurancePolicy
-
-    can_see_prices = request.user.is_staff
 
     # ---- Sales revenue (sold vehicles via ClientVehicle) ----
     sales_qs = ClientVehicle.objects.filter(vehicle__status='sold')
@@ -780,8 +833,7 @@ def financial_reports(request):
     # ---- Gross profit estimate (sales revenue - vehicle purchase cost) ----
     gross_profit = (sales_agg['total_revenue'] or 0) - (inventory_agg['total_purchase_cost'] or 0)
 
-    context = {
-        'can_see_prices': can_see_prices,
+    return {
         'sales_agg': sales_agg,
         'inventory_agg': inventory_agg,
         'insurance_agg': insurance_agg,
@@ -803,7 +855,86 @@ def financial_reports(request):
         'month_start': month_start,
     }
 
+
+@login_required
+def financial_reports(request):
+    """Cross-app financial overview: sales, collections, commissions and payouts."""
+    from django.urls import reverse
+    context = _build_financial_overview_context()
+    context['can_see_prices'] = request.user.is_staff
+    context['report_subtitle'] = f"Cross-portfolio snapshot as of {context['today'].strftime('%d %B %Y')}"
+    context['export_pdf_url'] = reverse('reports:financial_reports_pdf')
+    context['export_excel_url'] = reverse('reports:financial_reports_excel')
+    context['export_csv_url'] = reverse('reports:financial_reports_csv')
     return render(request, 'reports/financial_reports.html', context)
+
+
+@login_required
+def financial_reports_pdf(request):
+    from utils.report_kit import build_pdf_response, styled_table, kpi_table, fmt_money
+    ctx = _build_financial_overview_context()
+
+    def body(elements, styles):
+        elements.append(Paragraph('Sales Overview', styles['ReportSectionHeading']))
+        elements.append(kpi_table([
+            ('Total Revenue', fmt_money(ctx['sales_agg']['total_revenue'])),
+            ('Total Collected', fmt_money(ctx['sales_agg']['total_collected'])),
+            ('Outstanding Balance', fmt_money(ctx['sales_agg']['total_outstanding'])),
+            ('Gross Profit (est.)', fmt_money(ctx['gross_profit'])),
+            ('Vehicles Sold', str(ctx['sales_agg']['total_count'])),
+            ('Fully Paid Off', str(ctx['paid_off_count'])),
+        ]))
+        elements.append(Spacer(1, 14))
+
+        elements.append(Paragraph('Partner Ledgers', styles['ReportSectionHeading']))
+        elements.append(styled_table([
+            ['Ledger', 'Billed / Sold', 'Unpaid', 'Profit'],
+            ['Insurance', fmt_money(ctx['insurance_agg']['total_selling']), fmt_money(ctx['insurance_unpaid']), fmt_money(ctx['insurance_profit'])],
+            ['Tracker', fmt_money(ctx['tracker_agg']['total_selling']), fmt_money(ctx['tracker_unpaid']), fmt_money(ctx['tracker_profit'])],
+            ['Clearance', fmt_money(ctx['clearance_agg']['total_billed']), fmt_money(ctx['clearance_unpaid']), '—'],
+        ], col_widths=[1.6 * inch, 1.6 * inch, 1.6 * inch, 1.6 * inch], align_right_from=1))
+        elements.append(Spacer(1, 14))
+
+        elements.append(Paragraph('Top Clients by Purchase Value', styles['ReportSectionHeading']))
+        rows = [['Client', 'Vehicles', 'Total Purchase', 'Paid', 'Balance']]
+        for c in ctx['top_clients']:
+            rows.append([
+                f"{c['client__first_name']} {c['client__last_name']}",
+                str(c['vehicle_count']),
+                fmt_money(c['total_purchase']),
+                fmt_money(c['total_paid']),
+                fmt_money(c['balance']),
+            ])
+        elements.append(styled_table(rows, col_widths=[1.8 * inch, 0.8 * inch, 1.3 * inch, 1.3 * inch, 1.3 * inch], align_right_from=1))
+
+    return build_pdf_response(
+        'financial_overview.pdf', 'Financial Overview',
+        subtitle=f"As at {ctx['today'].strftime('%d %B %Y')}", build_body=body,
+    )
+
+
+@login_required
+def financial_reports_excel(request):
+    from utils.report_kit import build_excel_response
+    ctx = _build_financial_overview_context()
+    headers = ['Client', 'Vehicles', 'Total Purchase', 'Paid', 'Balance']
+    rows = [
+        [f"{c['client__first_name']} {c['client__last_name']}", c['vehicle_count'], float(c['total_purchase']), float(c['total_paid']), float(c['balance'])]
+        for c in ctx['top_clients']
+    ]
+    return build_excel_response('financial_overview.xlsx', 'Top Clients', headers, rows, currency_cols={3, 4, 5})
+
+
+@login_required
+def financial_reports_csv(request):
+    from utils.report_kit import build_csv_response
+    ctx = _build_financial_overview_context()
+    headers = ['Client', 'Vehicles', 'Total Purchase', 'Paid', 'Balance']
+    rows = [
+        [f"{c['client__first_name']} {c['client__last_name']}", c['vehicle_count'], c['total_purchase'], c['total_paid'], c['balance']]
+        for c in ctx['top_clients']
+    ]
+    return build_csv_response('financial_overview.csv', headers, rows)
 
 
 # ============================================================================
