@@ -1,248 +1,44 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Reports Dashboard - Vehicle Management System{% endblock %}
+{% block title %}Report Center{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
+<div class="container mx-auto px-4 py-8 max-w-6xl">
     <!-- Page Header -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Reports Dashboard</h1>
-            <p class="text-gray-600">Business intelligence and analytics</p>
-        </div>
-        <div class="mt-4 md:mt-0 flex space-x-3">
-            <a href="{% url 'reports:report_builder' %}" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
-                <i class="fas fa-magic mr-2"></i>Report Builder
-            </a>
-            <a href="{% url 'reports:report_create' %}" class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
-                <i class="fas fa-plus-circle mr-2"></i>Create Report
-            </a>
-        </div>
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-slate-800">Report Center</h1>
+        <p class="text-slate-500 mt-1">Pick a report, set your filters, and generate it instantly — every report exports to PDF, Excel or CSV.</p>
     </div>
 
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md p-6 text-white">
-            <div class="flex items-center justify-between mb-2">
-                <p class="text-sm opacity-90">Total Reports</p>
-                <i class="fas fa-file-alt text-2xl opacity-75"></i>
-            </div>
-            <p class="text-4xl font-bold">{{ total_reports }}</p>
-            <a href="{% url 'reports:report_list' %}" class="text-xs hover:underline opacity-90 mt-2 inline-block">View All →</a>
-        </div>
-
-        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-md p-6 text-white">
-            <div class="flex items-center justify-between mb-2">
-                <p class="text-sm opacity-90">Scheduled Reports</p>
-                <i class="fas fa-clock text-2xl opacity-75"></i>
-            </div>
-            <p class="text-4xl font-bold">{{ scheduled_reports }}</p>
-            <p class="text-xs opacity-90 mt-2">Automated execution</p>
-        </div>
-
-        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-md p-6 text-white">
-            <div class="flex items-center justify-between mb-2">
-                <p class="text-sm opacity-90">Saved Reports</p>
-                <i class="fas fa-star text-2xl opacity-75"></i>
-            </div>
-            <p class="text-4xl font-bold">{{ saved_reports_count }}</p>
-            <a href="{% url 'reports:my_reports' %}" class="text-xs hover:underline opacity-90 mt-2 inline-block">My Reports →</a>
-        </div>
-
-        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-md p-6 text-white">
-            <div class="flex items-center justify-between mb-2">
-                <p class="text-sm opacity-90">Report Types</p>
-                <i class="fas fa-layer-group text-2xl opacity-75"></i>
-            </div>
-            <p class="text-4xl font-bold">13</p>
-            <p class="text-xs opacity-90 mt-2">Available categories</p>
+    {% for section in report_sections %}
+    <div class="mb-8">
+        <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">{{ section.heading }}</h2>
+        <div class="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
+            {% for item in section.items %}
+            <a href="{{ item.url }}" class="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors group">
+                <div class="h-9 w-9 rounded-md bg-slate-100 flex items-center justify-center flex-shrink-0">
+                    <i class="fas {{ item.icon }} text-slate-500"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-medium text-slate-800 group-hover:text-slate-900">{{ item.title }}</p>
+                    <p class="text-sm text-slate-500 truncate">{{ item.description }}</p>
+                </div>
+                <i class="fas fa-chevron-right text-xs text-slate-300 group-hover:text-slate-400 flex-shrink-0"></i>
+            </a>
+            {% endfor %}
         </div>
     </div>
+    {% endfor %}
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Main Content -->
-        <div class="lg:col-span-2 space-y-6">
-            <!-- Recent Executions -->
-            <div class="bg-white rounded-xl shadow-md overflow-hidden">
-                <div class="p-6 border-b border-gray-200 flex items-center justify-between">
-                    <h2 class="text-xl font-bold text-gray-800 flex items-center">
-                        <i class="fas fa-history text-primary-600 mr-2"></i>
-                        Recent Executions
-                    </h2>
-                    <a href="{% url 'reports:execution_list' %}" class="text-sm text-primary-600 hover:text-primary-700">View All →</a>
-                </div>
-                <div class="divide-y divide-gray-200">
-                    {% for execution in recent_executions %}
-                        <div class="p-4 hover:bg-gray-50">
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
-                                    <a href="{% url 'reports:execution_detail' execution.pk %}" class="font-semibold text-gray-800 hover:text-primary-600">
-                                        {{ execution.report.name }}
-                                    </a>
-                                    <p class="text-sm text-gray-600 mt-1">
-                                        <i class="far fa-clock mr-1"></i>
-                                        {{ execution.created_at|date:"M d, Y - g:i A" }}
-                                    </p>
-                                    {% if execution.triggered_by %}
-                                        <p class="text-xs text-gray-500 mt-1">
-                                            By {{ execution.triggered_by.get_full_name|default:execution.triggered_by.username }}
-                                        </p>
-                                    {% endif %}
-                                </div>
-                                <div class="ml-4">
-                                    {% if execution.status == 'completed' %}
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                            <i class="fas fa-check-circle mr-1"></i>Completed
-                                        </span>
-                                    {% elif execution.status == 'failed' %}
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                            <i class="fas fa-times-circle mr-1"></i>Failed
-                                        </span>
-                                    {% elif execution.status == 'in_progress' %}
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                            <i class="fas fa-spinner fa-spin mr-1"></i>Running
-                                        </span>
-                                    {% else %}
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                            <i class="fas fa-clock mr-1"></i>Pending
-                                        </span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% if execution.execution_time %}
-                                <p class="text-xs text-gray-500 mt-2">
-                                    <i class="fas fa-stopwatch mr-1"></i>{{ execution.execution_time }}s
-                                </p>
-                            {% endif %}
-                        </div>
-                    {% empty %}
-                        <div class="p-8 text-center text-gray-500">
-                            <i class="fas fa-inbox text-4xl mb-3 opacity-50"></i>
-                            <p>No recent executions</p>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- Popular Reports -->
-            <div class="bg-white rounded-xl shadow-md overflow-hidden">
-                <div class="p-6 border-b border-gray-200">
-                    <h2 class="text-xl font-bold text-gray-800 flex items-center">
-                        <i class="fas fa-chart-line text-green-600 mr-2"></i>
-                        Most Run Reports
-                    </h2>
-                </div>
-                <div class="divide-y divide-gray-200">
-                    {% for report in popular_reports %}
-                        <div class="p-4 hover:bg-gray-50">
-                            <div class="flex items-center justify-between">
-                                <div class="flex-1">
-                                    <a href="{% url 'reports:report_detail' report.pk %}" class="font-semibold text-gray-800 hover:text-primary-600">
-                                        {{ report.name }}
-                                    </a>
-                                    <p class="text-sm text-gray-600 mt-1">
-                                        {{ report.get_report_type_display }}
-                                    </p>
-                                </div>
-                                <div class="ml-4 text-right">
-                                    <p class="text-2xl font-bold text-primary-600">{{ report.execution_count }}</p>
-                                    <p class="text-xs text-gray-500">executions</p>
-                                </div>
-                            </div>
-                        </div>
-                    {% empty %}
-                        <div class="p-8 text-center text-gray-500">
-                            <p>No reports executed yet</p>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Sidebar -->
-        <div class="space-y-6">
-            <!-- Quick Actions -->
-            <div class="bg-white rounded-xl shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                    <i class="fas fa-bolt text-yellow-500 mr-2"></i>
-                    Quick Actions
-                </h3>
-                <div class="space-y-3">
-                    <a href="{% url 'reports:report_builder' %}" class="flex items-center p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition text-blue-700">
-                        <i class="fas fa-magic w-6"></i>
-                        <span class="font-medium">Report Builder</span>
-                    </a>
-                    <a href="{% url 'reports:report_create' %}" class="flex items-center p-3 bg-green-50 hover:bg-green-100 rounded-lg transition text-green-700">
-                        <i class="fas fa-plus-circle w-6"></i>
-                        <span class="font-medium">New Report</span>
-                    </a>
-                    <a href="{% url 'reports:my_reports' %}" class="flex items-center p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition text-purple-700">
-                        <i class="fas fa-star w-6"></i>
-                        <span class="font-medium">My Reports</span>
-                    </a>
-                    <a href="{% url 'reports:template_list' %}" class="flex items-center p-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition text-orange-700">
-                        <i class="fas fa-file-alt w-6"></i>
-                        <span class="font-medium">Templates</span>
-                    </a>
-                    <a href="{% url 'reports:analytics' %}" class="flex items-center p-3 bg-red-50 hover:bg-red-100 rounded-lg transition text-red-700">
-                        <i class="fas fa-chart-pie w-6"></i>
-                        <span class="font-medium">Analytics</span>
-                    </a>
-                </div>
-            </div>
-
-            <!-- Report Categories (live links) -->
-            <div class="bg-white rounded-xl shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Analytics Reports</h3>
-                <div class="space-y-2">
-                    <a href="{% url 'reports:financial_reports' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-green-50 transition text-sm group">
-                        <span class="text-gray-700 group-hover:text-green-700"><i class="fas fa-dollar-sign w-5 text-green-600 mr-1"></i>Financial Overview</span>
-                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-green-500"></i>
-                    </a>
-                    <a href="{% url 'vehicles:vehicle_reports' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-blue-50 transition text-sm group">
-                        <span class="text-gray-700 group-hover:text-blue-700"><i class="fas fa-car w-5 text-blue-600 mr-1"></i>Vehicle Inventory</span>
-                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-blue-500"></i>
-                    </a>
-                    <a href="{% url 'insurance:insurance_reports' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-cyan-50 transition text-sm group">
-                        <span class="text-gray-700 group-hover:text-cyan-700"><i class="fas fa-shield-alt w-5 text-cyan-600 mr-1"></i>Insurance Analytics</span>
-                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-cyan-500"></i>
-                    </a>
-                    <a href="{% url 'repossessions:repossession_reports' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-orange-50 transition text-sm group">
-                        <span class="text-gray-700 group-hover:text-orange-700"><i class="fas fa-truck-loading w-5 text-orange-600 mr-1"></i>Repossessions</span>
-                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-orange-500"></i>
-                    </a>
-                    <a href="{% url 'vehicles:tracker_agent_ledger_list' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-blue-50 transition text-sm group">
-                        <span class="text-gray-700 group-hover:text-blue-700"><i class="fas fa-satellite-dish w-5 text-blue-500 mr-1"></i>Tracker Ledger</span>
-                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-blue-500"></i>
-                    </a>
-                    <a href="{% url 'vehicles:clearing_agent_ledger_list' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-teal-50 transition text-sm group">
-                        <span class="text-gray-700 group-hover:text-teal-700"><i class="fas fa-ship w-5 text-teal-500 mr-1"></i>Clearance Ledger</span>
-                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-teal-500"></i>
-                    </a>
-                    <a href="{% url 'vehicles:broker_ledger_list' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-amber-50 transition text-sm group">
-                        <span class="text-gray-700 group-hover:text-amber-700"><i class="fas fa-user-tie w-5 text-amber-500 mr-1"></i>Broker Ledger</span>
-                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-amber-500"></i>
-                    </a>
-                    <a href="{% url 'insurance:agent_ledger_list' %}" class="flex items-center justify-between p-3 rounded-lg hover:bg-indigo-50 transition text-sm group">
-                        <span class="text-gray-700 group-hover:text-indigo-700"><i class="fas fa-handshake w-5 text-indigo-500 mr-1"></i>Insurance Ledger</span>
-                        <i class="fas fa-arrow-right text-xs text-gray-300 group-hover:text-indigo-500"></i>
-                    </a>
-                </div>
-            </div>
-
-            <!-- Info Card -->
-            <div class="bg-gradient-to-br from-primary-50 to-blue-50 rounded-xl shadow-md p-6 border border-primary-100">
-                <div class="flex items-start">
-                    <i class="fas fa-info-circle text-primary-600 text-xl mr-3 mt-1"></i>
-                    <div>
-                        <h4 class="font-semibold text-gray-800 mb-2">About Reports</h4>
-                        <p class="text-sm text-gray-600">
-                            Generate comprehensive business intelligence reports with customizable filters, schedules, and output formats. Export as PDF, Excel, CSV, or JSON.
-                        </p>
-                    </div>
-                </div>
-            </div>
+    <!-- Custom & Saved Reports (advanced) -->
+    <div class="mt-10 pt-6 border-t border-slate-200">
+        <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Custom &amp; Saved Reports</h2>
+        <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <a href="{% url 'reports:report_builder' %}" class="text-slate-600 hover:text-slate-900">Report Builder</a>
+            <a href="{% url 'reports:report_list' %}" class="text-slate-600 hover:text-slate-900">All Custom Reports</a>
+            <a href="{% url 'reports:my_reports' %}" class="text-slate-600 hover:text-slate-900">My Saved Reports</a>
+            <a href="{% url 'reports:analytics' %}" class="text-slate-600 hover:text-slate-900">Usage Analytics</a>
         </div>
     </div>
 </div>
