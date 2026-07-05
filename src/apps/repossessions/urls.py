@@ -69,7 +69,10 @@ urlpatterns = [
     # Reports URLs
     # ========================================================================
     path('reports/', views.repossession_reports, name='repossession_reports'),
-    
+    path('reports/export/pdf/', views.repossession_reports_pdf, name='repossession_reports_pdf'),
+    path('reports/export/excel/', views.repossession_reports_excel, name='repossession_reports_excel'),
+    path('reports/export/csv/', views.repossession_reports_csv, name='repossession_reports_csv'),
+
     # ========================================================================
     # API/AJAX URLs
     # ========================================================================
