@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Audit Summary{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-6xl">
+
+    {% url 'audit:report_pdf' as export_pdf_url_base %}
+    {% url 'audit:report_excel' as export_excel_url_base %}
+    {% url 'audit:report_csv' as export_csv_url_base %}
+    {% with export_pdf_url=export_pdf_url_base|add:'?'|add:request.GET.urlencode export_excel_url=export_excel_url_base|add:'?'|add:request.GET.urlencode export_csv_url=export_csv_url_base|add:'?'|add:request.GET.urlencode report_kicker='Compliance' report_title='Audit Summary' %}
+    {% include 'reports/partials/_report_header.html' %}
+    {% endwith %}
+
+    <!-- Filters -->
+    <form method="get" class="bg-white rounded-lg border border-slate-200 p-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">From</label>
+                <input type="date" name="date_from" value="{{ date_from_str }}" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">To</label>
+                <input type="date" name="date_to" value="{{ date_to_str }}" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1">Action</label>
+                <select name="action" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+                    <option value="">All Actions</option>
+                    {% for val, label in action_choices %}
+                    <option value="{{ val }}" {% if action == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-md transition">
+                    <i class="fas fa-filter mr-2"></i>Generate
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Actions</p>
+            <p class="text-xl font-bold mt-1 text-slate-800">{{ log_count }}</p>
+        </div>
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Active Users</p>
+            <p class="text-xl font-bold mt-1 text-slate-800">{{ top_users|length }}</p>
+        </div>
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Modules Touched</p>
+            <p class="text-xl font-bold mt-1 text-slate-800">{{ module_breakdown|length }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- By Action -->
+        <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-100">
+                <h2 class="text-sm font-semibold text-slate-700">By Action Type</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <tbody class="divide-y divide-slate-100">
+                        {% for row in action_breakdown %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-5 py-2.5 font-medium text-slate-800">{{ row.action }}</td>
+                            <td class="px-5 py-2.5 text-right text-slate-600">{{ row.count }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td class="px-5 py-6 text-center text-slate-400">No activity in this period.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Top Users -->
+        <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-100">
+                <h2 class="text-sm font-semibold text-slate-700">Top Users</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <tbody class="divide-y divide-slate-100">
+                        {% for u in top_users %}
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-5 py-2.5 font-medium text-slate-800">{{ u.user__first_name }} {{ u.user__last_name }}</td>
+                            <td class="px-5 py-2.5 text-right text-slate-600">{{ u.count }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td class="px-5 py-6 text-center text-slate-400">No activity in this period.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail -->
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+        <div class="px-5 py-3 border-b border-slate-100">
+            <h2 class="text-sm font-semibold text-slate-700">Recent Activity <span class="text-slate-400 font-normal">(latest 500)</span></h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">Timestamp</th>
+                        <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">User</th>
+                        <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">Action</th>
+                        <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">Model</th>
+                        <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">Description</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for log in logs %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-5 py-2.5 text-slate-600 whitespace-nowrap">{{ log.timestamp|date:"Y-m-d H:i" }}</td>
+                        <td class="px-5 py-2.5 text-slate-600">{{ log.user.get_full_name|default:"—" }}</td>
+                        <td class="px-5 py-2.5 text-slate-600">{{ log.get_action_display }}</td>
+                        <td class="px-5 py-2.5 text-slate-600">{{ log.model_name|default:"—" }}</td>
+                        <td class="px-5 py-2.5 text-slate-600 truncate max-w-md">{{ log.description|truncatechars:80 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="px-5 py-6 text-center text-slate-400">No activity in this period.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
