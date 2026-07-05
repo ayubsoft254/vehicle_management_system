@@ -12,15 +12,15 @@
             <h1 class="text-3xl font-bold text-gray-800 mb-1">Broker Ledger</h1>
             <p class="text-gray-500 text-sm">Track broker commissions and outstanding balances across all vehicle sales</p>
         </div>
-        <div class="mt-4 md:mt-0 flex gap-3">
+        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
+            {% url 'vehicles:party_ledger_export' 'broker' 'pdf' as export_pdf_url %}
+            {% url 'vehicles:party_ledger_export' 'broker' 'excel' as export_excel_url %}
+            {% url 'vehicles:party_ledger_export' 'broker' 'csv' as export_csv_url %}
+            {% include 'reports/partials/_export_bar.html' %}
             <button onclick="document.getElementById('addBrokerModal').classList.remove('hidden')"
                     class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition">
                 <i class="fas fa-plus mr-2"></i>Add Broker
             </button>
-            <a href="{% url 'vehicles:vehicle_reports' %}"
-               class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition">
-                <i class="fas fa-arrow-left mr-2"></i>Reports
-            </a>
         </div>
     </div>
 
