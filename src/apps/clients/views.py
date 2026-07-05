@@ -2371,16 +2371,10 @@ def create_installment_plan(request, client_vehicle_pk):
 
 # ==================== REPORTING & EXPORT VIEWS ====================
 
-@login_required
-def client_ledger_list(request):
-    """
-    Client Ledger: every client with total billed, total paid and
-    outstanding balance across their vehicle purchases, linking through to
-    that client's full statement (clients:client_statement) for the
-    itemized debit/credit history.
-    """
-    search = request.GET.get('q', '').strip()
-
+def _client_ledger_queryset(search=''):
+    """Every client with total billed, total paid and outstanding balance
+    across their vehicle purchases — shared by the on-screen list and its
+    PDF/Excel/CSV exports."""
     clients = Client.objects.annotate(
         total_billed=Coalesce(
             Sum('vehicles__purchase_price'),
@@ -2406,6 +2400,19 @@ def client_ledger_list(request):
             | Q(last_name__icontains=search)
             | Q(phone_primary__icontains=search)
         )
+    return clients
+
+
+@login_required
+def client_ledger_list(request):
+    """
+    Client Ledger: every client with total billed, total paid and
+    outstanding balance across their vehicle purchases, linking through to
+    that client's full statement (clients:client_statement) for the
+    itemized debit/credit history.
+    """
+    search = request.GET.get('q', '').strip()
+    clients = _client_ledger_queryset(search)
 
     totals = clients.aggregate(
         grand_billed=Coalesce(Sum('total_billed'), Value(Decimal('0.00')), output_field=DecimalField(max_digits=14, decimal_places=2)),
@@ -2421,6 +2428,20 @@ def client_ledger_list(request):
         'grand_outstanding': totals['grand_outstanding'],
     }
     return render(request, 'clients/client_ledger_list.html', context)
+
+
+@login_required
+def client_ledger_export(request, fmt):
+    """Export the Client Ledger summary list as PDF/Excel/CSV."""
+    from utils.report_kit import export_rows
+    search = request.GET.get('q', '').strip()
+    clients = _client_ledger_queryset(search)
+    headers = ['Client', 'Phone', 'Vehicles', 'Total Billed', 'Total Paid', 'Outstanding']
+    rows = [
+        [c.get_full_name(), c.phone_primary or '', c.vehicle_count, float(c.total_billed), float(c.total_paid), float(c.outstanding)]
+        for c in clients
+    ]
+    return export_rows(fmt, 'client_ledger', 'Client Ledger', headers, rows, currency_cols={4, 5, 6})
 
 
 def _statement_filters(request):
