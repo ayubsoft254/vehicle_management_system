@@ -9,7 +9,7 @@ from django.db.models import Q, Count, Sum, Avg, Value, DecimalField
 from django.db.models.deletion import ProtectedError
 from django.db.models.functions import Coalesce
 from django.db import transaction
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, Http404
 from django.utils import timezone
 from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, TrackerRecord, ClearingAgent, ClearanceRecord, Broker, BrokerPayment, JapanSupplier, JapanSupplierRecord, JapanSupplierPayment, BusinessLoan, BusinessLoanRepayment
 from apps.clients.models import ClientVehicle, Client
@@ -1772,6 +1772,60 @@ def broker_voucher_print(request, payment_pk):
     return render(request, 'vehicles/broker_voucher_print.html', {'payment': payment})
 
 
+# ==================== PARTNER LEDGER EXPORTS ====================
+# Broker, Tracker Agent, Clearing Agent and Japan Supplier ledgers all share
+# the same "party with billed/paid/owed totals" shape, so one parametrized
+# view covers PDF/Excel/CSV export for all four instead of four near-copies.
+
+_PARTY_LEDGER_EXPORT_CONFIG = {
+    'broker': {
+        'queryset': lambda: Broker.objects.filter(is_active=True).order_by('name'),
+        'title': 'Broker Ledger',
+        'billed_attr': 'total_commission',
+        'billed_label': 'Total Commission',
+    },
+    'tracker_agent': {
+        'queryset': lambda: TrackerAgent.objects.filter(is_active=True).order_by('name'),
+        'title': 'Tracker Agent Ledger',
+        'billed_attr': 'total_selling_price',
+        'billed_label': 'Total Billed',
+    },
+    'clearing_agent': {
+        'queryset': lambda: ClearingAgent.objects.filter(is_active=True).order_by('name'),
+        'title': 'Clearing Agent Ledger',
+        'billed_attr': 'total_billed',
+        'billed_label': 'Total Billed',
+    },
+    'japan_supplier': {
+        'queryset': lambda: JapanSupplier.objects.filter(is_active=True).order_by('name'),
+        'title': 'Japan Supplier Ledger',
+        'billed_attr': 'total_purchase_value',
+        'billed_label': 'Total Purchase Value',
+    },
+}
+
+
+@login_required
+def party_ledger_export(request, kind, fmt):
+    """Export the Broker/Tracker Agent/Clearing Agent/Japan Supplier ledger list as PDF/Excel/CSV."""
+    from utils.report_kit import export_rows
+
+    config = _PARTY_LEDGER_EXPORT_CONFIG.get(kind)
+    if not config:
+        raise Http404('Unknown ledger type.')
+
+    parties = config['queryset']()
+    headers = ['Name', 'Phone', 'Email', config['billed_label'], 'Paid', 'Outstanding']
+    rows = [
+        [
+            p.name, p.phone or '', getattr(p, 'email', '') or '',
+            float(getattr(p, config['billed_attr'])), float(p.total_payments_made), float(p.total_owed),
+        ]
+        for p in parties
+    ]
+    return export_rows(fmt, f'{kind}_ledger', config['title'], headers, rows, currency_cols={4, 5, 6})
+
+
 # ==================== BUSINESS LOANS (MONEY LOANED OUT) ====================
 
 _LOAN_BORROWER_MODELS = {
@@ -1881,6 +1935,23 @@ def business_loan_list(request):
         'insurance_agents': InsuranceAgent.objects.filter(is_active=True).order_by('name'),
     }
     return render(request, 'vehicles/business_loan_list.html', context)
+
+
+@login_required
+def business_loan_export(request, fmt):
+    """Export the Business Loans list as PDF/Excel/CSV."""
+    from utils.report_kit import export_rows
+    loans = BusinessLoan.objects.select_related('recorded_by').order_by('-date_issued')
+    headers = ['Borrower', 'Date Issued', 'Principal', 'Repaid', 'Outstanding', 'Status']
+    rows = [
+        [
+            loan.borrower_name, loan.date_issued.strftime('%Y-%m-%d'),
+            float(loan.principal_amount), float(loan.total_repaid), float(loan.balance),
+            loan.get_status_display(),
+        ]
+        for loan in loans
+    ]
+    return export_rows(fmt, 'business_loans', 'Business Loans', headers, rows, currency_cols={3, 4, 5})
 
 
 @login_required
@@ -2026,6 +2097,27 @@ def main_ledger_view(request):
         params = {k: v for k, v in request.GET.items() if k != 'delete_entry'}
         qs = urllib.parse.urlencode(params)
         return redirect(f"{request.path}?{qs}" if qs else request.path)
+
+    context = _compute_main_ledger_context(request)
+    return render(request, 'vehicles/main_ledger.html', context)
+
+
+def _compute_main_ledger_context(request):
+    """Filter + aggregate the combined main ledger — shared by the on-screen
+    view and its PDF/Excel/CSV exports so all four always match."""
+    from apps.payments.models import Payment
+    from apps.insurance.models import InsuranceAgentPayment
+    from apps.expenses.models import Expense
+    from .models import (
+        TrackerAgentPayment as _TrackerAgentPayment,
+        ClearingAgentPayment as _ClearingAgentPayment,
+        ManualLedgerEntry,
+        BusinessLoan as _BusinessLoan,
+        BusinessLoanRepayment as _BusinessLoanRepayment,
+    )
+    import datetime as dt
+
+    today = dt.date.today()
 
     # --- Filters ---
     date_from_str = request.GET.get('date_from', '')
@@ -2347,4 +2439,26 @@ def main_ledger_view(request):
         'filter_qs': filter_qs,
         'today_str': today.isoformat(),
     }
-    return render(request, 'vehicles/main_ledger.html', context)
+    return context
+
+
+def _main_ledger_export_rows(ctx):
+    headers = ['Date', 'Reference', 'Description', 'Category', 'Method', 'Money In', 'Money Out', 'Balance']
+    rows = [
+        [
+            t['date'].strftime('%Y-%m-%d'), t['ref'], t['description'], t['category_label'], t['method'],
+            float(t['money_in']), float(t['money_out']), float(t['running_balance']),
+        ]
+        for t in ctx['transactions']
+    ]
+    return headers, rows
+
+
+@login_required
+def main_ledger_export(request, fmt):
+    """Export the Main Ledger (filtered the same way as the on-screen view) as PDF/Excel/CSV."""
+    from utils.report_kit import export_rows
+    ctx = _compute_main_ledger_context(request)
+    headers, rows = _main_ledger_export_rows(ctx)
+    subtitle = f"{ctx['date_from']} to {ctx['date_to']}"
+    return export_rows(fmt, 'main_ledger', 'Main Ledger', headers, rows, currency_cols={6, 7, 8}, subtitle=subtitle)
