@@ -1,0 +1,14 @@
+{% comment %}
+Reusable KPI strip. Pass `kpis`: a list of dicts with keys
+label, value, hint (optional), color_class (optional, e.g. "text-red-600").
+Optionally pass `kpi_cols` (default 4).
+{% endcomment %}
+<div class="grid grid-cols-2 md:grid-cols-{{ kpi_cols|default:4 }} gap-4 mb-6">
+    {% for kpi in kpis %}
+    <div class="bg-white rounded-lg border border-slate-200 p-4">
+        <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">{{ kpi.label }}</p>
+        <p class="text-xl font-bold mt-1 {{ kpi.color_class|default:'text-slate-800' }}">{{ kpi.value }}</p>
+        {% if kpi.hint %}<p class="text-xs text-slate-400 mt-0.5">{{ kpi.hint }}</p>{% endif %}
+    </div>
+    {% endfor %}
+</div>
