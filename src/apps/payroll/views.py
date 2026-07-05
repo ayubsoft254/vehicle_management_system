@@ -16,6 +16,9 @@ from datetime import datetime, timedelta, date
 from decimal import Decimal
 import calendar
 
+from reportlab.platypus import Paragraph, Spacer
+from reportlab.lib.units import inch
+
 from .models import (
     Employee, SalaryStructure, Commission, Deduction,
     PayrollRun, Payslip, Attendance, Leave, Loan
@@ -1010,13 +1013,13 @@ def loan_approve(request, pk):
 # Reports and Analytics
 # ============================================================================
 
-@login_required
-def payroll_reports(request):
-    """Display payroll reports and analytics."""
+def _compute_payroll_report_context(request):
+    """Filter + aggregate payroll data — shared by the on-screen reports
+    view and its PDF/Excel/CSV exports."""
     date_from_str = request.GET.get('date_from')
     date_to_str = request.GET.get('date_to')
 
-    payslip_qs = Payslip.objects.all()
+    payslip_qs = Payslip.objects.select_related('employee', 'payroll_run').all()
     commission_qs = Commission.objects.all()
     deduction_qs = Deduction.objects.all()
     attendance_qs = Attendance.objects.all()
@@ -1136,6 +1139,9 @@ def payroll_reports(request):
 
     context = {
         'title': 'Payroll Reports',
+        'payslip_qs': payslip_qs,
+        'date_from_str': date_from_str or '',
+        'date_to_str': date_to_str or '',
         'total_payroll': total_payroll,
         'total_commissions': total_commissions,
         'total_deductions': total_deductions,
@@ -1156,5 +1162,62 @@ def payroll_reports(request):
         'outstanding_balance': outstanding_balance,
         'repayment_rate': repayment_rate,
     }
+    return context
 
+
+@login_required
+def payroll_reports(request):
+    context = _compute_payroll_report_context(request)
     return render(request, 'payroll/reports.html', context)
+
+
+@login_required
+def payroll_reports_pdf(request):
+    from utils.report_kit import build_pdf_response, styled_table, kpi_table, fmt_money
+    ctx = _compute_payroll_report_context(request)
+
+    def body(elements, styles):
+        elements.append(kpi_table([
+            ('Total Payroll (Gross)', fmt_money(ctx['total_payroll'])),
+            ('Total Deductions', fmt_money(ctx['total_deductions'])),
+            ('Net Pay', fmt_money(ctx['net_pay'])),
+            ('Total Commissions', fmt_money(ctx['total_commissions'])),
+            ('Commissions Paid', fmt_money(ctx['total_commissions_paid'])),
+            ('Outstanding Loans', fmt_money(ctx['outstanding_balance'])),
+        ]))
+        elements.append(Spacer(1, 14))
+        elements.append(Paragraph('Payslips', styles['ReportSectionHeading']))
+        rows = [['Employee', 'Period', 'Gross', 'Deductions', 'Net']]
+        for p in ctx['payslip_qs']:
+            rows.append([
+                f"{p.employee.first_name} {p.employee.last_name}",
+                p.payroll_run.payroll_month.strftime('%b %Y'),
+                fmt_money(p.gross_salary), fmt_money(p.total_deductions), fmt_money(p.net_salary),
+            ])
+        elements.append(styled_table(rows, col_widths=[1.8 * inch, 1 * inch, 1.2 * inch, 1.2 * inch, 1.2 * inch], align_right_from=2))
+
+    return build_pdf_response('payroll_report.pdf', 'Payroll Report', build_body=body)
+
+
+@login_required
+def payroll_reports_excel(request):
+    from utils.report_kit import build_excel_response
+    ctx = _compute_payroll_report_context(request)
+    headers = ['Employee', 'Period', 'Gross', 'Deductions', 'Net']
+    rows = [
+        [f"{p.employee.first_name} {p.employee.last_name}", p.payroll_run.payroll_month.strftime('%Y-%m'), float(p.gross_salary), float(p.total_deductions), float(p.net_salary)]
+        for p in ctx['payslip_qs']
+    ]
+    return build_excel_response('payroll_report.xlsx', 'Payslips', headers, rows, currency_cols={3, 4, 5})
+
+
+@login_required
+def payroll_reports_csv(request):
+    from utils.report_kit import build_csv_response
+    ctx = _compute_payroll_report_context(request)
+    headers = ['Employee', 'Period', 'Gross', 'Deductions', 'Net']
+    rows = [
+        [f"{p.employee.first_name} {p.employee.last_name}", p.payroll_run.payroll_month.strftime('%Y-%m'), p.gross_salary, p.total_deductions, p.net_salary]
+        for p in ctx['payslip_qs']
+    ]
+    return build_csv_response('payroll_report.csv', headers, rows)
