@@ -51,6 +51,9 @@ urlpatterns = [
 
     # Financial Reports
     path('financial/', views.financial_reports, name='financial_reports'),
+    path('financial/export/pdf/', views.financial_reports_pdf, name='financial_reports_pdf'),
+    path('financial/export/excel/', views.financial_reports_excel, name='financial_reports_excel'),
+    path('financial/export/csv/', views.financial_reports_csv, name='financial_reports_csv'),
     
     # Export & Sharing
     path('<uuid:pk>/export-config/', views.export_report_config, name='export_config'),
