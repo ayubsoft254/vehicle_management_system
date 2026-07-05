@@ -339,11 +339,12 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 # COMPANY INFORMATION
 # ==============================================================================
 
-COMPANY_NAME = config('COMPANY_NAME', default='Vehicle Sales Company')
-COMPANY_ADDRESS = config('COMPANY_ADDRESS', default='Nairobi, Kenya')
-COMPANY_PHONE = config('COMPANY_PHONE', default='+254-712-345-678')
-COMPANY_EMAIL = config('COMPANY_EMAIL', default='info@vehiclesales.com')
-COMPANY_WEBSITE = config('COMPANY_WEBSITE', default='www.vehiclesales.com')
+COMPANY_NAME = config('COMPANY_NAME', default='HOZA INVESTMENT (K) LIMITED')
+COMPANY_ADDRESS = config('COMPANY_ADDRESS', default='P.O BOX 43074-80100 MOMBASA, Kenya')
+COMPANY_PHONE = config('COMPANY_PHONE', default='+254700170447 / +254784170447')
+COMPANY_EMAIL = config('COMPANY_EMAIL', default='hozainvltd@gmail.com')
+COMPANY_WEBSITE = config('COMPANY_WEBSITE', default='')
+COMPANY_PIN = config('COMPANY_PIN', default='PO51811452A')
 
 # ==============================================================================
 # PAGINATION
