@@ -1398,8 +1398,8 @@ class AccountTransaction(models.Model):
     ]
 
     DIRECTION_CHOICES = [
-        ('in', 'Money In'),
-        ('out', 'Money Out'),
+        ('in', 'Debit'),
+        ('out', 'Credit'),
     ]
 
     APPROVAL_STATUS_CHOICES = [

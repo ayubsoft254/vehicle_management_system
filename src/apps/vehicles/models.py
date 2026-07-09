@@ -1281,8 +1281,8 @@ class ManualLedgerEntry(models.Model):
     """Ad-hoc financial entries recorded directly in the main ledger."""
 
     DIRECTION_CHOICES = [
-        ('in', 'Money In'),
-        ('out', 'Money Out'),
+        ('in', 'Debit'),
+        ('out', 'Credit'),
     ]
 
     date = models.DateField('Date')

@@ -91,10 +91,10 @@
 
     <!-- KPI Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <!-- Money In -->
+        <!-- Debits (money in) -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Money In</span>
+                <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Debits</span>
                 <span class="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
                     <i class="fas fa-arrow-down text-green-600 text-sm"></i>
                 </span>
@@ -102,10 +102,10 @@
             <p class="text-2xl font-bold text-green-600">KES {{ total_in|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-1">Client payments, loan repayments &amp; manual entries received</p>
         </div>
-        <!-- Money Out -->
+        <!-- Credits (money out) -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Money Out</span>
+                <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Credits</span>
                 <span class="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
                     <i class="fas fa-arrow-up text-red-600 text-sm"></i>
                 </span>
@@ -141,8 +141,8 @@
                 <thead>
                     <tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
                         <th class="px-6 py-3 text-left">Category</th>
-                        <th class="px-6 py-3 text-right">Money In (KES)</th>
-                        <th class="px-6 py-3 text-right">Money Out (KES)</th>
+                        <th class="px-6 py-3 text-right">Debit (KES)</th>
+                        <th class="px-6 py-3 text-right">Credit (KES)</th>
                         <th class="px-6 py-3 text-right">Net (KES)</th>
                     </tr>
                 </thead>
@@ -222,8 +222,8 @@
                         <th class="px-4 py-3 text-left">Description</th>
                         <th class="px-4 py-3 text-left">Category</th>
                         <th class="px-4 py-3 text-left">Method</th>
-                        <th class="px-4 py-3 text-right">Money In</th>
-                        <th class="px-4 py-3 text-right">Money Out</th>
+                        <th class="px-4 py-3 text-right">Debit</th>
+                        <th class="px-4 py-3 text-right">Credit</th>
                         <th class="px-4 py-3 text-right">Balance</th>
                         <th class="px-4 py-3 text-center w-8"></th>
                     </tr>
@@ -362,7 +362,7 @@
                                 onchange="document.getElementById('entry-modal').dataset.dir='in'; updateDirectionStyle()">
                             <span id="dir-in-label"
                                 class="block py-2.5 text-sm font-semibold transition bg-green-600 text-white">
-                                <i class="fas fa-arrow-down mr-1"></i> Money In
+                                <i class="fas fa-arrow-down mr-1"></i> Debit (In)
                             </span>
                         </label>
                         <label class="flex-1 text-center cursor-pointer">
@@ -370,7 +370,7 @@
                                 onchange="updateDirectionStyle()">
                             <span id="dir-out-label"
                                 class="block py-2.5 text-sm font-semibold transition bg-gray-100 text-gray-500">
-                                <i class="fas fa-arrow-up mr-1"></i> Money Out
+                                <i class="fas fa-arrow-up mr-1"></i> Credit (Out)
                             </span>
                         </label>
                     </div>

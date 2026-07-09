@@ -55,11 +55,11 @@
             <p class="text-xl font-bold text-gray-900">KES {{ summary.opening_balance|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <p class="text-sm font-medium text-gray-600">Money In</p>
+            <p class="text-sm font-medium text-gray-600">Debits</p>
             <p class="text-xl font-bold text-green-600">KES {{ summary.money_in|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <p class="text-sm font-medium text-gray-600">Money Out</p>
+            <p class="text-sm font-medium text-gray-600">Credits</p>
             <p class="text-xl font-bold text-red-600">KES {{ summary.money_out|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border {% if is_hoza %}border-orange-200{% else %}border-cyan-200{% endif %} p-5">
@@ -91,8 +91,8 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Money In</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Money Out</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Debit</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Credit</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
                     </tr>
                 </thead>

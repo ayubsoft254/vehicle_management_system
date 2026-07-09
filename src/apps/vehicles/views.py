@@ -2050,7 +2050,7 @@ def main_ledger_view(request):
         if not raw_date:
             errors.append('Date is required.')
         if direction not in ('in', 'out'):
-            errors.append('Direction must be Money In or Money Out.')
+            errors.append('Direction must be Debit or Credit.')
         amount = None
         try:
             amount = Decimal(raw_amount)
@@ -2443,7 +2443,7 @@ def _compute_main_ledger_context(request):
 
 
 def _main_ledger_export_rows(ctx):
-    headers = ['Date', 'Reference', 'Description', 'Category', 'Method', 'Money In', 'Money Out', 'Balance']
+    headers = ['Date', 'Reference', 'Description', 'Category', 'Method', 'Debit', 'Credit', 'Balance']
     rows = [
         [
             t['date'].strftime('%Y-%m-%d'), t['ref'], t['description'], t['category_label'], t['method'],
