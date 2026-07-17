@@ -4,6 +4,8 @@ Manage customer/client information and vehicle purchases
 """
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.utils import timezone
+from datetime import timedelta
 from decimal import Decimal
 from utils.constants import ClientStatus, DocumentType
 from utils.validators import validate_passport_number
@@ -1242,3 +1244,585 @@ class AgreementVersion(models.Model):
 
     def __str__(self):
         return f"v{self.version_number} — {self.label} ({self.client_vehicle})"
+
+
+# ==================== RESERVATION SETTINGS (SINGLETON) ====================
+
+class ReservationSetting(models.Model):
+    """
+    System-wide configuration for vehicle reservations.
+    A single row (pk=1) holds the defaults; only administrators may edit it.
+    """
+
+    PERIOD_CHOICES = [
+        (3, '3 days'),
+        (7, '7 days'),
+        (14, '14 days'),
+    ]
+
+    default_period_days = models.PositiveIntegerField(
+        'Default Reservation Period (days)',
+        default=7,
+        validators=[MinValueValidator(1)],
+        help_text='Days a deposit-backed reservation holds a vehicle by default'
+    )
+
+    notify_days_before = models.PositiveIntegerField(
+        'Notify Before Expiry (days)',
+        default=1,
+        help_text='Days before expiry to notify the salesperson and managers'
+    )
+
+    updated_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reservation_settings_updated'
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'reservation_settings'
+        verbose_name = 'Reservation Setting'
+        verbose_name_plural = 'Reservation Settings'
+
+    def __str__(self):
+        return f"Reservation defaults: {self.default_period_days} days"
+
+    @classmethod
+    def get_solo(cls):
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+# ==================== PROFORMA INVOICE ====================
+
+class ProformaInvoiceManager(models.Manager):
+
+    ACTIVE_STATUSES = ('draft', 'issued', 'awaiting_commitment', 'deposit_paid', 'reserved')
+
+    def active(self):
+        return self.filter(status__in=self.ACTIVE_STATUSES)
+
+    def awaiting_deposit(self):
+        return self.filter(status__in=('issued', 'awaiting_commitment'))
+
+    def reserved(self):
+        return self.filter(status='reserved')
+
+
+class ProformaInvoice(models.Model):
+    """
+    A quotation issued to a prospective buyer (typically for bank financing).
+    A proforma invoice on its own never reserves the vehicle, never marks it
+    sold and never blocks other sales — commitment starts only when the
+    required deposit is confirmed (see VehicleReservation).
+    """
+
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('issued', 'Issued'),
+        ('awaiting_commitment', 'Awaiting Commitment'),
+        ('deposit_paid', 'Deposit Paid'),
+        ('reserved', 'Reserved'),
+        ('expired', 'Expired'),
+        ('cancelled', 'Cancelled'),
+        ('converted', 'Converted to Sale'),
+    ]
+
+    ACTIVE_STATUSES = ProformaInvoiceManager.ACTIVE_STATUSES
+
+    PAYMENT_MODE_CHOICES = [
+        ('bank_financing', 'Bank Financing'),
+        ('cash', 'Cash / Own Funds'),
+        ('installment', 'Hire Purchase'),
+    ]
+
+    number = models.CharField(
+        'Proforma Number',
+        max_length=30,
+        unique=True,
+        blank=True,
+        help_text='Auto-generated: PF-YYYYMMDD-XXXX'
+    )
+
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.PROTECT,
+        related_name='proforma_invoices'
+    )
+
+    vehicle = models.ForeignKey(
+        'vehicles.Vehicle',
+        on_delete=models.PROTECT,
+        related_name='proforma_invoices'
+    )
+
+    issue_date = models.DateField('Date of Issue', default=timezone.now)
+    expiry_date = models.DateField('Expiry Date', blank=True, null=True)
+
+    status = models.CharField(
+        max_length=25,
+        choices=STATUS_CHOICES,
+        default='draft',
+        db_index=True
+    )
+
+    payment_mode = models.CharField(
+        'Payment Mode',
+        max_length=20,
+        choices=PAYMENT_MODE_CHOICES,
+        default='bank_financing'
+    )
+
+    financing_bank = models.CharField(
+        'Bank / Financial Institution',
+        max_length=200,
+        blank=True,
+        help_text='Financier when payment mode is bank financing'
+    )
+
+    selling_price = models.DecimalField(
+        'Vehicle Selling Price',
+        max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+
+    deposit_required = models.DecimalField(
+        'Deposit Required',
+        max_digits=12, decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+
+    financing_amount = models.DecimalField(
+        'Financing Amount',
+        max_digits=12, decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Amount expected from the bank/financier'
+    )
+
+    total_price = models.DecimalField(
+        'Total Purchase Price',
+        max_digits=12, decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+
+    payment_terms = models.TextField('Payment Terms', blank=True)
+    bank_details = models.TextField('Company Bank Details', blank=True)
+    terms_conditions = models.TextField('Terms & Conditions', blank=True)
+    notes = models.TextField(blank=True)
+
+    prepared_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='proformas_prepared'
+    )
+
+    APPROVAL_STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+    ]
+
+    approval_status = models.CharField(
+        max_length=10,
+        choices=APPROVAL_STATUS_CHOICES,
+        default='pending'
+    )
+
+    approved_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='proformas_approved'
+    )
+
+    converted_client_vehicle = models.OneToOneField(
+        ClientVehicle,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='source_proforma',
+        help_text='The sale record this proforma was converted into'
+    )
+    converted_at = models.DateTimeField(null=True, blank=True)
+    converted_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='proformas_converted'
+    )
+
+    cancelled_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='proformas_cancelled'
+    )
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancel_reason = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = ProformaInvoiceManager()
+
+    class Meta:
+        db_table = 'proforma_invoices'
+        ordering = ['-created_at']
+        verbose_name = 'Proforma Invoice'
+        verbose_name_plural = 'Proforma Invoices'
+        indexes = [
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['vehicle', 'status']),
+            models.Index(fields=['client', 'status']),
+        ]
+
+    def __str__(self):
+        return f"{self.number} — {self.client.get_full_name()} — {self.vehicle}"
+
+    def save(self, *args, **kwargs):
+        if not self.number:
+            date_str = timezone.now().strftime('%Y%m%d')
+            last = ProformaInvoice.objects.filter(
+                number__startswith=f'PF-{date_str}-'
+            ).order_by('-number').first()
+            seq = 1
+            if last:
+                try:
+                    seq = int(last.number.split('-')[-1]) + 1
+                except (ValueError, IndexError):
+                    pass
+            self.number = f'PF-{date_str}-{seq:04d}'
+
+        if not self.expiry_date and self.issue_date:
+            issue = self.issue_date
+            if hasattr(issue, 'date'):
+                issue = issue.date()
+            self.expiry_date = issue + timedelta(days=14)
+
+        if not self.total_price or self.total_price <= 0:
+            self.total_price = self.selling_price
+
+        if (not self.financing_amount or self.financing_amount <= 0) and self.payment_mode == 'bank_financing':
+            self.financing_amount = max(
+                Decimal('0.00'), (self.total_price or Decimal('0.00')) - (self.deposit_required or Decimal('0.00'))
+            )
+
+        super().save(*args, **kwargs)
+
+    # ---- helpers -------------------------------------------------------
+
+    @property
+    def is_active(self):
+        return self.status in self.ACTIVE_STATUSES
+
+    @property
+    def is_past_expiry(self):
+        return bool(self.expiry_date and timezone.now().date() > self.expiry_date)
+
+    @property
+    def total_deposits_confirmed(self):
+        return self.deposits.filter(is_reversed=False).aggregate(
+            t=models.Sum('amount'))['t'] or Decimal('0.00')
+
+    @property
+    def deposit_outstanding(self):
+        return max(Decimal('0.00'), (self.deposit_required or Decimal('0.00')) - self.total_deposits_confirmed)
+
+    @property
+    def deposit_fully_paid(self):
+        return self.total_deposits_confirmed >= (self.deposit_required or Decimal('0.00')) and \
+            self.total_deposits_confirmed > Decimal('0.00')
+
+    @property
+    def remaining_balance(self):
+        return max(Decimal('0.00'), (self.total_price or Decimal('0.00')) - self.total_deposits_confirmed)
+
+    @property
+    def active_reservation(self):
+        return self.reservations.filter(status__in=('active', 'expired')).order_by('-reserved_at').first()
+
+    def get_status_color(self):
+        return {
+            'draft': 'gray',
+            'issued': 'blue',
+            'awaiting_commitment': 'amber',
+            'deposit_paid': 'indigo',
+            'reserved': 'yellow',
+            'expired': 'red',
+            'cancelled': 'gray',
+            'converted': 'green',
+        }.get(self.status, 'gray')
+
+
+# ==================== PROFORMA DEPOSIT ====================
+
+class ProformaDeposit(models.Model):
+    """
+    A confirmed commitment deposit held against a proforma invoice.
+    Posts a debit into the receiving account's ledger (AccountTransaction)
+    and shows as a credit on the client's statement. On conversion to a
+    sale, the deposit becomes a regular Payment on the ClientVehicle —
+    never duplicated (see ProformaInvoice conversion logic).
+    """
+
+    proforma = models.ForeignKey(
+        ProformaInvoice,
+        on_delete=models.CASCADE,
+        related_name='deposits'
+    )
+
+    amount = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))]
+    )
+
+    payment_date = models.DateField(default=timezone.now)
+
+    # Mirrors payments.Payment.PAYMENT_METHOD_CHOICES (duplicated to avoid a
+    # circular import between the clients and payments apps).
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('mpesa', 'M-Pesa'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('equity_hoza', 'Equity Hoza'),
+        ('dib_hoza', 'DIB Hoza'),
+        ('coop_hoza', 'COOP Hoza'),
+        ('kcb_ke', 'KCB KE'),
+        ('absa_ke', 'ABSA KE'),
+        ('equity_ke', 'EQUITY KE'),
+        ('cheque', 'Cheque'),
+        ('card', 'Credit/Debit Card'),
+        ('other', 'Other'),
+    ]
+
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default='cash'
+    )
+
+    transaction_reference = models.CharField(max_length=100, blank=True)
+
+    account = models.ForeignKey(
+        'payments.Account',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='proforma_deposits',
+        help_text='Account where the deposit money landed'
+    )
+
+    account_transaction = models.ForeignKey(
+        'payments.AccountTransaction',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='proforma_deposits',
+        help_text='Ledger entry posted when this deposit was confirmed'
+    )
+
+    converted_payment = models.ForeignKey(
+        'payments.Payment',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='proforma_deposits',
+        help_text='Payment created when the proforma converted to a sale'
+    )
+
+    notes = models.TextField(blank=True)
+
+    confirmed_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='proforma_deposits_confirmed'
+    )
+    confirmed_at = models.DateTimeField(auto_now_add=True)
+
+    is_reversed = models.BooleanField(default=False)
+    reversed_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='proforma_deposits_reversed'
+    )
+    reversed_at = models.DateTimeField(null=True, blank=True)
+    reversal_reason = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'proforma_deposits'
+        ordering = ['-payment_date', '-confirmed_at']
+        verbose_name = 'Proforma Deposit'
+        verbose_name_plural = 'Proforma Deposits'
+
+    def __str__(self):
+        return f"Deposit KES {self.amount:,.2f} — {self.proforma.number}"
+
+    def reverse(self, user, reason):
+        """Void this deposit and its account ledger entry (audit-preserving)."""
+        if self.is_reversed:
+            raise ValueError('This deposit has already been reversed.')
+        reason = (reason or '').strip()
+        if not reason:
+            raise ValueError('A reason is required to reverse a deposit.')
+        self.is_reversed = True
+        self.reversed_by = user
+        self.reversed_at = timezone.now()
+        self.reversal_reason = reason
+        self.save(update_fields=['is_reversed', 'reversed_by', 'reversed_at', 'reversal_reason'])
+        if self.account_transaction and not self.account_transaction.is_reversed:
+            self.account_transaction.reverse(user, f'Proforma deposit reversed: {reason}')
+
+
+# ==================== VEHICLE RESERVATION ====================
+
+class VehicleReservationManager(models.Manager):
+
+    def active(self):
+        return self.filter(status='active')
+
+    def needing_review(self):
+        return self.filter(status='expired')
+
+
+class VehicleReservation(models.Model):
+    """
+    Holds a vehicle for a committed client after their deposit is confirmed.
+    Created only by deposit confirmation — never by issuing a proforma.
+    """
+
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('expired', 'Expired — Pending Review'),
+        ('released', 'Released'),
+        ('cancelled', 'Cancelled'),
+        ('converted', 'Converted to Sale'),
+    ]
+
+    proforma = models.ForeignKey(
+        ProformaInvoice,
+        on_delete=models.CASCADE,
+        related_name='reservations'
+    )
+
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.PROTECT,
+        related_name='vehicle_reservations'
+    )
+
+    vehicle = models.ForeignKey(
+        'vehicles.Vehicle',
+        on_delete=models.PROTECT,
+        related_name='reservations'
+    )
+
+    deposit = models.ForeignKey(
+        ProformaDeposit,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reservations',
+        help_text='The deposit that triggered this reservation'
+    )
+
+    status = models.CharField(
+        max_length=15,
+        choices=STATUS_CHOICES,
+        default='active',
+        db_index=True
+    )
+
+    reserved_at = models.DateTimeField(default=timezone.now)
+    period_days = models.PositiveIntegerField(default=7)
+    expiry_date = models.DateField()
+
+    confirmed_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='reservations_confirmed',
+        help_text='Staff member who confirmed the deposit/reservation'
+    )
+
+    extension_count = models.PositiveIntegerField(default=0)
+    extended_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reservations_extended'
+    )
+    extended_at = models.DateTimeField(null=True, blank=True)
+
+    released_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reservations_released'
+    )
+    released_at = models.DateTimeField(null=True, blank=True)
+    release_reason = models.TextField(blank=True)
+
+    expiry_notified = models.BooleanField(
+        default=False,
+        help_text='Pre-expiry warning already sent to salesperson/manager'
+    )
+
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = VehicleReservationManager()
+
+    class Meta:
+        db_table = 'vehicle_reservations'
+        ordering = ['-reserved_at']
+        verbose_name = 'Vehicle Reservation'
+        verbose_name_plural = 'Vehicle Reservations'
+        indexes = [
+            models.Index(fields=['status', 'expiry_date']),
+            models.Index(fields=['vehicle', 'status']),
+        ]
+
+    def __str__(self):
+        return f"Reservation — {self.vehicle} for {self.client.get_full_name()} ({self.get_status_display()})"
+
+    @property
+    def deposit_amount(self):
+        return self.proforma.total_deposits_confirmed
+
+    @property
+    def remaining_balance(self):
+        return self.proforma.remaining_balance
+
+    @property
+    def days_to_expiry(self):
+        return (self.expiry_date - timezone.now().date()).days
+
+    @property
+    def is_past_expiry(self):
+        return timezone.now().date() > self.expiry_date
+
+    def get_status_color(self):
+        return {
+            'active': 'yellow',
+            'expired': 'red',
+            'released': 'gray',
+            'cancelled': 'gray',
+            'converted': 'green',
+        }.get(self.status, 'gray')
