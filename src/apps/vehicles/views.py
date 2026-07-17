@@ -294,9 +294,16 @@ def vehicle_detail_view(request, pk):
 
     vehicle_profit = display_price - total_cost
 
+    active_reservation = None
+    if request.user.is_authenticated:
+        active_reservation = vehicle.reservations.filter(
+            status__in=('active', 'expired')
+        ).select_related('client', 'proforma').order_by('-reserved_at').first()
+
     context = {
         'vehicle': vehicle,
         'history': history,
+        'active_reservation': active_reservation,
         'extra_costs': extra_costs,
         'location_history': location_history,
         'extra_cost_total': extra_cost_total,
@@ -700,20 +707,43 @@ def vehicle_photo_upload_view(request, pk):
     if request.method == 'POST':
         form = VehiclePhotoForm(request.POST, request.FILES)
         if form.is_valid():
+            from .photo_utils import compress_uploaded_photo
+            from apps.audit.utils import log_audit
+
             try:
-                photo = form.save(commit=False)
-                # Set required foreign key relationships
-                photo.vehicle = vehicle
-                photo.uploaded_by = request.user
-                
-                # Ensure order has a valid value if not set
-                if photo.order is None:
-                    photo.order = 0
-                
-                # Save the photo
-                photo.save()
-                
-                messages.success(request, f'Photo uploaded successfully! {vehicle.photos.count()} photo(s) total.')
+                files = request.FILES.getlist('image')
+                caption = form.cleaned_data.get('caption') or ''
+                is_primary = form.cleaned_data.get('is_primary') or False
+                is_public = form.cleaned_data.get('is_public')
+                if is_public is None:
+                    is_public = True
+                base_order = form.cleaned_data.get('order') or 0
+
+                created = 0
+                for index, uploaded in enumerate(files):
+                    VehiclePhoto.objects.create(
+                        vehicle=vehicle,
+                        image=compress_uploaded_photo(uploaded),
+                        caption=caption,
+                        # Only the first file of a batch can be primary
+                        is_primary=is_primary and index == 0,
+                        is_public=is_public,
+                        order=base_order + index,
+                        uploaded_by=request.user,
+                    )
+                    created += 1
+
+                log_audit(
+                    request.user, 'create', 'VehiclePhoto',
+                    f'Uploaded {created} photo(s) for {vehicle.full_name} '
+                    f'({"public" if is_public else "internal"})',
+                    object_id=str(vehicle.pk),
+                )
+                messages.success(
+                    request,
+                    f'{created} photo(s) uploaded successfully! '
+                    f'{vehicle.photos.count()} photo(s) total.'
+                )
                 return redirect('vehicles:detail', pk=vehicle.pk)
             except Exception as e:
                 messages.error(request, f'Error saving photo: {str(e)}')
@@ -752,6 +782,100 @@ def vehicle_photo_delete_view(request, pk, photo_pk):
         'photo': photo,
     }
     return render(request, 'vehicles/photo_confirm_delete.html', context)
+
+
+@login_required
+@module_permission_required('vehicles', AccessLevel.READ_WRITE)
+def vehicle_photo_update_view(request, pk, photo_pk):
+    """
+    Manage a single photo: set as main/cover, toggle public/internal,
+    update caption or display order.
+    """
+    from apps.audit.utils import log_audit
+
+    if request.method != 'POST':
+        return redirect('vehicles:detail', pk=pk)
+
+    vehicle = get_object_or_404(Vehicle, pk=pk)
+    photo = get_object_or_404(VehiclePhoto, pk=photo_pk, vehicle=vehicle)
+    action = request.POST.get('action', '')
+
+    if action == 'set_primary':
+        photo.is_primary = True
+        photo.save()
+        messages.success(request, 'Cover photo updated.')
+    elif action == 'toggle_public':
+        photo.is_public = not photo.is_public
+        if not photo.is_public and photo.is_primary:
+            # An internal photo cannot be the website cover
+            replacement = vehicle.photos.filter(
+                is_public=True).exclude(pk=photo.pk).first()
+            if replacement:
+                replacement.is_primary = True
+                replacement.save()
+            photo.is_primary = False
+        photo.save()
+        messages.success(
+            request,
+            f'Photo marked as {"Public" if photo.is_public else "Internal"}.'
+        )
+    elif action == 'update_details':
+        photo.caption = request.POST.get('caption', photo.caption or '').strip()
+        try:
+            photo.order = int(request.POST.get('order', photo.order))
+        except (TypeError, ValueError):
+            pass
+        photo.save()
+        messages.success(request, 'Photo details updated.')
+    elif action == 'replace':
+        from .photo_utils import compress_uploaded_photo
+        uploaded = request.FILES.get('image')
+        if uploaded:
+            import os
+            old_path = photo.image.path if photo.image else None
+            photo.image = compress_uploaded_photo(uploaded)
+            photo.save()
+            if old_path and os.path.isfile(old_path):
+                try:
+                    os.remove(old_path)
+                except OSError:
+                    pass
+            messages.success(request, 'Photo replaced.')
+        else:
+            messages.error(request, 'Choose a replacement image.')
+    else:
+        messages.error(request, 'Unknown photo action.')
+        return redirect('vehicles:detail', pk=pk)
+
+    log_audit(
+        request.user, 'update', 'VehiclePhoto',
+        f'Photo {photo.pk} on {vehicle.full_name}: {action}',
+        object_id=str(vehicle.pk),
+    )
+    return redirect('vehicles:detail', pk=pk)
+
+
+@login_required
+@module_permission_required('vehicles', AccessLevel.READ_WRITE)
+def vehicle_toggle_photo_downloads_view(request, pk):
+    """Enable/disable public photo downloads for a vehicle."""
+    from apps.audit.utils import log_audit
+
+    if request.method != 'POST':
+        return redirect('vehicles:detail', pk=pk)
+
+    vehicle = get_object_or_404(Vehicle, pk=pk)
+    vehicle.allow_photo_downloads = not vehicle.allow_photo_downloads
+    vehicle.save(update_fields=['allow_photo_downloads', 'last_updated'])
+
+    state = 'enabled' if vehicle.allow_photo_downloads else 'disabled'
+    log_audit(
+        request.user, 'update', 'Vehicle',
+        f'Public photo downloads {state} for {vehicle.full_name}',
+        object_id=str(vehicle.pk),
+    )
+    messages.success(request, f'Public photo downloads {state} for this vehicle.')
+    return redirect('vehicles:detail', pk=pk)
 
 
 @login_required
@@ -972,6 +1096,19 @@ def sell_vehicle(request, pk):
 
 
 @login_required
+def vehicle_pricing_api(request, pk):
+    """Lightweight pricing lookup used by the proforma form to auto-fill."""
+    vehicle = get_object_or_404(Vehicle, pk=pk)
+    return JsonResponse({
+        'selling_price': float(vehicle.website_display_price or 0),
+        'deposit_required': float(vehicle.deposit_required or 0),
+        'registration_number': vehicle.registration_number or '',
+        'vin': vehicle.vin,
+        'status': vehicle.status,
+    })
+
+
+@login_required
 @role_required(UserRole.ADMIN)
 def vehicle_purchase_price_assignment_view(request):
     """Admin-only module to assign/edit vehicle purchase price and recalculate selling price."""
@@ -1105,14 +1242,48 @@ def tracker_agent_ledger_list(request):
 @login_required
 def tracker_agent_ledger_detail(request, pk):
     """Show all tracker records for an agent and allow marking them paid."""
+    from utils.ledger import make_entry, build_statement
+
     agent = get_object_or_404(TrackerAgent, pk=pk)
     records = agent.tracker_records.select_related('vehicle', 'client_vehicle__client').order_by('-created_at')
     from .models import TrackerAgentPayment
     payments = agent.payments.select_related('recorded_by').order_by('-payment_date')
+
+    entries = [
+        make_entry(
+            (r.installation_date or r.created_at.date()),
+            f'Tracker supplied: {r.tracker_name}',
+            credit=r.buying_price,
+            reference=r.serial_number or f'TRK-{r.pk}',
+            related=str(r.vehicle),
+            status=r.get_dealer_payment_status_display(),
+            sort_key=r.created_at,
+        )
+        for r in records
+    ] + [
+        make_entry(
+            p.payment_date,
+            'Payment to agent',
+            debit=p.amount,
+            reference=p.reference_number or f'PAY-{p.pk}',
+            method=p.get_payment_method_display(),
+            created_by=p.recorded_by,
+            status='Paid',
+            notes=p.notes,
+            sort_key=p.created_at,
+        )
+        for p in payments
+    ]
+    statement_rows, statement_summary = build_statement(entries, balance_from='credit')
+
     context = {
         'agent': agent,
         'records': records,
         'payments': payments,
+        'statement_rows': statement_rows,
+        'statement_summary': statement_summary,
+        'debit_hint': 'payment made to agent',
+        'credit_hint': 'tracker billed by agent',
     }
     return render(request, 'vehicles/tracker_agent_ledger_detail.html', context)
 
@@ -1181,14 +1352,49 @@ def clearing_agent_ledger_list(request):
 @login_required
 def clearing_agent_ledger_detail(request, pk):
     """Show all clearance records for an agent and allow marking them paid."""
+    from utils.ledger import make_entry, build_statement
+
     agent = get_object_or_404(ClearingAgent, pk=pk)
     records = agent.clearance_records.select_related('vehicle').order_by('-date')
     from .models import ClearingAgentPayment
     payments = agent.payments.select_related('recorded_by').order_by('-payment_date')
+
+    entries = [
+        make_entry(
+            r.date,
+            'Clearance charges',
+            credit=r.amount,
+            reference=f'CLR-{r.pk}',
+            related=str(r.vehicle),
+            status=r.get_payment_status_display(),
+            notes=r.notes,
+            sort_key=r.created_at,
+        )
+        for r in records
+    ] + [
+        make_entry(
+            p.payment_date,
+            'Payment to agent',
+            debit=p.amount,
+            reference=p.reference_number or f'PAY-{p.pk}',
+            method=p.get_payment_method_display(),
+            created_by=p.recorded_by,
+            status='Paid',
+            notes=p.notes,
+            sort_key=p.created_at,
+        )
+        for p in payments
+    ]
+    statement_rows, statement_summary = build_statement(entries, balance_from='credit')
+
     context = {
         'agent': agent,
         'records': records,
         'payments': payments,
+        'statement_rows': statement_rows,
+        'statement_summary': statement_summary,
+        'debit_hint': 'payment made to agent',
+        'credit_hint': 'clearance billed by agent',
     }
     return render(request, 'vehicles/clearing_agent_ledger_detail.html', context)
 
@@ -1386,6 +1592,8 @@ def japan_supplier_ledger_list(request):
 @login_required
 def japan_supplier_ledger_detail(request, pk):
     """Show all purchase records for a supplier and payment history."""
+    from utils.ledger import make_entry, build_statement
+
     supplier = get_object_or_404(JapanSupplier, pk=pk)
     records = supplier.supplier_records.select_related('vehicle').order_by('-date')
     payments = supplier.payments.select_related('recorded_by').order_by('-payment_date')
@@ -1397,11 +1605,43 @@ def japan_supplier_ledger_detail(request, pk):
             Q(vehicle__registration_number__icontains=vehicle_search)
         )
 
+    entries = [
+        make_entry(
+            r.date,
+            'Vehicle purchased from supplier',
+            credit=r.purchase_price,
+            reference=f'SUP-{r.pk}',
+            related=str(r.vehicle),
+            status=r.get_payment_status_display(),
+            notes=r.notes,
+            sort_key=r.created_at,
+        )
+        for r in records
+    ] + [
+        make_entry(
+            p.payment_date,
+            'Payment to supplier',
+            debit=p.amount,
+            reference=p.reference_number or f'PAY-{p.pk}',
+            method=p.get_payment_method_display(),
+            created_by=p.recorded_by,
+            status='Paid',
+            notes=p.notes,
+            sort_key=p.created_at,
+        )
+        for p in payments
+    ]
+    statement_rows, statement_summary = build_statement(entries, balance_from='credit')
+
     context = {
         'supplier': supplier,
         'records': records,
         'payments': payments,
         'vehicle_search': vehicle_search,
+        'statement_rows': statement_rows,
+        'statement_summary': statement_summary,
+        'debit_hint': 'payment made to supplier',
+        'credit_hint': 'vehicle billed by supplier',
     }
     return render(request, 'vehicles/japan_supplier_ledger_detail.html', context)
 
@@ -1671,13 +1911,47 @@ def broker_ledger_list(request):
 @login_required
 def broker_ledger_detail(request, pk):
     """Show all sales for a broker and allow marking commissions paid."""
+    from utils.ledger import make_entry, build_statement
+
     broker = get_object_or_404(Broker, pk=pk)
     sales = broker.sales.select_related('vehicle', 'client').order_by('-purchase_date')
     payments = broker.payments.select_related('recorded_by').order_by('-payment_date')
+
+    entries = [
+        make_entry(
+            s.purchase_date,
+            f'Commission earned — sale to {s.client.get_full_name()}',
+            credit=s.commission_amount,
+            reference=f'CV-{s.pk}',
+            related=str(s.vehicle),
+            status=s.get_broker_commission_status_display(),
+            sort_key=s.created_at,
+        )
+        for s in sales if s.commission_amount and s.commission_amount > 0
+    ] + [
+        make_entry(
+            p.payment_date,
+            'Commission payment (voucher)',
+            debit=p.amount,
+            reference=p.voucher_number or p.reference_number or f'PAY-{p.pk}',
+            method=p.get_payment_method_display(),
+            created_by=p.recorded_by,
+            status='Paid',
+            notes=p.notes,
+            sort_key=p.created_at,
+        )
+        for p in payments
+    ]
+    statement_rows, statement_summary = build_statement(entries, balance_from='credit')
+
     context = {
         'broker': broker,
         'sales': sales,
         'payments': payments,
+        'statement_rows': statement_rows,
+        'statement_summary': statement_summary,
+        'debit_hint': 'commission paid to broker',
+        'credit_hint': 'commission earned by broker',
     }
     return render(request, 'vehicles/broker_ledger_detail.html', context)
 
