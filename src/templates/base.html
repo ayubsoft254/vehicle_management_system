@@ -225,6 +225,14 @@
                             </a>
                             {% endif %}
 
+                            <!-- Proformas & Reservations -->
+                            {% if user.is_superuser or user|can_access:'clients' %}
+                            <a href="{% url 'clients:proforma_list' %}" class="flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                <i class="fas fa-file-invoice w-5 text-gray-400 group-hover:text-primary-600"></i>
+                                <span class="ml-3 font-medium">Proformas</span>
+                            </a>
+                            {% endif %}
+
                             <!-- Ledgers (collapsible) -->
                             {% if user.is_superuser or user|can_access:'vehicles' %}
                             <button id="ledgers-toggle" onclick="toggleLedgers()"
