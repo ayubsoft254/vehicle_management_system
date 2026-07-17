@@ -122,11 +122,12 @@
                             </label>
                             
                             <div id="dropZone" class="relative border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors duration-200 cursor-pointer">
-                                <input type="file" 
-                                       name="image" 
-                                       id="fileInput" 
-                                       accept="image/*" 
+                                <input type="file"
+                                       name="image"
+                                       id="fileInput"
+                                       accept="image/*"
                                        class="hidden"
+                                       multiple
                                        required>
                                 
                                 <div id="uploadPrompt" class="pointer-events-none">
@@ -137,7 +138,7 @@
                                         <span class="font-semibold text-blue-600 hover:text-blue-700">Click to upload</span>
                                         <span class="text-gray-500"> or drag and drop</span>
                                     </p>
-                                    <p class="text-xs text-gray-500">PNG, JPG, JPEG up to 10MB</p>
+                                    <p class="text-xs text-gray-500">PNG, JPG, JPEG up to 10MB — you can select several photos at once. Oversized photos are compressed automatically.</p>
                                 </div>
 
                                 <!-- Loading Spinner -->
@@ -194,6 +195,29 @@
                                     <p class="text-sm text-gray-500">This photo will be the main display image for the vehicle</p>
                                     {% if form.is_primary.errors %}
                                         <p class="mt-1 text-sm text-red-600">{{ form.is_primary.errors.0 }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Public / Internal visibility -->
+                        {% if form.is_public %}
+                        <div class="mb-6">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_public }}
+                                </div>
+                                <div class="ml-3">
+                                    <label for="{{ form.is_public.id_for_label }}" class="font-medium text-gray-700">
+                                        Public Photo (show on website)
+                                    </label>
+                                    <p class="text-sm text-gray-500">
+                                        Public photos appear on the public website and can be downloaded by visitors.
+                                        Untick for internal-only photos (inspection shots, damage records, documents).
+                                    </p>
+                                    {% if form.is_public.errors %}
+                                        <p class="mt-1 text-sm text-red-600">{{ form.is_public.errors.0 }}</p>
                                     {% endif %}
                                 </div>
                             </div>
@@ -428,33 +452,45 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function handleFiles(files) {
-        const file = files[0];
-        
-        // Validate file type
-        if (!file.type.match('image.*')) {
-            alert('Please select an image file (JPG, PNG, JPEG)');
-            return;
+        // Validate every selected file
+        for (const f of files) {
+            if (!f.type.match('image.*')) {
+                alert('Please select image files only (JPG, PNG, JPEG)');
+                return;
+            }
+            if (f.size > 10 * 1024 * 1024) {
+                alert('Each file must be less than 10MB: ' + f.name);
+                return;
+            }
         }
 
-        // Validate file size (10MB)
-        if (file.size > 10 * 1024 * 1024) {
-            alert('File size must be less than 10MB');
-            return;
-        }
+        const file = files[0];
 
         // Show loading spinner
         uploadPrompt.classList.add('hidden');
         loadingSpinner.classList.remove('hidden');
 
-        // Preview image
+        // Preview first image (with a count for multi-select)
         const reader = new FileReader();
         reader.onload = function(e) {
             imagePreview.src = e.target.result;
-            
+
             // Hide loading, show preview
             setTimeout(() => {
                 loadingSpinner.classList.add('hidden');
                 previewArea.classList.remove('hidden');
+                let badge = document.getElementById('multiCountBadge');
+                if (files.length > 1) {
+                    if (!badge) {
+                        badge = document.createElement('p');
+                        badge.id = 'multiCountBadge';
+                        badge.className = 'mt-2 text-sm font-semibold text-blue-700';
+                        previewArea.appendChild(badge);
+                    }
+                    badge.textContent = files.length + ' photos selected — all will be uploaded';
+                } else if (badge) {
+                    badge.remove();
+                }
             }, 500);
         };
         reader.readAsDataURL(file);
