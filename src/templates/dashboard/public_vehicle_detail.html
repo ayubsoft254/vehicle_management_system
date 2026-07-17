@@ -100,15 +100,36 @@
                 
                 <!-- Image Gallery -->
                 <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-                    {% if vehicle.photos.all %}
-                        <div class="relative h-96 bg-gray-200">
-                            <img id="mainImage" src="{{ vehicle.main_photo.image.url }}" alt="{{ vehicle.full_name }}" class="w-full h-full object-cover">
+                    {% if public_photos %}
+                        <div class="relative h-96 bg-gray-200 group">
+                            <img id="mainImage" src="{{ vehicle.public_main_photo.image.url }}" alt="{{ vehicle.full_name }}"
+                                 class="w-full h-full object-cover cursor-zoom-in" onclick="openLightbox(currentIndex)">
+                            <button onclick="openLightbox(currentIndex)"
+                                class="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-lg px-3 py-2 text-sm transition">
+                                <i class="fas fa-expand mr-1"></i>Full Screen
+                            </button>
+                            {% if downloads_enabled %}
+                            <a id="mainDownloadBtn" href="#" download
+                               class="absolute bottom-3 right-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg px-3 py-2 text-sm transition shadow-lg">
+                                <i class="fas fa-download mr-1"></i>Download Photo
+                            </a>
+                            {% endif %}
                         </div>
-                        {% if vehicle.photos.count > 1 %}
-                        <div class="p-4 grid grid-cols-4 gap-2">
-                            {% for photo in vehicle.photos.all %}
-                            <button onclick="changeImage('{{ photo.image.url }}')" class="relative h-20 bg-gray-200 rounded-lg overflow-hidden hover:ring-2 hover:ring-primary-500 transition">
-                                <img src="{{ photo.image.url }}" alt="Vehicle photo" class="w-full h-full object-cover">
+                        <div class="p-4 flex items-center justify-between flex-wrap gap-3">
+                            <p class="text-sm text-gray-500"><i class="fas fa-images mr-1"></i>{{ public_photos|length }} photo{{ public_photos|length|pluralize }}</p>
+                            {% if downloads_enabled %}
+                            <a href="{% url 'dashboard:public_photos_download_all' vehicle.pk %}"
+                               class="inline-flex items-center bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+                                <i class="fas fa-file-archive mr-2"></i>Download All Vehicle Photos (ZIP)
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% if public_photos|length > 1 %}
+                        <div class="px-4 pb-4 grid grid-cols-4 sm:grid-cols-6 gap-2">
+                            {% for photo in public_photos %}
+                            <button onclick="selectPhoto({{ forloop.counter0 }})" data-thumb-index="{{ forloop.counter0 }}"
+                                class="relative h-20 bg-gray-200 rounded-lg overflow-hidden hover:ring-2 hover:ring-primary-500 transition">
+                                <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:'Vehicle photo' }}" class="w-full h-full object-cover">
                             </button>
                             {% endfor %}
                         </div>
@@ -369,10 +390,111 @@
         </div>
     </footer>
     
+    <!-- Full-screen lightbox -->
+    {% if public_photos %}
+    <div id="lightbox" class="hidden fixed inset-0 bg-black/90 z-[100] flex flex-col">
+        <div class="flex items-center justify-between p-4 text-white">
+            <p id="lightboxCounter" class="text-sm text-gray-300"></p>
+            <div class="flex items-center gap-2">
+                {% if downloads_enabled %}
+                <a id="lightboxDownload" href="#" download
+                   class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm transition">
+                    <i class="fas fa-download mr-1"></i>Download Photo
+                </a>
+                <a href="{% url 'dashboard:public_photos_download_all' vehicle.pk %}"
+                   class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm transition">
+                    <i class="fas fa-file-archive mr-1"></i>Download All
+                </a>
+                {% endif %}
+                <button onclick="closeLightbox()" class="bg-white/10 hover:bg-white/20 text-white w-10 h-10 rounded-lg transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="flex-1 relative flex items-center justify-center px-4 pb-6 min-h-0">
+            <button onclick="stepPhoto(-1)"
+                class="absolute left-4 md:left-8 z-10 bg-white/10 hover:bg-white/25 text-white w-12 h-12 rounded-full transition">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <img id="lightboxImage" src="" alt="{{ vehicle.full_name }}" class="max-h-full max-w-full object-contain rounded-lg select-none">
+            <button onclick="stepPhoto(1)"
+                class="absolute right-4 md:right-8 z-10 bg-white/10 hover:bg-white/25 text-white w-12 h-12 rounded-full transition">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        <p id="lightboxCaption" class="text-center text-gray-300 text-sm pb-5 px-4"></p>
+    </div>
+    {% endif %}
+
     <script>
-        function changeImage(imageUrl) {
-            document.getElementById('mainImage').src = imageUrl;
+        const PHOTOS = [
+            {% for photo in public_photos %}
+            {
+                url: '{{ photo.image.url|escapejs }}',
+                caption: '{{ photo.caption|default:""|escapejs }}',
+                downloadUrl: '{% url "dashboard:public_photo_download" vehicle.pk photo.pk %}'
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        const DOWNLOADS_ENABLED = {% if downloads_enabled %}true{% else %}false{% endif %};
+        let currentIndex = 0;
+
+        function selectPhoto(index) {
+            if (!PHOTOS.length) return;
+            currentIndex = ((index % PHOTOS.length) + PHOTOS.length) % PHOTOS.length;
+            const photo = PHOTOS[currentIndex];
+            const main = document.getElementById('mainImage');
+            if (main) main.src = photo.url;
+            const dl = document.getElementById('mainDownloadBtn');
+            if (dl) dl.href = photo.downloadUrl;
         }
+
+        function openLightbox(index) {
+            if (!PHOTOS.length) return;
+            selectPhoto(index);
+            renderLightbox();
+            document.getElementById('lightbox').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function renderLightbox() {
+            const photo = PHOTOS[currentIndex];
+            document.getElementById('lightboxImage').src = photo.url;
+            document.getElementById('lightboxCounter').textContent = 'Photo ' + (currentIndex + 1) + ' of ' + PHOTOS.length;
+            document.getElementById('lightboxCaption').textContent = photo.caption || '';
+            const dl = document.getElementById('lightboxDownload');
+            if (dl) dl.href = photo.downloadUrl;
+        }
+
+        function stepPhoto(direction) {
+            selectPhoto(currentIndex + direction);
+            renderLightbox();
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        document.addEventListener('keydown', function (e) {
+            const lightbox = document.getElementById('lightbox');
+            if (!lightbox || lightbox.classList.contains('hidden')) return;
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowLeft') stepPhoto(-1);
+            if (e.key === 'ArrowRight') stepPhoto(1);
+        });
+
+        // Initialize the main download button for the primary photo
+        (function () {
+            if (!PHOTOS.length) return;
+            const main = document.getElementById('mainImage');
+            if (main) {
+                const idx = PHOTOS.findIndex(p => main.src.endsWith(p.url) || p.url.endsWith(new URL(main.src, window.location.origin).pathname));
+                currentIndex = idx >= 0 ? idx : 0;
+            }
+            const dl = document.getElementById('mainDownloadBtn');
+            if (dl) dl.href = PHOTOS[currentIndex].downloadUrl;
+        })();
     </script>
 </body>
 
