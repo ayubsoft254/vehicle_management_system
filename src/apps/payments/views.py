@@ -159,6 +159,25 @@ def _request_paybill_balance():
     return False
 
 
+def _should_request_paybill_balance_on_load():
+    """Return True when a tracker page load should issue a new balance request."""
+    latest_snapshot = PaybillBalanceSnapshot.objects.order_by('-created_at').first()
+    if not latest_snapshot:
+        return True
+
+    if latest_snapshot.status == PaybillBalanceSnapshot.STATUS_PENDING:
+        # There is already an in-flight balance request.
+        return False
+
+    if latest_snapshot.status == PaybillBalanceSnapshot.STATUS_SUCCESS:
+        age = timezone.now() - latest_snapshot.created_at
+        # Avoid creating a new request on every page load if the latest
+        # successful balance is still fresh.
+        return age > timedelta(minutes=5)
+
+    return True
+
+
 def _parse_mpesa_datetime(value):
     """Parse M-Pesa datetime string to datetime object."""
     if not value:
@@ -2281,8 +2300,9 @@ def paybill_tracker(request):
     # gets a synthetic one so it immediately appears in the tracker.
     _backfill_paybill_transactions()
 
-    # Always refresh the paybill balance on tracker page load.
-    _request_paybill_balance()
+    # Refresh the paybill balance only when needed on page load.
+    if _should_request_paybill_balance_on_load():
+        _request_paybill_balance()
 
     all_transactions = PaybillTransaction.objects.all().order_by(
         F('trans_time').desc(nulls_last=True), '-created_at'
