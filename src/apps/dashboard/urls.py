@@ -15,6 +15,8 @@ urlpatterns = [
     # Public vehicle views (no login required)
     # Changed from 'vehicles/<int:pk>/' to 'vehicle/<int:pk>/' to avoid conflict with vehicles app
     path('vehicle/<int:pk>/', views.public_vehicle_detail, name='public_vehicle_detail'),
+    path('vehicle/<int:pk>/photos/download/<int:photo_pk>/', views.public_photo_download, name='public_photo_download'),
+    path('vehicle/<int:pk>/photos/download-all/', views.public_photos_download_all, name='public_photos_download_all'),
     path('purchase-vehicle/<int:pk>/', views.public_vehicle_purchase, name='public_vehicle_purchase'),
     
     # Main dashboard (now at /dashboard/)
