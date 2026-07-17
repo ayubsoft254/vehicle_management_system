@@ -275,6 +275,12 @@ class Vehicle(models.Model):
         default=False,
         help_text='Display as featured vehicle'
     )
+
+    allow_photo_downloads = models.BooleanField(
+        'Allow Photo Downloads',
+        default=True,
+        help_text='Allow website visitors to download this vehicle\'s public photos'
+    )
     
     # Additional Information
     description = models.TextField(
@@ -493,6 +499,26 @@ class Vehicle(models.Model):
     def main_photo(self):
         """Get main/primary photo"""
         return self.photos.filter(is_primary=True).first() or self.photos.first()
+
+    @property
+    def public_photos(self):
+        """Photos safe to show/download on the public website."""
+        return self.photos.filter(is_public=True)
+
+    @property
+    def public_main_photo(self):
+        """Primary public photo for website listings."""
+        return (
+            self.photos.filter(is_public=True, is_primary=True).first()
+            or self.photos.filter(is_public=True).first()
+        )
+
+    @property
+    def download_slug(self):
+        """Base file name for downloaded photos: stock/reg number, chassis or title."""
+        from django.utils.text import slugify
+        base = self.registration_number or self.vin or self.full_name
+        return slugify(base) or f'vehicle-{self.pk}'
     
     def get_status_color(self):
         """Get color for status badge"""
@@ -683,7 +709,20 @@ class VehiclePhoto(models.Model):
         default=0,
         help_text='Order to display photos'
     )
-    
+
+    is_public = models.BooleanField(
+        'Public Photo',
+        default=True,
+        help_text='Public photos appear on the website and can be downloaded; '
+                  'internal photos are visible to staff only'
+    )
+
+    download_count = models.PositiveIntegerField(
+        'Download Count',
+        default=0,
+        help_text='Number of times this photo has been downloaded from the website'
+    )
+
     uploaded_at = models.DateTimeField(
         'Uploaded At',
         auto_now_add=True
