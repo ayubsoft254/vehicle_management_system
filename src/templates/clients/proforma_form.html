@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}{% if is_edit %}Edit {{ proforma.number }}{% else %}New Proforma Invoice{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+
+    <div class="flex items-center justify-between mb-6">
+        <a href="{% if is_edit %}{% url 'clients:proforma_detail' proforma.pk %}{% else %}{% url 'clients:proforma_list' %}{% endif %}"
+           class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-md p-6">
+        <h1 class="text-xl font-bold text-gray-800 mb-1 flex items-center">
+            <i class="fas fa-file-invoice text-primary-600 mr-3"></i>
+            {% if is_edit %}Edit Proforma {{ proforma.number }}{% else %}New Proforma Invoice{% endif %}
+        </h1>
+        <p class="text-sm text-gray-500 mb-6">
+            Issuing a proforma does <span class="font-semibold">not</span> reserve the vehicle or remove it from stock.
+        </p>
+
+        {% if form.non_field_errors %}
+        <div class="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+
+            <div class="grid md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Client <span class="text-red-500">*</span></label>
+                    {{ form.client }}
+                    {% for e in form.client.errors %}<p class="text-xs text-red-600 mt-1">{{ e }}</p>{% endfor %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle <span class="text-red-500">*</span></label>
+                    {{ form.vehicle }}
+                    {% for e in form.vehicle.errors %}<p class="text-xs text-red-600 mt-1">{{ e }}</p>{% endfor %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date of Issue</label>
+                    {{ form.issue_date }}
+                    {% for e in form.issue_date.errors %}<p class="text-xs text-red-600 mt-1">{{ e }}</p>{% endfor %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+                    {{ form.expiry_date }}
+                    {% for e in form.expiry_date.errors %}<p class="text-xs text-red-600 mt-1">{{ e }}</p>{% endfor %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Mode</label>
+                    {{ form.payment_mode }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Bank / Financial Institution</label>
+                    {{ form.financing_bank }}
+                    {% for e in form.financing_bank.errors %}<p class="text-xs text-red-600 mt-1">{{ e }}</p>{% endfor %}
+                </div>
+            </div>
+
+            <div class="border-t border-gray-100 pt-4">
+                <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Pricing</h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle Selling Price (KES) <span class="text-red-500">*</span></label>
+                        {{ form.selling_price }}
+                        {% for e in form.selling_price.errors %}<p class="text-xs text-red-600 mt-1">{{ e }}</p>{% endfor %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Required (KES)</label>
+                        {{ form.deposit_required }}
+                        {% for e in form.deposit_required.errors %}<p class="text-xs text-red-600 mt-1">{{ e }}</p>{% endfor %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Financing Amount (KES)</label>
+                        {{ form.financing_amount }}
+                        <p class="text-xs text-gray-400 mt-1">Auto-computed as total − deposit when left at 0 for bank financing.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Total Purchase Price (KES)</label>
+                        {{ form.total_price }}
+                        <p class="text-xs text-gray-400 mt-1">Defaults to the selling price when left at 0.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-100 pt-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Terms</label>
+                    {{ form.payment_terms }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Company Bank Details</label>
+                    {{ form.bank_details }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Terms &amp; Conditions</label>
+                    {{ form.terms_conditions }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Internal Notes</label>
+                    {{ form.notes }}
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end space-x-3 pt-4 border-t border-gray-100">
+                <a href="{% if is_edit %}{% url 'clients:proforma_detail' proforma.pk %}{% else %}{% url 'clients:proforma_list' %}{% endif %}"
+                   class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</a>
+                <button type="submit" class="px-5 py-2 text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                    <i class="fas fa-save mr-1"></i>{% if is_edit %}Save Changes{% else %}Create Draft{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Auto-fill pricing from the selected vehicle
+(function () {
+    const vehicleSelect = document.getElementById('id_vehicle');
+    if (!vehicleSelect) return;
+    vehicleSelect.addEventListener('change', async function () {
+        if (!this.value) return;
+        try {
+            const res = await fetch(`/vehicles/api/pricing/${this.value}/`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const selling = document.getElementById('id_selling_price');
+            const total = document.getElementById('id_total_price');
+            const deposit = document.getElementById('id_deposit_required');
+            if (selling && (!selling.value || parseFloat(selling.value) === 0)) selling.value = data.selling_price;
+            if (total && (!total.value || parseFloat(total.value) === 0)) total.value = data.selling_price;
+            if (deposit && (!deposit.value || parseFloat(deposit.value) === 0)) deposit.value = data.deposit_required;
+        } catch (e) { /* non-fatal */ }
+    });
+})();
+</script>
+{% endblock %}
