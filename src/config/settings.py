@@ -345,6 +345,11 @@ COMPANY_PHONE = config('COMPANY_PHONE', default='+254700170447 / +254784170447')
 COMPANY_EMAIL = config('COMPANY_EMAIL', default='hozainvltd@gmail.com')
 COMPANY_WEBSITE = config('COMPANY_WEBSITE', default='https://hozacars.com/')
 COMPANY_PIN = config('COMPANY_PIN', default='PO51811452A')
+COMPANY_BANK_DETAILS = config(
+    'COMPANY_BANK_DETAILS',
+    default='M-Pesa Paybill: 4320049 — Account: vehicle registration number.\n'
+            'NOTE: We do not accept third-party payments.',
+)
 
 # ==============================================================================
 # PAGINATION
