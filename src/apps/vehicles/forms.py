@@ -392,22 +392,47 @@ class VehicleMoveForm(forms.Form):
         return (self.cleaned_data.get('notes') or '').strip()
 
 
+class MultiplePhotoInput(forms.FileInput):
+    """FileInput that allows selecting several photos at once."""
+    allow_multiple_selected = True
+
+
+class MultipleImageField(forms.ImageField):
+    """ImageField that accepts a list of files from a multi-select input."""
+
+    def clean(self, data, initial=None):
+        single_clean = super().clean
+        if isinstance(data, (list, tuple)):
+            if not data:
+                return single_clean(None, initial)
+            return [single_clean(item, initial) for item in data]
+        return single_clean(data, initial)
+
+
 class VehiclePhotoForm(forms.ModelForm):
-    """Form for uploading vehicle photos"""
-    
+    """Form for uploading vehicle photos (supports multiple files at once)"""
+
+    image = MultipleImageField(
+        widget=MultiplePhotoInput(attrs={
+            'class': 'w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100',
+            'accept': 'image/*',
+            'multiple': True,
+        }),
+        required=True,
+    )
+
     class Meta:
         model = VehiclePhoto
-        fields = ['image', 'caption', 'is_primary', 'order']
+        fields = ['image', 'caption', 'is_primary', 'is_public', 'order']
         widgets = {
-            'image': forms.FileInput(attrs={
-                'class': 'w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100',
-                'accept': 'image/*'
-            }),
             'caption': forms.TextInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
                 'placeholder': 'Optional photo description'
             }),
             'is_primary': forms.CheckboxInput(attrs={
+                'class': 'w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
+            }),
+            'is_public': forms.CheckboxInput(attrs={
                 'class': 'w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
             }),
             'order': forms.HiddenInput(),
@@ -423,6 +448,9 @@ class VehiclePhotoForm(forms.ModelForm):
         # Make is_primary optional with default False
         self.fields['is_primary'].required = False
         self.fields['is_primary'].initial = False
+        # Public by default — untick for internal-only photos
+        self.fields['is_public'].required = False
+        self.fields['is_public'].initial = True
         # Ensure image is required
         self.fields['image'].required = True
     
