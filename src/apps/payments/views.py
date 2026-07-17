@@ -160,6 +160,25 @@ def _request_paybill_balance():
     return False
 
 
+def _find_pending_balance_snapshot(conversation_id, originator_id):
+    """Locate the pending snapshot a Daraja balance callback belongs to."""
+    pending = PaybillBalanceSnapshot.objects.filter(
+        status=PaybillBalanceSnapshot.STATUS_PENDING
+    )
+    match = Q()
+    if conversation_id:
+        match |= Q(conversation_id=conversation_id)
+    if originator_id:
+        match |= Q(originator_conversation_id=originator_id)
+    if match:
+        snapshot = pending.filter(match).order_by('-created_at').first()
+        if snapshot:
+            return snapshot
+    # Daraja occasionally echoes different conversation ids than the ones
+    # returned at request time — fall back to the most recent pending request.
+    return pending.order_by('-created_at').first()
+
+
 def _should_request_paybill_balance_on_load():
     """Return True when a tracker page load should issue a new balance request."""
     latest_snapshot = PaybillBalanceSnapshot.objects.order_by('-created_at').first()
@@ -167,8 +186,10 @@ def _should_request_paybill_balance_on_load():
         return True
 
     if latest_snapshot.status == PaybillBalanceSnapshot.STATUS_PENDING:
-        # There is already an in-flight balance request.
-        return False
+        # There is already an in-flight balance request. Treat one that never
+        # received its callback as abandoned so it can't block refreshes forever.
+        age = timezone.now() - latest_snapshot.created_at
+        return age > timedelta(minutes=10)
 
     if latest_snapshot.status == PaybillBalanceSnapshot.STATUS_SUCCESS:
         age = timezone.now() - latest_snapshot.created_at
@@ -2306,8 +2327,19 @@ def paybill_tracker(request):
         trans_time__month=this_month.month,
     ).aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00')
 
-    # Per-paybill breakdown
-    known_paybills = ['4320049', '4162495']
+    # Per-paybill breakdown — configured shortcodes plus any others that have
+    # actually received transactions (never hardcode: the .env shortcodes are
+    # the source of truth for which paybills exist).
+    configured_paybills = [
+        str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip(),
+        str(getattr(settings, 'MPESA_SHORTCODE_2', '') or '').strip(),
+    ]
+    seen_paybills = list(
+        all_transactions.exclude(business_short_code='')
+        .values_list('business_short_code', flat=True)
+        .distinct()
+    )
+    known_paybills = [code for code in dict.fromkeys(configured_paybills + seen_paybills) if code]
     paybill_stats = []
     for code in known_paybills:
         qs = all_transactions.filter(business_short_code=code)
@@ -2750,19 +2782,34 @@ def paybill_balance_result_callback(request):
         if str(result_code) == '0'
         else PaybillBalanceSnapshot.STATUS_FAILED
     )
-    
-    # ✅ Create snapshot with extracted balance
-    snapshot = PaybillBalanceSnapshot.objects.create(
-        status=status,
-        available_balance=balance,
-        conversation_id=str(result.get('ConversationID', '')).strip(),
-        originator_conversation_id=str(result.get('OriginatorConversationID', '')).strip(),
-        result_code=int(result_code) if str(result_code).lstrip('-').isdigit() else None,
-        result_desc=result_desc,
-        raw_payload=payload,
-    )
-    
-    logger.info(f"✅ Balance snapshot created: ID={snapshot.id}, Balance={balance}, Status={status}")
+
+    conversation_id = str(result.get('ConversationID', '')).strip()
+    originator_id = str(result.get('OriginatorConversationID', '')).strip()
+
+    # Resolve the pending snapshot created when the request was initiated —
+    # creating a separate row would leave that one "pending" forever.
+    snapshot = _find_pending_balance_snapshot(conversation_id, originator_id)
+    if snapshot:
+        snapshot.status = status
+        snapshot.available_balance = balance
+        snapshot.conversation_id = conversation_id or snapshot.conversation_id
+        snapshot.originator_conversation_id = originator_id or snapshot.originator_conversation_id
+        snapshot.result_code = int(result_code) if str(result_code).lstrip('-').isdigit() else None
+        snapshot.result_desc = result_desc
+        snapshot.raw_payload = payload
+        snapshot.save()
+    else:
+        snapshot = PaybillBalanceSnapshot.objects.create(
+            status=status,
+            available_balance=balance,
+            conversation_id=conversation_id,
+            originator_conversation_id=originator_id,
+            result_code=int(result_code) if str(result_code).lstrip('-').isdigit() else None,
+            result_desc=result_desc,
+            raw_payload=payload,
+        )
+
+    logger.info(f"✅ Balance snapshot resolved: ID={snapshot.id}, Balance={balance}, Status={status}")
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'}, status=200)
 
 
@@ -2790,16 +2837,27 @@ def paybill_balance_timeout_callback(request):
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
     
     result = payload.get('Result', {}) if isinstance(payload, dict) else {}
-    
-    # ✅ Create timeout snapshot
-    PaybillBalanceSnapshot.objects.create(
-        status=PaybillBalanceSnapshot.STATUS_TIMEOUT,
-        conversation_id=str(result.get('ConversationID', '')).strip(),
-        originator_conversation_id=str(result.get('OriginatorConversationID', '')).strip(),
-        result_desc='Daraja callback timeout',
-        raw_payload=payload if isinstance(payload, dict) else {'payload': str(payload)},
-    )
-    
+
+    conversation_id = str(result.get('ConversationID', '')).strip()
+    originator_id = str(result.get('OriginatorConversationID', '')).strip()
+
+    # Resolve the pending snapshot rather than leaving it stuck alongside a
+    # separate timeout row.
+    snapshot = _find_pending_balance_snapshot(conversation_id, originator_id)
+    if snapshot:
+        snapshot.status = PaybillBalanceSnapshot.STATUS_TIMEOUT
+        snapshot.result_desc = 'Daraja callback timeout'
+        snapshot.raw_payload = payload if isinstance(payload, dict) else {'payload': str(payload)}
+        snapshot.save()
+    else:
+        PaybillBalanceSnapshot.objects.create(
+            status=PaybillBalanceSnapshot.STATUS_TIMEOUT,
+            conversation_id=conversation_id,
+            originator_conversation_id=originator_id,
+            result_desc='Daraja callback timeout',
+            raw_payload=payload if isinstance(payload, dict) else {'payload': str(payload)},
+        )
+
     logger.info("✅ Balance timeout recorded")
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 

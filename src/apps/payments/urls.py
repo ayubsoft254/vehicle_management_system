@@ -72,6 +72,17 @@ urlpatterns = [
     path('mpesa-callback/', views.stk_push_callback, name='stk_push_callback'),
     path('paybill/callbacks/balance-result/', views.paybill_balance_result_callback, name='paybill_balance_result_callback'),
     path('paybill/callbacks/balance-timeout/', views.paybill_balance_timeout_callback, name='paybill_balance_timeout_callback'),
+
+    # Slash-less aliases for the Daraja callbacks. Safaricom POSTs to the
+    # exact URL registered with it — historically registered without a
+    # trailing slash — and Django cannot redirect a POST to append the slash
+    # (APPEND_SLASH raises instead), so every such callback 500s and the
+    # transaction is lost. Accept both forms.
+    path('paybill/callbacks/validation', views.paybill_validation_callback),
+    path('paybill/callbacks/confirmation', views.paybill_confirmation_callback),
+    path('mpesa-callback', views.stk_push_callback),
+    path('paybill/callbacks/balance-result', views.paybill_balance_result_callback),
+    path('paybill/callbacks/balance-timeout', views.paybill_balance_timeout_callback),
     
     # API endpoints
     path('api/stats/', views.payment_stats_api, name='payment_stats_api'),
