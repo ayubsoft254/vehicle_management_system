@@ -7,7 +7,7 @@ ClientVehicle, never stored separately.
 from decimal import Decimal
 from django.urls import reverse
 
-from .models import ClientVehicle
+from .models import ClientVehicle, ProformaDeposit
 from apps.payments.models import Payment
 
 ZERO = Decimal('0.00')
@@ -98,6 +98,48 @@ def build_client_ledger(client, date_from=None, date_to=None, vehicle_pk=None, p
                 'can_reconcile': not payment.is_reversed,
             })
 
+    # Commitment deposits held against proforma invoices that have not yet
+    # converted into a sale. Once converted, the deposit shows through the
+    # Payment created at conversion time — never both (no double counting).
+    held_deposits = ProformaDeposit.objects.filter(
+        proforma__client=client,
+        is_reversed=False,
+        converted_payment__isnull=True,
+    ).select_related('proforma__vehicle', 'confirmed_by')
+    if vehicle_pk:
+        # Proforma deposits are tied to a vehicle, not a ClientVehicle;
+        # skip them entirely when a specific purchase is being filtered.
+        held_deposits = held_deposits.none()
+    if date_from:
+        held_deposits = held_deposits.filter(payment_date__gte=date_from)
+    if date_to:
+        held_deposits = held_deposits.filter(payment_date__lte=date_to)
+
+    deposits_held_total = ZERO
+    for deposit in held_deposits:
+        if payment_method and deposit.payment_method != payment_method:
+            continue
+        deposits_held_total += deposit.amount
+        rows.append({
+            'date': deposit.payment_date,
+            'sort_key': deposit.confirmed_at.timestamp(),
+            'reference': deposit.transaction_reference or deposit.proforma.number,
+            'type_label': 'Proforma Deposit',
+            'payment_method': deposit.get_payment_method_display(),
+            'narration': f'Commitment deposit held — {deposit.proforma.number} ({deposit.proforma.vehicle.full_name})',
+            'related_vehicle': deposit.proforma.vehicle,
+            'debit': ZERO,
+            'credit': deposit.amount,
+            'display_amount': deposit.amount,
+            'created_by': deposit.confirmed_by,
+            'reconciliation_status': '—',
+            'notes': deposit.notes or '',
+            'detail_url': reverse('clients:proforma_detail', args=[deposit.proforma.pk]),
+            'is_reversed': False,
+            'payment_pk': None,
+            'can_reconcile': False,
+        })
+
     rows.sort(key=lambda r: (r['date'], r['sort_key']))
     running = ZERO
     for row in rows:
@@ -132,6 +174,7 @@ def build_client_ledger(client, date_from=None, date_to=None, vehicle_pk=None, p
         'total_paid': total_paid,
         'outstanding': outstanding,
         'overpayment': overpayment,
+        'deposits_held': deposits_held_total,
         'payment_status': payment_status,
         'vehicles': vehicles_summary,
     }
