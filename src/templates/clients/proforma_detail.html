@@ -1,0 +1,565 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}{{ proforma.number }} — Proforma Invoice{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+
+    <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <a href="{% url 'clients:proforma_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Proformas
+        </a>
+        <div class="flex items-center gap-2 flex-wrap">
+            <a href="{% url 'clients:proforma_pdf' proforma.pk %}"
+               class="inline-flex items-center px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-lg transition text-sm">
+                <i class="fas fa-file-pdf mr-2"></i>Download PDF
+            </a>
+            {% if proforma.status == 'draft' %}
+            <form method="post" action="{% url 'clients:proforma_issue' proforma.pk %}" class="inline"
+                  onsubmit="return confirm('Issue this proforma to the client?\n\nThe vehicle stays AVAILABLE — issuing a proforma does not reserve it.');">
+                {% csrf_token %}
+                <button type="submit" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm">
+                    <i class="fas fa-paper-plane mr-2"></i>Issue to Client
+                </button>
+            </form>
+            {% endif %}
+            {% if proforma.status == 'draft' or proforma.status == 'issued' or proforma.status == 'awaiting_commitment' %}
+            <a href="{% url 'clients:proforma_update' proforma.pk %}"
+               class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm">
+                <i class="fas fa-edit mr-2"></i>Edit
+            </a>
+            {% endif %}
+            {% if can_confirm_deposit and proforma.status != 'converted' and proforma.status != 'cancelled' and proforma.status != 'expired' and proforma.status != 'draft' %}
+            <button onclick="document.getElementById('deposit-modal').classList.remove('hidden')"
+                class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition text-sm">
+                <i class="fas fa-hand-holding-usd mr-2"></i>Confirm Deposit
+            </button>
+            {% endif %}
+            {% if proforma.status == 'deposit_paid' or proforma.status == 'reserved' %}
+            <button onclick="document.getElementById('convert-modal').classList.remove('hidden')"
+                class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition text-sm">
+                <i class="fas fa-exchange-alt mr-2"></i>Convert to Sale
+            </button>
+            {% endif %}
+            {% if proforma.status != 'converted' and proforma.status != 'cancelled' %}
+            <button onclick="document.getElementById('cancel-modal').classList.remove('hidden')"
+                class="inline-flex items-center px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition text-sm">
+                <i class="fas fa-ban mr-2"></i>Cancel
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Header card -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <h1 class="text-2xl font-bold text-gray-800 font-mono">{{ proforma.number }}</h1>
+                    <span class="px-3 py-1 rounded-full text-sm font-semibold
+                        {% if proforma.status == 'reserved' %}bg-yellow-100 text-yellow-800
+                        {% elif proforma.status == 'deposit_paid' %}bg-indigo-100 text-indigo-800
+                        {% elif proforma.status == 'awaiting_commitment' %}bg-amber-100 text-amber-800
+                        {% elif proforma.status == 'issued' %}bg-blue-100 text-blue-800
+                        {% elif proforma.status == 'converted' %}bg-green-100 text-green-800
+                        {% elif proforma.status == 'expired' %}bg-red-100 text-red-700
+                        {% elif proforma.status == 'cancelled' %}bg-gray-200 text-gray-600
+                        {% else %}bg-gray-100 text-gray-700{% endif %}">
+                        {{ proforma.get_status_display }}
+                    </span>
+                    {% if proforma.is_past_expiry and proforma.is_active %}
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Past expiry date</span>
+                    {% endif %}
+                </div>
+                <p class="text-sm text-gray-500 mt-2">
+                    Issued {{ proforma.issue_date|date:"M d, Y" }} · Expires {{ proforma.expiry_date|date:"M d, Y" }}
+                    · Prepared by {% if proforma.prepared_by %}{{ proforma.prepared_by.get_full_name|default:proforma.prepared_by.username }}{% else %}—{% endif %}
+                </p>
+                {% if proforma.status == 'awaiting_commitment' %}
+                <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Awaiting commitment — the vehicle remains <strong>Available</strong> and other clients may still view, reserve or purchase it.
+                </p>
+                {% endif %}
+                {% if proforma.status == 'cancelled' and proforma.cancel_reason %}
+                <p class="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mt-3">
+                    Cancelled {{ proforma.cancelled_at|date:"M d, Y H:i" }} by
+                    {% if proforma.cancelled_by %}{{ proforma.cancelled_by.get_full_name }}{% endif %} — {{ proforma.cancel_reason }}
+                </p>
+                {% endif %}
+                {% if proforma.status == 'converted' and proforma.converted_client_vehicle %}
+                <p class="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mt-3">
+                    <i class="fas fa-check-circle mr-1"></i>
+                    Converted to sale on {{ proforma.converted_at|date:"M d, Y H:i" }} —
+                    <a href="{% url 'clients:client_vehicle_detail' proforma.converted_client_vehicle.pk %}" class="font-semibold underline">open the sale record</a>
+                    for the agreement and installment plan. The original proforma number is preserved here for reference.
+                </p>
+                {% endif %}
+            </div>
+            <div class="text-right">
+                <p class="text-xs text-gray-500">Total Purchase Price</p>
+                <p class="text-3xl font-bold text-primary-600">KES {{ proforma.total_price|floatformat:0|intcomma }}</p>
+                <p class="text-sm text-gray-500 mt-1">Deposit held:
+                    <span class="font-semibold text-emerald-600">KES {{ proforma.total_deposits_confirmed|floatformat:0|intcomma }}</span>
+                    / KES {{ proforma.deposit_required|floatformat:0|intcomma }} required
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- Client & vehicle -->
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4"><i class="fas fa-user mr-2 text-primary-500"></i>Client</h2>
+                    <p class="font-semibold text-gray-800">
+                        <a href="{% url 'clients:client_detail' proforma.client.pk %}" class="hover:underline">{{ proforma.client.get_full_name }}</a>
+                    </p>
+                    <p class="text-sm text-gray-500 mt-1">{{ proforma.client.get_id_type_display }}: {{ proforma.client.id_number }}</p>
+                    <p class="text-sm text-gray-500">{{ proforma.client.phone_primary }}</p>
+                    {% if proforma.client.email %}<p class="text-sm text-gray-500">{{ proforma.client.email }}</p>{% endif %}
+                </div>
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4"><i class="fas fa-car mr-2 text-primary-500"></i>Vehicle</h2>
+                    <p class="font-semibold text-gray-800">
+                        <a href="{% url 'vehicles:detail' proforma.vehicle.pk %}" class="hover:underline">{{ proforma.vehicle.full_name }}</a>
+                        <span class="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold
+                            {% if proforma.vehicle.status == 'available' %}bg-green-100 text-green-700
+                            {% elif proforma.vehicle.status == 'reserved' %}bg-yellow-100 text-yellow-800
+                            {% elif proforma.vehicle.status == 'sold' %}bg-blue-100 text-blue-800
+                            {% else %}bg-gray-100 text-gray-600{% endif %}">{{ proforma.vehicle.get_status_display }}</span>
+                    </p>
+                    <p class="text-sm text-gray-500 mt-1">Reg: {{ proforma.vehicle.registration_number|default:"—" }} · Chassis: {{ proforma.vehicle.vin }}</p>
+                    <p class="text-sm text-gray-500">{{ proforma.vehicle.engine_size|default:"—" }} · {{ proforma.vehicle.color }}</p>
+                </div>
+            </div>
+
+            <!-- Financial breakdown -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4"><i class="fas fa-coins mr-2 text-primary-500"></i>Financial Summary</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <p class="text-xs text-gray-500 mb-1">Selling Price</p>
+                        <p class="text-lg font-bold text-gray-800">KES {{ proforma.selling_price|floatformat:0|intcomma }}</p>
+                    </div>
+                    <div class="bg-amber-50 rounded-lg p-4 text-center">
+                        <p class="text-xs text-amber-600 mb-1">Deposit Required</p>
+                        <p class="text-lg font-bold text-amber-700">KES {{ proforma.deposit_required|floatformat:0|intcomma }}</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-lg p-4 text-center">
+                        <p class="text-xs text-blue-600 mb-1">Financing Amount</p>
+                        <p class="text-lg font-bold text-blue-700">KES {{ proforma.financing_amount|floatformat:0|intcomma }}</p>
+                    </div>
+                    <div class="bg-indigo-50 rounded-lg p-4 text-center">
+                        <p class="text-xs text-indigo-600 mb-1">Remaining Balance</p>
+                        <p class="text-lg font-bold text-indigo-700">KES {{ proforma.remaining_balance|floatformat:0|intcomma }}</p>
+                    </div>
+                </div>
+                {% if proforma.payment_mode == 'bank_financing' %}
+                <p class="text-sm text-gray-600 mt-4"><span class="font-semibold">Financier:</span> {{ proforma.financing_bank|default:"—" }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Deposits -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <i class="fas fa-hand-holding-usd text-emerald-600 mr-2"></i>Confirmed Deposits
+                        <span class="ml-2 bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full">{{ deposits|length }}</span>
+                    </h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Confirmed By</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                {% if is_manager %}<th class="px-4 py-3"></th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for d in deposits %}
+                            <tr class="hover:bg-gray-50 {% if d.is_reversed %}opacity-50{% endif %}">
+                                <td class="px-4 py-3 text-sm text-gray-700">{{ d.payment_date|date:"M d, Y" }}</td>
+                                <td class="px-4 py-3 text-right text-sm font-semibold text-emerald-700">KES {{ d.amount|floatformat:2|intcomma }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-600">{{ d.get_payment_method_display }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-600">{{ d.account.name|default:"—" }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-500 font-mono">{{ d.transaction_reference|default:"—" }}</td>
+                                <td class="px-4 py-3 text-sm text-gray-500">{% if d.confirmed_by %}{{ d.confirmed_by.get_full_name|default:d.confirmed_by.username }}{% else %}—{% endif %}</td>
+                                <td class="px-4 py-3 text-sm">
+                                    {% if d.is_reversed %}
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">Reversed</span>
+                                    {% elif d.converted_payment %}
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Transferred to Sale</span>
+                                    {% else %}
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Held</span>
+                                    {% endif %}
+                                </td>
+                                {% if is_manager %}
+                                <td class="px-4 py-3 text-right">
+                                    {% if not d.is_reversed and not d.converted_payment %}
+                                    <button onclick="openReverseModal({{ d.pk }}, '{{ d.amount|floatformat:2 }}')"
+                                        class="text-xs text-red-500 hover:text-red-700" title="Reverse this deposit">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="px-6 py-10 text-center text-gray-400">
+                                    No deposits confirmed yet — the vehicle is not reserved.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Terms -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Payment Terms</h2>
+                <p class="text-sm text-gray-600 whitespace-pre-line">{{ proforma.payment_terms|default:"—" }}</p>
+                <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mt-5 mb-3">Company Bank Details</h2>
+                <p class="text-sm text-gray-600 whitespace-pre-line">{{ proforma.bank_details|default:"—" }}</p>
+                <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mt-5 mb-3">Terms &amp; Conditions</h2>
+                <p class="text-sm text-gray-600 whitespace-pre-line">{{ proforma.terms_conditions|default:"—" }}</p>
+            </div>
+        </div>
+
+        <!-- Right column: reservation -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">
+                    <i class="fas fa-clock mr-2 text-yellow-500"></i>Reservation
+                </h2>
+                {% if reservation %}
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500">Status</span>
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold
+                                {% if reservation.status == 'active' %}bg-yellow-100 text-yellow-800
+                                {% elif reservation.status == 'expired' %}bg-red-100 text-red-700
+                                {% else %}bg-gray-100 text-gray-600{% endif %}">
+                                {{ reservation.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="flex justify-between"><span class="text-gray-500">Reserved On</span><span class="font-medium">{{ reservation.reserved_at|date:"M d, Y H:i" }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Expiry Date</span><span class="font-medium">{{ reservation.expiry_date|date:"M d, Y" }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Period</span><span class="font-medium">{{ reservation.period_days }} day(s)</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Deposit Held</span><span class="font-medium text-emerald-600">KES {{ reservation.deposit_amount|floatformat:0|intcomma }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Remaining Balance</span><span class="font-medium">KES {{ reservation.remaining_balance|floatformat:0|intcomma }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Financing Bank</span><span class="font-medium">{{ proforma.financing_bank|default:"—" }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Confirmed By</span><span class="font-medium">{% if reservation.confirmed_by %}{{ reservation.confirmed_by.get_full_name|default:reservation.confirmed_by.username }}{% else %}—{% endif %}</span></div>
+                        {% if reservation.extension_count %}
+                        <div class="flex justify-between"><span class="text-gray-500">Extensions</span><span class="font-medium">{{ reservation.extension_count }}</span></div>
+                        {% endif %}
+                        {% if reservation.status == 'active' %}
+                        <div class="rounded-lg px-3 py-2 text-xs {% if reservation.days_to_expiry <= 1 %}bg-red-50 text-red-700{% elif reservation.days_to_expiry <= 3 %}bg-orange-50 text-orange-700{% else %}bg-yellow-50 text-yellow-700{% endif %}">
+                            <i class="fas fa-hourglass-half mr-1"></i>
+                            {% if reservation.days_to_expiry >= 0 %}{{ reservation.days_to_expiry }} day(s) to expiry{% else %}Past expiry{% endif %}
+                        </div>
+                        {% elif reservation.status == 'expired' %}
+                        <div class="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>
+                            Expired — a manager must extend, cancel, or release the vehicle. The deposit is not refunded automatically.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if is_manager and reservation.status == 'active' or is_manager and reservation.status == 'expired' %}
+                    <div class="mt-5 space-y-2">
+                        <button onclick="document.getElementById('extend-modal').classList.remove('hidden')"
+                            class="w-full px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                            <i class="fas fa-calendar-plus mr-1"></i>Extend Reservation
+                        </button>
+                        <button onclick="document.getElementById('release-modal').classList.remove('hidden')"
+                            class="w-full px-4 py-2 text-sm font-medium border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition">
+                            <i class="fas fa-unlock mr-1"></i>Release Vehicle to Stock
+                        </button>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <p class="text-sm text-gray-500">
+                        No reservation. The vehicle is only reserved once the required
+                        deposit (KES {{ proforma.deposit_required|floatformat:0|intcomma }}) is confirmed.
+                    </p>
+                {% endif %}
+            </div>
+
+            <!-- Reservation history -->
+            {% if reservations %}
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">Reservation History</h2>
+                <div class="space-y-3">
+                    {% for r in reservations %}
+                    <div class="text-xs text-gray-600 border-l-2 {% if r.status == 'active' %}border-yellow-400{% elif r.status == 'converted' %}border-green-400{% elif r.status == 'expired' %}border-red-400{% else %}border-gray-300{% endif %} pl-3">
+                        <p class="font-semibold">{{ r.get_status_display }}</p>
+                        <p>{{ r.reserved_at|date:"M d, Y H:i" }} → {{ r.expiry_date|date:"M d, Y" }}</p>
+                        {% if r.release_reason %}<p class="text-gray-400">{{ r.release_reason }}</p>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Confirm Deposit Modal -->
+<div id="deposit-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-hand-holding-usd text-emerald-600 mr-2"></i>Confirm Deposit</h3>
+            <button onclick="document.getElementById('deposit-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <form method="post" action="{% url 'clients:proforma_confirm_deposit' proforma.pk %}" class="p-6 space-y-4"
+              onsubmit="return confirm('Confirm this deposit?\n\nOnce the required deposit is fully covered the vehicle will be RESERVED for {{ proforma.client.get_full_name|escapejs }}.');">
+            {% csrf_token %}
+            <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+                Required deposit: KES {{ proforma.deposit_required|floatformat:2|intcomma }} ·
+                Already held: KES {{ proforma.total_deposits_confirmed|floatformat:2|intcomma }} ·
+                Outstanding: <strong>KES {{ proforma.deposit_outstanding|floatformat:2|intcomma }}</strong>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Amount (KES) <span class="text-red-500">*</span></label>
+                <input type="number" name="amount" step="0.01" min="0.01" required value="{{ proforma.deposit_outstanding }}"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
+                    <input type="date" name="payment_date" value="{{ today|date:'Y-m-d' }}"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                    <select name="payment_method" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
+                        {% for value, label in payment_methods %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Receiving Account</label>
+                <select name="account" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
+                    <option value="">— Not posted to an account ledger —</option>
+                    {% for a in accounts %}
+                    <option value="{{ a.pk }}">{{ a.name }} ({{ a.get_category_display }})</option>
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-gray-400 mt-1">Posting to an account records the debit in that account's ledger.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Reference</label>
+                <input type="text" name="transaction_reference" placeholder="M-Pesa code / slip no."
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Reservation Period (applies when deposit is fully covered)</label>
+                <select name="reservation_period" id="reservation-period" onchange="document.getElementById('custom-expiry-wrap').classList.toggle('hidden', this.value !== 'custom')"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
+                    <option value="{{ reservation_setting.default_period_days }}">Default ({{ reservation_setting.default_period_days }} days)</option>
+                    <option value="3">3 days</option>
+                    <option value="7">7 days</option>
+                    <option value="14">14 days</option>
+                    <option value="custom">Custom expiry date…</option>
+                </select>
+                <div id="custom-expiry-wrap" class="hidden mt-2">
+                    <input type="date" name="custom_expiry_date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea name="notes" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500"></textarea>
+            </div>
+            <div class="flex items-center justify-end space-x-3 pt-2">
+                <button type="button" onclick="document.getElementById('deposit-modal').classList.add('hidden')"
+                    class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition">
+                    <i class="fas fa-check mr-1"></i>Confirm Deposit
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Convert Modal -->
+<div id="convert-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-exchange-alt text-green-600 mr-2"></i>Convert to Sale</h3>
+            <button onclick="document.getElementById('convert-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <form method="post" action="{% url 'clients:proforma_convert' proforma.pk %}" class="p-6 space-y-4"
+              onsubmit="return confirm('Convert proforma {{ proforma.number }} into an official sale?\n\n• The held deposit of KES {{ proforma.total_deposits_confirmed|floatformat:2 }} transfers to the vehicle payment allocation (never duplicated).\n• The vehicle will be marked SOLD.\n\nThis cannot be undone.');">
+            {% csrf_token %}
+            <div class="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700">
+                Deposit held (KES {{ proforma.total_deposits_confirmed|floatformat:2|intcomma }}) will be transferred into the
+                official payment allocation — it will not be charged twice.
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Final Sale Price (KES)</label>
+                <input type="number" name="final_price" step="0.01" min="0.01" value="{{ proforma.total_price }}"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Payment Type</label>
+                <select name="payment_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+                    <option value="installment">Monthly Installments</option>
+                    <option value="full">Pay in Full</option>
+                    <option value="flexible">Flexible</option>
+                </select>
+            </div>
+            <div class="flex items-center justify-end space-x-3 pt-2">
+                <button type="button" onclick="document.getElementById('convert-modal').classList.add('hidden')"
+                    class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                    <i class="fas fa-exchange-alt mr-1"></i>Convert to Sale
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Cancel Proforma Modal -->
+<div id="cancel-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-ban text-red-600 mr-2"></i>Cancel Proforma</h3>
+            <button onclick="document.getElementById('cancel-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <form method="post" action="{% url 'clients:proforma_cancel' proforma.pk %}" class="p-6 space-y-4"
+              onsubmit="return confirm('Cancel proforma {{ proforma.number }}?{% if reservation %}\n\nThe reservation will be cancelled and the vehicle returned to AVAILABLE stock. Deposit history is preserved.{% endif %}');">
+            {% csrf_token %}
+            {% if proforma.status == 'deposit_paid' or proforma.status == 'reserved' %}
+            <div class="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+                This proforma holds a confirmed deposit — only a manager can cancel it. The deposit is not refunded automatically.
+            </div>
+            {% endif %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Reason <span class="text-red-500">*</span></label>
+                <textarea name="reason" rows="3" required placeholder="Why is this proforma being cancelled?"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500"></textarea>
+            </div>
+            <div class="flex items-center justify-end space-x-3 pt-2">
+                <button type="button" onclick="document.getElementById('cancel-modal').classList.add('hidden')"
+                    class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Keep Proforma</button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+                    <i class="fas fa-ban mr-1"></i>Cancel Proforma
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if reservation %}
+<!-- Extend Reservation Modal -->
+<div id="extend-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-calendar-plus text-blue-600 mr-2"></i>Extend Reservation</h3>
+            <button onclick="document.getElementById('extend-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <form method="post" action="{% url 'clients:reservation_extend' reservation.pk %}" class="p-6 space-y-4"
+              onsubmit="return confirm('Extend this reservation to the selected date?');">
+            {% csrf_token %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">New Expiry Date <span class="text-red-500">*</span></label>
+                <input type="date" name="new_expiry_date" required
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex items-center justify-end space-x-3 pt-2">
+                <button type="button" onclick="document.getElementById('extend-modal').classList.add('hidden')"
+                    class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                    <i class="fas fa-calendar-plus mr-1"></i>Extend
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Release Vehicle Modal -->
+<div id="release-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-unlock text-red-600 mr-2"></i>Release Vehicle</h3>
+            <button onclick="document.getElementById('release-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <form method="post" action="{% url 'clients:reservation_release' reservation.pk %}" class="p-6 space-y-4"
+              onsubmit="return confirm('Release {{ proforma.vehicle.full_name|escapejs }} back to AVAILABLE stock?\n\nThe deposit is NOT refunded automatically and all history is preserved.');">
+            {% csrf_token %}
+            <div class="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+                The vehicle returns to Available and can be sold to other clients. Client, payment, proforma and reservation history is preserved.
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Reason <span class="text-red-500">*</span></label>
+                <textarea name="reason" rows="3" required placeholder="Why is the vehicle being released?"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500"></textarea>
+            </div>
+            <div class="flex items-center justify-end space-x-3 pt-2">
+                <button type="button" onclick="document.getElementById('release-modal').classList.add('hidden')"
+                    class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+                    <i class="fas fa-unlock mr-1"></i>Release Vehicle
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if is_manager %}
+<!-- Reverse Deposit Modal -->
+<div id="reverse-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-undo text-red-600 mr-2"></i>Reverse Deposit</h3>
+            <button onclick="document.getElementById('reverse-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <form method="post" id="reverse-form" class="p-6 space-y-4"
+              onsubmit="return confirm('Reverse this deposit? The entry remains visible for audit but is excluded from balances.');">
+            {% csrf_token %}
+            <p class="text-sm text-gray-600">Reversing deposit of <span id="reverse-amount" class="font-bold"></span>. Financial records are never deleted — this posts an audit-preserving reversal.</p>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Reason <span class="text-red-500">*</span></label>
+                <textarea name="reason" rows="3" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500"></textarea>
+            </div>
+            <div class="flex items-center justify-end space-x-3 pt-2">
+                <button type="button" onclick="document.getElementById('reverse-modal').classList.add('hidden')"
+                    class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+                    <i class="fas fa-undo mr-1"></i>Reverse Deposit
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+document.querySelectorAll('[id$="-modal"]').forEach(function (modal) {
+    modal.addEventListener('click', function (e) { if (e.target === this) this.classList.add('hidden'); });
+});
+function openReverseModal(depositPk, amount) {
+    const form = document.getElementById('reverse-form');
+    form.action = "{% url 'clients:proforma_detail' proforma.pk %}".replace(/\/$/, '') + '/deposits/' + depositPk + '/reverse/';
+    document.getElementById('reverse-amount').textContent = 'KES ' + amount;
+    document.getElementById('reverse-modal').classList.remove('hidden');
+}
+</script>
+{% endblock %}
