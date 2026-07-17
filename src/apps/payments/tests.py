@@ -7,7 +7,7 @@ from apps.authentication.models import User
 from apps.clients.models import Client, ClientVehicle
 from apps.dashboard.models import MetricCache
 from apps.dashboard.utils import get_dashboard_overview_data
-from apps.payments.models import Payment
+from apps.payments.models import Payment, PaybillTransaction
 from apps.vehicles.models import Vehicle
 from utils.constants import UserRole, VehicleStatus
 
@@ -118,3 +118,20 @@ class PaymentSignalsIntegrationTests(TestCase):
 
 		payment.delete()
 		self.assertFalse(MetricCache.objects.filter(metric_key='widget_data_test_2').exists())
+    def test_paybill_transaction_with_registration_number_reduces_client_balance(self):
+        paybill_transaction = PaybillTransaction.objects.create(
+            trans_id='TEST123456',
+            trans_time=timezone.now(),
+            trans_amount=Decimal('250000.00'),
+            business_short_code='4320049',
+            bill_ref_number='kda123a',
+            msisdn='+254700000000',
+            raw_payload={},
+            is_linked_to_payment=False,
+        )
+
+        self.client_vehicle.refresh_from_db()
+
+        self.assertEqual(self.client_vehicle.total_paid, Decimal('250000.00'))
+        self.assertEqual(self.client_vehicle.balance, Decimal('950000.00'))
+        self.assertTrue(paybill_transaction.is_linked_to_payment)
