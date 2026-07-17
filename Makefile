@@ -217,12 +217,15 @@ clean-containers: ## Remove all containers (keeps volumes)
 	@echo "$(GREEN)Containers removed!$(NC)"
 
 # Update application (pull latest code and restart)
+# Migrations run ONCE, before the new containers start. Running them via
+# `exec` after `up -d` races the web entrypoint's own `migrate` (both see
+# the same pending migration and one loses with "already exists").
 update: ## Update application code and restart services
 	@echo "$(BLUE)Updating application...$(NC)"
 	git pull
 	$(DOCKER_COMPOSE) build $(SERVICE_WEB) $(SERVICE_CELERY) $(SERVICE_BEAT)
+	$(DOCKER_COMPOSE) run --rm -e RUN_MIGRATIONS=false -e COLLECT_STATIC=false -e CREATE_CACHE_TABLE=false $(SERVICE_WEB) python manage.py migrate
 	$(DOCKER_COMPOSE) up -d
-	$(DOCKER_COMPOSE) exec $(SERVICE_WEB) python manage.py migrate
 	$(DOCKER_COMPOSE) exec $(SERVICE_WEB) python manage.py collectstatic --noinput
 	@echo "$(GREEN)Application updated successfully!$(NC)"
 
