@@ -25,12 +25,15 @@ urlpatterns = [
     # Photo Management
     path('<int:pk>/upload-photo/', views.vehicle_photo_upload_view, name='upload_photo'),
     path('<int:pk>/photo/<int:photo_pk>/delete/', views.vehicle_photo_delete_view, name='delete_photo'),
+    path('<int:pk>/photo/<int:photo_pk>/update/', views.vehicle_photo_update_view, name='update_photo'),
+    path('<int:pk>/toggle-photo-downloads/', views.vehicle_toggle_photo_downloads_view, name='toggle_photo_downloads'),
     
     # Selling/Assignment
     path('<int:pk>/sell/', views.sell_vehicle, name='sell'),
     
     # API Endpoints
     path('api/search-clients/', views.search_clients_api, name='search_clients_api'),
+    path('api/pricing/<int:pk>/', views.vehicle_pricing_api, name='pricing_api'),
     
     # Bulk Actions
     path('bulk-action/', views.bulk_vehicle_action_view, name='bulk_action'),
