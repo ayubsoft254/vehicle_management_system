@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Proforma Invoices & Reservations{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-3">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-file-invoice text-primary-600 mr-3"></i>Proforma Invoices &amp; Reservations
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">
+                A proforma never reserves a vehicle — only a confirmed deposit does.
+            </p>
+        </div>
+        <div class="flex items-center gap-3">
+            {% if user.is_superuser or user.role == 'admin' %}
+            <a href="{% url 'clients:reservation_settings' %}"
+               class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm">
+                <i class="fas fa-cog mr-2"></i>Reservation Settings
+            </a>
+            {% endif %}
+            <a href="{% url 'clients:proforma_create' %}"
+               class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition text-sm font-medium">
+                <i class="fas fa-plus mr-2"></i>New Proforma
+            </a>
+        </div>
+    </div>
+
+    <!-- KPI cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+        <a href="?" class="bg-white rounded-xl shadow-sm p-4 text-center hover:shadow-md transition">
+            <p class="text-xs text-gray-500 mb-1">Active Proformas</p>
+            <p class="text-2xl font-bold text-gray-800">{{ kpis.active }}</p>
+        </a>
+        <a href="?status=awaiting_commitment" class="bg-white rounded-xl shadow-sm p-4 text-center hover:shadow-md transition">
+            <p class="text-xs text-amber-600 mb-1">Awaiting Deposit</p>
+            <p class="text-2xl font-bold text-amber-700">{{ kpis.awaiting_deposit }}</p>
+        </a>
+        <a href="?status=reserved" class="bg-white rounded-xl shadow-sm p-4 text-center hover:shadow-md transition">
+            <p class="text-xs text-yellow-600 mb-1">Reserved Vehicles</p>
+            <p class="text-2xl font-bold text-yellow-700">{{ kpis.reserved }}</p>
+        </a>
+        <div class="bg-white rounded-xl shadow-sm p-4 text-center {% if kpis.expiring_soon %}ring-2 ring-orange-300{% endif %}">
+            <p class="text-xs text-orange-600 mb-1">Expiring ≤ 3 Days</p>
+            <p class="text-2xl font-bold text-orange-700">{{ kpis.expiring_soon }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm p-4 text-center {% if kpis.expired_review %}ring-2 ring-red-300{% endif %}">
+            <p class="text-xs text-red-600 mb-1">Needs Review</p>
+            <p class="text-2xl font-bold text-red-700">{{ kpis.expired_review }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm p-4 text-center">
+            <p class="text-xs text-blue-600 mb-1">Bank Financed</p>
+            <p class="text-2xl font-bold text-blue-700">{{ kpis.bank_financed }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm p-4 text-center">
+            <p class="text-xs text-emerald-600 mb-1">Deposits (Month)</p>
+            <p class="text-lg font-bold text-emerald-700">KES {{ kpis.deposits_this_month|floatformat:0|intcomma }}</p>
+        </div>
+        <a href="?status=converted" class="bg-white rounded-xl shadow-sm p-4 text-center hover:shadow-md transition">
+            <p class="text-xs text-green-600 mb-1">Converted to Sale</p>
+            <p class="text-2xl font-bold text-green-700">{{ kpis.converted }}</p>
+        </a>
+        <a href="?status=expired" class="bg-white rounded-xl shadow-sm p-4 text-center hover:shadow-md transition">
+            <p class="text-xs text-gray-500 mb-1">Expired / Cancelled</p>
+            <p class="text-2xl font-bold text-gray-600">{{ kpis.expired_cancelled }}</p>
+        </a>
+    </div>
+
+    <!-- Reservations needing manager review -->
+    {% if review_reservations %}
+    <div class="bg-red-50 border border-red-200 rounded-xl p-5 mb-6">
+        <h2 class="text-sm font-bold text-red-800 mb-3 flex items-center">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            Expired reservations pending manager review ({{ review_reservations|length }})
+        </h2>
+        <div class="space-y-2">
+            {% for r in review_reservations %}
+            <a href="{% url 'clients:proforma_detail' r.proforma_id %}"
+               class="flex items-center justify-between bg-white rounded-lg px-4 py-2 text-sm hover:shadow transition">
+                <span class="font-medium text-gray-800">{{ r.vehicle.full_name }} — {{ r.client.get_full_name }}</span>
+                <span class="text-red-600 font-semibold">Expired {{ r.expiry_date|date:"M d, Y" }} · Deposit KES {{ r.deposit_amount|floatformat:0|intcomma }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
+        <form method="get" class="flex flex-col md:flex-row gap-3">
+            <div class="flex-1">
+                <input type="text" name="q" value="{{ search }}" placeholder="Search by proforma no., client, registration, chassis…"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500">
+            </div>
+            <select name="status" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500">
+                <option value="">All statuses</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-lg text-sm">
+                <i class="fas fa-search mr-1"></i>Filter
+            </button>
+        </form>
+    </div>
+
+    <!-- Proforma table -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Proforma</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vehicle</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mode / Bank</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Price</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Deposit Held</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expiry</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prepared By</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for p in proformas %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm">
+                            <a href="{% url 'clients:proforma_detail' p.pk %}" class="font-mono font-semibold text-primary-600 hover:underline">{{ p.number }}</a>
+                            <p class="text-xs text-gray-400">{{ p.issue_date|date:"M d, Y" }}</p>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-800">{{ p.client.get_full_name }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-800">
+                            {{ p.vehicle.full_name }}
+                            <p class="text-xs text-gray-400">{{ p.vehicle.registration_number|default:p.vehicle.vin|truncatechars:14 }}</p>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-600">
+                            {{ p.get_payment_mode_display }}
+                            {% if p.financing_bank %}<p class="text-xs text-gray-400">{{ p.financing_bank }}</p>{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right text-sm font-semibold text-gray-800">KES {{ p.total_price|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right text-sm text-emerald-700 font-semibold">
+                            {% if p.total_deposits_confirmed > 0 %}KES {{ p.total_deposits_confirmed|floatformat:0|intcomma }}{% else %}—{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold
+                                {% if p.status == 'reserved' %}bg-yellow-100 text-yellow-800
+                                {% elif p.status == 'deposit_paid' %}bg-indigo-100 text-indigo-800
+                                {% elif p.status == 'awaiting_commitment' %}bg-amber-100 text-amber-800
+                                {% elif p.status == 'issued' %}bg-blue-100 text-blue-800
+                                {% elif p.status == 'converted' %}bg-green-100 text-green-800
+                                {% elif p.status == 'expired' %}bg-red-100 text-red-700
+                                {% elif p.status == 'cancelled' %}bg-gray-200 text-gray-600
+                                {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                {{ p.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-500">{{ p.expiry_date|date:"M d, Y"|default:"—" }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-500">
+                            {% if p.prepared_by %}{{ p.prepared_by.get_full_name|default:p.prepared_by.username }}{% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-6 py-14 text-center text-gray-400">
+                            <i class="fas fa-file-invoice text-4xl mb-3 block opacity-30"></i>
+                            No proforma invoices yet.
+                            <a href="{% url 'clients:proforma_create' %}" class="text-primary-600 hover:underline block mt-2">Create the first one</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
