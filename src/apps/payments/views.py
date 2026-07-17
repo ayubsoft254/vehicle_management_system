@@ -2259,6 +2259,9 @@ def paybill_tracker(request):
     # gets a synthetic one so it immediately appears in the tracker.
     _backfill_paybill_transactions()
 
+    # Always refresh the paybill balance on tracker page load.
+    _request_paybill_balance()
+
     all_transactions = PaybillTransaction.objects.all().order_by(
         F('trans_time').desc(nulls_last=True), '-created_at'
     )
@@ -2364,26 +2367,10 @@ def _backfill_paybill_transactions():
 @require_POST
 def refresh_paybill_balance(request):
     """Initiate an asynchronous Daraja account balance request."""
-    result = request_account_balance()
-
-    if result.get('ok'):
-        response_payload = result.get('response', {})
-        PaybillBalanceSnapshot.objects.create(
-            status=PaybillBalanceSnapshot.STATUS_PENDING,
-            request_reference=result.get('request_reference', ''),
-            conversation_id=response_payload.get('ConversationID', ''),
-            originator_conversation_id=response_payload.get('OriginatorConversationID', ''),
-            result_code=response_payload.get('ResponseCode') if str(response_payload.get('ResponseCode', '')).isdigit() else None,
-            result_desc=response_payload.get('ResponseDescription', ''),
-            raw_payload=response_payload,
-        )
+    if _request_paybill_balance():
         messages.success(request, 'Balance request sent to Daraja. Awaiting callback result.')
     else:
-        missing_vars = result.get('missing_vars', [])
-        if missing_vars:
-            messages.error(request, f"Missing M-Pesa settings in .env: {', '.join(missing_vars)}")
-        else:
-            messages.error(request, f"Unable to request paybill balance: {result.get('error', 'Unknown error')}")
+        messages.error(request, 'Unable to request paybill balance. Check server logs for details.')
 
     return redirect('payments:paybill_tracker')
 
