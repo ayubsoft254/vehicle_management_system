@@ -8,3 +8,4 @@ class PaymentsConfig(AppConfig):
     def ready(self):
         """Register payment signal handlers when the app is ready."""
         import apps.payments.signals1  # noqa: F401
+        import apps.payments.signals   # noqa: F401
