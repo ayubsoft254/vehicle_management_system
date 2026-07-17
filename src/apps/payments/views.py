@@ -137,6 +137,28 @@ def _safe_decimal(value):
         return None
 
 
+def _request_paybill_balance():
+    """Initiate an asynchronous paybill balance request and store a pending snapshot."""
+    try:
+        result = request_account_balance()
+        if result.get('ok'):
+            response_payload = result.get('response', {})
+            PaybillBalanceSnapshot.objects.create(
+                status=PaybillBalanceSnapshot.STATUS_PENDING,
+                request_reference=result.get('request_reference', ''),
+                conversation_id=response_payload.get('ConversationID', ''),
+                originator_conversation_id=response_payload.get('OriginatorConversationID', ''),
+                result_desc=response_payload.get('ResponseDescription', ''),
+                raw_payload=response_payload,
+            )
+            logger.info('Paybill balance request initiated from tracker view.')
+            return True
+        logger.warning('Paybill balance request failed: %s', result.get('error'))
+    except Exception as exc:
+        logger.error('Error requesting paybill balance: %s', exc, exc_info=True)
+    return False
+
+
 def _parse_mpesa_datetime(value):
     """Parse M-Pesa datetime string to datetime object."""
     if not value:
