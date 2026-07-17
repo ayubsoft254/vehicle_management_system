@@ -1525,14 +1525,48 @@ def agent_ledger_export(request, fmt):
 @login_required
 def agent_ledger_detail(request, pk):
     """Show all policies for an insurance agent and allow marking them paid."""
+    from utils.ledger import make_entry, build_statement
+
     agent = get_object_or_404(InsuranceAgent, pk=pk)
     policies = agent.policies.select_related('vehicle', 'client').order_by('-start_date')
     from .models import InsuranceAgentPayment
     payments = agent.payments.select_related('recorded_by').order_by('-payment_date')
+
+    entries = [
+        make_entry(
+            p.start_date,
+            f'Policy {p.policy_number or p.pk} issued',
+            credit=p.buying_price,
+            reference=p.policy_number or f'POL-{p.pk}',
+            related=str(p.vehicle) if p.vehicle else '',
+            status=p.get_dealer_payment_status_display(),
+            sort_key=p.pk,
+        )
+        for p in policies
+    ] + [
+        make_entry(
+            p.payment_date,
+            'Payment to agent',
+            debit=p.amount,
+            reference=p.reference_number or f'PAY-{p.pk}',
+            method=p.get_payment_method_display(),
+            created_by=p.recorded_by,
+            status='Paid',
+            notes=p.notes,
+            sort_key=p.created_at,
+        )
+        for p in payments
+    ]
+    statement_rows, statement_summary = build_statement(entries, balance_from='credit')
+
     context = {
         'agent': agent,
         'policies': policies,
         'payments': payments,
+        'statement_rows': statement_rows,
+        'statement_summary': statement_summary,
+        'debit_hint': 'payment made to agent',
+        'credit_hint': 'policy premium billed by agent',
     }
     log_audit(request.user, 'view', 'InsuranceAgent', f'Viewed ledger for agent {agent.name}')
     return render(request, 'insurance/agent_ledger_detail.html', context)
