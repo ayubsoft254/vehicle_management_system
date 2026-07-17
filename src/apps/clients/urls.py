@@ -3,7 +3,7 @@ URL configuration for client app
 Handles all client-related routing
 """
 from django.urls import path
-from . import views, portal_views
+from . import views, portal_views, proforma_views
 
 app_name = 'clients'
 
@@ -72,6 +72,22 @@ urlpatterns = [
     path('<int:pk>/update/', views.client_update, name='client_update'),
     path('<int:pk>/delete/', views.client_delete, name='client_delete'),
     
+    # ==================== PROFORMA INVOICES & RESERVATIONS ====================
+
+    path('proformas/', proforma_views.proforma_list, name='proforma_list'),
+    path('proformas/create/', proforma_views.proforma_create, name='proforma_create'),
+    path('proformas/settings/', proforma_views.reservation_settings, name='reservation_settings'),
+    path('proformas/<int:pk>/', proforma_views.proforma_detail, name='proforma_detail'),
+    path('proformas/<int:pk>/edit/', proforma_views.proforma_update, name='proforma_update'),
+    path('proformas/<int:pk>/pdf/', proforma_views.proforma_pdf, name='proforma_pdf'),
+    path('proformas/<int:pk>/issue/', proforma_views.proforma_issue, name='proforma_issue'),
+    path('proformas/<int:pk>/cancel/', proforma_views.proforma_cancel, name='proforma_cancel'),
+    path('proformas/<int:pk>/confirm-deposit/', proforma_views.confirm_deposit, name='proforma_confirm_deposit'),
+    path('proformas/<int:pk>/deposits/<int:deposit_pk>/reverse/', proforma_views.reverse_deposit, name='proforma_reverse_deposit'),
+    path('proformas/<int:pk>/convert/', proforma_views.convert_proforma, name='proforma_convert'),
+    path('reservations/<int:pk>/extend/', proforma_views.reservation_extend, name='reservation_extend'),
+    path('reservations/<int:pk>/release/', proforma_views.reservation_release, name='reservation_release'),
+
     # ==================== VEHICLE ASSIGNMENT URLS ====================
     
     # Assign Vehicle to Client
