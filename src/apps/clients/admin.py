@@ -635,3 +635,40 @@ class VehicleTrackerAdmin(admin.ModelAdmin):
             'sold_insurance_total': sold_insurance_total,
         })
         return super().changelist_view(request, extra_context=extra_context)
+
+# ==================== PROFORMA & RESERVATION ADMIN ====================
+
+from .models import (  # noqa: E402
+    ProformaInvoice, ProformaDeposit, VehicleReservation, ReservationSetting,
+)
+
+
+class ProformaDepositInline(admin.TabularInline):
+    model = ProformaDeposit
+    extra = 0
+    readonly_fields = ('confirmed_at',)
+
+
+@admin.register(ProformaInvoice)
+class ProformaInvoiceAdmin(admin.ModelAdmin):
+    list_display = ('number', 'client', 'vehicle', 'status', 'payment_mode',
+                    'total_price', 'deposit_required', 'issue_date', 'expiry_date')
+    list_filter = ('status', 'payment_mode')
+    search_fields = ('number', 'client__first_name', 'client__last_name',
+                     'vehicle__registration_number', 'vehicle__vin')
+    readonly_fields = ('number', 'created_at', 'updated_at')
+    inlines = [ProformaDepositInline]
+
+
+@admin.register(VehicleReservation)
+class VehicleReservationAdmin(admin.ModelAdmin):
+    list_display = ('vehicle', 'client', 'status', 'reserved_at',
+                    'expiry_date', 'period_days', 'confirmed_by')
+    list_filter = ('status',)
+    search_fields = ('vehicle__registration_number', 'vehicle__vin',
+                     'client__first_name', 'client__last_name')
+
+
+@admin.register(ReservationSetting)
+class ReservationSettingAdmin(admin.ModelAdmin):
+    list_display = ('default_period_days', 'notify_days_before', 'updated_at')
