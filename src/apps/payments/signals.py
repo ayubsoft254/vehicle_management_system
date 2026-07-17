@@ -241,7 +241,7 @@ def revert_payment_on_delete(sender, instance, **kwargs):
 def _normalize_reg(value):
     """Normalize a vehicle registration number for fuzzy matching."""
     import re
-    return re.sub(r'[\s\-]', '', str(value or '')).upper()
+    return re.sub(r'[^A-Z0-9]', '', str(value or '').upper())
 
 
 def _find_vehicle_by_bill_ref(bill_ref_number):
