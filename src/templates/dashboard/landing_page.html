@@ -281,8 +281,8 @@
                 {% for vehicle in featured_vehicles %}
                 <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200 vehicle-card">
                     <div class="relative h-48 bg-gray-200">
-                        {% if vehicle.main_photo %}
-                            <img src="{{ vehicle.main_photo.image.url }}" alt="{{ vehicle.full_name }}" class="w-full h-full object-cover">
+                        {% if vehicle.public_main_photo %}
+                            <img src="{{ vehicle.public_main_photo.image.url }}" alt="{{ vehicle.full_name }}" class="w-full h-full object-cover">
                         {% else %}
                             <div class="w-full h-full flex items-center justify-center">
                                 <i class="fas fa-car text-gray-400 text-6xl"></i>
@@ -370,8 +370,8 @@
                     {% for vehicle in page_obj %}
                     <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200 vehicle-card">
                         <div class="relative h-48 bg-gray-200">
-                            {% if vehicle.main_photo %}
-                                <img src="{{ vehicle.main_photo.image.url }}" alt="{{ vehicle.full_name }}" class="w-full h-full object-cover">
+                            {% if vehicle.public_main_photo %}
+                                <img src="{{ vehicle.public_main_photo.image.url }}" alt="{{ vehicle.full_name }}" class="w-full h-full object-cover">
                             {% else %}
                                 <div class="w-full h-full flex items-center justify-center">
                                     <i class="fas fa-car text-gray-400 text-5xl"></i>
