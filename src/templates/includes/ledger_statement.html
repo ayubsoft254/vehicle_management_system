@@ -1,0 +1,102 @@
+{% load humanize %}
+{# Standard debit/credit ledger statement. Expects: statement_rows, statement_summary, statement_title (optional), debit_hint / credit_hint (optional). #}
+<div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between flex-wrap gap-2">
+        <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+            <i class="fas fa-balance-scale text-slate-600 mr-2"></i>{{ statement_title|default:"Ledger Statement (Debit / Credit)" }}
+            <span class="ml-2 bg-slate-100 text-slate-700 text-xs font-bold px-2 py-0.5 rounded-full">{{ statement_summary.entry_count }}</span>
+        </h2>
+        {% if debit_hint or credit_hint %}
+        <p class="text-xs text-gray-400">
+            {% if debit_hint %}<span class="mr-3"><span class="font-semibold text-gray-500">Debit:</span> {{ debit_hint }}</span>{% endif %}
+            {% if credit_hint %}<span><span class="font-semibold text-gray-500">Credit:</span> {{ credit_hint }}</span>{% endif %}
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Opening / Debits / Credits / Closing summary -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 pb-2">
+        <div class="bg-gray-50 rounded-lg p-4 text-center">
+            <p class="text-xs text-gray-500 mb-1">Opening Balance</p>
+            <p class="text-lg font-bold text-gray-800">KES {{ statement_summary.opening_balance|floatformat:2|intcomma }}</p>
+        </div>
+        <div class="bg-emerald-50 rounded-lg p-4 text-center">
+            <p class="text-xs text-emerald-600 mb-1">Total Debits</p>
+            <p class="text-lg font-bold text-emerald-800">KES {{ statement_summary.total_debits|floatformat:2|intcomma }}</p>
+        </div>
+        <div class="bg-rose-50 rounded-lg p-4 text-center">
+            <p class="text-xs text-rose-600 mb-1">Total Credits</p>
+            <p class="text-lg font-bold text-rose-800">KES {{ statement_summary.total_credits|floatformat:2|intcomma }}</p>
+        </div>
+        <div class="bg-indigo-50 rounded-lg p-4 text-center">
+            <p class="text-xs text-indigo-600 mb-1">Closing Balance</p>
+            <p class="text-lg font-bold text-indigo-800">KES {{ statement_summary.closing_balance|floatformat:2|intcomma }}</p>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Related</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Debit</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Credit</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Balance</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recorded By</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for row in statement_rows %}
+                <tr class="hover:bg-gray-50 {% if row.is_reversed %}opacity-50{% endif %}">
+                    <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ row.date|date:"M d, Y" }}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500 font-mono">
+                        {% if row.detail_url %}<a href="{{ row.detail_url }}" class="text-primary-600 hover:underline">{{ row.reference|default:"—" }}</a>
+                        {% else %}{{ row.reference|default:"—" }}{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-800">
+                        {{ row.description }}
+                        {% if row.is_reversed %}<span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 uppercase">Reversed</span>{% endif %}
+                        {% if row.notes %}<p class="text-xs text-gray-400">{{ row.notes|truncatechars:60 }}</p>{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-600">{{ row.related|default:"—" }}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">{{ row.method|default:"—" }}</td>
+                    <td class="px-4 py-3 text-right text-sm font-semibold {% if row.debit %}text-emerald-700{% else %}text-gray-300{% endif %}">
+                        {% if row.debit %}KES {{ row.debit|floatformat:2|intcomma }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-right text-sm font-semibold {% if row.credit %}text-rose-700{% else %}text-gray-300{% endif %}">
+                        {% if row.credit %}KES {{ row.credit|floatformat:2|intcomma }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-right text-sm font-bold text-gray-800">KES {{ row.running_balance|floatformat:2|intcomma }}</td>
+                    <td class="px-4 py-3 text-sm text-gray-500">
+                        {% if row.created_by %}{{ row.created_by.get_full_name|default:row.created_by.username }}{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-500">{{ row.status|default:"—" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="px-6 py-10 text-center text-gray-400">
+                        <i class="fas fa-book text-3xl mb-2 block opacity-30"></i>
+                        No ledger entries yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if statement_rows %}
+            <tfoot class="bg-slate-50">
+                <tr>
+                    <td colspan="5" class="px-4 py-3 text-sm font-semibold text-gray-700 text-right">Totals</td>
+                    <td class="px-4 py-3 text-right text-sm font-bold text-emerald-700">KES {{ statement_summary.total_debits|floatformat:2|intcomma }}</td>
+                    <td class="px-4 py-3 text-right text-sm font-bold text-rose-700">KES {{ statement_summary.total_credits|floatformat:2|intcomma }}</td>
+                    <td class="px-4 py-3 text-right text-sm font-bold text-indigo-700">KES {{ statement_summary.closing_balance|floatformat:2|intcomma }}</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
