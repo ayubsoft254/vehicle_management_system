@@ -221,15 +221,114 @@ def public_vehicle_detail(request, pk):
                 client=client_profile,
                 vehicle=vehicle,
             ).exists()
-    
+
+    public_photos = list(vehicle.photos.filter(is_public=True))
+
     context = {
         'vehicle': vehicle,
+        'public_photos': public_photos,
+        'downloads_enabled': vehicle.allow_photo_downloads and bool(public_photos),
         'similar_vehicles': similar_vehicles,
         'is_authenticated': request.user.is_authenticated,
         'can_view_vin': can_view_vin,
     }
-    
+
     return render(request, 'dashboard/public_vehicle_detail.html', context)
+
+
+# ============================================================================
+# PUBLIC VEHICLE PHOTO DOWNLOADS
+# ============================================================================
+
+def _public_downloadable_vehicle(request, pk):
+    """
+    Resolve a vehicle whose PUBLIC photos may be downloaded by this visitor.
+    Mirrors public_vehicle_detail visibility: anonymous/client users only see
+    available vehicles; staff can download for any active vehicle. Never
+    exposes internal photos or documents.
+    """
+    from apps.vehicles.models import Vehicle
+    from apps.permissions.models import RolePermission
+    from utils.constants import ModuleName
+    from django.http import Http404
+
+    if request.user.is_authenticated and (
+        request.user.is_staff or request.user.is_superuser or
+        RolePermission.user_can_access_module(user=request.user, module_name=ModuleName.VEHICLES)
+    ):
+        vehicle = get_object_or_404(Vehicle, pk=pk, is_active=True)
+    else:
+        vehicle = get_object_or_404(Vehicle, pk=pk, is_active=True, status='available')
+
+    if not vehicle.allow_photo_downloads:
+        raise Http404('Photo downloads are disabled for this vehicle.')
+    return vehicle
+
+
+def public_photo_download(request, pk, photo_pk):
+    """Download a single PUBLIC vehicle photo (original quality)."""
+    import os
+    from django.http import FileResponse, Http404
+    from django.db.models import F
+    from apps.vehicles.models import VehiclePhoto
+
+    vehicle = _public_downloadable_vehicle(request, pk)
+    photo = get_object_or_404(
+        VehiclePhoto, pk=photo_pk, vehicle=vehicle, is_public=True)
+
+    if not photo.image or not os.path.isfile(photo.image.path):
+        raise Http404('Photo file not found.')
+
+    VehiclePhoto.objects.filter(pk=photo.pk).update(
+        download_count=F('download_count') + 1)
+
+    ext = os.path.splitext(photo.image.name)[1] or '.jpg'
+    filename = f'{vehicle.download_slug}-photo-{photo.pk}{ext}'
+    return FileResponse(
+        open(photo.image.path, 'rb'), as_attachment=True, filename=filename)
+
+
+def public_photos_download_all(request, pk):
+    """Download every PUBLIC photo of the vehicle as a single ZIP archive."""
+    import io
+    import os
+    import zipfile
+    from django.http import Http404
+    from django.db.models import F
+    from apps.vehicles.models import VehiclePhoto
+
+    vehicle = _public_downloadable_vehicle(request, pk)
+    photos = list(vehicle.photos.filter(is_public=True))
+    if not photos:
+        raise Http404('No public photos available for this vehicle.')
+
+    buffer = io.BytesIO()
+    added = 0
+    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as archive:
+        for index, photo in enumerate(photos, start=1):
+            if not photo.image:
+                continue
+            try:
+                path = photo.image.path
+            except (ValueError, NotImplementedError):
+                continue
+            if not os.path.isfile(path):
+                continue
+            ext = os.path.splitext(photo.image.name)[1] or '.jpg'
+            archive.write(path, f'{vehicle.download_slug}-{index:02d}{ext}')
+            added += 1
+
+    if not added:
+        raise Http404('No photo files available for this vehicle.')
+
+    VehiclePhoto.objects.filter(pk__in=[p.pk for p in photos]).update(
+        download_count=F('download_count') + 1)
+
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = (
+        f'attachment; filename="{vehicle.download_slug}-photos.zip"')
+    return response
 
 
 def public_vehicle_purchase(request, pk):
