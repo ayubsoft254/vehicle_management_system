@@ -5,7 +5,7 @@ from __future__ import annotations
 from base64 import b64encode
 from datetime import datetime
 import uuid
-from urllib.parse import urljoin
+from urllib.parse import urljoin, quote
 from decimal import Decimal, ROUND_HALF_UP
 
 import requests
@@ -70,6 +70,22 @@ def _absolute_callback_url(url_name: str) -> str:
         raise DarajaError(f'Failed to resolve URL name "{url_name}": {e}')
 
 
+def _with_callback_secret(url: str) -> str:
+    """
+    Embed MPESA_CALLBACK_SECRET as a query param on a callback URL.
+
+    Daraja's C2B/STK/balance webhooks POST straight to whatever URL was
+    registered and never carry custom headers, so a header-based secret can
+    never be satisfied by real Safaricom traffic. Embedding it in the URL
+    itself is the only mechanism Daraja actually supports.
+    """
+    secret = _clean(getattr(settings, 'MPESA_CALLBACK_SECRET', ''))
+    if not secret:
+        return url
+    separator = '&' if '?' in url else '?'
+    return f'{url}{separator}callback_secret={quote(secret, safe="")}'
+
+
 def _get_callback_url_from_settings(settings_key: str, default_url_name: str) -> str:
     """
     ✅ NEW: Get callback URL from settings or construct from URL name.
@@ -80,10 +96,10 @@ def _get_callback_url_from_settings(settings_key: str, default_url_name: str) ->
     if configured:
         if configured.startswith('http://'):
             raise DarajaError(f'{settings_key} must use https://.')
-        return configured
-    
+        return _with_callback_secret(configured)
+
     # Fall back to constructing from URL name
-    return _absolute_callback_url(default_url_name)
+    return _with_callback_secret(_absolute_callback_url(default_url_name))
 
 
 def get_access_token() -> str:

@@ -324,23 +324,21 @@ def _parse_stk_metadata(metadata_items):
 
 
 def _callback_secret_is_valid(request):
-    """Validate the callback secret header."""
+    """
+    Validate the callback secret embedded in the callback URL's query string.
+
+    Daraja's C2B/STK/balance webhooks POST straight to whatever URL was
+    registered with Safaricom and never carry custom headers, so the secret
+    is embedded in the URL itself (see daraja._with_callback_secret) rather
+    than checked via an HTTP header, which real Safaricom traffic can never
+    supply.
+    """
     expected_secret = str(getattr(settings, 'MPESA_CALLBACK_SECRET', '') or '').strip()
-    
-    # In development, allow if no secret is set
-    if not expected_secret and getattr(settings, 'MPESA_ENV', '') != 'production':
+
+    if not expected_secret:
         return True
-    
-    provided_secret = (
-        request.headers.get('X-Callback-Secret')
-        or request.META.get('HTTP_X_CALLBACK_SECRET', '')
-    ).strip()
-    
-    # If both are empty, allow (development only)
-    if not expected_secret and not provided_secret:
-        return True
-    
-    # If one is set but doesn't match, reject
+
+    provided_secret = (request.GET.get('callback_secret') or '').strip()
     return provided_secret == expected_secret
 
 
