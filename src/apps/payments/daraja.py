@@ -70,6 +70,21 @@ def _absolute_callback_url(url_name: str) -> str:
         raise DarajaError(f'Failed to resolve URL name "{url_name}": {e}')
 
 
+def _ensure_trailing_slash(url: str) -> str:
+    """
+    Ensure the URL's path ends with '/' before any query string.
+
+    Every Daraja callback route in urls.py requires a trailing slash. A
+    misconfigured MPESA_*_URL override missing one doesn't just 404 — Django
+    can't safely redirect a POST to add the slash, so it hard-errors on every
+    single incoming Safaricom callback instead of ever reaching the view.
+    """
+    base, sep, query = url.partition('?')
+    if not base.endswith('/'):
+        base += '/'
+    return f'{base}{sep}{query}'
+
+
 def _with_callback_secret(url: str) -> str:
     """
     Embed MPESA_CALLBACK_SECRET as a query param on a callback URL.
@@ -96,7 +111,7 @@ def _get_callback_url_from_settings(settings_key: str, default_url_name: str) ->
     if configured:
         if configured.startswith('http://'):
             raise DarajaError(f'{settings_key} must use https://.')
-        return _with_callback_secret(configured)
+        return _with_callback_secret(_ensure_trailing_slash(configured))
 
     # Fall back to constructing from URL name
     return _with_callback_secret(_absolute_callback_url(default_url_name))
