@@ -103,14 +103,33 @@ class PaymentForm(forms.ModelForm):
         cleaned_data = super().clean()
         payment_method = cleaned_data.get('payment_method')
         transaction_reference = cleaned_data.get('transaction_reference')
-        
+
         # Require transaction reference for certain payment methods
         if payment_method in ['mpesa', 'bank_transfer', 'cheque'] and not transaction_reference:
             self.add_error(
                 'transaction_reference',
                 f'Transaction reference is required for {payment_method} payments.'
             )
-        
+
+        # An M-Pesa payment with this receipt number may already exist —
+        # created automatically by the STK push / paybill confirmation
+        # callback the moment Safaricom confirms it. Recording it again here
+        # would double-charge the client for one real transaction.
+        if payment_method == 'mpesa' and transaction_reference:
+            existing = Payment.objects.filter(
+                payment_method='mpesa',
+                transaction_reference=transaction_reference,
+            )
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                self.add_error(
+                    'transaction_reference',
+                    f'An M-Pesa payment with receipt {transaction_reference} has already been '
+                    'recorded — it may have been captured automatically. Check Payment History '
+                    'before recording it again.'
+                )
+
         return cleaned_data
 
 

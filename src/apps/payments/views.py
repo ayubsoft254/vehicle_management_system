@@ -3368,20 +3368,33 @@ def staff_stk_status(request):
     """
     Poll the status of a staff-initiated STK push.
     GET ?checkout_request_id=<id>
-    Returns JSON: { ok, status, paid, mpesa_receipt_number, result_desc }
+    Returns JSON: { ok, status, paid, mpesa_receipt_number, result_desc,
+                    payment_id, payment_url, receipt_url }
+
+    A successful STK push is recorded automatically by the callback the
+    moment Safaricom confirms it (see stk_push_callback) — the Payment
+    already exists by the time this poll sees status='success'. Callers
+    should link/redirect to payment_url rather than submitting the record
+    form again, which would create a duplicate Payment for the same receipt.
     """
     checkout_request_id = request.GET.get('checkout_request_id', '').strip()
     if not checkout_request_id:
         return JsonResponse({'ok': False, 'error': 'checkout_request_id required.'}, status=400)
     try:
-        stk_req = MpesaSTKRequest.objects.get(checkout_request_id=checkout_request_id)
+        stk_req = MpesaSTKRequest.objects.select_related('payment').get(
+            checkout_request_id=checkout_request_id
+        )
     except MpesaSTKRequest.DoesNotExist:
         return JsonResponse({'ok': False, 'error': 'Request not found.'}, status=404)
 
+    payment = stk_req.payment
     return JsonResponse({
         'ok': True,
         'status': stk_req.status,
         'paid': stk_req.status == 'success',
         'mpesa_receipt_number': stk_req.mpesa_receipt_number or '',
         'result_desc': stk_req.result_desc or '',
+        'payment_id': payment.pk if payment else None,
+        'payment_url': reverse('payments:payment_detail', args=[payment.pk]) if payment else '',
+        'receipt_url': reverse('payments:payment_receipt', args=[payment.pk]) if payment else '',
     })
