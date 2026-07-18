@@ -1053,7 +1053,7 @@ class PaybillTransaction(models.Model):
         help_text='Organization account balance as shared in C2B callback, if available.'
     )
 
-    msisdn = models.CharField(max_length=50, blank=True, default='')  # 20 → 50
+    msisdn = models.CharField(max_length=100, blank=True, default='')  # 20 → 50 → 100 (Safaricom sends a 64-char masked/tokenized identifier instead of a raw phone number for some paybill configs)
     first_name = models.CharField(max_length=200, blank=True, default='')  # 80 → 200
     middle_name = models.CharField(max_length=200, blank=True, default='')  # 80 → 200
     last_name = models.CharField(max_length=200, blank=True, default='')  # 80 → 200
