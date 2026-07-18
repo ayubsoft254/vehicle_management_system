@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load permission_tags %}
 
 {% block title %}Quick Actions - Dashboard{% endblock %}
 
@@ -23,9 +24,14 @@
         </div>
     </div>
 
+    {% can_create user 'vehicles' as can_create_vehicles %}
+    {% can_create user 'clients' as can_create_clients %}
+    {% can_create user 'auctions' as can_create_auctions %}
+
     <!-- Quick Actions Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        
+
+        {% if user.is_superuser or user|can_access:'vehicles' %}
         <!-- Vehicle Management Actions -->
         <div class="col-span-full">
             <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
@@ -34,8 +40,9 @@
             </h2>
         </div>
 
+        {% if user.is_superuser or can_create_vehicles %}
         <!-- Add New Vehicle -->
-        <a href="{% url 'vehicles:create' %}" 
+        <a href="{% url 'vehicles:create' %}"
            class="block p-6 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -45,9 +52,10 @@
                 <p class="text-sm text-blue-100">Register a new vehicle in inventory</p>
             </div>
         </a>
+        {% endif %}
 
         <!-- View All Vehicles -->
-        <a href="{% url 'vehicles:list' %}" 
+        <a href="{% url 'vehicles:list' %}"
            class="block p-6 bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -58,8 +66,9 @@
             </div>
         </a>
 
+        {% if user.is_superuser or can_create_vehicles %}
         <!-- Upload Vehicle Photos -->
-        <a href="{% url 'vehicles:list' %}" 
+        <a href="{% url 'vehicles:list' %}"
            class="block p-6 bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -69,9 +78,10 @@
                 <p class="text-sm text-purple-100">Add photos to vehicle listings</p>
             </div>
         </a>
+        {% endif %}
 
         <!-- Vehicle Stats -->
-        <a href="{% url 'vehicles:stats' %}" 
+        <a href="{% url 'vehicles:stats' %}"
            class="block p-6 bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -81,7 +91,9 @@
                 <p class="text-sm text-teal-100">View inventory statistics</p>
             </div>
         </a>
+        {% endif %}
 
+        {% if user.is_superuser or user|can_access:'clients' %}
         <!-- Client Management Actions -->
         <div class="col-span-full mt-6">
             <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
@@ -90,8 +102,9 @@
             </h2>
         </div>
 
+        {% if user.is_superuser or can_create_clients %}
         <!-- Add New Client -->
-        <a href="{% url 'clients:client_create' %}" 
+        <a href="{% url 'clients:client_create' %}"
            class="block p-6 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -101,9 +114,10 @@
                 <p class="text-sm text-green-100">Register a new client</p>
             </div>
         </a>
+        {% endif %}
 
         <!-- View All Clients -->
-        <a href="{% url 'clients:client_list' %}" 
+        <a href="{% url 'clients:client_list' %}"
            class="block p-6 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -114,8 +128,9 @@
             </div>
         </a>
 
+        {% if user.is_superuser or can_create_clients %}
         <!-- Assign Vehicle -->
-        <a href="{% url 'clients:client_list' %}" 
+        <a href="{% url 'clients:client_list' %}"
            class="block p-6 bg-gradient-to-br from-lime-500 to-lime-600 hover:from-lime-600 hover:to-lime-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -125,9 +140,12 @@
                 <p class="text-sm text-lime-100">Assign vehicle to client</p>
             </div>
         </a>
+        {% endif %}
+        {% endif %}
 
+        {% if user.is_superuser or user|can_access:'payments' %}
         <!-- Record Payment -->
-        <a href="{% url 'payments:payment_list' %}" 
+        <a href="{% url 'payments:payment_list' %}"
            class="block p-6 bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -137,7 +155,9 @@
                 <p class="text-sm text-cyan-100">Process client payments</p>
             </div>
         </a>
+        {% endif %}
 
+        {% if user.is_superuser or user|can_access:'auctions' %}
         <!-- Auction Management -->
         <div class="col-span-full mt-6">
             <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
@@ -146,8 +166,9 @@
             </h2>
         </div>
 
+        {% if user.is_superuser or can_create_auctions %}
         <!-- Create Auction -->
-        <a href="{% url 'auctions:auction_create' %}" 
+        <a href="{% url 'auctions:auction_create' %}"
            class="block p-6 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -157,9 +178,10 @@
                 <p class="text-sm text-orange-100">Start a new vehicle auction</p>
             </div>
         </a>
+        {% endif %}
 
         <!-- View Auctions -->
-        <a href="{% url 'auctions:auction_list' %}" 
+        <a href="{% url 'auctions:auction_list' %}"
            class="block p-6 bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -169,7 +191,9 @@
                 <p class="text-sm text-amber-100">Browse all auctions</p>
             </div>
         </a>
+        {% endif %}
 
+        {% if user.is_superuser or user|can_access:'reports' %}
         <!-- Reports & Analytics -->
         <div class="col-span-full mt-6">
             <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
@@ -179,7 +203,7 @@
         </div>
 
         <!-- Financial Reports -->
-        <a href="{% url 'reports:report_list' %}" 
+        <a href="{% url 'reports:report_list' %}"
            class="block p-6 bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -191,7 +215,7 @@
         </a>
 
         <!-- Client Reports -->
-        <a href="{% url 'reports:report_list' %}" 
+        <a href="{% url 'reports:report_list' %}"
            class="block p-6 bg-gradient-to-br from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -203,7 +227,7 @@
         </a>
 
         <!-- Vehicle Reports -->
-        <a href="{% url 'reports:report_list' %}" 
+        <a href="{% url 'reports:report_list' %}"
            class="block p-6 bg-gradient-to-br from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -215,7 +239,7 @@
         </a>
 
         <!-- Sales Reports -->
-        <a href="{% url 'reports:report_list' %}" 
+        <a href="{% url 'reports:report_list' %}"
            class="block p-6 bg-gradient-to-br from-fuchsia-500 to-fuchsia-600 hover:from-fuchsia-600 hover:to-fuchsia-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1">
             <div class="flex flex-col items-center text-center text-white">
                 <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -225,6 +249,7 @@
                 <p class="text-sm text-fuchsia-100">Sales performance metrics</p>
             </div>
         </a>
+        {% endif %}
 
         <!-- Custom Quick Actions from Database -->
         {% if quick_actions %}
