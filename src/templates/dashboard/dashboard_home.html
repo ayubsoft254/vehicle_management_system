@@ -349,8 +349,10 @@
                 </div>
 
             </div>
+            {% endif %}
 
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+                {% if user.is_staff or user.is_superuser %}
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
                         <h3 class="text-lg font-bold text-gray-900 flex items-center">
@@ -383,7 +385,9 @@
                         </table>
                     </div>
                 </div>
+                {% endif %}
 
+                {% if user.is_staff or user.is_superuser or user|can_access:'clients' %}
                 <div class="bg-white rounded-xl shadow-lg p-6">
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
                         <h3 class="text-lg font-bold text-gray-900 flex items-center">
@@ -416,7 +420,10 @@
                         {% endfor %}
                     </div>
                 </div>
+                {% endif %}
             </div>
+
+            {% if user.is_staff or user.is_superuser %}
 
             <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
@@ -872,7 +879,7 @@
                 </a>
                 {% endif %}
 
-                {% if user.is_staff or user.is_superuser %}
+                {% if user.is_staff or user.is_superuser or user|can_access:'clients' %}
                 <div class="pt-3 mt-3 border-t border-gray-200">
                     <div class="flex items-center justify-between mb-2">
                         <p class="text-xs font-bold uppercase tracking-wide text-red-600">Defaulters</p>

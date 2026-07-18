@@ -1205,6 +1205,7 @@ def vehicle_purchase_price_assignment_view(request):
 # ==================== TRACKER AGENT LEDGER VIEWS ====================
 
 @login_required
+@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
 def tracker_agent_ledger_list(request):
     """List all tracker agents with totals and outstanding balances."""
     from django.db.models import Q, Sum, Value, DecimalField
@@ -1312,6 +1313,7 @@ def tracker_agent_mark_all_paid(request, agent_pk):
 # ==================== CLEARING AGENT LEDGER VIEWS ====================
 
 @login_required
+@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
 def clearing_agent_ledger_list(request):
     """List all clearing agents with totals and outstanding balances."""
     from django.db.models import Q, Sum, Value, DecimalField
@@ -1553,6 +1555,7 @@ def record_clearing_agent_payment(request, agent_pk):
 # ==================== JAPAN SUPPLIER LEDGER VIEWS ====================
 
 @login_required
+@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
 def japan_supplier_ledger_list(request):
     """List all Japan suppliers with totals and outstanding balances."""
     from django.db.models import Q, Sum, Value, DecimalField
@@ -1875,6 +1878,7 @@ def vehicle_reports(request):
 # ==================== BROKER LEDGER VIEWS ====================
 
 @login_required
+@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
 def broker_ledger_list(request):
     """List all brokers with commission totals and outstanding balances."""
     if request.method == 'POST':
@@ -2119,6 +2123,7 @@ def _borrower_display_name(obj):
 
 
 @login_required
+@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
 def business_loan_list(request):
     """List all money the business has loaned out, with repayment status."""
     if request.method == 'POST':
@@ -2294,6 +2299,7 @@ def business_loan_write_off(request, pk):
 
 
 @login_required
+@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
 def main_ledger_view(request):
     """Combined main ledger aggregating all financial activity."""
     from apps.payments.models import Payment
@@ -2729,6 +2735,7 @@ def _main_ledger_export_rows(ctx):
 
 
 @login_required
+@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
 def main_ledger_export(request, fmt):
     """Export the Main Ledger (filtered the same way as the on-screen view) as PDF/Excel/CSV."""
     from utils.report_kit import export_rows

@@ -28,6 +28,7 @@ from .forms import (
 from apps.vehicles.models import Vehicle
 from apps.audit.utils import log_audit
 from utils.constants import UserRole
+from utils.decorators import role_required
 
 
 # ==================== CLIENT MANAGEMENT VIEWS ====================
@@ -2404,6 +2405,7 @@ def _client_ledger_queryset(search=''):
 
 
 @login_required
+@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
 def client_ledger_list(request):
     """
     Client Ledger: every client with total billed, total paid and

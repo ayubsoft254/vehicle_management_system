@@ -29,6 +29,7 @@ from .forms import (
 from apps.vehicles.models import Vehicle
 from apps.clients.models import Client
 from apps.audit.utils import log_audit
+from utils.decorators import role_required
 
 
 # ==================== INSURANCE POLICY VIEWS ====================
@@ -1474,6 +1475,7 @@ def insurance_reports_csv(request):
 # ==================== INSURANCE AGENT LEDGER VIEWS ====================
 
 @login_required
+@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
 def agent_ledger_list(request):
     """List all insurance agents with their policy totals and outstanding balances."""
     from django.contrib import messages
