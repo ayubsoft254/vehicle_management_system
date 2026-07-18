@@ -37,7 +37,7 @@
                             {% if auction.winner == user %}
                                 You Won!
                             {% else %}
-                                {{ auction.winner.get_full_name|default:auction.winner.username }}
+                                {% firstof auction.winner.get_full_name auction.winner.username "—" %}
                             {% endif %}
                         </p>
                     </div>

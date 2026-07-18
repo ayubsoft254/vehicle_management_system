@@ -118,7 +118,7 @@
                                     <div class="text-sm font-semibold text-gray-900">KES {{ expense.total_amount|floatformat:2 }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ expense.submitted_by.get_full_name|default:expense.submitted_by.username }}
+                                    {% firstof expense.submitted_by.get_full_name expense.submitted_by.username "—" %}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 

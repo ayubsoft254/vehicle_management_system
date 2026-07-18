@@ -159,7 +159,8 @@
                         <div class="flex items-center justify-between text-xs text-gray-500 mb-4 pb-4 border-b">
                             <div class="flex items-center">
                                 <i class="fas fa-user-circle mr-1"></i>
-                                <span>{{ dashboard.created_by.get_full_name|default:dashboard.created_by.username|truncatewords:2 }}</span>
+                                {% firstof dashboard.created_by.get_full_name dashboard.created_by.username "—" as dashboard_owner_name %}
+                                <span>{{ dashboard_owner_name|truncatewords:2 }}</span>
                             </div>
                             <div class="flex items-center">
                                 <i class="fas fa-clock mr-1"></i>

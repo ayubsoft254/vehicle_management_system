@@ -166,7 +166,7 @@
                     <div class="w-16 h-16 bg-primary-100 rounded-full mx-auto flex items-center justify-center mb-3">
                         <i class="fas fa-user text-2xl text-primary-600"></i>
                     </div>
-                    <p class="font-medium text-gray-900">{{ expense.submitted_by.get_full_name|default:expense.submitted_by.username }}</p>
+                    <p class="font-medium text-gray-900">{% firstof expense.submitted_by.get_full_name expense.submitted_by.username "—" %}</p>
                     <p class="text-sm text-gray-500 mt-1">{{ expense.submitted_by.email }}</p>
                     <p class="text-xs text-gray-400 mt-2">
                         <i class="fas fa-calendar mr-1"></i>

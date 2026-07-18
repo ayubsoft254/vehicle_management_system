@@ -309,7 +309,7 @@
                         <div class="text-xs">
                             <p class="font-medium text-gray-900">{{ item.change_type }}</p>
                             <p class="text-gray-500">{{ item.timestamp|date:"M d, Y g:i A" }}</p>
-                            <p class="text-gray-600">by {{ item.changed_by.get_full_name|default:item.changed_by.username }}</p>
+                            <p class="text-gray-600">by {% firstof item.changed_by.get_full_name item.changed_by.username "—" %}</p>
                         </div>
                         {% if not forloop.last %}
                             <div class="border-t border-gray-200"></div>

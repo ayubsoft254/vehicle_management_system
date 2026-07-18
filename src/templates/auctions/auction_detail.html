@@ -108,7 +108,7 @@
                             </div>
                             <div>
                                 <p class="text-sm font-medium text-gray-900">
-                                    {% if bid.bidder == user %}You{% else %}{{ bid.bidder.get_full_name|default:bid.bidder.username }}{% endif %}
+                                    {% if bid.bidder == user %}You{% else %}{% firstof bid.bidder.get_full_name bid.bidder.username "—" %}{% endif %}
                                     {% if bid.is_winning_bid %}
                                     <span class="ml-2 px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded">WINNING</span>
                                     {% endif %}

@@ -55,7 +55,7 @@
         <div>
             <p class="text-sm font-bold text-red-800">This payment has been reversed</p>
             <p class="text-xs text-red-600 mt-1">
-                Reversed by {{ payment.reversed_by.get_full_name|default:payment.reversed_by.username|default:"N/A" }}
+                Reversed by {% firstof payment.reversed_by.get_full_name payment.reversed_by.username "N/A" %}
                 on {{ payment.reversed_at|date:"F d, Y, g:i A" }}
             </p>
             {% if payment.reversal_reason %}
@@ -123,7 +123,7 @@
                         <label class="block text-sm font-medium text-gray-500 mb-1">Recorded By</label>
                         <p class="text-base text-gray-900">
                             <i class="fas fa-user text-gray-400 mr-1"></i>
-                            {{ payment.recorded_by.get_full_name|default:payment.recorded_by.username }}
+                            {% firstof payment.recorded_by.get_full_name payment.recorded_by.username "System (recorded automatically)" %}
                         </p>
                         <p class="text-xs text-gray-500 mt-1">
                             {{ payment.created_at|date:"F d, Y, g:i A" }}
