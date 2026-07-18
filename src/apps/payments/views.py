@@ -44,6 +44,7 @@ from .daraja import (
     request_account_balance, mpesa_is_configured, get_missing_mpesa_vars,
     initiate_stk_push, _normalize_phone_number, register_c2b_urls,
 )
+from .callback_debug import log_incoming_callback
 from apps.clients.models import Client, ClientVehicle
 from apps.audit.utils import log_audit
 from utils.decorators import module_permission_required
@@ -2486,6 +2487,7 @@ def register_paybill_c2b(request):
 
 # ==================== MPESA CALLBACK VIEWS ====================
 
+@log_incoming_callback('paybill_validation_callback')
 @csrf_exempt
 @require_POST
 def paybill_validation_callback(request):
@@ -2515,6 +2517,7 @@ def paybill_validation_callback(request):
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
+@log_incoming_callback('paybill_confirmation_callback')
 @csrf_exempt
 @require_POST
 def paybill_confirmation_callback(request):
@@ -2584,6 +2587,7 @@ def paybill_confirmation_callback(request):
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
+@log_incoming_callback('stk_push_callback')
 @csrf_exempt
 @require_POST
 def stk_push_callback(request):
@@ -2742,6 +2746,7 @@ def stk_push_callback(request):
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
+@log_incoming_callback('paybill_balance_result_callback')
 @csrf_exempt
 @require_POST
 def paybill_balance_result_callback(request):
@@ -2828,6 +2833,7 @@ def paybill_balance_result_callback(request):
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'}, status=200)
 
 
+@log_incoming_callback('paybill_balance_timeout_callback')
 @csrf_exempt
 @require_POST
 def paybill_balance_timeout_callback(request):

@@ -435,6 +435,11 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        'console_debug': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
         'mail_admins': {
             'level': 'ERROR',
             'class': 'django.utils.log.AdminEmailHandler',
@@ -465,6 +470,15 @@ LOGGING = {
         'celery': {
             'handlers': ['console'],
             'level': 'INFO',
+            'propagate': False,
+        },
+        # Verbose Daraja callback dumps (apps/payments/callback_debug.py).
+        # The module itself gates every log call behind `if settings.DEBUG`,
+        # so this handler being DEBUG-level everywhere is safe — nothing is
+        # ever emitted here in production regardless of this config.
+        'payments.callback_debug': {
+            'handlers': ['console_debug'],
+            'level': 'DEBUG',
             'propagate': False,
         },
     },

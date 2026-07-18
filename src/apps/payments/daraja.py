@@ -12,6 +12,8 @@ import requests
 from django.conf import settings
 from django.urls import reverse
 
+from .callback_debug import logged_request
+
 
 class DarajaError(Exception):
     """Raised when Daraja API operations fail."""
@@ -123,7 +125,8 @@ def get_access_token() -> str:
     auth = b64encode(f'{consumer_key}:{consumer_secret}'.encode('utf-8')).decode('utf-8')
 
     url = urljoin(get_daraja_base_url(), 'oauth/v1/generate?grant_type=client_credentials')
-    response = requests.get(
+    response = logged_request(
+        'GET',
         url,
         headers={'Authorization': f'Basic {auth}'},
         timeout=20,
@@ -211,7 +214,8 @@ def initiate_stk_push(
 
         access_token = get_access_token()
         url = urljoin(get_daraja_base_url(), 'mpesa/stkpush/v1/processrequest')
-        response = requests.post(
+        response = logged_request(
+            'POST',
             url,
             json=payload,
             headers={
@@ -315,7 +319,8 @@ def request_account_balance() -> dict:
         }
 
         url = urljoin(get_daraja_base_url(), 'mpesa/accountbalance/v1/query')
-        response = requests.post(
+        response = logged_request(
+            'POST',
             url,
             json=payload,
             headers={
@@ -370,7 +375,7 @@ def _get_access_token_for(consumer_key: str, consumer_secret: str) -> str:
         raise DarajaError('Consumer key and secret are required.')
     auth = b64encode(f'{consumer_key}:{consumer_secret}'.encode('utf-8')).decode('utf-8')
     url = urljoin(get_daraja_base_url(), 'oauth/v1/generate?grant_type=client_credentials')
-    response = requests.get(url, headers={'Authorization': f'Basic {auth}'}, timeout=20)
+    response = logged_request('GET', url, headers={'Authorization': f'Basic {auth}'}, timeout=20)
     response.raise_for_status()
     token = response.json().get('access_token')
     if not token:
@@ -414,7 +419,8 @@ def register_c2b_urls(shortcode: str, consumer_key: str = '', consumer_secret: s
         }
 
         url = urljoin(get_daraja_base_url(), 'mpesa/c2b/v2/registerurl')
-        response = requests.post(
+        response = logged_request(
+            'POST',
             url,
             json=payload,
             headers={
