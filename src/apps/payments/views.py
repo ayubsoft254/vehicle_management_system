@@ -1849,6 +1849,9 @@ def paybill_validation_callback(request):
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
+# =============================================================================
+# UPDATED: paybill_confirmation_callback with ENHANCED LOGGING and MANUAL SIGNAL TRIGGER
+# =============================================================================
 @csrf_exempt
 @require_POST
 def paybill_confirmation_callback(request):
@@ -1859,27 +1862,43 @@ def paybill_confirmation_callback(request):
     The post_save signal (process_paybill_transaction in signals.py) creates
     the Payment and recalculates the vehicle balance — balance updates are NOT
     done here to avoid double-counting.
+    
+    🔥 ENHANCED: Added detailed logging and manual signal triggering
+    to ensure transactions are processed immediately.
     """
+    # 🔍 ENHANCED LOGGING - This will show exactly what's happening
+    logger.info("=" * 80)
+    logger.info("📞 C2B CONFIRMATION CALLBACK RECEIVED")
+    logger.info(f"Time: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"Method: {request.method}")
+    logger.info(f"Headers: {dict(request.headers)}")
+    logger.info(f"Body length: {len(request.body)} bytes")
+    
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
+        logger.info(f"Payload: {json.dumps(payload, indent=2)}")
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in C2B confirmation: {e}")
+        logger.error(f"❌ Invalid JSON in C2B confirmation: {e}")
+        logger.error(f"Raw body: {request.body[:500]}...")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Invalid JSON'}, status=400)
 
     if not _callback_secret_is_valid(request):
-        logger.warning("Unauthorized C2B confirmation attempt")
+        logger.warning("❌ Unauthorized C2B confirmation attempt")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
 
     trans_id = str(payload.get('TransID', '')).strip()
+    logger.info(f"📝 Transaction ID: '{trans_id}'")
+    
     if not trans_id:
-        logger.error("Missing TransID in C2B confirmation")
+        logger.error("❌ Missing TransID in C2B confirmation")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Missing TransID'}, status=400)
 
     # Idempotent — acknowledge without creating a duplicate
     if PaybillTransaction.objects.filter(trans_id=trans_id).exists():
-        logger.info(f"C2B duplicate {trans_id} — already stored")
+        logger.info(f"⚠️ C2B duplicate {trans_id} — already stored")
         return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Duplicate - Already Processed'})
 
+    # Extract all data
     bill_ref_number = str(payload.get('BillRefNumber', '')).strip()
     trans_amount = _safe_decimal(payload.get('TransAmount')) or Decimal('0.00')
     business_shortcode = str(payload.get('BusinessShortCode', '')).strip()
@@ -1889,13 +1908,32 @@ def paybill_confirmation_callback(request):
     middle_name = str(payload.get('MiddleName', '')).strip()
     last_name = str(payload.get('LastName', '')).strip()
 
-    logger.info(f"C2B Confirmation: Ref={bill_ref_number}, Amount={trans_amount}, TransID={trans_id}")
+    logger.info(f"📊 Transaction Details:")
+    logger.info(f"   TransID: {trans_id}")
+    logger.info(f"   Amount: {trans_amount}")
+    logger.info(f"   BillRef: '{bill_ref_number}'")
+    logger.info(f"   Shortcode: {business_shortcode}")
+    logger.info(f"   MSISDN: {msisdn}")
+    logger.info(f"   TransTime: {trans_time}")
+    logger.info(f"   Name: {first_name} {last_name}")
 
-    # Store the transaction unconditionally so it always appears in the tracker.
-    # The post_save signal (process_paybill_transaction in signals.py) will
-    # create the Payment and recalculate the vehicle balance automatically.
+    # 🔍 Try to find vehicle BEFORE storing
+    from apps.payments.signals import _find_vehicle_by_bill_ref
+    client_vehicle = _find_vehicle_by_bill_ref(bill_ref_number)
+    
+    logger.info(f"🔍 Vehicle search for '{bill_ref_number}':")
+    logger.info(f"   Found: {client_vehicle is not None}")
+    
+    if client_vehicle:
+        logger.info(f"   Vehicle: {client_vehicle.vehicle.registration_number}")
+        logger.info(f"   Client: {client_vehicle.client.get_full_name()}")
+        logger.info(f"   Balance: {client_vehicle.balance}")
+    else:
+        logger.warning(f"⚠️ NO vehicle found for ref: '{bill_ref_number}'")
+
+    # ✅ Store the transaction unconditionally so it always appears in the tracker
     try:
-        PaybillTransaction.objects.create(
+        paybill_tx = PaybillTransaction.objects.create(
             trans_id=trans_id,
             trans_time=trans_time or timezone.now(),
             trans_amount=trans_amount,
@@ -1910,11 +1948,28 @@ def paybill_confirmation_callback(request):
             raw_payload=payload,
             is_linked_to_payment=False,
         )
-        logger.info(f"✅ C2B PaybillTransaction {trans_id} stored — signal will handle Payment creation")
+        logger.info(f"✅✅✅ C2B PaybillTransaction STORED successfully!")
+        logger.info(f"   ID: {paybill_tx.id}")
+        logger.info(f"   TransID: {paybill_tx.trans_id}")
+        logger.info(f"   BillRef: '{paybill_tx.bill_ref_number}'")
+        
+        # 🔥 CRITICAL FIX: Manually trigger the signal to create the Payment
+        # This ensures the transaction is processed immediately
+        try:
+            from apps.payments.signals import process_paybill_transaction
+            logger.info("🔄 Manually triggering process_paybill_transaction signal...")
+            process_paybill_transaction(None, paybill_tx, created=True)
+            logger.info("✅ Signal processing completed!")
+        except Exception as signal_error:
+            logger.error(f"❌ Signal processing failed: {signal_error}")
+            logger.exception(signal_error)
+            
     except Exception as e:
-        logger.error(f"Error storing C2B transaction {trans_id}: {e}", exc_info=True)
+        logger.error(f"❌❌❌ CRITICAL: Failed to store C2B transaction {trans_id}: {e}")
+        logger.exception(e)
         # Return 200 anyway — returning ResultCode 1 causes M-Pesa to retry
 
+    logger.info("=" * 80)
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
