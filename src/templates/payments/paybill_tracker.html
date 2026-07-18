@@ -247,7 +247,7 @@
                             {% endif %}
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ tx.payer_name }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-700">{{ tx.msisdn|default:"-" }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ tx.display_msisdn }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ tx.bill_ref_number|default:"-" }}</td>
                         <td class="px-4 py-3 text-sm text-right font-semibold text-green-700 whitespace-nowrap">KES {{ tx.trans_amount|floatformat:2 }}</td>
                     </tr>
