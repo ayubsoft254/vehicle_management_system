@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load permission_tags %}
 
 {% block title %}Dashboard - {{ dashboard.name }}{% endblock %}
 
@@ -825,27 +826,51 @@
                 </button>
             </div>
             <div class="p-3 space-y-2">
+                {% can_create user 'vehicles' as qa_can_create_vehicle %}
+                {% if qa_can_create_vehicle %}
                 <a href="{% url 'vehicles:create' %}" class="block bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg transition duration-200 text-sm">
                     <i class="fas fa-car mr-2"></i>Add Vehicle
                 </a>
+                {% endif %}
+
+                {% can_create user 'clients' as qa_can_create_client %}
+                {% if qa_can_create_client %}
                 <a href="{% url 'clients:client_create' %}" class="block bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg transition duration-200 text-sm">
                     <i class="fas fa-user-plus mr-2"></i>Add Client
                 </a>
+                {% endif %}
+
+                {% can_create user 'payments' as qa_can_create_payment %}
+                {% if qa_can_create_payment %}
                 <a href="{% url 'payments:quick_record_payment' %}" class="block bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-2 rounded-lg transition duration-200 text-sm font-medium">
                     <i class="fas fa-money-bill-wave mr-2"></i>Record Payment
                 </a>
+                {% endif %}
+
+                {% if user.is_superuser or user|can_access:'payments' %}
                 <a href="{% url 'payments:payment_list' %}" class="block bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-3 py-2 rounded-lg transition duration-200 text-sm">
                     <i class="fas fa-credit-card mr-2"></i>View Payments
                 </a>
+                {% endif %}
+
+                {% can_create user 'expenses' as qa_can_create_expense %}
+                {% if qa_can_create_expense %}
                 <a href="{% url 'expenses:expense_create' %}" class="block bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-lg transition duration-200 text-sm">
                     <i class="fas fa-receipt mr-2"></i>Add Expense
                 </a>
+                {% endif %}
+
+                {% if user.is_superuser or user|can_access:'reports' %}
                 <a href="{% url 'reports:report_list' %}" class="block bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 py-2 rounded-lg transition duration-200 text-sm">
                     <i class="fas fa-chart-bar mr-2"></i>View Reports
                 </a>
+                {% endif %}
+
+                {% if user.is_staff or user.is_superuser %}
                 <a href="{% url 'dashboard:analytics' %}" class="block bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg transition duration-200 text-sm">
                     <i class="fas fa-analytics mr-2"></i>Analytics
                 </a>
+                {% endif %}
 
                 {% if user.is_staff or user.is_superuser %}
                 <div class="pt-3 mt-3 border-t border-gray-200">
