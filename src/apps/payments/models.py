@@ -1082,6 +1082,20 @@ class PaybillTransaction(models.Model):
         parts = [self.first_name, self.middle_name, self.last_name]
         return ' '.join(part for part in parts if part).strip() or 'Unknown'
 
+    @property
+    def display_msisdn(self):
+        """
+        Human-readable MSISDN. Some paybill configs make Safaricom send a
+        64-char hashed/tokenized identifier instead of a real phone number
+        (privacy masking) — show that as "Masked" rather than a wall of hex.
+        """
+        value = (self.msisdn or '').strip()
+        if not value:
+            return 'N/A'
+        if value.isdigit() and len(value) <= 15:
+            return value
+        return f'Masked ({value[:8]}…)'
+
 
 class PaybillBalanceSnapshot(models.Model):
     """Stores results from Daraja account balance API callbacks."""
