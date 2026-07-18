@@ -1168,8 +1168,12 @@ def payment_detail(request, pk):
         'client': payment.client_vehicle.client,
         'vehicle': payment.client_vehicle.vehicle,
         'client_vehicle': payment.client_vehicle,
+        # payment_progress can exceed 100% on an overpaid vehicle — cap only
+        # the bar's width so it doesn't overflow its container; the exact
+        # percentage is still shown as text next to it.
+        'progress_bar_percent': min(payment.client_vehicle.payment_progress, 100),
     }
-    
+
     log_audit(request.user, 'view', 'Payment', f'Viewed payment {payment.receipt_number}')
 
     return render(request, 'payments/payment_detail.html', context)

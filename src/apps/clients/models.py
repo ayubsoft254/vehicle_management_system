@@ -669,7 +669,30 @@ class ClientVehicle(models.Model):
         if self.purchase_price > 0:
             return (self.total_paid / self.purchase_price) * 100
         return 0
-    
+
+    @property
+    def financed_amount(self):
+        """Amount financed via installments — purchase price net of deposit."""
+        return self.purchase_price - self.deposit_paid
+
+    @property
+    def payment_status(self):
+        """Coarse payment status key: 'paid', 'overdue', or 'partial'."""
+        if self.is_paid_off:
+            return 'paid'
+        if self.client_id and self.client.status == 'defaulted':
+            return 'overdue'
+        return 'partial'
+
+    @property
+    def payment_status_display(self):
+        """Human-readable label for payment_status."""
+        return {
+            'paid': 'Fully Paid',
+            'overdue': 'Overdue',
+            'partial': 'In Progress',
+        }[self.payment_status]
+
     def update_balance(self):
         """Update balance based on payments"""
         self.balance = self.purchase_price - self.total_paid

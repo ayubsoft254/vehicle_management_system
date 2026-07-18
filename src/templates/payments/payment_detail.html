@@ -217,15 +217,15 @@
                 <div class="space-y-4">
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">Total Price</span>
-                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.total_price|floatformat:2 }}</span>
+                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.purchase_price|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">Deposit Paid</span>
-                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.deposit_amount|floatformat:2 }}</span>
+                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.deposit_paid|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between items-center pt-2 border-t border-gray-200">
                         <span class="text-sm text-gray-600">Amount Financed</span>
-                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.balance_amount|floatformat:2 }}</span>
+                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.financed_amount|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">Total Paid</span>
@@ -233,17 +233,17 @@
                     </div>
                     <div class="flex justify-between items-center pt-2 border-t border-gray-200">
                         <span class="text-sm font-semibold text-gray-700">Remaining Balance</span>
-                        <span class="text-lg font-bold text-red-600">KES {{ payment.client_vehicle.remaining_balance|floatformat:2 }}</span>
+                        <span class="text-lg font-bold text-red-600">KES {{ payment.client_vehicle.balance|floatformat:2 }}</span>
                     </div>
-                    
+
                     <!-- Progress Bar -->
                     <div class="pt-2">
                         <div class="flex justify-between text-sm text-gray-600 mb-1">
                             <span>Payment Progress</span>
-                            <span>{{ payment.client_vehicle.payment_percentage|floatformat:1 }}%</span>
+                            <span>{{ payment.client_vehicle.payment_progress|floatformat:1 }}%</span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-3">
-                            <div class="bg-green-600 h-3 rounded-full transition-all duration-500" style="width: {{ payment.client_vehicle.payment_percentage }}%"></div>
+                            <div class="bg-green-600 h-3 rounded-full transition-all duration-500" style="width: {{ progress_bar_percent }}%"></div>
                         </div>
                     </div>
                 </div>
@@ -263,7 +263,7 @@
                             {% elif payment.client_vehicle.payment_status == 'partial' %}bg-yellow-100 text-yellow-800
                             {% elif payment.client_vehicle.payment_status == 'overdue' %}bg-red-100 text-red-800
                             {% else %}bg-gray-100 text-gray-800{% endif %}">
-                            {{ payment.client_vehicle.get_payment_status_display }}
+                            {{ payment.client_vehicle.payment_status_display }}
                         </span>
                     </div>
                     
@@ -273,15 +273,11 @@
                         <div class="bg-blue-50 rounded p-3 space-y-2">
                             <div class="flex justify-between text-sm">
                                 <span class="text-gray-600">Monthly Payment</span>
-                                <span class="font-semibold text-gray-900">KES {{ payment.client_vehicle.installment_plan.monthly_payment|floatformat:2 }}</span>
+                                <span class="font-semibold text-gray-900">KES {{ payment.client_vehicle.installment_plan.monthly_installment|floatformat:2 }}</span>
                             </div>
                             <div class="flex justify-between text-sm">
                                 <span class="text-gray-600">Duration</span>
-                                <span class="font-semibold text-gray-900">{{ payment.client_vehicle.installment_plan.duration_months }} months</span>
-                            </div>
-                            <div class="flex justify-between text-sm">
-                                <span class="text-gray-600">Interest Rate</span>
-                                <span class="font-semibold text-gray-900">{{ payment.client_vehicle.installment_plan.interest_rate }}%</span>
+                                <span class="font-semibold text-gray-900">{{ payment.client_vehicle.installment_plan.number_of_installments }} months</span>
                             </div>
                         </div>
                     </div>
