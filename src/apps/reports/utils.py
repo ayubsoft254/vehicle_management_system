@@ -164,7 +164,7 @@ def group_queryset(queryset, group_by, aggregations=None):
 
 def generate_financial_report_data(date_from, date_to):
     """Generate financial report data"""
-    from src.apps.payments.models1 import Payment
+    from apps.payments.models import Payment
     from apps.expenses.models import Expense
     
     payments = Payment.objects.filter(
@@ -337,7 +337,7 @@ def generate_vehicle_report_data(date_from, date_to):
 def generate_client_report_data(date_from, date_to):
     """Generate client report data"""
     from apps.clients.models import Client
-    from src.apps.payments.models1 import Payment
+    from apps.payments.models import Payment
     
     clients = Client.objects.filter(
         date_registered__date__gte=date_from,
@@ -404,7 +404,7 @@ def generate_auction_report_data(date_from, date_to):
 
 def generate_payment_report_data(date_from, date_to):
     """Generate payment report data"""
-    from src.apps.payments.models1 import Payment
+    from apps.payments.models import Payment
     
     payments = Payment.objects.filter(
         payment_date__gte=date_from,
@@ -436,7 +436,7 @@ def generate_payment_report_data(date_from, date_to):
 def generate_sales_report_data(date_from, date_to):
     """Generate sales report data"""
     from apps.vehicles.models import Vehicle
-    from src.apps.payments.models1 import Payment
+    from apps.payments.models import Payment
     
     # Vehicles sold in period
     sold_vehicles = Vehicle.objects.filter(
@@ -577,7 +577,7 @@ def generate_widget_data(widget):
             from apps.vehicles.models import Vehicle
             queryset = Vehicle.objects.all()
         elif widget.data_source == 'Payment':
-            from src.apps.payments.models1 import Payment
+            from apps.payments.models import Payment
             queryset = Payment.objects.all()
         elif widget.data_source == 'Client':
             from apps.clients.models import Client

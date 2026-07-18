@@ -2296,7 +2296,7 @@ def business_loan_write_off(request, pk):
 @login_required
 def main_ledger_view(request):
     """Combined main ledger aggregating all financial activity."""
-    from src.apps.payments.models1 import Payment
+    from apps.payments.models import Payment
     from apps.insurance.models import InsuranceAgentPayment
     from apps.expenses.models import Expense
     from .models import (
@@ -2379,7 +2379,7 @@ def main_ledger_view(request):
 def _compute_main_ledger_context(request):
     """Filter + aggregate the combined main ledger — shared by the on-screen
     view and its PDF/Excel/CSV exports so all four always match."""
-    from src.apps.payments.models1 import Payment
+    from apps.payments.models import Payment
     from apps.insurance.models import InsuranceAgentPayment
     from apps.expenses.models import Expense
     from .models import (

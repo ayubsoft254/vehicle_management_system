@@ -10,7 +10,7 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from apps.clients.models import Client, ClientVehicle
-from src.apps.payments.models1 import Payment
+from apps.payments.models import Payment
 
 
 class Command(BaseCommand):

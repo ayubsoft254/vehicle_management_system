@@ -560,7 +560,7 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
     elements.append(Spacer(1, 0.3*inch))
     
     # Payment history
-    from .models1 import Payment
+    from .models import Payment
     payments = Payment.objects.filter(client_vehicle=client_vehicle).order_by('payment_date')
     
     if payments.exists():
@@ -943,7 +943,7 @@ def generate_payment_summary_report(start_date, end_date):
     Returns:
         dict: Report data
     """
-    from .models1 import Payment
+    from .models import Payment
     from django.db.models import Sum, Count, Avg
     
     payments = Payment.objects.filter(
@@ -979,7 +979,7 @@ def get_overdue_report():
     Returns:
         dict: Overdue report data
     """
-    from .models1 import PaymentSchedule
+    from .models import PaymentSchedule
     from django.db.models import Sum, Count
     
     today = timezone.now().date()
@@ -1032,7 +1032,7 @@ def get_defaulters_list():
     Returns:
         list: List of defaulter data
     """
-    from .models1 import PaymentSchedule
+    from .models import PaymentSchedule
     from apps.clients.models import Client
     
     today = timezone.now().date()
@@ -1086,7 +1086,7 @@ def get_collection_efficiency(start_date, end_date):
     Returns:
         dict: Collection efficiency metrics
     """
-    from .models1 import Payment, PaymentSchedule
+    from .models import Payment, PaymentSchedule
     from django.db.models import Sum
     
     # Total payments collected
@@ -1214,7 +1214,7 @@ def get_payment_dashboard_data():
     Returns:
         dict: Dashboard data
     """
-    from .models1 import Payment, InstallmentPlan, PaymentSchedule
+    from .models import Payment, InstallmentPlan, PaymentSchedule
     from django.db.models import Sum, Count
     
     today = timezone.now().date()

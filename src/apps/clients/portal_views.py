@@ -12,7 +12,7 @@ from django.core.paginator import Paginator
 from datetime import datetime, timedelta
 from decimal import Decimal
 from .models import Client, ClientVehicle, ClientDocument
-from src.apps.payments.models1 import Payment, InstallmentPlan, PaymentSchedule, MpesaSTKRequest
+from apps.payments.models import Payment, InstallmentPlan, PaymentSchedule, MpesaSTKRequest
 from apps.payments.daraja import initiate_stk_push
 from apps.vehicles.models import Vehicle
 from apps.documents.models import Document

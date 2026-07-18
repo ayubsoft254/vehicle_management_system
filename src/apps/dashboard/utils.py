@@ -32,7 +32,7 @@ def get_dashboard_overview_data(user=None):
 
     from apps.vehicles.models import Vehicle
     from apps.clients.models import Client, ClientVehicle, VehicleTracker
-    from src.apps.payments.models1 import Payment, PaymentSchedule
+    from apps.payments.models import Payment, PaymentSchedule
     from apps.auctions.models import Auction
     from apps.insurance.models import InsurancePolicy
     from utils.constants import VehicleStatus
@@ -451,7 +451,7 @@ def get_financial_summary(date_from=None, date_to=None):
         dict: Financial metrics
     """
     
-    from src.apps.payments.models1 import Payment
+    from apps.payments.models import Payment
     from apps.expenses.models import Expense
     
     if not date_from:
@@ -504,7 +504,7 @@ def get_sales_metrics(days=30):
     """
     
     from apps.vehicles.models import Vehicle
-    from src.apps.payments.models1 import Payment
+    from apps.payments.models import Payment
     from utils.constants import VehicleStatus
     
     cutoff = timezone.now() - timedelta(days=days)
@@ -847,7 +847,7 @@ def generate_progress_widget_data(widget):
 def get_revenue_trend(days=30):
     """Get revenue trend data"""
     
-    from src.apps.payments.models1 import Payment
+    from apps.payments.models import Payment
     
     end_date = timezone.now().date()
     start_date = end_date - timedelta(days=days)

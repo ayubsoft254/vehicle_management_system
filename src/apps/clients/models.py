@@ -351,7 +351,7 @@ class Client(models.Model):
     
     def total_amount_paid(self):
         """Calculate total amount paid by client"""
-        from src.apps.payments.models1 import Payment
+        from apps.payments.models import Payment
         return Payment.objects.filter(
             client=self
         ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')

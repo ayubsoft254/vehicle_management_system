@@ -10,7 +10,7 @@ from django.db import models
 from decimal import Decimal
 import logging
 
-from .models1 import Payment, InstallmentPlan, PaymentSchedule, PaymentReminder, PaybillTransaction
+from .models import Payment, InstallmentPlan, PaymentSchedule, PaymentReminder, PaybillTransaction
 from apps.clients.models import ClientVehicle, Client
 
 logger = logging.getLogger(__name__)

@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.http import HttpResponse
-from .models1 import (
+from .models import (
     Payment,
     AccountWithdrawal,
     InstallmentPlan,

@@ -9,7 +9,7 @@ from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django import forms
 from .models import Client, ClientVehicle, ClientDocument, VehicleTracker, TrackerCompany
-from src.apps.payments.models1 import Payment
+from apps.payments.models import Payment
 from apps.authentication.models import User
 from apps.insurance.models import InsurancePolicy
 from utils.constants import UserRole
