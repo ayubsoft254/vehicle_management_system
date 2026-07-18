@@ -842,7 +842,7 @@ class PaybillTransactionAdmin(admin.ModelAdmin):
         'trans_time',
         'trans_amount',
         'bill_ref_number',
-        'msisdn',
+        'msisdn_display',
         'payer_name_display',
         'is_linked_to_payment',
     ]
@@ -854,6 +854,10 @@ class PaybillTransactionAdmin(admin.ModelAdmin):
     def payer_name_display(self, obj):
         return obj.payer_name
     payer_name_display.short_description = 'Payer'
+
+    def msisdn_display(self, obj):
+        return obj.display_msisdn
+    msisdn_display.short_description = 'Phone / MSISDN'
 
 
 @admin.register(PaybillBalanceSnapshot)
