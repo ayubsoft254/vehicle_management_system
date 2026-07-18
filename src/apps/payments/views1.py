@@ -21,7 +21,7 @@ import csv
 import json
 import re
 
-from .models import (
+from .models1 import (
     Payment,
     AccountWithdrawal,
     InstallmentPlan,
@@ -327,7 +327,7 @@ def record_payment(request, client_vehicle_pk):
     Supports single payment method or split across multiple methods
     """
     from .forms import PaymentForm
-    from .models import PaymentSplit
+    from .models1 import PaymentSplit
     
     client_vehicle = get_object_or_404(
         ClientVehicle.objects.select_related('client', 'vehicle'),
@@ -481,7 +481,7 @@ def quick_record_payment(request):
     Supports single payment or split across multiple methods
     """
     from .forms import PaymentForm
-    from .models import PaymentSplit
+    from .models1 import PaymentSplit
     
     if request.method == 'POST':
         # Check if this is a split payment

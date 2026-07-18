@@ -9,7 +9,7 @@ from decimal import Decimal
 from datetime import datetime
 import json
 from .models import Client, ClientVehicle, ClientDocument
-from apps.payments.models import Payment, InstallmentPlan
+from src.apps.payments.models1 import Payment, InstallmentPlan
 from apps.vehicles.models import Vehicle
 from utils.constants import ClientStatus
 from django.db.models import Q

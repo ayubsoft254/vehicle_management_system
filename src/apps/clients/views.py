@@ -19,7 +19,7 @@ from decimal import Decimal
 
 from .models import Client, ClientVehicle, ClientDocument, VehicleTracker
 from apps.vehicles.models import TrackerAgent, TrackerRecord
-from apps.payments.models import Payment, PaymentSplit, InstallmentPlan
+from src.apps.payments.models1 import Payment, PaymentSplit, InstallmentPlan
 from .utils import build_client_ledger
 from .forms import (
     ClientForm, ClientVehicleForm, PaymentForm,
@@ -409,7 +409,7 @@ def client_detail(request, pk):
             vehicle_data['installment_plan'] = plan
 
             # Get ALL payment schedules for the full breakdown table
-            from apps.payments.models import PaymentSchedule
+            from src.apps.payments.models1 import PaymentSchedule
             all_schedules = PaymentSchedule.objects.filter(
                 installment_plan=plan
             ).order_by('installment_number')
@@ -808,7 +808,7 @@ def assign_vehicle(request, client_pk):
 
                     # For flexible mode, replace auto-generated schedule with custom dates/amounts.
                     if client_vehicle.payment_type == 'flexible' and flexible_installments:
-                        from apps.payments.models import PaymentSchedule
+                        from src.apps.payments.models1 import PaymentSchedule
 
                         plan.payment_schedules.all().delete()
                         for idx, installment in enumerate(flexible_installments, start=1):
@@ -1010,7 +1010,7 @@ def client_vehicle_detail(request, pk):
     """
     Display details of a client's vehicle purchase
     """
-    from apps.payments.models import PaymentSchedule
+    from src.apps.payments.models1 import PaymentSchedule
     from apps.insurance.models import InsurancePolicy
     from django.utils import timezone
     
@@ -1515,7 +1515,7 @@ def client_vehicle_update(request, pk):
 
             # Automatically create Installment Plan if there's a balance and payment terms are provided
             if client_vehicle.balance > 0 and client_vehicle.installment_months:
-                from apps.payments.models import PaymentSchedule
+                from src.apps.payments.models1 import PaymentSchedule
                 # ClientVehicle no longer stores interest_rate; default to zero when creating/updating plans.
                 default_interest_rate = Decimal('0.00')
                 plan, created = InstallmentPlan.objects.get_or_create(

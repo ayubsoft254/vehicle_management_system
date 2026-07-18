@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.db import models
 from decimal import Decimal
 
-from .models import Payment, InstallmentPlan, PaymentSchedule, PaymentReminder
+from .models1 import Payment, InstallmentPlan, PaymentSchedule, PaymentReminder
 from apps.clients.models import ClientVehicle, Client
 
 

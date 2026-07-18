@@ -10,7 +10,7 @@ from decimal import Decimal
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 
-from .models import (
+from .models1 import (
     Payment, InstallmentPlan, PaymentSchedule, PaymentReminder, AccountWithdrawal,
     Account, AccountTransaction, AccountTransfer, Reconciliation,
 )

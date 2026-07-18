@@ -7,7 +7,7 @@ from apps.authentication.models import User
 from apps.clients.models import Client, ClientVehicle
 from apps.dashboard.models import MetricCache
 from apps.dashboard.utils import get_dashboard_overview_data
-from apps.payments.models import Payment, PaybillTransaction
+from src.apps.payments.models1 import Payment, PaybillTransaction
 from apps.vehicles.models import Vehicle
 from utils.constants import UserRole, VehicleStatus
 
