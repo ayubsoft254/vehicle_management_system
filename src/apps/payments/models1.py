@@ -1031,19 +1031,16 @@ class MpesaSTKRequest(models.Model):
         account = self.account_reference or 'no-ref'
         return f"{account} - KES {self.amount:,.2f} ({self.get_status_display()})"
 
-
-# ==================== UPDATED: PaybillTransaction with Increased Field Lengths ====================
-
 class PaybillTransaction(models.Model):
     """Stores incoming M-Pesa C2B confirmation transactions for the paybill."""
 
-    trans_id = models.CharField(max_length=100, unique=True, db_index=True)  # 40 → 100
+    trans_id = models.CharField(max_length=40, unique=True, db_index=True)
     trans_time = models.DateTimeField(blank=True, null=True)
     trans_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
 
-    business_short_code = models.CharField(max_length=50, blank=True, default='')  # 20 → 50
+    business_short_code = models.CharField(max_length=20, blank=True, default='')
     bill_ref_number = models.CharField(max_length=120, blank=True, default='')
-    invoice_number = models.CharField(max_length=200, blank=True, default='')  # 120 → 200
+    invoice_number = models.CharField(max_length=120, blank=True, default='')
 
     org_account_balance = models.DecimalField(
         max_digits=14,
@@ -1053,10 +1050,10 @@ class PaybillTransaction(models.Model):
         help_text='Organization account balance as shared in C2B callback, if available.'
     )
 
-    msisdn = models.CharField(max_length=50, blank=True, default='')  # 20 → 50
-    first_name = models.CharField(max_length=200, blank=True, default='')  # 80 → 200
-    middle_name = models.CharField(max_length=200, blank=True, default='')  # 80 → 200
-    last_name = models.CharField(max_length=200, blank=True, default='')  # 80 → 200
+    msisdn = models.CharField(max_length=20, blank=True, default='')
+    first_name = models.CharField(max_length=80, blank=True, default='')
+    middle_name = models.CharField(max_length=80, blank=True, default='')
+    last_name = models.CharField(max_length=80, blank=True, default='')
 
     raw_payload = models.JSONField(default=dict, blank=True)
     is_linked_to_payment = models.BooleanField(default=False)
