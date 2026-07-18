@@ -5,16 +5,13 @@ Handles payment recording, installment plans, schedules, and reporting
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.urls import reverse
 from django.db.models import Q, Sum, Count, Avg, F
 from django.db.models.functions import TruncMonth
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
-from django.utils.dateparse import parse_date
 from django.db import transaction
 from django.conf import settings
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from datetime import datetime, timedelta
@@ -27,7 +24,6 @@ import logging
 
 from .models import (
     Payment,
-    PaymentSplit,
     AccountWithdrawal,
     InstallmentPlan,
     PaymentSchedule,
@@ -35,16 +31,11 @@ from .models import (
     MpesaSTKRequest,
     PaybillTransaction,
     PaybillBalanceSnapshot,
-    Account,
-    AccountTransaction,
-    AccountTransfer,
-    Reconciliation,
 )
 from .daraja import (
     request_account_balance, mpesa_is_configured, get_missing_mpesa_vars,
     initiate_stk_push, _normalize_phone_number, register_c2b_urls,
 )
-from .callback_debug import log_incoming_callback
 from apps.clients.models import Client, ClientVehicle
 from apps.audit.utils import log_audit
 from utils.decorators import module_permission_required
@@ -137,68 +128,6 @@ def _safe_decimal(value):
         return Decimal(text)
     except Exception:
         return None
-
-
-def _request_paybill_balance():
-    """Initiate an asynchronous paybill balance request and store a pending snapshot."""
-    try:
-        result = request_account_balance()
-        if result.get('ok'):
-            response_payload = result.get('response', {})
-            PaybillBalanceSnapshot.objects.create(
-                status=PaybillBalanceSnapshot.STATUS_PENDING,
-                request_reference=result.get('request_reference', ''),
-                conversation_id=response_payload.get('ConversationID', ''),
-                originator_conversation_id=response_payload.get('OriginatorConversationID', ''),
-                result_desc=response_payload.get('ResponseDescription', ''),
-                raw_payload=response_payload,
-            )
-            logger.info('Paybill balance request initiated from tracker view.')
-            return True
-        logger.warning('Paybill balance request failed: %s', result.get('error'))
-    except Exception as exc:
-        logger.error('Error requesting paybill balance: %s', exc, exc_info=True)
-    return False
-
-
-def _find_pending_balance_snapshot(conversation_id, originator_id):
-    """Locate the pending snapshot a Daraja balance callback belongs to."""
-    pending = PaybillBalanceSnapshot.objects.filter(
-        status=PaybillBalanceSnapshot.STATUS_PENDING
-    )
-    match = Q()
-    if conversation_id:
-        match |= Q(conversation_id=conversation_id)
-    if originator_id:
-        match |= Q(originator_conversation_id=originator_id)
-    if match:
-        snapshot = pending.filter(match).order_by('-created_at').first()
-        if snapshot:
-            return snapshot
-    # Daraja occasionally echoes different conversation ids than the ones
-    # returned at request time — fall back to the most recent pending request.
-    return pending.order_by('-created_at').first()
-
-
-def _should_request_paybill_balance_on_load():
-    """Return True when a tracker page load should issue a new balance request."""
-    latest_snapshot = PaybillBalanceSnapshot.objects.order_by('-created_at').first()
-    if not latest_snapshot:
-        return True
-
-    if latest_snapshot.status == PaybillBalanceSnapshot.STATUS_PENDING:
-        # There is already an in-flight balance request. Treat one that never
-        # received its callback as abandoned so it can't block refreshes forever.
-        age = timezone.now() - latest_snapshot.created_at
-        return age > timedelta(minutes=10)
-
-    if latest_snapshot.status == PaybillBalanceSnapshot.STATUS_SUCCESS:
-        age = timezone.now() - latest_snapshot.created_at
-        # Avoid creating a new request on every page load if the latest
-        # successful balance is still fresh.
-        return age > timedelta(minutes=5)
-
-    return True
 
 
 def _parse_mpesa_datetime(value):
@@ -346,21 +275,23 @@ def _parse_stk_metadata(metadata_items):
 
 
 def _callback_secret_is_valid(request):
-    """
-    Validate the callback secret embedded in the callback URL's query string.
-
-    Daraja's C2B/STK/balance webhooks POST straight to whatever URL was
-    registered with Safaricom and never carry custom headers, so the secret
-    is embedded in the URL itself (see daraja._with_callback_secret) rather
-    than checked via an HTTP header, which real Safaricom traffic can never
-    supply.
-    """
+    """Validate the callback secret header."""
     expected_secret = str(getattr(settings, 'MPESA_CALLBACK_SECRET', '') or '').strip()
-
-    if not expected_secret:
+    
+    # In development, allow if no secret is set
+    if not expected_secret and getattr(settings, 'MPESA_ENV', '') != 'production':
         return True
-
-    provided_secret = (request.GET.get('callback_secret') or '').strip()
+    
+    provided_secret = (
+        request.headers.get('X-Callback-Secret')
+        or request.META.get('HTTP_X_CALLBACK_SECRET', '')
+    ).strip()
+    
+    # If both are empty, allow (development only)
+    if not expected_secret and not provided_secret:
+        return True
+    
+    # If one is set but doesn't match, reject
     return provided_secret == expected_secret
 
 
@@ -515,11 +446,7 @@ def record_account_withdrawal(request):
             )
             return redirect('payments:payment_list')
     else:
-        initial = {}
-        preselect = request.GET.get('payment_method')
-        if preselect in dict(AccountWithdrawal.PAYMENT_METHOD_CHOICES):
-            initial['payment_method'] = preselect
-        form = AccountWithdrawalForm(initial=initial)
+        form = AccountWithdrawalForm()
 
     context = {
         'form': form,
@@ -561,595 +488,6 @@ def account_withdrawal_list(request):
 
 
 @login_required
-def account_transactions(request, method):
-    """
-    Unified transaction history (additions, reversed payments and
-    withdrawals) for a single HOZA/KE sub-account, so a specific account
-    (e.g. Equity Hoza) can be audited without combing through the full
-    payment list.
-    """
-    method_labels = dict(AccountWithdrawal.PAYMENT_METHOD_CHOICES)
-    if method not in method_labels:
-        messages.error(request, 'Unknown account.')
-        return redirect('payments:payment_list')
-
-    label = method_labels[method]
-    transactions = []
-
-    direct_payments = Payment.objects.filter(payment_method=method).select_related(
-        'client_vehicle__client', 'client_vehicle__vehicle', 'recorded_by'
-    )
-    for payment in direct_payments:
-        transactions.append({
-            'date': payment.payment_date,
-            'sort_key': payment.created_at,
-            'type': 'reversed' if payment.is_reversed else 'addition',
-            'amount': payment.amount,
-            'reference': payment.transaction_reference or payment.receipt_number,
-            'client': payment.client_vehicle.client,
-            'detail_url': reverse('payments:payment_detail', args=[payment.pk]),
-            'recorded_by': payment.recorded_by,
-        })
-
-    split_payments = PaymentSplit.objects.filter(payment_method=method).select_related(
-        'payment__client_vehicle__client', 'payment__client_vehicle__vehicle', 'payment__recorded_by'
-    )
-    for split in split_payments:
-        payment = split.payment
-        transactions.append({
-            'date': payment.payment_date,
-            'sort_key': split.created_at,
-            'type': 'reversed' if payment.is_reversed else 'addition',
-            'amount': split.amount,
-            'reference': split.transaction_reference or payment.receipt_number,
-            'client': payment.client_vehicle.client,
-            'detail_url': reverse('payments:payment_detail', args=[payment.pk]),
-            'recorded_by': payment.recorded_by,
-        })
-
-    withdrawals = AccountWithdrawal.objects.filter(payment_method=method).select_related('recorded_by')
-    for withdrawal in withdrawals:
-        transactions.append({
-            'date': withdrawal.withdrawal_date,
-            'sort_key': withdrawal.created_at,
-            'type': 'withdrawal',
-            'amount': withdrawal.amount,
-            'reference': withdrawal.reason,
-            'client': None,
-            'detail_url': None,
-            'recorded_by': withdrawal.recorded_by,
-        })
-
-    transactions.sort(key=lambda t: (t['date'], t['sort_key']), reverse=True)
-
-    total_additions = sum((t['amount'] for t in transactions if t['type'] == 'addition'), Decimal('0.00'))
-    total_reversed = sum((t['amount'] for t in transactions if t['type'] == 'reversed'), Decimal('0.00'))
-    total_withdrawals = sum((t['amount'] for t in transactions if t['type'] == 'withdrawal'), Decimal('0.00'))
-    net_total = total_additions - total_withdrawals
-
-    paginator = Paginator(transactions, 50)
-    page_obj = paginator.get_page(request.GET.get('page'))
-
-    context = {
-        'method': method,
-        'label': label,
-        'is_hoza': method in AccountWithdrawal.HOZA_METHODS,
-        'transactions': page_obj,
-        'total_additions': total_additions,
-        'total_reversed': total_reversed,
-        'total_withdrawals': total_withdrawals,
-        'net_total': net_total,
-    }
-
-    log_audit(request.user, 'view', 'Payment', f'Viewed {label} account transactions')
-    return render(request, 'payments/account_transactions.html', context)
-
-
-# ==================== FINANCE ACCOUNT BREAKDOWN VIEWS ====================
-
-CATEGORY_LABELS = {'hoza': 'Hoza', 'ke': 'KE'}
-
-
-def _is_approver(user):
-    """
-    True for users trusted to self-approve account-level actions immediately
-    (same tier as account create/edit/deactivate). Everyone else's account
-    transactions/transfers queue as pending until an approver reviews them.
-    """
-    if user.is_superuser:
-        return True
-    from apps.permissions.models import RolePermission
-    try:
-        permission = RolePermission.objects.get(role=user.role, module_name='payments')
-    except RolePermission.DoesNotExist:
-        return False
-    return permission.access_level == AccessLevel.FULL_ACCESS
-
-
-@login_required
-def account_breakdown(request, category):
-    """Full-page account breakdown for the Hoza or KE category (replaces the old modal)."""
-    if category not in CATEGORY_LABELS:
-        messages.error(request, 'Unknown account category.')
-        return redirect('payments:payment_list')
-
-    accounts = list(Account.objects.filter(category=category))
-
-    ZERO = Decimal('0.00')
-    summary = {
-        'opening_balance': ZERO,
-        'money_in': ZERO,
-        'money_out': ZERO,
-        'transfers_in': ZERO,
-        'transfers_out': ZERO,
-        'current_balance': ZERO,
-    }
-    for account in accounts:
-        account.computed_money_in = account.money_in_total
-        account.computed_money_out = account.money_out_total
-        account.computed_transfers_in = account.transfers_in_total
-        account.computed_transfers_out = account.transfers_out_total
-        account.computed_balance = account.current_balance
-
-        summary['opening_balance'] += account.opening_balance
-        summary['money_in'] += account.computed_money_in
-        summary['money_out'] += account.computed_money_out
-        summary['transfers_in'] += account.computed_transfers_in
-        summary['transfers_out'] += account.computed_transfers_out
-        summary['current_balance'] += account.computed_balance
-
-    pending_approvals = AccountTransaction.objects.filter(
-        account__category=category, approval_status='pending'
-    ).count()
-
-    context = {
-        'category': category,
-        'category_label': CATEGORY_LABELS[category],
-        'is_hoza': category == 'hoza',
-        'accounts': accounts,
-        'summary': summary,
-        'pending_approvals': pending_approvals,
-    }
-
-    log_audit(request.user, 'view', 'Account', f'Viewed {CATEGORY_LABELS[category]} account breakdown')
-    return render(request, 'payments/account_breakdown.html', context)
-
-
-@login_required
-def account_detail(request, pk):
-    """Full ledger for a single account: opening balance, totals and full transaction history."""
-    account = get_object_or_404(Account, pk=pk)
-
-    rows = []
-
-    for payment in account._legacy_payment_qs().select_related(
-        'client_vehicle__client', 'client_vehicle__vehicle', 'recorded_by'
-    ).exclude(splits__isnull=False):
-        rows.append({
-            'date': payment.payment_date,
-            'sort_key': payment.created_at,
-            'reference': payment.transaction_reference or payment.receipt_number,
-            'type_label': 'Client Payment',
-            'narration': payment.notes or '',
-            'related_client': payment.client_vehicle.client,
-            'related_vehicle': payment.client_vehicle.vehicle,
-            'payment_method': payment.get_payment_method_display(),
-            'money_in': payment.amount,
-            'money_out': Decimal('0.00'),
-            'created_by': payment.recorded_by,
-            'approval_status': 'approved',
-            'reconciliation_status': '—',
-            'detail_url': reverse('payments:payment_detail', args=[payment.pk]),
-        })
-
-    for split in account._legacy_split_qs().select_related(
-        'payment__client_vehicle__client', 'payment__client_vehicle__vehicle', 'payment__recorded_by'
-    ):
-        payment = split.payment
-        rows.append({
-            'date': payment.payment_date,
-            'sort_key': split.created_at,
-            'reference': split.transaction_reference or payment.receipt_number,
-            'type_label': 'Client Payment (split)',
-            'narration': payment.notes or '',
-            'related_client': payment.client_vehicle.client,
-            'related_vehicle': payment.client_vehicle.vehicle,
-            'payment_method': split.get_payment_method_display(),
-            'money_in': split.amount,
-            'money_out': Decimal('0.00'),
-            'created_by': payment.recorded_by,
-            'approval_status': 'approved',
-            'reconciliation_status': '—',
-            'detail_url': reverse('payments:payment_detail', args=[payment.pk]),
-        })
-
-    for withdrawal in account._legacy_withdrawal_qs().select_related('recorded_by'):
-        rows.append({
-            'date': withdrawal.withdrawal_date,
-            'sort_key': withdrawal.created_at,
-            'reference': None,
-            'type_label': 'Withdrawal',
-            'narration': withdrawal.reason or '',
-            'related_client': None,
-            'related_vehicle': None,
-            'payment_method': withdrawal.get_payment_method_display(),
-            'money_in': Decimal('0.00'),
-            'money_out': withdrawal.amount,
-            'created_by': withdrawal.recorded_by,
-            'approval_status': 'approved',
-            'reconciliation_status': '—',
-            'detail_url': None,
-        })
-
-    for txn in account.transactions.select_related(
-        'created_by', 'related_client', 'related_vehicle'
-    ).prefetch_related('reconciliations'):
-        latest_reconciliation = txn.reconciliations.order_by('-created_at').first()
-        # Reversed entries stay visible for audit but no longer affect the running balance.
-        money_in = Decimal('0.00') if txn.is_reversed else (txn.amount if txn.direction == 'in' else Decimal('0.00'))
-        money_out = Decimal('0.00') if txn.is_reversed else (txn.amount if txn.direction == 'out' else Decimal('0.00'))
-        rows.append({
-            'date': txn.date,
-            'sort_key': txn.created_at,
-            'reference': txn.reference,
-            'type_label': txn.get_transaction_type_display(),
-            'narration': txn.narration,
-            'related_client': txn.related_client,
-            'related_vehicle': txn.related_vehicle,
-            'payment_method': txn.payment_method,
-            'money_in': money_in,
-            'money_out': money_out,
-            'display_amount': txn.amount,
-            'display_direction': txn.direction,
-            'created_by': txn.created_by,
-            'approval_status': txn.approval_status,
-            'is_reversed': txn.is_reversed,
-            'reconciliation_status': latest_reconciliation.get_status_display() if latest_reconciliation else '—',
-            'detail_url': None,
-            'transaction_pk': txn.pk,
-            'can_reconcile': not txn.is_reversed,
-        })
-
-    rows.sort(key=lambda r: (r['date'], r['sort_key']))
-    running = account.opening_balance
-    for row in rows:
-        running += row['money_in'] - row['money_out']
-        row['running_balance'] = running
-    rows.reverse()
-
-    paginator = Paginator(rows, 50)
-    page_obj = paginator.get_page(request.GET.get('page'))
-
-    context = {
-        'account': account,
-        'opening_balance': account.opening_balance,
-        'money_in_total': account.money_in_total,
-        'money_out_total': account.money_out_total,
-        'transfers_in_total': account.transfers_in_total,
-        'transfers_out_total': account.transfers_out_total,
-        'current_balance': account.current_balance,
-        'pending_balance': account.pending_balance,
-        'pending_count': account.transactions.filter(approval_status='pending').count(),
-        'rows': page_obj,
-    }
-
-    log_audit(request.user, 'view', 'Account', f'Viewed ledger for {account.name}')
-    return render(request, 'payments/account_detail.html', context)
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.FULL_ACCESS)
-def account_create(request):
-    """Create a new finance account."""
-    from .forms import AccountForm
-
-    initial = {}
-    preselect = request.GET.get('category')
-    if preselect in CATEGORY_LABELS:
-        initial['category'] = preselect
-
-    if request.method == 'POST':
-        form = AccountForm(request.POST)
-        if form.is_valid():
-            account = form.save(commit=False)
-            account.created_by = request.user
-            account.save()
-            log_audit(request.user, 'create', 'Account', f'Created account {account.name}')
-            messages.success(request, f'Account "{account.name}" created.')
-            return redirect('payments:account_detail', pk=account.pk)
-    else:
-        form = AccountForm(initial=initial)
-
-    return render(request, 'payments/account_form.html', {'form': form, 'is_edit': False})
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.FULL_ACCESS)
-def account_edit(request, pk):
-    """Edit an existing finance account."""
-    from .forms import AccountForm
-
-    account = get_object_or_404(Account, pk=pk)
-
-    if request.method == 'POST':
-        form = AccountForm(request.POST, instance=account)
-        if form.is_valid():
-            form.save()
-            log_audit(request.user, 'update', 'Account', f'Edited account {account.name}')
-            messages.success(request, f'Account "{account.name}" updated.')
-            return redirect('payments:account_detail', pk=account.pk)
-    else:
-        form = AccountForm(instance=account)
-
-    return render(request, 'payments/account_form.html', {'form': form, 'is_edit': True, 'account': account})
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.FULL_ACCESS)
-@require_POST
-def account_deactivate(request, pk):
-    """Deactivate an account. Never deletes — history remains intact."""
-    account = get_object_or_404(Account, pk=pk)
-    account.is_active = False
-    account.save(update_fields=['is_active', 'updated_at'])
-    log_audit(request.user, 'update', 'Account', f'Deactivated account {account.name}')
-    messages.success(request, f'Account "{account.name}" deactivated.')
-    return redirect('payments:account_detail', pk=account.pk)
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.FULL_ACCESS)
-@require_POST
-def account_activate(request, pk):
-    """Reactivate a previously deactivated account."""
-    account = get_object_or_404(Account, pk=pk)
-    account.is_active = True
-    account.save(update_fields=['is_active', 'updated_at'])
-    log_audit(request.user, 'update', 'Account', f'Reactivated account {account.name}')
-    messages.success(request, f'Account "{account.name}" reactivated.')
-    return redirect('payments:account_detail', pk=account.pk)
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.READ_WRITE)
-def account_transaction_create(request, pk):
-    """Record a manual transaction directly against an account."""
-    from .forms import AccountTransactionForm
-
-    account = get_object_or_404(Account, pk=pk)
-
-    if not account.is_active:
-        messages.error(request, f'"{account.name}" is inactive and cannot receive new transactions.')
-        return redirect('payments:account_detail', pk=account.pk)
-
-    if request.method == 'POST':
-        form = AccountTransactionForm(request.POST, request.FILES)
-        if form.is_valid():
-            txn = form.save(commit=False)
-            txn.account = account
-            txn.created_by = request.user
-            txn.approval_status = 'approved' if _is_approver(request.user) else 'pending'
-            txn.save()
-            log_audit(
-                request.user, 'create', 'AccountTransaction',
-                f'Recorded {txn.get_transaction_type_display()} of KES {txn.amount:,.2f} on {account.name} '
-                f'({txn.approval_status})'
-            )
-            if txn.approval_status == 'pending':
-                messages.success(request, 'Transaction submitted for approval.')
-            else:
-                messages.success(request, 'Transaction recorded.')
-            return redirect('payments:account_detail', pk=account.pk)
-    else:
-        form = AccountTransactionForm()
-
-    return render(request, 'payments/account_transaction_form.html', {'form': form, 'account': account})
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.READ_WRITE)
-def account_transfer_create(request):
-    """Transfer funds between two active accounts."""
-    from .forms import AccountTransferForm
-
-    initial = {}
-    source_pk = request.GET.get('source')
-    if source_pk:
-        initial['source_account'] = source_pk
-
-    if request.method == 'POST':
-        form = AccountTransferForm(request.POST)
-        if form.is_valid():
-            transfer = form.save(commit=False)
-            transfer.created_by = request.user
-            transfer.status = 'approved' if _is_approver(request.user) else 'pending'
-            try:
-                transfer.full_clean()
-            except DjangoValidationError as e:
-                for err in e.messages:
-                    messages.error(request, err)
-                return render(request, 'payments/account_transfer_form.html', {'form': form})
-            transfer.save()
-            transfer.execute(request.user)
-            log_audit(
-                request.user, 'create', 'AccountTransfer',
-                f'Transferred KES {transfer.amount:,.2f} from {transfer.source_account.name} '
-                f'to {transfer.destination_account.name} ({transfer.status})'
-            )
-            if transfer.status == 'pending':
-                messages.success(request, 'Transfer submitted for approval.')
-            else:
-                messages.success(request, 'Transfer completed.')
-            return redirect('payments:account_detail', pk=transfer.source_account.pk)
-    else:
-        form = AccountTransferForm(initial=initial)
-
-    return render(request, 'payments/account_transfer_form.html', {'form': form})
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.READ_WRITE)
-def reconciliation_create(request, transaction_pk):
-    """Request a reconciliation against a wrongly-posted account transaction."""
-    from .forms import ReconciliationForm
-
-    original = get_object_or_404(AccountTransaction, pk=transaction_pk)
-
-    if original.is_reversed:
-        messages.error(request, 'This transaction has already been reversed and cannot be reconciled again.')
-        return redirect('payments:account_detail', pk=original.account.pk)
-
-    if request.method == 'POST':
-        # original_transaction is set on the instance before validation, since it's
-        # excluded from the form fields but Reconciliation.clean() requires it to be set.
-        form = ReconciliationForm(request.POST, instance=Reconciliation(original_transaction=original))
-        if form.is_valid():
-            reconciliation = form.save(commit=False)
-            reconciliation.initiated_by = request.user
-            try:
-                reconciliation.full_clean()
-            except DjangoValidationError as e:
-                for err in e.messages:
-                    messages.error(request, err)
-                return render(request, 'payments/reconciliation_form.html', {'form': form, 'original': original})
-            reconciliation.save()
-            log_audit(
-                request.user, 'create', 'Reconciliation',
-                f'Requested reconciliation ({reconciliation.get_issue_type_display()}) on transaction #{original.pk}'
-            )
-            messages.success(request, 'Reconciliation request submitted for approval.')
-            return redirect('payments:account_detail', pk=original.account.pk)
-    else:
-        form = ReconciliationForm()
-
-    return render(request, 'payments/reconciliation_form.html', {'form': form, 'original': original})
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.FULL_ACCESS)
-def approval_queue(request):
-    """List everything awaiting approval: transactions, transfers, reconciliations, plus suspense accounts."""
-    pending_transfers = AccountTransfer.objects.filter(status='pending').select_related(
-        'source_account', 'destination_account', 'created_by'
-    )
-    transfer_entry_ids = AccountTransaction.objects.filter(
-        transfer__in=pending_transfers
-    ).values_list('id', flat=True)
-
-    pending_transactions = AccountTransaction.objects.filter(
-        approval_status='pending'
-    ).exclude(id__in=transfer_entry_ids).select_related('account', 'created_by', 'related_client', 'related_vehicle')
-
-    pending_reconciliations = Reconciliation.objects.filter(status='pending').select_related(
-        'original_transaction__account', 'initiated_by', 'correct_account', 'correct_client', 'correct_vehicle'
-    )
-
-    suspense_accounts = Account.objects.filter(is_suspense=True)
-
-    context = {
-        'pending_transactions': pending_transactions,
-        'pending_transfers': pending_transfers,
-        'pending_reconciliations': pending_reconciliations,
-        'suspense_accounts': suspense_accounts,
-    }
-
-    log_audit(request.user, 'view', 'Account', 'Viewed finance approval queue')
-    return render(request, 'payments/approval_queue.html', context)
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.FULL_ACCESS)
-@require_POST
-def account_transaction_approve(request, pk):
-    txn = get_object_or_404(AccountTransaction, pk=pk)
-    txn.approve(request.user)
-    log_audit(request.user, 'update', 'AccountTransaction', f'Approved transaction #{txn.pk} on {txn.account.name}')
-    messages.success(request, 'Transaction approved.')
-    return redirect('payments:approval_queue')
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.FULL_ACCESS)
-@require_POST
-def account_transaction_reject(request, pk):
-    txn = get_object_or_404(AccountTransaction, pk=pk)
-    txn.reject(request.user)
-    log_audit(request.user, 'update', 'AccountTransaction', f'Rejected transaction #{txn.pk} on {txn.account.name}')
-    messages.success(request, 'Transaction rejected.')
-    return redirect('payments:approval_queue')
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.FULL_ACCESS)
-@require_POST
-def account_transfer_approve(request, pk):
-    transfer = get_object_or_404(AccountTransfer, pk=pk)
-    with transaction.atomic():
-        transfer.status = 'approved'
-        transfer.approved_by = request.user
-        transfer.approved_at = timezone.now()
-        transfer.save(update_fields=['status', 'approved_by', 'approved_at'])
-        for entry in transfer.ledger_entries.all():
-            entry.approve(request.user)
-    log_audit(
-        request.user, 'update', 'AccountTransfer',
-        f'Approved transfer #{transfer.pk}: {transfer.source_account.name} -> {transfer.destination_account.name}'
-    )
-    messages.success(request, 'Transfer approved.')
-    return redirect('payments:approval_queue')
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.FULL_ACCESS)
-@require_POST
-def account_transfer_reject(request, pk):
-    transfer = get_object_or_404(AccountTransfer, pk=pk)
-    with transaction.atomic():
-        transfer.status = 'rejected'
-        transfer.approved_by = request.user
-        transfer.approved_at = timezone.now()
-        transfer.save(update_fields=['status', 'approved_by', 'approved_at'])
-        for entry in transfer.ledger_entries.all():
-            entry.reject(request.user)
-    log_audit(
-        request.user, 'update', 'AccountTransfer',
-        f'Rejected transfer #{transfer.pk}: {transfer.source_account.name} -> {transfer.destination_account.name}'
-    )
-    messages.success(request, 'Transfer rejected.')
-    return redirect('payments:approval_queue')
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.FULL_ACCESS)
-@require_POST
-def reconciliation_approve(request, pk):
-    reconciliation = get_object_or_404(Reconciliation, pk=pk)
-    try:
-        reconciliation.approve(request.user)
-    except ValueError as e:
-        messages.error(request, str(e))
-        return redirect('payments:approval_queue')
-    log_audit(request.user, 'update', 'Reconciliation', f'Approved reconciliation #{reconciliation.pk}')
-    messages.success(request, 'Reconciliation approved.')
-    return redirect('payments:approval_queue')
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.FULL_ACCESS)
-@require_POST
-def reconciliation_reject(request, pk):
-    reconciliation = get_object_or_404(Reconciliation, pk=pk)
-    try:
-        reconciliation.reject(request.user)
-    except ValueError as e:
-        messages.error(request, str(e))
-        return redirect('payments:approval_queue')
-    log_audit(request.user, 'update', 'Reconciliation', f'Rejected reconciliation #{reconciliation.pk}')
-    messages.success(request, 'Reconciliation rejected.')
-    return redirect('payments:approval_queue')
-
-
-@login_required
 def payment_detail(request, pk):
     """
     Display detailed information about a specific payment
@@ -1168,12 +506,8 @@ def payment_detail(request, pk):
         'client': payment.client_vehicle.client,
         'vehicle': payment.client_vehicle.vehicle,
         'client_vehicle': payment.client_vehicle,
-        # payment_progress can exceed 100% on an overpaid vehicle — cap only
-        # the bar's width so it doesn't overflow its container; the exact
-        # percentage is still shown as text next to it.
-        'progress_bar_percent': min(payment.client_vehicle.payment_progress, 100),
     }
-
+    
     log_audit(request.user, 'view', 'Payment', f'Viewed payment {payment.receipt_number}')
 
     return render(request, 'payments/payment_detail.html', context)
@@ -1221,40 +555,40 @@ def record_payment(request, client_vehicle_pk):
     )
     
     if request.method == 'POST':
-        # Default form for re-rendering the page on any failure path below —
-        # the split-payment branch doesn't build one of its own.
-        form = PaymentForm(request.POST)
-
         # Check if this is a split payment
         split_methods = request.POST.getlist('split_method[]')
         split_amounts = request.POST.getlist('split_amount[]')
         split_references = request.POST.getlist('split_reference[]')
         split_locations = request.POST.getlist('split_location[]')
-
+        
         # Filter out empty splits
         valid_splits = [
-            (m, a, r, loc) for m, a, r, loc in zip(split_methods, split_amounts, split_references, split_locations)
+            (m, a, r, loc) for m, a, r, loc in zip(split_methods, split_amounts, split_references, split_locations) 
             if m and a
         ]
-
+        
         if valid_splits and len(valid_splits) > 1:
             # Multi-split payment
             with transaction.atomic():
                 try:
                     # Calculate total from splits
                     total_amount = sum(Decimal(a) for _, a, _, _ in valid_splits)
-                    payment_date = parse_date(request.POST.get('payment_date', '')) or timezone.now().date()
+                    pre_save_amounts = _snapshot_pending_schedule_amounts(client_vehicle)
 
-                    # Create main payment with MIXED method
+                    # Create main payment with MIXED method.
+                    # Payment.save() triggers payments/signals1.py, which recalculates
+                    # client_vehicle.total_paid/balance/is_paid_off and marks off
+                    # instalment schedules — do not duplicate that here.
                     payment = Payment.objects.create(
                         client_vehicle=client_vehicle,
                         amount=total_amount,
-                        payment_date=payment_date,
+                        payment_date=_parse_payment_date(request.POST.get('payment_date')),
                         payment_method='mixed',
                         notes=request.POST.get('notes', ''),
                         recorded_by=request.user,
+                        account_id=request.POST.get('account') or None,
                     )
-                    
+
                     # Create split records
                     for method, amount, reference, location in valid_splits:
                         PaymentSplit.objects.create(
@@ -1265,9 +599,6 @@ def record_payment(request, client_vehicle_pk):
                             payment_location=(location or '').strip() or None,
                         )
 
-                    # Balance, payment schedules, and client status are already
-                    # updated by the Payment post_save signals — refresh to read
-                    # those computed values instead of re-applying them here.
                     client_vehicle.refresh_from_db()
 
                     if client_vehicle.is_paid_off:
@@ -1279,7 +610,7 @@ def record_payment(request, client_vehicle_pk):
                         split_summary = ', '.join([
                             f"{Payment.PAYMENT_METHOD_CHOICES[
                                 [x[0] for x in Payment.PAYMENT_METHOD_CHOICES].index(m)
-                            ][1]} KES {Decimal(a):,.2f}"
+                            ][1]} KES {a:,.2f}"
                             for m, a, _, _ in valid_splits
                         ])
                         messages.success(
@@ -1288,6 +619,10 @@ def record_payment(request, client_vehicle_pk):
                             f'({split_summary}) — '
                             f'Remaining balance: KES {client_vehicle.balance:,.2f}'
                         )
+
+                    # Post to the finance ledger and link it to the instalments it settled
+                    ledger_transaction = _record_finance_ledger_entry(payment, client_vehicle)
+                    _allocate_ledger_transaction_to_schedules(ledger_transaction, client_vehicle, pre_save_amounts)
 
                     log_audit(
                         request.user, 'create', 'Payment',
@@ -1300,16 +635,19 @@ def record_payment(request, client_vehicle_pk):
                     messages.error(request, f'Invalid split amounts: {str(e)}')
         else:
             # Single payment (traditional flow)
+            form = PaymentForm(request.POST)
             if form.is_valid():
                 with transaction.atomic():
+                    pre_save_amounts = _snapshot_pending_schedule_amounts(client_vehicle)
+
                     payment = form.save(commit=False)
                     payment.client_vehicle = client_vehicle
                     payment.recorded_by = request.user
+                    # Payment.save() triggers payments/signals1.py, which recalculates
+                    # client_vehicle.total_paid/balance/is_paid_off and marks off
+                    # instalment schedules — do not duplicate that here.
                     payment.save()
 
-                    # Balance, payment schedules, and client status are already
-                    # updated by the Payment post_save signals — refresh to read
-                    # those computed values instead of re-applying them here.
                     client_vehicle.refresh_from_db()
 
                     if client_vehicle.is_paid_off:
@@ -1323,6 +661,10 @@ def record_payment(request, client_vehicle_pk):
                             f'Payment of KES {payment.amount:,.2f} recorded successfully! '
                             f'Remaining balance: KES {client_vehicle.balance:,.2f}'
                         )
+
+                    # Post to the finance ledger and link it to the instalments it settled
+                    ledger_transaction = _record_finance_ledger_entry(payment, client_vehicle)
+                    _allocate_ledger_transaction_to_schedules(ledger_transaction, client_vehicle, pre_save_amounts)
 
                     log_audit(
                         request.user, 'create', 'Payment',
@@ -1354,51 +696,45 @@ def quick_record_payment(request):
     """
     from .forms import PaymentForm
     from .models import PaymentSplit
-
+    
     if request.method == 'POST':
-        # Resolve the selected client vehicle up front — both the split and
-        # single-payment flows below need it, and the template re-render on
-        # any failure path needs `client_vehicle`/`form` to always be defined.
-        client_vehicle_id = request.POST.get('client_vehicle')
-        try:
-            client_vehicle = ClientVehicle.objects.select_related('client', 'vehicle').get(pk=client_vehicle_id)
-        except (ClientVehicle.DoesNotExist, ValueError, TypeError):
-            client_vehicle = None
-
-        form = PaymentForm(request.POST, client_vehicle=client_vehicle)
-
         # Check if this is a split payment
         split_methods = request.POST.getlist('split_method[]')
         split_amounts = request.POST.getlist('split_amount[]')
         split_references = request.POST.getlist('split_reference[]')
         split_locations = request.POST.getlist('split_location[]')
-
+        
         # Filter out empty splits
         valid_splits = [
-            (m, a, r, loc) for m, a, r, loc in zip(split_methods, split_amounts, split_references, split_locations)
+            (m, a, r, loc) for m, a, r, loc in zip(split_methods, split_amounts, split_references, split_locations) 
             if m and a
         ]
-
-        if not client_vehicle:
-            messages.error(request, 'Please select a client vehicle.')
-        elif valid_splits and len(valid_splits) > 1:
+        
+        if valid_splits and len(valid_splits) > 1:
             # Multi-split payment
             with transaction.atomic():
                 try:
+                    client_vehicle_id = request.POST.get('client_vehicle')
+                    client_vehicle = ClientVehicle.objects.get(pk=client_vehicle_id)
+                    pre_save_amounts = _snapshot_pending_schedule_amounts(client_vehicle)
+
                     # Calculate total from splits
                     total_amount = sum(Decimal(a) for _, a, _, _ in valid_splits)
-                    payment_date = parse_date(request.POST.get('payment_date', '')) or timezone.now().date()
 
-                    # Create main payment with MIXED method
+                    # Create main payment with MIXED method.
+                    # Payment.save() triggers payments/signals1.py, which recalculates
+                    # client_vehicle.total_paid/balance/is_paid_off and marks off
+                    # instalment schedules — do not duplicate that here.
                     payment = Payment.objects.create(
                         client_vehicle=client_vehicle,
                         amount=total_amount,
-                        payment_date=payment_date,
+                        payment_date=_parse_payment_date(request.POST.get('payment_date')),
                         payment_method='mixed',
                         notes=request.POST.get('notes', ''),
                         recorded_by=request.user,
+                        account_id=request.POST.get('account') or None,
                     )
-                    
+
                     # Create split records
                     for method, amount, reference, location in valid_splits:
                         PaymentSplit.objects.create(
@@ -1409,9 +745,6 @@ def quick_record_payment(request):
                             payment_location=(location or '').strip() or None,
                         )
 
-                    # Balance, payment schedules, and client status are already
-                    # updated by the Payment post_save signals — refresh to read
-                    # those computed values instead of re-applying them here.
                     client_vehicle.refresh_from_db()
 
                     if client_vehicle.is_paid_off:
@@ -1422,6 +755,10 @@ def quick_record_payment(request):
                             f'Split payment of KES {payment.amount:,.2f} recorded! '
                             f'Remaining balance: KES {client_vehicle.balance:,.2f}'
                         )
+
+                    # Post to the finance ledger and link it to the instalments it settled
+                    ledger_transaction = _record_finance_ledger_entry(payment, client_vehicle)
+                    _allocate_ledger_transaction_to_schedules(ledger_transaction, client_vehicle, pre_save_amounts)
 
                     log_audit(
                         request.user, 'create', 'Payment',
@@ -1434,16 +771,17 @@ def quick_record_payment(request):
                     messages.error(request, f'Error processing split payment: {str(e)}')
         else:
             # Single payment (traditional flow)
+            form = PaymentForm(request.POST)
             if form.is_valid():
                 with transaction.atomic():
                     payment = form.save(commit=False)
-                    payment.client_vehicle = client_vehicle
                     payment.recorded_by = request.user
+                    # Payment.save() triggers payments/signals1.py, which recalculates
+                    # client_vehicle.total_paid/balance/is_paid_off and marks off
+                    # instalment schedules — do not duplicate that here.
                     payment.save()
 
-                    # Balance, payment schedules, and client status are already
-                    # updated by the Payment post_save signals — refresh to read
-                    # those computed values instead of re-applying them here.
+                    client_vehicle = payment.client_vehicle
                     client_vehicle.refresh_from_db()
 
                     if client_vehicle.is_paid_off:
@@ -1454,6 +792,12 @@ def quick_record_payment(request):
                             f'Payment of KES {payment.amount:,.2f} recorded successfully! '
                             f'Remaining balance: KES {client_vehicle.balance:,.2f}'
                         )
+
+                    # Post to the finance ledger. NOTE: this form has no
+                    # pre-save snapshot of schedule amounts (client_vehicle
+                    # isn't resolvable until after the ModelForm saves), so
+                    # no PaymentAllocation is created for this path.
+                    _record_finance_ledger_entry(payment, client_vehicle)
 
                     log_audit(
                         request.user, 'create', 'Payment',
@@ -1466,34 +810,33 @@ def quick_record_payment(request):
     else:
         # Pre-select client_vehicle if passed in GET parameter
         client_vehicle_id = request.GET.get('client_vehicle')
+        initial = {}
         client_vehicle = None
-
+        
         if client_vehicle_id:
             try:
                 client_vehicle = ClientVehicle.objects.select_related('client', 'vehicle').get(pk=client_vehicle_id)
+                initial['client_vehicle'] = client_vehicle
             except ClientVehicle.DoesNotExist:
                 pass
-
-        form = PaymentForm(client_vehicle=client_vehicle)
+        
+        form = PaymentForm(initial=initial)
     
-    # Get client vehicles with outstanding balances — full list for the
-    # dropdown, most-recent slice for the sidebar quick-pick cards.
-    outstanding_client_vehicles = ClientVehicle.objects.select_related(
+    # Get recent client vehicles with outstanding balances
+    recent_client_vehicles = ClientVehicle.objects.select_related(
         'client', 'vehicle'
     ).filter(
         is_paid_off=False,
         balance__gt=0
-    ).order_by('client__first_name', 'client__last_name')
-    recent_client_vehicles = outstanding_client_vehicles.order_by('-purchase_date')[:20]
-
+    ).order_by('-purchase_date')[:20]
+    
     context = {
         'form': form,
         'client_vehicle': client_vehicle,
-        'client_vehicle_choices': outstanding_client_vehicles,
         'recent_client_vehicles': recent_client_vehicles,
         'is_quick_record': True,
     }
-
+    
     return render(request, 'payments/quick_payment_form.html', context)
 
 
@@ -2304,10 +1647,6 @@ def paybill_tracker(request):
     # gets a synthetic one so it immediately appears in the tracker.
     _backfill_paybill_transactions()
 
-    # Refresh the paybill balance only when needed on page load.
-    if _should_request_paybill_balance_on_load():
-        _request_paybill_balance()
-
     all_transactions = PaybillTransaction.objects.all().order_by(
         F('trans_time').desc(nulls_last=True), '-created_at'
     )
@@ -2332,19 +1671,8 @@ def paybill_tracker(request):
         trans_time__month=this_month.month,
     ).aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00')
 
-    # Per-paybill breakdown — configured shortcodes plus any others that have
-    # actually received transactions (never hardcode: the .env shortcodes are
-    # the source of truth for which paybills exist).
-    configured_paybills = [
-        str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip(),
-        str(getattr(settings, 'MPESA_SHORTCODE_2', '') or '').strip(),
-    ]
-    seen_paybills = list(
-        all_transactions.exclude(business_short_code='')
-        .values_list('business_short_code', flat=True)
-        .distinct()
-    )
-    known_paybills = [code for code in dict.fromkeys(configured_paybills + seen_paybills) if code]
+    # Per-paybill breakdown
+    known_paybills = ['4320049', '4162495']
     paybill_stats = []
     for code in known_paybills:
         qs = all_transactions.filter(business_short_code=code)
@@ -2424,10 +1752,26 @@ def _backfill_paybill_transactions():
 @require_POST
 def refresh_paybill_balance(request):
     """Initiate an asynchronous Daraja account balance request."""
-    if _request_paybill_balance():
+    result = request_account_balance()
+
+    if result.get('ok'):
+        response_payload = result.get('response', {})
+        PaybillBalanceSnapshot.objects.create(
+            status=PaybillBalanceSnapshot.STATUS_PENDING,
+            request_reference=result.get('request_reference', ''),
+            conversation_id=response_payload.get('ConversationID', ''),
+            originator_conversation_id=response_payload.get('OriginatorConversationID', ''),
+            result_code=response_payload.get('ResponseCode') if str(response_payload.get('ResponseCode', '')).isdigit() else None,
+            result_desc=response_payload.get('ResponseDescription', ''),
+            raw_payload=response_payload,
+        )
         messages.success(request, 'Balance request sent to Daraja. Awaiting callback result.')
     else:
-        messages.error(request, 'Unable to request paybill balance. Check server logs for details.')
+        missing_vars = result.get('missing_vars', [])
+        if missing_vars:
+            messages.error(request, f"Missing M-Pesa settings in .env: {', '.join(missing_vars)}")
+        else:
+            messages.error(request, f"Unable to request paybill balance: {result.get('error', 'Unknown error')}")
 
     return redirect('payments:paybill_tracker')
 
@@ -2462,21 +1806,6 @@ def register_paybill_c2b(request):
     ok_count = sum(1 for r in results if r.get('ok'))
     fail_count = len(results) - ok_count
 
-    # Surface exactly what was submitted and what Safaricom said back per
-    # shortcode — a bare "success" hides whether Daraja actually accepted the
-    # URL change on an already-registered production shortcode.
-    for r in results:
-        desc = (r.get('response') or {}).get('ResponseDescription') or r.get('error') or 'No response description.'
-        detail = (
-            f"Paybill {r.get('code')}: {'OK' if r.get('ok') else 'FAILED'} — {desc} "
-            f"(Confirmation: {r.get('confirmation_url', 'n/a')})"
-        )
-        if r.get('ok'):
-            messages.info(request, detail)
-        else:
-            messages.error(request, detail)
-        logger.info(f"C2B registration result — {detail}")
-
     if ok_count == len(results):
         messages.success(request, f'C2B URLs registered successfully for both paybills.')
     elif ok_count > 0:
@@ -2491,7 +1820,6 @@ def register_paybill_c2b(request):
 
 # ==================== MPESA CALLBACK VIEWS ====================
 
-@log_incoming_callback('paybill_validation_callback')
 @csrf_exempt
 @require_POST
 def paybill_validation_callback(request):
@@ -2521,7 +1849,9 @@ def paybill_validation_callback(request):
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
-@log_incoming_callback('paybill_confirmation_callback')
+# =============================================================================
+# UPDATED: paybill_confirmation_callback with ENHANCED LOGGING and MANUAL SIGNAL TRIGGER
+# =============================================================================
 @csrf_exempt
 @require_POST
 def paybill_confirmation_callback(request):
@@ -2532,27 +1862,43 @@ def paybill_confirmation_callback(request):
     The post_save signal (process_paybill_transaction in signals.py) creates
     the Payment and recalculates the vehicle balance — balance updates are NOT
     done here to avoid double-counting.
+    
+    🔥 ENHANCED: Added detailed logging and manual signal triggering
+    to ensure transactions are processed immediately.
     """
+    # 🔍 ENHANCED LOGGING - This will show exactly what's happening
+    logger.info("=" * 80)
+    logger.info("📞 C2B CONFIRMATION CALLBACK RECEIVED")
+    logger.info(f"Time: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"Method: {request.method}")
+    logger.info(f"Headers: {dict(request.headers)}")
+    logger.info(f"Body length: {len(request.body)} bytes")
+    
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
+        logger.info(f"Payload: {json.dumps(payload, indent=2)}")
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in C2B confirmation: {e}")
+        logger.error(f"❌ Invalid JSON in C2B confirmation: {e}")
+        logger.error(f"Raw body: {request.body[:500]}...")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Invalid JSON'}, status=400)
 
     if not _callback_secret_is_valid(request):
-        logger.warning("Unauthorized C2B confirmation attempt")
+        logger.warning("❌ Unauthorized C2B confirmation attempt")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
 
     trans_id = str(payload.get('TransID', '')).strip()
+    logger.info(f"📝 Transaction ID: '{trans_id}'")
+    
     if not trans_id:
-        logger.error("Missing TransID in C2B confirmation")
+        logger.error("❌ Missing TransID in C2B confirmation")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Missing TransID'}, status=400)
 
     # Idempotent — acknowledge without creating a duplicate
     if PaybillTransaction.objects.filter(trans_id=trans_id).exists():
-        logger.info(f"C2B duplicate {trans_id} — already stored")
+        logger.info(f"⚠️ C2B duplicate {trans_id} — already stored")
         return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Duplicate - Already Processed'})
 
+    # Extract all data
     bill_ref_number = str(payload.get('BillRefNumber', '')).strip()
     trans_amount = _safe_decimal(payload.get('TransAmount')) or Decimal('0.00')
     business_shortcode = str(payload.get('BusinessShortCode', '')).strip()
@@ -2562,13 +1908,32 @@ def paybill_confirmation_callback(request):
     middle_name = str(payload.get('MiddleName', '')).strip()
     last_name = str(payload.get('LastName', '')).strip()
 
-    logger.info(f"C2B Confirmation: Ref={bill_ref_number}, Amount={trans_amount}, TransID={trans_id}")
+    logger.info(f"📊 Transaction Details:")
+    logger.info(f"   TransID: {trans_id}")
+    logger.info(f"   Amount: {trans_amount}")
+    logger.info(f"   BillRef: '{bill_ref_number}'")
+    logger.info(f"   Shortcode: {business_shortcode}")
+    logger.info(f"   MSISDN: {msisdn}")
+    logger.info(f"   TransTime: {trans_time}")
+    logger.info(f"   Name: {first_name} {last_name}")
 
-    # Store the transaction unconditionally so it always appears in the tracker.
-    # The post_save signal (process_paybill_transaction in signals.py) will
-    # create the Payment and recalculate the vehicle balance automatically.
+    # 🔍 Try to find vehicle BEFORE storing
+    from apps.payments.signals import _find_vehicle_by_bill_ref
+    client_vehicle = _find_vehicle_by_bill_ref(bill_ref_number)
+    
+    logger.info(f"🔍 Vehicle search for '{bill_ref_number}':")
+    logger.info(f"   Found: {client_vehicle is not None}")
+    
+    if client_vehicle:
+        logger.info(f"   Vehicle: {client_vehicle.vehicle.registration_number}")
+        logger.info(f"   Client: {client_vehicle.client.get_full_name()}")
+        logger.info(f"   Balance: {client_vehicle.balance}")
+    else:
+        logger.warning(f"⚠️ NO vehicle found for ref: '{bill_ref_number}'")
+
+    # ✅ Store the transaction unconditionally so it always appears in the tracker
     try:
-        PaybillTransaction.objects.create(
+        paybill_tx = PaybillTransaction.objects.create(
             trans_id=trans_id,
             trans_time=trans_time or timezone.now(),
             trans_amount=trans_amount,
@@ -2583,15 +1948,31 @@ def paybill_confirmation_callback(request):
             raw_payload=payload,
             is_linked_to_payment=False,
         )
-        logger.info(f"✅ C2B PaybillTransaction {trans_id} stored — signal will handle Payment creation")
+        logger.info(f"✅✅✅ C2B PaybillTransaction STORED successfully!")
+        logger.info(f"   ID: {paybill_tx.id}")
+        logger.info(f"   TransID: {paybill_tx.trans_id}")
+        logger.info(f"   BillRef: '{paybill_tx.bill_ref_number}'")
+        
+        # 🔥 CRITICAL FIX: Manually trigger the signal to create the Payment
+        # This ensures the transaction is processed immediately
+        try:
+            from apps.payments.signals import process_paybill_transaction
+            logger.info("🔄 Manually triggering process_paybill_transaction signal...")
+            process_paybill_transaction(None, paybill_tx, created=True)
+            logger.info("✅ Signal processing completed!")
+        except Exception as signal_error:
+            logger.error(f"❌ Signal processing failed: {signal_error}")
+            logger.exception(signal_error)
+            
     except Exception as e:
-        logger.error(f"Error storing C2B transaction {trans_id}: {e}", exc_info=True)
+        logger.error(f"❌❌❌ CRITICAL: Failed to store C2B transaction {trans_id}: {e}")
+        logger.exception(e)
         # Return 200 anyway — returning ResultCode 1 causes M-Pesa to retry
 
+    logger.info("=" * 80)
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
-@log_incoming_callback('stk_push_callback')
 @csrf_exempt
 @require_POST
 def stk_push_callback(request):
@@ -2750,7 +2131,6 @@ def stk_push_callback(request):
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
-@log_incoming_callback('paybill_balance_result_callback')
 @csrf_exempt
 @require_POST
 def paybill_balance_result_callback(request):
@@ -2806,38 +2186,22 @@ def paybill_balance_result_callback(request):
         if str(result_code) == '0'
         else PaybillBalanceSnapshot.STATUS_FAILED
     )
-
-    conversation_id = str(result.get('ConversationID', '')).strip()
-    originator_id = str(result.get('OriginatorConversationID', '')).strip()
-
-    # Resolve the pending snapshot created when the request was initiated —
-    # creating a separate row would leave that one "pending" forever.
-    snapshot = _find_pending_balance_snapshot(conversation_id, originator_id)
-    if snapshot:
-        snapshot.status = status
-        snapshot.available_balance = balance
-        snapshot.conversation_id = conversation_id or snapshot.conversation_id
-        snapshot.originator_conversation_id = originator_id or snapshot.originator_conversation_id
-        snapshot.result_code = int(result_code) if str(result_code).lstrip('-').isdigit() else None
-        snapshot.result_desc = result_desc
-        snapshot.raw_payload = payload
-        snapshot.save()
-    else:
-        snapshot = PaybillBalanceSnapshot.objects.create(
-            status=status,
-            available_balance=balance,
-            conversation_id=conversation_id,
-            originator_conversation_id=originator_id,
-            result_code=int(result_code) if str(result_code).lstrip('-').isdigit() else None,
-            result_desc=result_desc,
-            raw_payload=payload,
-        )
-
-    logger.info(f"✅ Balance snapshot resolved: ID={snapshot.id}, Balance={balance}, Status={status}")
+    
+    # ✅ Create snapshot with extracted balance
+    snapshot = PaybillBalanceSnapshot.objects.create(
+        status=status,
+        available_balance=balance,
+        conversation_id=str(result.get('ConversationID', '')).strip(),
+        originator_conversation_id=str(result.get('OriginatorConversationID', '')).strip(),
+        result_code=int(result_code) if str(result_code).lstrip('-').isdigit() else None,
+        result_desc=result_desc,
+        raw_payload=payload,
+    )
+    
+    logger.info(f"✅ Balance snapshot created: ID={snapshot.id}, Balance={balance}, Status={status}")
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'}, status=200)
 
 
-@log_incoming_callback('paybill_balance_timeout_callback')
 @csrf_exempt
 @require_POST
 def paybill_balance_timeout_callback(request):
@@ -2862,41 +2226,144 @@ def paybill_balance_timeout_callback(request):
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
     
     result = payload.get('Result', {}) if isinstance(payload, dict) else {}
-
-    conversation_id = str(result.get('ConversationID', '')).strip()
-    originator_id = str(result.get('OriginatorConversationID', '')).strip()
-
-    # Resolve the pending snapshot rather than leaving it stuck alongside a
-    # separate timeout row.
-    snapshot = _find_pending_balance_snapshot(conversation_id, originator_id)
-    if snapshot:
-        snapshot.status = PaybillBalanceSnapshot.STATUS_TIMEOUT
-        snapshot.result_desc = 'Daraja callback timeout'
-        snapshot.raw_payload = payload if isinstance(payload, dict) else {'payload': str(payload)}
-        snapshot.save()
-    else:
-        PaybillBalanceSnapshot.objects.create(
-            status=PaybillBalanceSnapshot.STATUS_TIMEOUT,
-            conversation_id=conversation_id,
-            originator_conversation_id=originator_id,
-            result_desc='Daraja callback timeout',
-            raw_payload=payload if isinstance(payload, dict) else {'payload': str(payload)},
-        )
-
+    
+    # ✅ Create timeout snapshot
+    PaybillBalanceSnapshot.objects.create(
+        status=PaybillBalanceSnapshot.STATUS_TIMEOUT,
+        conversation_id=str(result.get('ConversationID', '')).strip(),
+        originator_conversation_id=str(result.get('OriginatorConversationID', '')).strip(),
+        result_desc='Daraja callback timeout',
+        raw_payload=payload if isinstance(payload, dict) else {'payload': str(payload)},
+    )
+    
     logger.info("✅ Balance timeout recorded")
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
 # ==================== HELPER FUNCTIONS ====================
 
-def _compute_defaulters_context(request):
+# Payment.PAYMENT_METHOD_CHOICES includes specific bank names (equity_hoza, dib_hoza, ...)
+# since the finance ledger now captures *which account* separately via Payment.account,
+# LedgerTransaction.payment_method only needs to capture *how* it was paid.
+_LEDGER_PAYMENT_METHOD_MAP = {
+    'cash': 'cash',
+    'mpesa': 'mpesa',
+    'bank_transfer': 'bank_transfer',
+    'equity_hoza': 'bank_transfer',
+    'dib_hoza': 'bank_transfer',
+    'coop_hoza': 'bank_transfer',
+    'kcb_ke': 'bank_transfer',
+    'absa_ke': 'bank_transfer',
+    'equity_ke': 'bank_transfer',
+    'cheque': 'cheque',
+    'card': 'card',
+    'mixed': 'other',
+    'other': 'other',
+}
+
+
+def _parse_payment_date(raw_value):
+    """Parse a raw POST 'payment_date' string (split-payment branches build
+    Payment via .objects.create() directly, bypassing PaymentForm's date
+    cleaning). Falls back to today if missing/unparseable."""
+    if not raw_value:
+        return timezone.now().date()
+    if isinstance(raw_value, str):
+        try:
+            return datetime.strptime(raw_value, '%Y-%m-%d').date()
+        except ValueError:
+            return timezone.now().date()
+    return raw_value
+
+
+def _record_finance_ledger_entry(payment, client_vehicle):
+    """
+    Post a credit entry to the payment's receiving account and return it.
+    Returns None if no account was selected (older payments, or automated
+    inflows such as M-Pesa callbacks that aren't yet reconciled to an account).
+    """
+    if not payment.account:
+        return None
+
+    from apps.finance import services as finance_services
+
+    has_plan = InstallmentPlan.objects.filter(client_vehicle=client_vehicle, is_active=True).exists()
+    return finance_services.create_transaction(
+        payment.account,
+        direction='credit',
+        transaction_type='hire_purchase_instalment' if has_plan else 'client_vehicle_payment',
+        amount=payment.amount,
+        created_by=payment.recorded_by,
+        transaction_date=payment.payment_date,
+        source_module='payments',
+        related_client=client_vehicle.client,
+        related_vehicle=client_vehicle.vehicle,
+        payment_method=_LEDGER_PAYMENT_METHOD_MAP.get(payment.payment_method, 'other'),
+        description=f'Payment {payment.receipt_number} - {client_vehicle.vehicle}',
+    )
+
+
+def _snapshot_pending_schedule_amounts(client_vehicle):
+    """
+    Capture each pending instalment's amount_paid *before* a new payment is
+    applied, so the amount a specific payment actually settles can be
+    computed afterward by diffing.
+
+    NOTE: schedules are marked paid automatically by the
+    update_payment_schedules_after_payment signal in payments/signals1.py
+    (registered in PaymentsConfig.ready()), which runs synchronously inside
+    Payment.save(). There used to be a second, manual pass over the same
+    schedules here in views.py that duplicated the signal's work — that was
+    a real bug (every payment double-applied: instalments got marked paid
+    twice and totals were double-counted). Do not reintroduce a second
+    schedule-marking pass; only read state after save() and diff it.
+    """
+    try:
+        plan = client_vehicle.installment_plan
+    except InstallmentPlan.DoesNotExist:
+        return {}
+    return {
+        schedule.pk: schedule.amount_paid
+        for schedule in plan.payment_schedules.filter(is_paid=False)
+    }
+
+
+def _allocate_ledger_transaction_to_schedules(ledger_transaction, client_vehicle, pre_save_amounts):
+    """
+    Diff each instalment's amount_paid against its pre-payment snapshot
+    (see _snapshot_pending_schedule_amounts) to determine how much of
+    ledger_transaction it consumed, and record that as a PaymentAllocation.
+    Must be called after the triggering Payment has been saved.
+    """
+    if not ledger_transaction or not pre_save_amounts:
+        return
+
+    from apps.finance.models import PaymentAllocation
+
+    try:
+        plan = client_vehicle.installment_plan
+    except InstallmentPlan.DoesNotExist:
+        return
+
+    schedules = plan.payment_schedules.filter(pk__in=pre_save_amounts.keys())
+    for schedule in schedules:
+        applied = schedule.amount_paid - pre_save_amounts.get(schedule.pk, Decimal('0.00'))
+        if applied > 0:
+            PaymentAllocation.objects.create(
+                transaction=ledger_transaction,
+                payment_schedule=schedule,
+                amount_allocated=applied,
+            )
+
+
+@login_required
+def defaulters_report(request):
     """
     Generate report of clients with outstanding vehicle balances.
     Source of truth: ClientVehicle.balance > 0 (not limited to clients with
     formal overdue PaymentSchedule records — that approach misses clients who
     owe money but have no installment plan or whose first scheduled payment has
     not yet been recorded as overdue).
-    Shared by the on-screen defaulters report and its PDF/Excel/CSV exports.
     """
     today = timezone.now().date()
 
@@ -2997,31 +2464,10 @@ def _compute_defaulters_context(request):
         'moderate_amount': moderate_amount,
         'now': timezone.now(),
     }
-    return context
 
-
-@login_required
-def defaulters_report_view(request):
-    context = _compute_defaulters_context(request)
     log_audit(request.user, 'view', 'Payment', 'Viewed defaulters report')
+
     return render(request, 'payments/defaulters_report.html', context)
-
-
-@login_required
-def defaulters_report_export(request, fmt):
-    """Export the Defaulters Report as PDF/Excel/CSV."""
-    from utils.report_kit import export_rows
-    ctx = _compute_defaulters_context(request)
-    headers = ['Client', 'Phone', 'Vehicle', 'Days Overdue', 'Outstanding', 'Last Payment']
-    rows = [
-        [
-            d['client'].get_full_name(), d['client'].phone_primary or '', d['vehicle'].full_name,
-            d['days_overdue'], float(d['total_outstanding']),
-            d['last_payment_date'].strftime('%Y-%m-%d') if d['last_payment_date'] else '',
-        ]
-        for d in ctx['defaulters']
-    ]
-    return export_rows(fmt, 'defaulters_report', 'Defaulters Report', headers, rows, currency_cols={5})
 
 
 @login_required
@@ -3221,67 +2667,6 @@ def generate_payment_tracker_pdf_view(request, client_vehicle_pk):
     return generate_payment_tracker_pdf(client_vehicle, currency=currency, fx_rate=fx_rate)
 
 
-@login_required
-def client_statement_pdf_view(request, client_pk):
-    """Generate and download the client ledger statement PDF (same filters as the on-screen statement)."""
-    from .utils import generate_client_statement_pdf
-    from apps.clients.models import Client
-    from apps.clients.utils import build_client_ledger
-
-    client = get_object_or_404(Client, pk=client_pk)
-    date_from = request.GET.get('date_from') or None
-    date_to = request.GET.get('date_to') or None
-    vehicle_pk = request.GET.get('vehicle') or None
-    payment_method = request.GET.get('payment_method') or None
-
-    rows, summary = build_client_ledger(
-        client, date_from=date_from, date_to=date_to,
-        vehicle_pk=vehicle_pk, payment_method=payment_method
-    )
-
-    log_audit(request.user, 'export', 'Client', f'Generated statement PDF for {client.get_full_name()}')
-
-    return generate_client_statement_pdf(client, rows, summary)
-
-
-@login_required
-@module_permission_required('payments', AccessLevel.READ_WRITE)
-def payment_reconciliation_create(request, payment_pk):
-    """Request a reconciliation against a wrongly-posted client payment."""
-    from .forms import PaymentReconciliationForm
-
-    original = get_object_or_404(Payment, pk=payment_pk)
-
-    if original.is_reversed:
-        messages.error(request, 'This payment has already been reversed and cannot be reconciled again.')
-        return redirect('clients:client_statement', client_pk=original.client_vehicle.client.pk)
-
-    if request.method == 'POST':
-        # original_payment is set on the instance before validation, since it's
-        # excluded from the form fields but Reconciliation.clean() requires it to be set.
-        form = PaymentReconciliationForm(request.POST, instance=Reconciliation(original_payment=original))
-        if form.is_valid():
-            reconciliation = form.save(commit=False)
-            reconciliation.initiated_by = request.user
-            try:
-                reconciliation.full_clean()
-            except DjangoValidationError as e:
-                for err in e.messages:
-                    messages.error(request, err)
-                return render(request, 'payments/payment_reconciliation_form.html', {'form': form, 'original': original})
-            reconciliation.save()
-            log_audit(
-                request.user, 'create', 'Reconciliation',
-                f'Requested reconciliation ({reconciliation.get_issue_type_display()}) on payment #{original.pk}'
-            )
-            messages.success(request, 'Reconciliation request submitted for approval.')
-            return redirect('clients:client_statement', client_pk=original.client_vehicle.client.pk)
-    else:
-        form = PaymentReconciliationForm()
-
-    return render(request, 'payments/payment_reconciliation_form.html', {'form': form, 'original': original})
-
-
 # ==================== STAFF STK PUSH AJAX ENDPOINTS ====================
 
 @login_required
@@ -3372,33 +2757,20 @@ def staff_stk_status(request):
     """
     Poll the status of a staff-initiated STK push.
     GET ?checkout_request_id=<id>
-    Returns JSON: { ok, status, paid, mpesa_receipt_number, result_desc,
-                    payment_id, payment_url, receipt_url }
-
-    A successful STK push is recorded automatically by the callback the
-    moment Safaricom confirms it (see stk_push_callback) — the Payment
-    already exists by the time this poll sees status='success'. Callers
-    should link/redirect to payment_url rather than submitting the record
-    form again, which would create a duplicate Payment for the same receipt.
+    Returns JSON: { ok, status, paid, mpesa_receipt_number, result_desc }
     """
     checkout_request_id = request.GET.get('checkout_request_id', '').strip()
     if not checkout_request_id:
         return JsonResponse({'ok': False, 'error': 'checkout_request_id required.'}, status=400)
     try:
-        stk_req = MpesaSTKRequest.objects.select_related('payment').get(
-            checkout_request_id=checkout_request_id
-        )
+        stk_req = MpesaSTKRequest.objects.get(checkout_request_id=checkout_request_id)
     except MpesaSTKRequest.DoesNotExist:
         return JsonResponse({'ok': False, 'error': 'Request not found.'}, status=404)
 
-    payment = stk_req.payment
     return JsonResponse({
         'ok': True,
         'status': stk_req.status,
         'paid': stk_req.status == 'success',
         'mpesa_receipt_number': stk_req.mpesa_receipt_number or '',
         'result_desc': stk_req.result_desc or '',
-        'payment_id': payment.pk if payment else None,
-        'payment_url': reverse('payments:payment_detail', args=[payment.pk]) if payment else '',
-        'receipt_url': reverse('payments:payment_receipt', args=[payment.pk]) if payment else '',
     })
