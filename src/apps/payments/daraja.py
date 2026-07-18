@@ -434,7 +434,10 @@ def register_c2b_urls(shortcode: str, consumer_key: str = '', consumer_secret: s
                     'Your consumer key/secret may not have C2B API enabled. '
                     'Go to developer.safaricom.co.ke → your app → APIs and enable "C2B".'
                 )
-            return {'ok': False, 'shortcode': shortcode, 'response': data, 'missing_vars': [], 'error': error_msg}
+            return {
+                'ok': False, 'shortcode': shortcode, 'response': data, 'missing_vars': [], 'error': error_msg,
+                'confirmation_url': confirmation_url, 'validation_url': validation_url,
+            }
 
         response.raise_for_status()
         response_code = str(data.get('ResponseCode', '')).strip()
@@ -443,6 +446,8 @@ def register_c2b_urls(shortcode: str, consumer_key: str = '', consumer_secret: s
             'ok': ok,
             'shortcode': shortcode,
             'response': data,
+            'confirmation_url': confirmation_url,
+            'validation_url': validation_url,
             'error': '' if ok else data.get('ResponseDescription', 'Registration failed.'),
         }
     except requests.HTTPError as exc:

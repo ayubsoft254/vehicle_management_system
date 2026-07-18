@@ -2457,6 +2457,21 @@ def register_paybill_c2b(request):
     ok_count = sum(1 for r in results if r.get('ok'))
     fail_count = len(results) - ok_count
 
+    # Surface exactly what was submitted and what Safaricom said back per
+    # shortcode — a bare "success" hides whether Daraja actually accepted the
+    # URL change on an already-registered production shortcode.
+    for r in results:
+        desc = (r.get('response') or {}).get('ResponseDescription') or r.get('error') or 'No response description.'
+        detail = (
+            f"Paybill {r.get('code')}: {'OK' if r.get('ok') else 'FAILED'} — {desc} "
+            f"(Confirmation: {r.get('confirmation_url', 'n/a')})"
+        )
+        if r.get('ok'):
+            messages.info(request, detail)
+        else:
+            messages.error(request, detail)
+        logger.info(f"C2B registration result — {detail}")
+
     if ok_count == len(results):
         messages.success(request, f'C2B URLs registered successfully for both paybills.')
     elif ok_count > 0:
