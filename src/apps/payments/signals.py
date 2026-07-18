@@ -328,7 +328,7 @@ def process_paybill_transaction(sender, instance, created, **kwargs):
                 recorded_by=None,
                 notes=(
                     f'Paybill payment received. Account ref: {instance.bill_ref_number}. '
-                    f'Phone: {instance.msisdn or "N/A"}.'
+                    f'Phone: {instance.display_msisdn}.'
                 ),
             )
 
