@@ -1097,10 +1097,16 @@ def sell_vehicle(request, pk):
 
 @login_required
 def vehicle_pricing_api(request, pk):
-    """Lightweight pricing lookup used by the proforma form to auto-fill."""
+    """Lightweight pricing lookup used by the proforma form to auto-fill.
+
+    Deliberately uses the raw website_price (not website_display_price) —
+    a proforma should be pre-filled from the price quoted to the public,
+    never silently fall back to the internal vehicle cost when no website
+    price has been set.
+    """
     vehicle = get_object_or_404(Vehicle, pk=pk)
     return JsonResponse({
-        'selling_price': float(vehicle.website_display_price or 0),
+        'selling_price': float(vehicle.website_price or 0),
         'deposit_required': float(vehicle.deposit_required or 0),
         'registration_number': vehicle.registration_number or '',
         'vin': vehicle.vin,
