@@ -2336,8 +2336,10 @@ def paybill_tracker(request):
     # actually received transactions (never hardcode: the .env shortcodes are
     # the source of truth for which paybills exist).
     configured_paybills = [
-        str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip(),
-        str(getattr(settings, 'MPESA_SHORTCODE_2', '') or '').strip(),
+        code for code in [
+            str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip(),
+            str(getattr(settings, 'MPESA_SHORTCODE_2', '') or '').strip(),
+        ] if code
     ]
     seen_paybills = list(
         all_transactions.exclude(business_short_code='')
@@ -2350,6 +2352,7 @@ def paybill_tracker(request):
         qs = all_transactions.filter(business_short_code=code)
         paybill_stats.append({
             'code': code,
+            'is_configured': code in configured_paybills,
             'count': qs.count(),
             'total': qs.aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00'),
             'month': qs.filter(
@@ -2369,6 +2372,7 @@ def paybill_tracker(request):
         'missing_mpesa_vars': get_missing_mpesa_vars(),
         'paybill_stats': paybill_stats,
         'paybill_filter': paybill_filter,
+        'configured_paybills': configured_paybills,
     }
 
     log_audit(request.user, 'view', 'Payment', 'Viewed paybill tracker')

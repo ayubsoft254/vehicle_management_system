@@ -425,18 +425,6 @@
                 <!-- Insurance Payment Type -->
                 <div class="border-t border-gray-200 pt-6">
                     <h3 class="text-sm font-semibold text-gray-900 mb-3">Payment Type</h3>
-                    <!-- Insurance Payment Method -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                        <select name="insurance_payment_method" id="id_insurance_payment_method" class="form-input">
-                            <option value="cash">Cash</option>
-                            <option value="mpesa">M-Pesa</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                            <option value="cheque">Cheque</option>
-                            <option value="card">Credit/Debit Card</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
                     <div class="flex flex-wrap gap-6 mb-4">
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="radio" name="insurance_payment_type" value="full" checked onchange="updateInsurancePaymentUI()">
@@ -451,54 +439,58 @@
                             <span class="text-sm font-medium text-gray-700">Deduct from Deposit</span>
                         </label>
                     </div>
+
+                    <!-- How the insurance is being paid — shown for Full Payment and Flexible
+                         Installments alike, so every real payment records a method. Hidden for
+                         Deduct from Deposit since no separate payment is made in that case. -->
+                    <div id="insurance-payment-methods-section" class="mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-xs font-semibold text-gray-900 uppercase">How is this being paid?</h4>
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="radio" name="insurance_deposit_payment_mode" value="single" class="h-4 w-4 text-primary-600" checked onchange="toggleInsuranceDepositPaymentMode(this.value)">
+                                    <span class="text-sm text-gray-700">Single method</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="radio" name="insurance_deposit_payment_mode" value="split" class="h-4 w-4 text-primary-600" onchange="toggleInsuranceDepositPaymentMode(this.value)">
+                                    <span class="text-sm text-gray-700">Split methods</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div id="insurance-deposit-single-method" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                                <select name="insurance_deposit_payment_method" class="form-input">
+                                    {% include 'clients/_deposit_payment_method_options.html' %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Payment Location (optional)</label>
+                                <input type="text" name="insurance_deposit_payment_location" class="form-input" placeholder="e.g. Head Office, CBD Branch">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Reference (optional)</label>
+                                <input type="text" name="insurance_deposit_transaction_reference" class="form-input" placeholder="e.g. MPesa code, cheque no.">
+                            </div>
+                        </div>
+                        <div id="insurance-deposit-split-methods" class="hidden">
+                            <div id="insurance-deposit-splits-container" class="space-y-3 mb-3"></div>
+                            <button type="button" onclick="addInsuranceDepositSplitRow()"
+                                class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg border border-blue-200 transition duration-150">
+                                <i class="fas fa-plus mr-1"></i>Add Method
+                            </button>
+                            <p id="insurance-deposit-split-summary" class="text-sm text-gray-600 mt-2"></p>
+                            <p id="insurance-deposit-split-warning" class="text-sm text-red-500 hidden mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>Split total must equal the amount paid.</p>
+                        </div>
+                        <!-- Snapshot of the split rows above, kept in sync so the draft-autosave
+                             system (which can't track repeated field names) can restore them. -->
+                        <input type="hidden" name="insurance_deposit_splits_snapshot_json" id="id_insurance_deposit_splits_snapshot_json" value="[]">
+                    </div>
+
                     <div id="insurance-deposit-section" class="hidden mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Insurance Deposit Paid (KES)</label>
                         <input type="number" name="insurance_deposit" id="id_insurance_deposit" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="updateInsuranceInstallmentSummary(); updateProfitLoss(); updateCalculationBreakdown(); updateInsuranceDepositSplitSummary()">
                         <p class="text-xs text-gray-500 mt-2">Optional deposit applied toward the flexible insurance plan.</p>
-
-                        <div class="mt-4 pt-4 border-t border-blue-100">
-                            <div class="flex items-center justify-between mb-3">
-                                <h4 class="text-xs font-semibold text-gray-900 uppercase">How is this deposit being paid?</h4>
-                                <div class="flex items-center gap-3">
-                                    <label class="flex items-center gap-1.5 cursor-pointer">
-                                        <input type="radio" name="insurance_deposit_payment_mode" value="single" class="h-4 w-4 text-primary-600" checked onchange="toggleInsuranceDepositPaymentMode(this.value)">
-                                        <span class="text-sm text-gray-700">Single method</span>
-                                    </label>
-                                    <label class="flex items-center gap-1.5 cursor-pointer">
-                                        <input type="radio" name="insurance_deposit_payment_mode" value="split" class="h-4 w-4 text-primary-600" onchange="toggleInsuranceDepositPaymentMode(this.value)">
-                                        <span class="text-sm text-gray-700">Split methods</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div id="insurance-deposit-single-method" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                                    <select name="insurance_deposit_payment_method" class="form-input">
-                                        {% include 'clients/_deposit_payment_method_options.html' %}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Location (optional)</label>
-                                    <input type="text" name="insurance_deposit_payment_location" class="form-input" placeholder="e.g. Head Office, CBD Branch">
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Reference (optional)</label>
-                                    <input type="text" name="insurance_deposit_transaction_reference" class="form-input" placeholder="e.g. MPesa code, cheque no.">
-                                </div>
-                            </div>
-                            <div id="insurance-deposit-split-methods" class="hidden">
-                                <div id="insurance-deposit-splits-container" class="space-y-3 mb-3"></div>
-                                <button type="button" onclick="addInsuranceDepositSplitRow()"
-                                    class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg border border-blue-200 transition duration-150">
-                                    <i class="fas fa-plus mr-1"></i>Add Method
-                                </button>
-                                <p id="insurance-deposit-split-summary" class="text-sm text-gray-600 mt-2"></p>
-                                <p id="insurance-deposit-split-warning" class="text-sm text-red-500 hidden mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>Split total must equal the deposit amount.</p>
-                            </div>
-                            <!-- Snapshot of the split rows above, kept in sync so the draft-autosave
-                                 system (which can't track repeated field names) can restore them. -->
-                            <input type="hidden" name="insurance_deposit_splits_snapshot_json" id="id_insurance_deposit_splits_snapshot_json" value="[]">
-                        </div>
                     </div>
                     <!-- Flexible installment rows -->
                     <div id="insurance-flexible-section" class="hidden">
@@ -583,7 +575,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price (KES)</label>
-                                    <input type="number" name="tracker_selling_price[]" placeholder="0.00" step="0.01" min="0" class="form-input tracker-selling-price" oninput="updateTrackerExpense()">
+                                    <input type="number" name="tracker_selling_price[]" placeholder="0.00" step="0.01" min="0" class="form-input tracker-selling-price" oninput="updateTrackerExpense(); updateTrackerDepositSplitSummary(this.closest('.tracker-item'))">
                                 </div>
                             </div>
                         </div>
@@ -591,18 +583,6 @@
                         <!-- Payment Type -->
                         <div class="border-t border-orange-200 pt-4">
                             <h4 class="text-xs font-semibold text-gray-900 mb-3 uppercase">Payment Type</h4>
-                            <!-- Tracker Payment Method -->
-                            <div class="mb-3">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                                <select name="tracker_payment_method[]" class="form-input">
-                                    <option value="cash">Cash</option>
-                                    <option value="mpesa">M-Pesa</option>
-                                    <option value="bank_transfer">Bank Transfer</option>
-                                    <option value="cheque">Cheque</option>
-                                    <option value="card">Credit/Debit Card</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
                             <div class="flex flex-wrap gap-4 mb-3">
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="radio" name="tracker_payment_type[]" value="full" checked onchange="updateTrackerPaymentUI(this)">
@@ -617,6 +597,51 @@
                                     <span class="text-sm font-medium text-gray-700">Deduct from Deposit</span>
                                 </label>
                             </div>
+
+                            <!-- How the tracker is being paid — shown for Full Payment and Flexible
+                                 Installments alike, so every real payment records a method. Hidden
+                                 for Deduct from Deposit since no separate payment is made then. -->
+                            <div class="tracker-payment-methods-section mb-4">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h5 class="text-xs font-semibold text-gray-900 uppercase">How is this being paid?</h5>
+                                    <div class="flex items-center gap-3">
+                                        <label class="flex items-center gap-1.5 cursor-pointer">
+                                            <input type="radio" name="tracker_deposit_payment_mode[]" value="single" class="h-4 w-4 text-primary-600" checked onchange="toggleTrackerDepositPaymentMode(this)">
+                                            <span class="text-sm text-gray-700">Single method</span>
+                                        </label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer">
+                                            <input type="radio" name="tracker_deposit_payment_mode[]" value="split" class="h-4 w-4 text-primary-600" onchange="toggleTrackerDepositPaymentMode(this)">
+                                            <span class="text-sm text-gray-700">Split methods</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="tracker-deposit-single-method grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                                        <select name="tracker_deposit_payment_method[]" class="form-input">
+                                            {% include 'clients/_deposit_payment_method_options.html' %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Payment Location (optional)</label>
+                                        <input type="text" name="tracker_deposit_payment_location[]" class="form-input" placeholder="e.g. Head Office, CBD Branch">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Reference (optional)</label>
+                                        <input type="text" name="tracker_deposit_transaction_reference[]" class="form-input" placeholder="e.g. MPesa code, cheque no.">
+                                    </div>
+                                </div>
+                                <div class="tracker-deposit-split-methods hidden">
+                                    <div class="tracker-deposit-splits-container space-y-2 mb-2"></div>
+                                    <button type="button" onclick="addTrackerDepositSplitRow(this)" class="mt-1 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm font-medium rounded-lg border border-orange-200 transition duration-150">
+                                        <i class="fas fa-plus mr-1"></i>Add Method
+                                    </button>
+                                    <p class="tracker-deposit-split-summary text-sm text-gray-600 mt-1"></p>
+                                    <p class="tracker-deposit-split-warning text-sm text-red-500 hidden mt-1">Split total must equal the amount paid.</p>
+                                </div>
+                                <input type="hidden" name="tracker_deposit_splits_json[]" class="tracker-deposit-splits-json" value="[]">
+                            </div>
+
                             <!-- Flexible installment section -->
                             <div class="tracker-flexible-section hidden">
                                 <input type="hidden" name="tracker_flexible_installments_json[]" value="[]">
@@ -630,47 +655,6 @@
                                     <i class="fas fa-plus mr-1"></i>Add Installment
                                 </button>
                                 <p class="tracker-flex-summary text-sm text-gray-600 mt-1"></p>
-
-                                <div class="mt-4 pt-4 border-t border-orange-100">
-                                    <div class="flex items-center justify-between mb-3">
-                                        <h5 class="text-xs font-semibold text-gray-900 uppercase">How is this deposit being paid?</h5>
-                                        <div class="flex items-center gap-3">
-                                            <label class="flex items-center gap-1.5 cursor-pointer">
-                                                <input type="radio" name="tracker_deposit_payment_mode[]" value="single" class="h-4 w-4 text-primary-600" checked onchange="toggleTrackerDepositPaymentMode(this)">
-                                                <span class="text-sm text-gray-700">Single method</span>
-                                            </label>
-                                            <label class="flex items-center gap-1.5 cursor-pointer">
-                                                <input type="radio" name="tracker_deposit_payment_mode[]" value="split" class="h-4 w-4 text-primary-600" onchange="toggleTrackerDepositPaymentMode(this)">
-                                                <span class="text-sm text-gray-700">Split methods</span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="tracker-deposit-single-method grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                                            <select name="tracker_deposit_payment_method[]" class="form-input">
-                                                {% include 'clients/_deposit_payment_method_options.html' %}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Location (optional)</label>
-                                            <input type="text" name="tracker_deposit_payment_location[]" class="form-input" placeholder="e.g. Head Office, CBD Branch">
-                                        </div>
-                                        <div class="md:col-span-2">
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Reference (optional)</label>
-                                            <input type="text" name="tracker_deposit_transaction_reference[]" class="form-input" placeholder="e.g. MPesa code, cheque no.">
-                                        </div>
-                                    </div>
-                                    <div class="tracker-deposit-split-methods hidden">
-                                        <div class="tracker-deposit-splits-container space-y-2 mb-2"></div>
-                                        <button type="button" onclick="addTrackerDepositSplitRow(this)" class="mt-1 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm font-medium rounded-lg border border-orange-200 transition duration-150">
-                                            <i class="fas fa-plus mr-1"></i>Add Method
-                                        </button>
-                                        <p class="tracker-deposit-split-summary text-sm text-gray-600 mt-1"></p>
-                                        <p class="tracker-deposit-split-warning text-sm text-red-500 hidden mt-1">Split total must equal the deposit amount.</p>
-                                    </div>
-                                    <input type="hidden" name="tracker_deposit_splits_json[]" class="tracker-deposit-splits-json" value="[]">
-                                </div>
                             </div>
                             <!-- Deduct from deposit note -->
                             <div class="tracker-deduct-section hidden">
@@ -1037,8 +1021,6 @@ function applyInitialInsuranceData(dataOverride) {
         paymentRadio.checked = true;
     }
 
-    setValue('id_insurance_payment_method', data.payment_method || 'cash');
-
     const installments = Array.isArray(data.flexible_installments)
         ? data.flexible_installments
         : [];
@@ -1047,6 +1029,47 @@ function applyInitialInsuranceData(dataOverride) {
         if (container) {
             container.innerHTML = '';
             installments.forEach(inst => addInsuranceInstallmentRow(inst.due_date || '', inst.amount || ''));
+        }
+    }
+
+    const depositMode = data.deposit_payment_mode
+        || (Array.isArray(data.deposit_splits) && data.deposit_splits.length > 0 ? 'split' : 'single');
+    const depositModeRadio = document.querySelector(`input[name="insurance_deposit_payment_mode"][value="${depositMode}"]`);
+    if (depositModeRadio) {
+        depositModeRadio.checked = true;
+        toggleInsuranceDepositPaymentMode(depositMode);
+    }
+    const depositMethodSel = document.querySelector('select[name="insurance_deposit_payment_method"]');
+    if (depositMethodSel) {
+        depositMethodSel.value = data.deposit_payment_method || data.payment_method || 'cash';
+    }
+    const depositLocationInput = document.querySelector('input[name="insurance_deposit_payment_location"]');
+    if (depositLocationInput) {
+        depositLocationInput.value = data.deposit_payment_location || '';
+    }
+    const depositRefInput = document.querySelector('input[name="insurance_deposit_transaction_reference"]');
+    if (depositRefInput) {
+        depositRefInput.value = data.deposit_transaction_reference || '';
+    }
+    const depositSplits = Array.isArray(data.deposit_splits) ? data.deposit_splits : [];
+    if (depositMode === 'split' && depositSplits.length > 0) {
+        const splitsContainer = document.getElementById('insurance-deposit-splits-container');
+        if (splitsContainer) {
+            splitsContainer.innerHTML = '';
+            depositSplits.forEach(split => {
+                addInsuranceDepositSplitRow();
+                const lastRow = splitsContainer.lastElementChild;
+                if (!lastRow) return;
+                const m = lastRow.querySelector('.insurance-deposit-split-method');
+                const a = lastRow.querySelector('.insurance-deposit-split-amount');
+                const l = lastRow.querySelector('input[name="insurance_deposit_split_location[]"]');
+                const r = lastRow.querySelector('input[name="insurance_deposit_split_reference[]"]');
+                if (m) m.value = split.method || 'cash';
+                if (a) a.value = split.amount || '';
+                if (l) l.value = split.location || '';
+                if (r) r.value = split.reference || '';
+            });
+            updateInsuranceDepositSplitSummary();
         }
     }
 
@@ -1165,11 +1188,6 @@ function applyInitialTrackerData(dataOverride) {
             updateTrackerPaymentUI(radio);
         }
 
-        const paymentMethodSel = item.querySelector('select[name="tracker_payment_method[]"]');
-        if (paymentMethodSel && tracker.payment_method) {
-            paymentMethodSel.value = tracker.payment_method;
-        }
-
         const installments = Array.isArray(tracker.flexible_installments) ? tracker.flexible_installments : [];
         if (paymentType === 'flexible' && installments.length > 0) {
             const installmentsContainer = item.querySelector('.tracker-installments-container');
@@ -1188,8 +1206,8 @@ function applyInitialTrackerData(dataOverride) {
             toggleTrackerDepositPaymentMode(depositModeRadio);
         }
         const depositMethodSel = item.querySelector('select[name="tracker_deposit_payment_method[]"]');
-        if (depositMethodSel && tracker.deposit_payment_method) {
-            depositMethodSel.value = tracker.deposit_payment_method;
+        if (depositMethodSel) {
+            depositMethodSel.value = tracker.deposit_payment_method || tracker.payment_method || 'cash';
         }
         const depositLocationInput = item.querySelector('input[name="tracker_deposit_payment_location[]"]');
         if (depositLocationInput) {
@@ -1291,12 +1309,17 @@ function updateInsurancePaymentUI() {
     document.getElementById('insurance-flexible-section')?.classList.toggle('hidden', val !== 'flexible');
     document.getElementById('insurance-deposit-section')?.classList.toggle('hidden', val !== 'flexible');
     document.getElementById('insurance-deduct-section')?.classList.toggle('hidden', val !== 'deduct_from_deposit');
+    // Full payment and flexible installments both involve real money changing
+    // hands, so both need "how is this being paid" captured. Deduct from
+    // Deposit doesn't — nothing new is paid, it's taken from the vehicle deposit.
+    document.getElementById('insurance-payment-methods-section')?.classList.toggle('hidden', val === 'deduct_from_deposit');
     if (val === 'flexible') {
         ensureInsuranceInstallmentRows();
         updateInsuranceInstallmentSummary();
     } else {
         updateInsuranceInstallmentSummary();
     }
+    updateInsuranceDepositSplitSummary();
 }
 
 // --- Insurance deposit payment method (single/split) ---
@@ -1349,15 +1372,19 @@ function addInsuranceDepositSplitRow() {
 function updateInsuranceDepositSplitSummary() {
     const mode = document.querySelector('input[name="insurance_deposit_payment_mode"]:checked')?.value;
     if (mode !== 'split') return;
-    const depositAmount = parseFloat(document.getElementById('id_insurance_deposit')?.value || '0') || 0;
+    const paymentType = document.querySelector('input[name="insurance_payment_type"]:checked')?.value;
+    const referenceAmount = paymentType === 'full'
+        ? (parseFloat(document.getElementById('id_insurance_selling_price')?.value || '0') || 0)
+        : (parseFloat(document.getElementById('id_insurance_deposit')?.value || '0') || 0);
     const amounts = Array.from(document.querySelectorAll('.insurance-deposit-split-amount'))
         .map(inp => parseFloat(inp.value || '0') || 0);
     const total = amounts.reduce((a, b) => a + b, 0);
-    const diff = Math.abs(total - depositAmount);
+    const diff = Math.abs(total - referenceAmount);
     const summary = document.getElementById('insurance-deposit-split-summary');
     const warning = document.getElementById('insurance-deposit-split-warning');
     if (summary) {
-        summary.textContent = `Split total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2})} / Deposit: KES ${depositAmount.toLocaleString('en-KE', {minimumFractionDigits:2})}`;
+        const refLabel = paymentType === 'full' ? 'Full payment' : 'Deposit';
+        summary.textContent = `Split total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2})} / ${refLabel}: KES ${referenceAmount.toLocaleString('en-KE', {minimumFractionDigits:2})}`;
     }
     if (warning) {
         warning.classList.toggle('hidden', diff <= 0.01);
@@ -1370,10 +1397,15 @@ function updateTrackerPaymentUI(radioEl) {
     const val = radioEl.value;
     trackerItem.querySelector('.tracker-flexible-section')?.classList.toggle('hidden', val !== 'flexible');
     trackerItem.querySelector('.tracker-deduct-section')?.classList.toggle('hidden', val !== 'deduct_from_deposit');
+    // Full payment and flexible installments both involve real money changing
+    // hands, so both need "how is this being paid" captured. Deduct from
+    // Deposit doesn't — nothing new is paid, it's taken from the vehicle deposit.
+    trackerItem.querySelector('.tracker-payment-methods-section')?.classList.toggle('hidden', val === 'deduct_from_deposit');
     if (val === 'flexible') {
         ensureTrackerInstallmentRows(trackerItem);
         updateTrackerInstallmentSummary(trackerItem);
     }
+    updateTrackerDepositSplitSummary(trackerItem);
 }
 
 // --- Insurance flexible installments ---
@@ -1602,15 +1634,19 @@ function updateTrackerDepositSplitSummary(trackerItem) {
     const mode = trackerItem.querySelector('input[name="tracker_deposit_payment_mode[]"]:checked')?.value;
     syncTrackerDepositSplitsPayload(trackerItem);
     if (mode !== 'split') return;
-    const depositAmount = parseFloat(trackerItem.querySelector('input[name="tracker_deposit[]"]')?.value || '0') || 0;
+    const paymentType = trackerItem.querySelector('input[name="tracker_payment_type[]"]:checked')?.value;
+    const referenceAmount = paymentType === 'full'
+        ? (parseFloat(trackerItem.querySelector('input[name="tracker_selling_price[]"]')?.value || '0') || 0)
+        : (parseFloat(trackerItem.querySelector('input[name="tracker_deposit[]"]')?.value || '0') || 0);
     const amounts = Array.from(trackerItem.querySelectorAll('.tracker-deposit-split-amount'))
         .map(inp => parseFloat(inp.value || '0') || 0);
     const total = amounts.reduce((a, b) => a + b, 0);
-    const diff = Math.abs(total - depositAmount);
+    const diff = Math.abs(total - referenceAmount);
     const summary = trackerItem.querySelector('.tracker-deposit-split-summary');
     const warning = trackerItem.querySelector('.tracker-deposit-split-warning');
     if (summary) {
-        summary.textContent = `Split total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2})} / Deposit: KES ${depositAmount.toLocaleString('en-KE', {minimumFractionDigits:2})}`;
+        const refLabel = paymentType === 'full' ? 'Full payment' : 'Deposit';
+        summary.textContent = `Split total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2})} / ${refLabel}: KES ${referenceAmount.toLocaleString('en-KE', {minimumFractionDigits:2})}`;
     }
     if (warning) {
         warning.classList.toggle('hidden', diff <= 0.01);
@@ -1798,25 +1834,13 @@ function addTracker() {
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price (KES)</label>
-                        <input type="number" name="tracker_selling_price[]" placeholder="0.00" step="0.01" min="0" class="form-input tracker-selling-price" oninput="updateTrackerExpense()">
+                        <input type="number" name="tracker_selling_price[]" placeholder="0.00" step="0.01" min="0" class="form-input tracker-selling-price" oninput="updateTrackerExpense(); updateTrackerDepositSplitSummary(this.closest('.tracker-item'))">
                     </div>
                 </div>
             </div>
 
             <div class="border-t border-orange-200 pt-4">
                 <h4 class="text-xs font-semibold text-gray-900 mb-3 uppercase">Payment Type</h4>
-                <!-- Tracker Payment Method (JS template) -->
-                <div class="mb-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                    <select name="tracker_payment_method[]" class="form-input">
-                        <option value="cash">Cash</option>
-                        <option value="mpesa">M-Pesa</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="cheque">Cheque</option>
-                        <option value="card">Credit/Debit Card</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
                 <div class="flex flex-wrap gap-4 mb-3">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="tracker_payment_type[]" value="full" checked onchange="updateTrackerPaymentUI(this)">
@@ -1831,6 +1855,48 @@ function addTracker() {
                         <span class="text-sm font-medium text-gray-700">Deduct from Deposit</span>
                     </label>
                 </div>
+
+                <div class="tracker-payment-methods-section mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h5 class="text-xs font-semibold text-gray-900 uppercase">How is this being paid?</h5>
+                        <div class="flex items-center gap-3">
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="radio" name="tracker_deposit_payment_mode[]" value="single" class="h-4 w-4 text-primary-600" checked onchange="toggleTrackerDepositPaymentMode(this)">
+                                <span class="text-sm text-gray-700">Single method</span>
+                            </label>
+                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                <input type="radio" name="tracker_deposit_payment_mode[]" value="split" class="h-4 w-4 text-primary-600" onchange="toggleTrackerDepositPaymentMode(this)">
+                                <span class="text-sm text-gray-700">Split methods</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="tracker-deposit-single-method grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                            <select name="tracker_deposit_payment_method[]" class="form-input">
+                                ${DEPOSIT_PAYMENT_METHOD_OPTIONS_HTML}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Location (optional)</label>
+                            <input type="text" name="tracker_deposit_payment_location[]" class="form-input" placeholder="e.g. Head Office, CBD Branch">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Reference (optional)</label>
+                            <input type="text" name="tracker_deposit_transaction_reference[]" class="form-input" placeholder="e.g. MPesa code, cheque no.">
+                        </div>
+                    </div>
+                    <div class="tracker-deposit-split-methods hidden">
+                        <div class="tracker-deposit-splits-container space-y-2 mb-2"></div>
+                        <button type="button" onclick="addTrackerDepositSplitRow(this)" class="mt-1 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm font-medium rounded-lg border border-orange-200 transition duration-150">
+                            <i class="fas fa-plus mr-1"></i>Add Method
+                        </button>
+                        <p class="tracker-deposit-split-summary text-sm text-gray-600 mt-1"></p>
+                        <p class="tracker-deposit-split-warning text-sm text-red-500 hidden mt-1">Split total must equal the amount paid.</p>
+                    </div>
+                    <input type="hidden" name="tracker_deposit_splits_json[]" class="tracker-deposit-splits-json" value="[]">
+                </div>
+
                 <div class="tracker-flexible-section hidden">
                     <input type="hidden" name="tracker_flexible_installments_json[]" value="[]">
                     <div class="mb-4">
@@ -1843,47 +1909,6 @@ function addTracker() {
                         <i class="fas fa-plus mr-1"></i>Add Installment
                     </button>
                     <p class="tracker-flex-summary text-sm text-gray-600 mt-1"></p>
-
-                    <div class="mt-4 pt-4 border-t border-orange-100">
-                        <div class="flex items-center justify-between mb-3">
-                            <h5 class="text-xs font-semibold text-gray-900 uppercase">How is this deposit being paid?</h5>
-                            <div class="flex items-center gap-3">
-                                <label class="flex items-center gap-1.5 cursor-pointer">
-                                    <input type="radio" name="tracker_deposit_payment_mode[]" value="single" class="h-4 w-4 text-primary-600" checked onchange="toggleTrackerDepositPaymentMode(this)">
-                                    <span class="text-sm text-gray-700">Single method</span>
-                                </label>
-                                <label class="flex items-center gap-1.5 cursor-pointer">
-                                    <input type="radio" name="tracker_deposit_payment_mode[]" value="split" class="h-4 w-4 text-primary-600" onchange="toggleTrackerDepositPaymentMode(this)">
-                                    <span class="text-sm text-gray-700">Split methods</span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="tracker-deposit-single-method grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                                <select name="tracker_deposit_payment_method[]" class="form-input">
-                                    ${DEPOSIT_PAYMENT_METHOD_OPTIONS_HTML}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Payment Location (optional)</label>
-                                <input type="text" name="tracker_deposit_payment_location[]" class="form-input" placeholder="e.g. Head Office, CBD Branch">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Reference (optional)</label>
-                                <input type="text" name="tracker_deposit_transaction_reference[]" class="form-input" placeholder="e.g. MPesa code, cheque no.">
-                            </div>
-                        </div>
-                        <div class="tracker-deposit-split-methods hidden">
-                            <div class="tracker-deposit-splits-container space-y-2 mb-2"></div>
-                            <button type="button" onclick="addTrackerDepositSplitRow(this)" class="mt-1 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm font-medium rounded-lg border border-orange-200 transition duration-150">
-                                <i class="fas fa-plus mr-1"></i>Add Method
-                            </button>
-                            <p class="tracker-deposit-split-summary text-sm text-gray-600 mt-1"></p>
-                            <p class="tracker-deposit-split-warning text-sm text-red-500 hidden mt-1">Split total must equal the deposit amount.</p>
-                        </div>
-                        <input type="hidden" name="tracker_deposit_splits_json[]" class="tracker-deposit-splits-json" value="[]">
-                    </div>
                 </div>
                 <div class="tracker-deduct-section hidden">
                     <div class="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -2305,6 +2330,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateInsuranceInstallmentSummary();
         updateCalculationBreakdown();
         updateProfitLoss();
+        updateInsuranceDepositSplitSummary();
     });
     document.getElementById('id_insurance_deposit')?.addEventListener('input', () => {
         updateInsuranceInstallmentSummary();

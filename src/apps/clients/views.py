@@ -250,12 +250,15 @@ def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insura
     insurance_agent_name = insurance_data.get('insurance_agent_name', '').strip()
     insurance_agent_id_text = insurance_data.get('agent_id', '').strip()
     insurance_payment_type = insurance_data.get('insurance_payment_type', 'full').strip()
-    insurance_payment_method = insurance_data.get('insurance_payment_method', 'cash').strip() or 'cash'
     insurance_deposit_str = insurance_data.get('insurance_deposit', '').strip()
     insurance_flexible_json = insurance_data.get('insurance_flexible_installments_json', '[]')
     insurance_has_plan = insurance_payment_type == 'flexible'
     insurance_deposit_payment_mode = insurance_data.get('insurance_deposit_payment_mode', 'single').strip() or 'single'
+    # The "how is this being paid" block is the single source for payment
+    # method now (shown for both Full Payment and Flexible Installments) —
+    # there's no separate standalone method dropdown in the form any more.
     insurance_deposit_payment_method = insurance_data.get('insurance_deposit_payment_method', 'cash').strip() or 'cash'
+    insurance_payment_method = insurance_deposit_payment_method
     insurance_deposit_payment_location = insurance_data.get('insurance_deposit_payment_location', '').strip()
     insurance_deposit_transaction_reference = insurance_data.get('insurance_deposit_transaction_reference', '').strip()
 
@@ -1430,8 +1433,15 @@ def client_vehicle_update(request, pk):
             tracker_selling_prices = request.POST.getlist('tracker_selling_price[]')
             tracker_deposits = request.POST.getlist('tracker_deposit[]')
             tracker_payment_types = request.POST.getlist('tracker_payment_type[]')
-            tracker_payment_methods = request.POST.getlist('tracker_payment_method[]')
+            # The "how is this being paid" block is the single source for payment
+            # method now (shown for both Full Payment and Flexible Installments) —
+            # there's no separate standalone method dropdown in the form any more.
+            tracker_payment_methods = request.POST.getlist('tracker_deposit_payment_method[]')
+            tracker_deposit_payment_locations = request.POST.getlist('tracker_deposit_payment_location[]')
+            tracker_deposit_transaction_references = request.POST.getlist('tracker_deposit_transaction_reference[]')
+            tracker_deposit_splits_jsons = request.POST.getlist('tracker_deposit_splits_json[]')
             tracker_flex_jsons = request.POST.getlist('tracker_flexible_installments_json[]')
+            insurance_payment_type = request.POST.get('insurance_payment_type', 'full').strip()
 
             commission_addon = parse_money(updated_client_vehicle.commission_amount)
             insurance_addon = Decimal('0.00')
@@ -1470,6 +1480,50 @@ def client_vehicle_update(request, pk):
 
             if updated_client_vehicle.payment_type == 'full':
                 updated_client_vehicle.deposit_paid = updated_client_vehicle.purchase_price
+
+            # "Deduct from Deposit" insurance/tracker items are already
+            # included in the purchase price via insurance_addon/tracker_addon
+            # above. Their cost must also come OUT of the deposit that gets
+            # credited toward the vehicle — otherwise the same money is
+            # counted twice (once reducing the balance, once "paying" for
+            # the tracker/insurance). Mirrors the logic in assign_vehicle().
+            deposit_pool = updated_client_vehicle.deposit_paid or Decimal('0.00')
+            deposit_deduction_breakdown = []
+            insurance_deposit_deduction = Decimal('0.00')
+
+            if insurance_payment_type == 'deduct_from_deposit' and insurance_addon > 0:
+                insurance_deposit_deduction = min(deposit_pool, insurance_addon)
+                if insurance_deposit_deduction > 0:
+                    deposit_pool -= insurance_deposit_deduction
+                    deposit_deduction_breakdown.append({
+                        'label': f'Insurance — {request.POST.get("insurance_agent_name", "").strip() or request.POST.get("insurance_policy_type", "Policy")}'.strip(),
+                        'amount': str(insurance_deposit_deduction.quantize(Decimal('0.01'))),
+                    })
+
+            tracker_deposit_deductions = {}
+            for i, name in enumerate(tracker_names):
+                if not name.strip():
+                    continue
+                t_ptype = tracker_payment_types[i] if i < len(tracker_payment_types) else 'full'
+                if t_ptype != 'deduct_from_deposit':
+                    continue
+                tracker_sell_value = parse_money(tracker_selling_prices[i] if i < len(tracker_selling_prices) else '0')
+                if tracker_sell_value <= 0:
+                    continue
+                deduction = min(deposit_pool, tracker_sell_value)
+                tracker_deposit_deductions[i] = deduction
+                if deduction > 0:
+                    deposit_pool -= deduction
+                    deposit_deduction_breakdown.append({
+                        'label': f'Tracker — {name.strip()}',
+                        'amount': str(deduction.quantize(Decimal('0.01'))),
+                    })
+
+            updated_client_vehicle.deposit_deductions_total = (
+                (updated_client_vehicle.deposit_paid or Decimal('0.00')) - deposit_pool
+            )
+            updated_client_vehicle.deposit_deductions_json = json.dumps(deposit_deduction_breakdown)
+            updated_client_vehicle.deposit_paid = deposit_pool
 
             updated_client_vehicle.total_paid = max(
                 updated_client_vehicle.total_paid or Decimal('0.00'),
@@ -1514,6 +1568,7 @@ def client_vehicle_update(request, pk):
                     client_vehicle=client_vehicle,
                     insurance_data=request.POST,
                     existing_policy=existing_policy,
+                    deposit_deduction_amount=insurance_deposit_deduction,
                 )
             except Exception as e:
                 messages.warning(request, f'Assignment updated but insurance could not be saved: {e}')
@@ -1559,8 +1614,11 @@ def client_vehicle_update(request, pk):
                         tracker_total_paid = tracker_selling_val
                         tracker_deposit_stored = Decimal('0')
                     elif payment_type == 'deduct_from_deposit':
-                        tracker_deposit_stored = tracker_selling_val
-                        tracker_total_paid = tracker_selling_val
+                        # Use the amount actually deducted from the client's
+                        # deposit (capped by what was available), not the raw
+                        # selling price — see the deposit_pool logic above.
+                        tracker_deposit_stored = tracker_deposit_deductions.get(i, Decimal('0.00'))
+                        tracker_total_paid = tracker_deposit_stored
                     else:
                         tracker_deposit_stored = tracker_deposit_val
                         tracker_total_paid = tracker_deposit_val
@@ -1586,6 +1644,10 @@ def client_vehicle_update(request, pk):
                         payment_method=payment_method,
                         has_payment_plan=has_plan,
                         deposit=tracker_deposit_stored,
+                        deposit_payment_method=(tracker_payment_methods[i] if i < len(tracker_payment_methods) and tracker_payment_methods[i] else 'cash'),
+                        deposit_payment_location=(tracker_deposit_payment_locations[i].strip() if i < len(tracker_deposit_payment_locations) else ''),
+                        deposit_transaction_reference=(tracker_deposit_transaction_references[i].strip() if i < len(tracker_deposit_transaction_references) else ''),
+                        deposit_splits_json=(tracker_deposit_splits_jsons[i] if i < len(tracker_deposit_splits_jsons) and tracker_deposit_splits_jsons[i] else '[]'),
                         installment_months=tracker_months if has_plan else None,
                         monthly_installment=tracker_monthly if has_plan else None,
                         installments_json=flex_json_raw if has_plan else '[]',
@@ -1612,8 +1674,6 @@ def client_vehicle_update(request, pk):
             # Automatically create Installment Plan if there's a balance and payment terms are provided
             if client_vehicle.balance > 0 and client_vehicle.installment_months:
                 from apps.payments.models import PaymentSchedule
-                # ClientVehicle no longer stores interest_rate; default to zero when creating/updating plans.
-                default_interest_rate = Decimal('0.00')
                 plan, created = InstallmentPlan.objects.get_or_create(
                     client_vehicle=client_vehicle,
                     defaults={
@@ -1621,7 +1681,6 @@ def client_vehicle_update(request, pk):
                         'deposit': client_vehicle.deposit_paid,
                         'monthly_installment': client_vehicle.monthly_installment,
                         'number_of_installments': client_vehicle.installment_months,
-                        'interest_rate': default_interest_rate,
                         'start_date': timezone.now().date(),
                         'is_active': True,
                         'created_by': request.user
@@ -1633,7 +1692,6 @@ def client_vehicle_update(request, pk):
                     plan.deposit = client_vehicle.deposit_paid
                     plan.monthly_installment = client_vehicle.monthly_installment
                     plan.number_of_installments = client_vehicle.installment_months
-                    plan.interest_rate = default_interest_rate
                     plan.save()
 
                     plan.payment_schedules.all().delete()
@@ -1706,6 +1764,10 @@ def client_vehicle_update(request, pk):
             'agent_id': insurance_policy.agent_id or '',
             'payment_type': insurance_policy.payment_type or 'full',
             'payment_method': insurance_policy.insurance_payment_method or 'cash',
+            'deposit_payment_method': insurance_policy.deposit_payment_method or 'cash',
+            'deposit_payment_location': insurance_policy.deposit_payment_location or '',
+            'deposit_transaction_reference': insurance_policy.deposit_transaction_reference or '',
+            'deposit_splits': _safe_json_loads(insurance_policy.deposit_splits_json),
             'flexible_installments': [
                 {
                     'due_date': row['due_date'].isoformat() if row['due_date'] else '',
@@ -1748,6 +1810,11 @@ def client_vehicle_update(request, pk):
             'deposit': str(tracker.deposit or Decimal('0.00')),
             'payment_type': tracker.payment_type or 'full',
             'payment_method': getattr(tracker, 'payment_method', 'cash') or 'cash',
+            'deposit_payment_mode': 'split' if _safe_json_loads(getattr(tracker, 'deposit_splits_json', '[]')) else 'single',
+            'deposit_payment_method': getattr(tracker, 'deposit_payment_method', 'cash') or 'cash',
+            'deposit_payment_location': getattr(tracker, 'deposit_payment_location', '') or '',
+            'deposit_transaction_reference': getattr(tracker, 'deposit_transaction_reference', '') or '',
+            'deposit_splits': _safe_json_loads(getattr(tracker, 'deposit_splits_json', '[]')),
             'flexible_installments': installments,
         })
 
