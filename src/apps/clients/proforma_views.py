@@ -885,7 +885,7 @@ def convert_proforma(request, pk):
 @module_permission_required('clients', AccessLevel.READ_ONLY)
 def proforma_pdf(request, pk):
     """Professional, printable proforma invoice PDF."""
-    from utils.report_kit import build_pdf_response, kpi_table, styled_table, fmt_money
+    from utils.report_kit import build_pdf_response, styled_table, fmt_money
     from reportlab.lib.units import inch
     from reportlab.platypus import Paragraph, Spacer
 
@@ -897,14 +897,6 @@ def proforma_pdf(request, pk):
     vehicle = proforma.vehicle
 
     def body(elements, styles):
-        elements.append(kpi_table([
-            ('Proforma Number', proforma.number),
-            ('Date of Issue', proforma.issue_date.strftime('%d %B %Y')),
-            ('Expiry Date', proforma.expiry_date.strftime('%d %B %Y') if proforma.expiry_date else '—'),
-            ('Status', proforma.get_status_display()),
-        ], col_widths=[2.3 * inch, 4.2 * inch]))
-        elements.append(Spacer(1, 12))
-
         elements.append(Paragraph('CLIENT DETAILS', styles['ReportSectionHeading']))
         elements.append(styled_table([
             ['Name', client.get_full_name()],

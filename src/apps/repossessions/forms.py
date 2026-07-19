@@ -13,7 +13,7 @@ from datetime import date, timedelta
 
 from apps.clients.models import ClientVehicle
 from apps.vehicles.models import Vehicle
-from utils.constants import VehicleStatus
+from utils.constants import VehicleStatus, UserRole
 
 from .models import (
     Repossession, RepossessionDocument, RepossessionNote,
@@ -122,8 +122,10 @@ class RepossessionForm(forms.ModelForm):
             lambda vehicle: f"{vehicle.vin} - {vehicle.full_name}"
         )
         
-        # Filter active users only
-        self.fields['assigned_to'].queryset = User.objects.filter(is_active=True)
+        # Only clerks/admins can be assigned to initiate a repossession — clients must never appear here.
+        self.fields['assigned_to'].queryset = User.objects.filter(
+            is_active=True, role__in=(UserRole.CLERK, UserRole.ADMIN)
+        )
 
         self.vehicle_client_map = {}
         purchase_qs = ClientVehicle.objects.filter(
@@ -698,7 +700,7 @@ class RepossessionSearchForm(forms.Form):
     )
     
     assigned_to = forms.ModelChoiceField(
-        queryset=User.objects.filter(is_active=True),
+        queryset=User.objects.filter(is_active=True, role__in=(UserRole.CLERK, UserRole.ADMIN)),
         required=False,
         widget=forms.Select(attrs={
             'class': 'form-control select2',

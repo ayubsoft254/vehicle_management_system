@@ -708,6 +708,138 @@ HR Department
 
 
 # ============================================================================
+# Expense Ledger Integration
+# ============================================================================
+
+def _payroll_expense_category(code, name, description):
+    """Get or create the expense category payroll postings file under."""
+    from apps.expenses.models import ExpenseCategory
+
+    parent, _ = ExpenseCategory.objects.get_or_create(
+        code='PAYROLL',
+        defaults={'name': 'Payroll', 'description': 'Employee salaries, advances and loans.',
+                  'requires_receipt': False, 'requires_approval': False}
+    )
+    category, _ = ExpenseCategory.objects.get_or_create(
+        code=code,
+        defaults={'name': name, 'description': description, 'parent': parent,
+                  'requires_receipt': False, 'requires_approval': False}
+    )
+    return category
+
+
+def _payroll_expense_actor(*candidates):
+    """Pick the first real user among candidates, falling back to any active user."""
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
+    for candidate in candidates:
+        if candidate is not None:
+            return candidate
+    return User.objects.filter(is_superuser=True).order_by('id').first() \
+        or User.objects.filter(is_active=True).order_by('id').first()
+
+
+def post_salary_expense(payslip):
+    """Post a paid payslip's net salary into the expense ledger (idempotent)."""
+    if not payslip.is_paid or payslip.expense_entries.exists():
+        return None
+
+    from apps.expenses.models import Expense
+
+    actor = _payroll_expense_actor(payslip.payroll_run.processed_by, payslip.payroll_run.approved_by)
+    if actor is None:
+        return None
+
+    category = _payroll_expense_category(
+        'PAYROLL-SAL', 'Salaries & Wages', 'Net salary paid to employees each payroll run.')
+    employee = payslip.employee
+
+    return Expense.objects.create(
+        title=f"Salary — {employee.get_full_name()} ({payslip.payroll_run.payroll_month.strftime('%B %Y')})",
+        description=f"Net salary payment for {employee.get_full_name()} ({employee.employee_id}), "
+                     f"payroll month {payslip.payroll_run.payroll_month.strftime('%B %Y')}.",
+        category=category,
+        amount=payslip.net_salary,
+        expense_date=payslip.payment_date or payslip.payroll_run.payroll_month,
+        payment_method='BANK_TRANSFER',
+        vendor_name=employee.get_full_name(),
+        submitted_by=actor,
+        related_payslip=payslip,
+        status='PAID',
+        is_reimbursable=False,
+        approved_by=actor,
+        approved_at=timezone.now(),
+    )
+
+
+def post_loan_expense(loan):
+    """Post a disbursed employee loan into the expense ledger (idempotent)."""
+    if loan.expense_entries.exists():
+        return None
+
+    from apps.expenses.models import Expense
+
+    actor = _payroll_expense_actor(loan.approved_by)
+    if actor is None:
+        return None
+
+    category = _payroll_expense_category(
+        'PAYROLL-LOAN', 'Employee Loans', 'Loans disbursed to employees.')
+    employee = loan.employee
+
+    return Expense.objects.create(
+        title=f"Loan disbursement — {employee.get_full_name()}",
+        description=f"Loan of KES {loan.loan_amount:,.2f} disbursed to {employee.get_full_name()} "
+                     f"({employee.employee_id}). Purpose: {loan.purpose or 'Not specified'}.",
+        category=category,
+        amount=loan.loan_amount,
+        expense_date=loan.disbursement_date,
+        payment_method='BANK_TRANSFER',
+        vendor_name=employee.get_full_name(),
+        submitted_by=actor,
+        related_loan=loan,
+        status='PAID',
+        is_reimbursable=False,
+        approved_by=actor,
+        approved_at=timezone.now(),
+    )
+
+
+def post_advance_expense(deduction):
+    """Post a salary-advance deduction into the expense ledger (idempotent)."""
+    if deduction.deduction_type != 'ADVANCE' or deduction.expense_entries.exists():
+        return None
+
+    from apps.expenses.models import Expense
+
+    actor = _payroll_expense_actor()
+    if actor is None:
+        return None
+
+    category = _payroll_expense_category(
+        'PAYROLL-ADV', 'Salary Advances', 'Salary advances paid out to employees.')
+    employee = deduction.employee
+
+    return Expense.objects.create(
+        title=f"Salary advance — {employee.get_full_name()}",
+        description=f"Salary advance to {employee.get_full_name()} ({employee.employee_id}): "
+                     f"{deduction.description}.",
+        category=category,
+        amount=deduction.amount,
+        expense_date=deduction.start_date,
+        payment_method='BANK_TRANSFER',
+        vendor_name=employee.get_full_name(),
+        submitted_by=actor,
+        related_deduction=deduction,
+        status='PAID',
+        is_reimbursable=False,
+        approved_by=actor,
+        approved_at=timezone.now(),
+    )
+
+
+# ============================================================================
 # Dashboard Statistics
 # ============================================================================
 

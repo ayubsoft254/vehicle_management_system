@@ -168,7 +168,31 @@ class Expense(models.Model):
         blank=True,
         related_name='expenses'
     )
-    
+
+    # Payroll integration — set when this expense was auto-posted from a
+    # paid payslip, a disbursed employee loan, or a salary advance deduction.
+    related_payslip = models.ForeignKey(
+        'payroll.Payslip',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='expense_entries'
+    )
+    related_loan = models.ForeignKey(
+        'payroll.Loan',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='expense_entries'
+    )
+    related_deduction = models.ForeignKey(
+        'payroll.Deduction',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='expense_entries'
+    )
+
     # Status and Approval
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
     approved_by = models.ForeignKey(

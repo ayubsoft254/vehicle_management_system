@@ -717,11 +717,6 @@ document.addEventListener('DOMContentLoaded', function () {
         var spInput = document.getElementById('id_selling_price');
         if (spInput) spInput.value = total.toFixed(2);
 
-        var wpInput = document.getElementById('id_website_price');
-        if (wpInput && (wpInput.value === '' || parseFloat(wpInput.value || '0') === 0)) {
-            wpInput.value = total.toFixed(2);
-        }
-
         var purchaseDisplay = document.getElementById('purchaseDisplay');
         var dutyDisplay = document.getElementById('dutyDisplay');
         var clearanceDisplay = document.getElementById('clearanceDisplay');

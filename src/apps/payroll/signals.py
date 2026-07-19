@@ -15,7 +15,8 @@ from .models import (
 )
 from .utils import (
     notify_payslip_ready, notify_leave_decision,
-    calculate_leave_balance
+    calculate_leave_balance, post_salary_expense, post_loan_expense,
+    post_advance_expense,
 )
 
 
@@ -72,7 +73,7 @@ HR Department
                 action='employee_created',
                 model_name='Employee',
                 object_id=instance.pk,
-                details={
+                changes={
                     'employee_id': instance.employee_id,
                     'name': instance.get_full_name(),
                     'job_title': instance.job_title,
@@ -188,7 +189,7 @@ HR Department
             action=f'salary_{action}',
             model_name='SalaryStructure',
             object_id=instance.pk,
-            details={
+            changes={
                 'employee': instance.employee.get_full_name(),
                 'basic_salary': str(instance.basic_salary),
                 'gross_salary': str(instance.calculate_gross_salary()),
@@ -249,6 +250,20 @@ HR Department
 # ============================================================================
 # Deduction Signals
 # ============================================================================
+
+@receiver(post_save, sender=Deduction)
+def post_salary_advance_expense(sender, instance, created, **kwargs):
+    """
+    Post a newly-recorded salary-advance deduction into the expense ledger.
+    A LOAN-type deduction is not posted here — loans are expensed once, at
+    disbursement, by post_loan_expense().
+    """
+    if created and instance.deduction_type == 'ADVANCE':
+        try:
+            post_advance_expense(instance)
+        except Exception as e:
+            print(f"Error posting salary advance expense for {instance.employee.get_full_name()}: {e}")
+
 
 @receiver(post_save, sender=Deduction)
 def deduction_post_save(sender, instance, created, **kwargs):
@@ -327,7 +342,14 @@ def payslip_post_save(sender, instance, created, **kwargs):
     """
     if created:
         print(f"Payslip generated for {instance.employee.get_full_name()}: Net KES {instance.net_salary:,.2f}")
-    
+
+    # Post net salary into the expense ledger once the payslip is paid.
+    if instance.is_paid:
+        try:
+            post_salary_expense(instance)
+        except Exception as e:
+            print(f"Error posting salary expense for {instance.employee.get_full_name()}: {e}")
+
     # Update loan repayment if applicable
     if instance.loan_repayment > 0:
         active_loans = instance.employee.loans.filter(status='ACTIVE')
@@ -482,7 +504,13 @@ HR Department
                 )
             except Exception as e:
                 print(f"Error sending loan approval email: {e}")
-        
+
+        # Post the disbursed loan into the expense ledger.
+        try:
+            post_loan_expense(instance)
+        except Exception as e:
+            print(f"Error posting loan expense for {instance.employee.get_full_name()}: {e}")
+
         # Create automatic deduction
         try:
             Deduction.objects.create(
@@ -576,7 +604,7 @@ def create_payroll_audit_log(sender, instance, created, **kwargs):
             action=f'payroll_{action}',
             model_name='PayrollRun',
             object_id=instance.pk,
-            details={
+            changes={
                 'payroll_number': instance.payroll_number,
                 'month': instance.payroll_month.strftime('%Y-%m'),
                 'status': instance.status,

@@ -234,6 +234,9 @@
                         <p id="deposit-split-summary" class="text-sm text-gray-600 mt-2"></p>
                         <p id="deposit-split-warning" class="text-sm text-red-500 hidden mt-1"><i class="fas fa-exclamation-triangle mr-1"></i><span id="deposit-split-warning-text">Split total must equal the deposit amount.</span></p>
                     </div>
+                    <!-- Snapshot of the split rows above, kept in sync so the draft-autosave
+                         system (which can't track repeated field names) can restore them. -->
+                    <input type="hidden" name="deposit_splits_snapshot_json" id="id_deposit_splits_snapshot_json" value="[]">
                 </div>
             </div>
         </div>
@@ -450,8 +453,52 @@
                     </div>
                     <div id="insurance-deposit-section" class="hidden mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Insurance Deposit Paid (KES)</label>
-                        <input type="number" name="insurance_deposit" id="id_insurance_deposit" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="updateInsuranceInstallmentSummary(); updateProfitLoss(); updateCalculationBreakdown()">
+                        <input type="number" name="insurance_deposit" id="id_insurance_deposit" placeholder="0.00" step="0.01" min="0" class="form-input" oninput="updateInsuranceInstallmentSummary(); updateProfitLoss(); updateCalculationBreakdown(); updateInsuranceDepositSplitSummary()">
                         <p class="text-xs text-gray-500 mt-2">Optional deposit applied toward the flexible insurance plan.</p>
+
+                        <div class="mt-4 pt-4 border-t border-blue-100">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="text-xs font-semibold text-gray-900 uppercase">How is this deposit being paid?</h4>
+                                <div class="flex items-center gap-3">
+                                    <label class="flex items-center gap-1.5 cursor-pointer">
+                                        <input type="radio" name="insurance_deposit_payment_mode" value="single" class="h-4 w-4 text-primary-600" checked onchange="toggleInsuranceDepositPaymentMode(this.value)">
+                                        <span class="text-sm text-gray-700">Single method</span>
+                                    </label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer">
+                                        <input type="radio" name="insurance_deposit_payment_mode" value="split" class="h-4 w-4 text-primary-600" onchange="toggleInsuranceDepositPaymentMode(this.value)">
+                                        <span class="text-sm text-gray-700">Split methods</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="insurance-deposit-single-method" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                                    <select name="insurance_deposit_payment_method" class="form-input">
+                                        {% include 'clients/_deposit_payment_method_options.html' %}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Location (optional)</label>
+                                    <input type="text" name="insurance_deposit_payment_location" class="form-input" placeholder="e.g. Head Office, CBD Branch">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Reference (optional)</label>
+                                    <input type="text" name="insurance_deposit_transaction_reference" class="form-input" placeholder="e.g. MPesa code, cheque no.">
+                                </div>
+                            </div>
+                            <div id="insurance-deposit-split-methods" class="hidden">
+                                <div id="insurance-deposit-splits-container" class="space-y-3 mb-3"></div>
+                                <button type="button" onclick="addInsuranceDepositSplitRow()"
+                                    class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg border border-blue-200 transition duration-150">
+                                    <i class="fas fa-plus mr-1"></i>Add Method
+                                </button>
+                                <p id="insurance-deposit-split-summary" class="text-sm text-gray-600 mt-2"></p>
+                                <p id="insurance-deposit-split-warning" class="text-sm text-red-500 hidden mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>Split total must equal the deposit amount.</p>
+                            </div>
+                            <!-- Snapshot of the split rows above, kept in sync so the draft-autosave
+                                 system (which can't track repeated field names) can restore them. -->
+                            <input type="hidden" name="insurance_deposit_splits_snapshot_json" id="id_insurance_deposit_splits_snapshot_json" value="[]">
+                        </div>
                     </div>
                     <!-- Flexible installment rows -->
                     <div id="insurance-flexible-section" class="hidden">
@@ -482,6 +529,10 @@
             </div>
             <div class="p-6">
                 <!-- tracker agents are injected via JS select rows -->
+                <!-- Snapshot of all tracker items below, kept in sync so the draft-autosave
+                     system (which can't track repeated field names across multiple trackers)
+                     can restore them. -->
+                <input type="hidden" name="trackers_snapshot_json" id="id_trackers_snapshot_json" value="[]">
                 <!-- Tracker Container -->
                 <div id="trackers-container" class="space-y-6">
                     <!-- Tracker 1 Template -->
@@ -571,7 +622,7 @@
                                 <input type="hidden" name="tracker_flexible_installments_json[]" value="[]">
                                 <div class="mb-4">
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Paid (KES)</label>
-                                    <input type="number" name="tracker_deposit[]" class="form-input tracker-deposit" placeholder="0.00" step="0.01" min="0" oninput="updateTrackerInstallmentSummary(this.closest('.tracker-item'))">
+                                    <input type="number" name="tracker_deposit[]" class="form-input tracker-deposit" placeholder="0.00" step="0.01" min="0" oninput="updateTrackerInstallmentSummary(this.closest('.tracker-item')); updateTrackerDepositSplitSummary(this.closest('.tracker-item'))">
                                     <p class="text-xs text-gray-500 mt-2">Optional deposit applied toward the flexible tracker plan.</p>
                                 </div>
                                 <div class="tracker-installments-container space-y-2 mb-2"></div>
@@ -579,6 +630,47 @@
                                     <i class="fas fa-plus mr-1"></i>Add Installment
                                 </button>
                                 <p class="tracker-flex-summary text-sm text-gray-600 mt-1"></p>
+
+                                <div class="mt-4 pt-4 border-t border-orange-100">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <h5 class="text-xs font-semibold text-gray-900 uppercase">How is this deposit being paid?</h5>
+                                        <div class="flex items-center gap-3">
+                                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                                <input type="radio" name="tracker_deposit_payment_mode[]" value="single" class="h-4 w-4 text-primary-600" checked onchange="toggleTrackerDepositPaymentMode(this)">
+                                                <span class="text-sm text-gray-700">Single method</span>
+                                            </label>
+                                            <label class="flex items-center gap-1.5 cursor-pointer">
+                                                <input type="radio" name="tracker_deposit_payment_mode[]" value="split" class="h-4 w-4 text-primary-600" onchange="toggleTrackerDepositPaymentMode(this)">
+                                                <span class="text-sm text-gray-700">Split methods</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="tracker-deposit-single-method grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                                            <select name="tracker_deposit_payment_method[]" class="form-input">
+                                                {% include 'clients/_deposit_payment_method_options.html' %}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Location (optional)</label>
+                                            <input type="text" name="tracker_deposit_payment_location[]" class="form-input" placeholder="e.g. Head Office, CBD Branch">
+                                        </div>
+                                        <div class="md:col-span-2">
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Reference (optional)</label>
+                                            <input type="text" name="tracker_deposit_transaction_reference[]" class="form-input" placeholder="e.g. MPesa code, cheque no.">
+                                        </div>
+                                    </div>
+                                    <div class="tracker-deposit-split-methods hidden">
+                                        <div class="tracker-deposit-splits-container space-y-2 mb-2"></div>
+                                        <button type="button" onclick="addTrackerDepositSplitRow(this)" class="mt-1 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm font-medium rounded-lg border border-orange-200 transition duration-150">
+                                            <i class="fas fa-plus mr-1"></i>Add Method
+                                        </button>
+                                        <p class="tracker-deposit-split-summary text-sm text-gray-600 mt-1"></p>
+                                        <p class="tracker-deposit-split-warning text-sm text-red-500 hidden mt-1">Split total must equal the deposit amount.</p>
+                                    </div>
+                                    <input type="hidden" name="tracker_deposit_splits_json[]" class="tracker-deposit-splits-json" value="[]">
+                                </div>
                             </div>
                             <!-- Deduct from deposit note -->
                             <div class="tracker-deduct-section hidden">
@@ -861,6 +953,20 @@ const initialDepositSplits     = {{ initial_deposit_splits_json|safe|default:"[]
 const insuranceAgentData       = {{ insurance_agents_json|safe|default:"[]" }};
 const trackerAgentList         = {{ tracker_agents_json|safe|default:"[]" }};
 const trackerAgentOptions      = trackerAgentList.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+const DEPOSIT_PAYMENT_METHOD_OPTIONS_HTML = `
+    <option value="cash">Cash</option>
+    <option value="mpesa">M-Pesa</option>
+    <option value="bank_transfer">Bank Transfer</option>
+    <option value="equity_hoza">Equity Hoza</option>
+    <option value="dib_hoza">DIB Hoza</option>
+    <option value="coop_hoza">COOP Hoza</option>
+    <option value="kcb_ke">KCB KE</option>
+    <option value="absa_ke">ABSA KE</option>
+    <option value="equity_ke">EQUITY KE</option>
+    <option value="cheque">Cheque</option>
+    <option value="card">Card</option>
+    <option value="other">Other</option>
+`;
 let selectedVehicleBasePrice = 0;
 let finalSellingTouched = {% if client_vehicle %}true{% else %}false{% endif %};
 
@@ -899,8 +1005,9 @@ function movePaymentSectionsAfterPricing() {
     }
 }
 
-function applyInitialInsuranceData() {
-    if (!initialInsurance || Object.keys(initialInsurance).length === 0) {
+function applyInitialInsuranceData(dataOverride) {
+    const data = dataOverride || initialInsurance;
+    if (!data || Object.keys(data).length === 0) {
         return;
     }
 
@@ -911,29 +1018,29 @@ function applyInitialInsuranceData() {
         }
     };
 
-    setValue('id_insurance_agent_id', initialInsurance.insurance_agent_id || '');
-    setValue('id_insurance_policy_number', initialInsurance.policy_number || '');
-    setValue('id_insurance_policy_type', initialInsurance.policy_type || 'comprehensive');
-    setValue('id_insurance_vehicle_usage', initialInsurance.vehicle_usage || 'private');
-    setValue('id_insurance_start_date', initialInsurance.start_date || '');
-    setValue('id_insurance_end_date', initialInsurance.end_date || '');
-    setValue('id_insurance_buying_price', initialInsurance.buying_price || '');
-    setValue('id_insurance_selling_price', initialInsurance.selling_price || '');
-    setValue('id_insurance_sum_insured', initialInsurance.sum_insured || '');
-    setValue('id_insurance_deposit', initialInsurance.insurance_deposit || '');
-    setValue('id_insurance_agent_name', initialInsurance.agent_name || '');
-    setValue('id_agent_id', initialInsurance.agent_id || '');
+    setValue('id_insurance_agent_id', data.insurance_agent_id || '');
+    setValue('id_insurance_policy_number', data.policy_number || '');
+    setValue('id_insurance_policy_type', data.policy_type || 'comprehensive');
+    setValue('id_insurance_vehicle_usage', data.vehicle_usage || 'private');
+    setValue('id_insurance_start_date', data.start_date || '');
+    setValue('id_insurance_end_date', data.end_date || '');
+    setValue('id_insurance_buying_price', data.buying_price || '');
+    setValue('id_insurance_selling_price', data.selling_price || '');
+    setValue('id_insurance_sum_insured', data.sum_insured || '');
+    setValue('id_insurance_deposit', data.insurance_deposit || '');
+    setValue('id_insurance_agent_name', data.agent_name || '');
+    setValue('id_agent_id', data.agent_id || '');
 
-    const paymentType = initialInsurance.payment_type || 'full';
+    const paymentType = data.payment_type || 'full';
     const paymentRadio = document.querySelector(`input[name="insurance_payment_type"][value="${paymentType}"]`);
     if (paymentRadio) {
         paymentRadio.checked = true;
     }
 
-    setValue('id_insurance_payment_method', initialInsurance.payment_method || 'cash');
+    setValue('id_insurance_payment_method', data.payment_method || 'cash');
 
-    const installments = Array.isArray(initialInsurance.flexible_installments)
-        ? initialInsurance.flexible_installments
+    const installments = Array.isArray(data.flexible_installments)
+        ? data.flexible_installments
         : [];
     if (paymentType === 'flexible' && installments.length > 0) {
         const container = document.getElementById('insurance-installments-container');
@@ -1013,8 +1120,9 @@ function onInsuranceAgentChange() {
     }
 }
 
-function applyInitialTrackerData() {
-    if (!Array.isArray(initialTrackers) || initialTrackers.length === 0) {
+function applyInitialTrackerData(dataOverride) {
+    const trackers = dataOverride || initialTrackers;
+    if (!Array.isArray(trackers) || trackers.length === 0) {
         return;
     }
 
@@ -1023,12 +1131,12 @@ function applyInitialTrackerData() {
         return;
     }
 
-    while (container.querySelectorAll('.tracker-item').length < initialTrackers.length) {
+    while (container.querySelectorAll('.tracker-item').length < trackers.length) {
         addTracker();
     }
 
     const items = Array.from(container.querySelectorAll('.tracker-item'));
-    initialTrackers.forEach((tracker, idx) => {
+    trackers.forEach((tracker, idx) => {
         const item = items[idx];
         if (!item) {
             return;
@@ -1072,12 +1180,54 @@ function applyInitialTrackerData() {
                 updateTrackerInstallmentSummary(item);
             }
         }
+
+        const depositMode = tracker.deposit_payment_mode || 'single';
+        const depositModeRadio = item.querySelector(`input[name="tracker_deposit_payment_mode[]"][value="${depositMode}"]`);
+        if (depositModeRadio) {
+            depositModeRadio.checked = true;
+            toggleTrackerDepositPaymentMode(depositModeRadio);
+        }
+        const depositMethodSel = item.querySelector('select[name="tracker_deposit_payment_method[]"]');
+        if (depositMethodSel && tracker.deposit_payment_method) {
+            depositMethodSel.value = tracker.deposit_payment_method;
+        }
+        const depositLocationInput = item.querySelector('input[name="tracker_deposit_payment_location[]"]');
+        if (depositLocationInput) {
+            depositLocationInput.value = tracker.deposit_payment_location || '';
+        }
+        const depositRefInput = item.querySelector('input[name="tracker_deposit_transaction_reference[]"]');
+        if (depositRefInput) {
+            depositRefInput.value = tracker.deposit_transaction_reference || '';
+        }
+        const depositSplits = Array.isArray(tracker.deposit_splits) ? tracker.deposit_splits : [];
+        if (depositMode === 'split' && depositSplits.length > 0) {
+            const splitsContainer = item.querySelector('.tracker-deposit-splits-container');
+            if (splitsContainer) {
+                splitsContainer.innerHTML = '';
+                depositSplits.forEach(split => {
+                    addTrackerDepositSplitRowFor(item);
+                    const lastRow = splitsContainer.lastElementChild;
+                    if (!lastRow) return;
+                    const m = lastRow.querySelector('.tracker-deposit-split-method');
+                    const a = lastRow.querySelector('.tracker-deposit-split-amount');
+                    const l = lastRow.querySelector('.tracker-deposit-split-location');
+                    const r = lastRow.querySelector('.tracker-deposit-split-reference');
+                    if (m) m.value = split.method || 'cash';
+                    if (a) a.value = split.amount || '';
+                    if (l) l.value = split.location || '';
+                    if (r) r.value = split.reference || '';
+                });
+                updateTrackerDepositSplitSummary(item);
+            }
+        }
     });
 }
 
-function applyInitialDepositData() {
-    const hasSingleData = initialDepositData && Object.keys(initialDepositData).length > 0;
-    const hasSplitData = Array.isArray(initialDepositSplits) && initialDepositSplits.length > 0;
+function applyInitialDepositData(depositDataOverride, depositSplitsOverride) {
+    const depositData = depositDataOverride || initialDepositData;
+    const depositSplits = depositSplitsOverride || initialDepositSplits;
+    const hasSingleData = depositData && Object.keys(depositData).length > 0;
+    const hasSplitData = Array.isArray(depositSplits) && depositSplits.length > 0;
     if (!hasSingleData && !hasSplitData) {
         return;
     }
@@ -1089,7 +1239,7 @@ function applyInitialDepositData() {
         }
     };
 
-    const isSplitMode = Array.isArray(initialDepositSplits) && initialDepositSplits.length > 0;
+    const isSplitMode = Array.isArray(depositSplits) && depositSplits.length > 0;
     const mode = isSplitMode ? 'split' : 'single';
     const radio = document.querySelector(`input[name="deposit_payment_mode"][value="${mode}"]`);
     if (radio) {
@@ -1098,14 +1248,14 @@ function applyInitialDepositData() {
     }
 
     if (mode === 'single') {
-        setValue('select[name="deposit_payment_method"]', initialDepositData.method || 'cash');
-        setValue('input[name="deposit_payment_location"]', initialDepositData.location || '');
-        setValue('input[name="deposit_transaction_reference"]', initialDepositData.reference || '');
+        setValue('select[name="deposit_payment_method"]', depositData.method || 'cash');
+        setValue('input[name="deposit_payment_location"]', depositData.location || '');
+        setValue('input[name="deposit_transaction_reference"]', depositData.reference || '');
     } else {
         const container = document.getElementById('deposit-splits-container');
         if (!container) return;
         container.innerHTML = '';
-        initialDepositSplits.forEach(split => {
+        depositSplits.forEach(split => {
             addDepositSplitRow();
             const lastRow = container.lastElementChild;
             if (!lastRow) return;
@@ -1122,8 +1272,9 @@ function applyInitialDepositData() {
     }
 }
 
-function applyInitialFlexibleInstallments() {
-    if (!Array.isArray(initialFlexibleInstallments) || initialFlexibleInstallments.length === 0) {
+function applyInitialFlexibleInstallments(dataOverride) {
+    const installments = dataOverride || initialFlexibleInstallments;
+    if (!Array.isArray(installments) || installments.length === 0) {
         return;
     }
     const container = document.getElementById('flexible-installments-container');
@@ -1131,7 +1282,7 @@ function applyInitialFlexibleInstallments() {
         return;
     }
     container.innerHTML = '';
-    initialFlexibleInstallments.forEach(inst => addFlexibleInstallmentRow(inst.due_date || '', inst.amount || ''));
+    installments.forEach(inst => addFlexibleInstallmentRow(inst.due_date || '', inst.amount || ''));
     updateFlexibleInstallmentSummary();
 }
 
@@ -1145,6 +1296,71 @@ function updateInsurancePaymentUI() {
         updateInsuranceInstallmentSummary();
     } else {
         updateInsuranceInstallmentSummary();
+    }
+}
+
+// --- Insurance deposit payment method (single/split) ---
+function toggleInsuranceDepositPaymentMode(mode) {
+    document.getElementById('insurance-deposit-single-method')?.classList.toggle('hidden', mode === 'split');
+    document.getElementById('insurance-deposit-split-methods')?.classList.toggle('hidden', mode !== 'split');
+    if (mode === 'split' && document.querySelectorAll('#insurance-deposit-splits-container .insurance-deposit-split-row').length === 0) {
+        addInsuranceDepositSplitRow();
+        addInsuranceDepositSplitRow();
+    }
+    updateInsuranceDepositSplitSummary();
+}
+
+function addInsuranceDepositSplitRow() {
+    const container = document.getElementById('insurance-deposit-splits-container');
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'insurance-deposit-split-row grid grid-cols-1 md:grid-cols-12 gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg';
+    row.innerHTML = `
+        <div class="md:col-span-4">
+            <label class="block text-xs text-gray-600 mb-1">Method</label>
+            <select name="insurance_deposit_split_method[]" class="form-input insurance-deposit-split-method">
+                ${DEPOSIT_PAYMENT_METHOD_OPTIONS_HTML}
+            </select>
+        </div>
+        <div class="md:col-span-3">
+            <label class="block text-xs text-gray-600 mb-1">Amount (KES)</label>
+            <input type="number" name="insurance_deposit_split_amount[]" class="form-input insurance-deposit-split-amount" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="md:col-span-2">
+            <label class="block text-xs text-gray-600 mb-1">Location (optional)</label>
+            <input type="text" name="insurance_deposit_split_location[]" class="form-input" placeholder="e.g. Branch">
+        </div>
+        <div class="md:col-span-2">
+            <label class="block text-xs text-gray-600 mb-1">Reference (optional)</label>
+            <input type="text" name="insurance_deposit_split_reference[]" class="form-input" placeholder="e.g. MPesa code">
+        </div>
+        <div class="md:col-span-1 flex items-end">
+            <button type="button" onclick="this.closest('.insurance-deposit-split-row').remove(); updateInsuranceDepositSplitSummary();"
+                class="w-full h-10 rounded-md border border-red-200 text-red-600 hover:bg-red-50 transition">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', updateInsuranceDepositSplitSummary));
+    container.appendChild(row);
+    updateInsuranceDepositSplitSummary();
+}
+
+function updateInsuranceDepositSplitSummary() {
+    const mode = document.querySelector('input[name="insurance_deposit_payment_mode"]:checked')?.value;
+    if (mode !== 'split') return;
+    const depositAmount = parseFloat(document.getElementById('id_insurance_deposit')?.value || '0') || 0;
+    const amounts = Array.from(document.querySelectorAll('.insurance-deposit-split-amount'))
+        .map(inp => parseFloat(inp.value || '0') || 0);
+    const total = amounts.reduce((a, b) => a + b, 0);
+    const diff = Math.abs(total - depositAmount);
+    const summary = document.getElementById('insurance-deposit-split-summary');
+    const warning = document.getElementById('insurance-deposit-split-warning');
+    if (summary) {
+        summary.textContent = `Split total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2})} / Deposit: KES ${depositAmount.toLocaleString('en-KE', {minimumFractionDigits:2})}`;
+    }
+    if (warning) {
+        warning.classList.toggle('hidden', diff <= 0.01);
     }
 }
 
@@ -1323,6 +1539,177 @@ function updateTrackerInstallmentSummary(trackerItem) {
     syncTrackerInstallmentsPayload(trackerItem);
 }
 
+// --- Tracker deposit payment method (single/split), per tracker item ---
+function toggleTrackerDepositPaymentMode(radioEl) {
+    const trackerItem = radioEl.closest('.tracker-item');
+    if (!trackerItem) return;
+    const mode = radioEl.value;
+    trackerItem.querySelector('.tracker-deposit-single-method')?.classList.toggle('hidden', mode === 'split');
+    trackerItem.querySelector('.tracker-deposit-split-methods')?.classList.toggle('hidden', mode !== 'split');
+    if (mode === 'split' && trackerItem.querySelectorAll('.tracker-deposit-split-row').length === 0) {
+        addTrackerDepositSplitRowFor(trackerItem);
+        addTrackerDepositSplitRowFor(trackerItem);
+    }
+    updateTrackerDepositSplitSummary(trackerItem);
+}
+
+function addTrackerDepositSplitRow(btnEl) {
+    const trackerItem = btnEl.closest('.tracker-item');
+    if (trackerItem) addTrackerDepositSplitRowFor(trackerItem);
+}
+
+function addTrackerDepositSplitRowFor(trackerItem) {
+    const container = trackerItem.querySelector('.tracker-deposit-splits-container');
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'tracker-deposit-split-row grid grid-cols-1 md:grid-cols-12 gap-2 p-3 bg-white border border-orange-200 rounded-lg';
+    row.innerHTML = `
+        <div class="md:col-span-4">
+            <label class="block text-xs text-gray-600 mb-1">Method</label>
+            <select class="form-input tracker-deposit-split-method">
+                ${DEPOSIT_PAYMENT_METHOD_OPTIONS_HTML}
+            </select>
+        </div>
+        <div class="md:col-span-3">
+            <label class="block text-xs text-gray-600 mb-1">Amount (KES)</label>
+            <input type="number" class="form-input tracker-deposit-split-amount" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="md:col-span-2">
+            <label class="block text-xs text-gray-600 mb-1">Location (optional)</label>
+            <input type="text" class="form-input tracker-deposit-split-location" placeholder="e.g. Branch">
+        </div>
+        <div class="md:col-span-2">
+            <label class="block text-xs text-gray-600 mb-1">Reference (optional)</label>
+            <input type="text" class="form-input tracker-deposit-split-reference" placeholder="e.g. MPesa code">
+        </div>
+        <div class="md:col-span-1 flex items-end">
+            <button type="button" class="w-full h-10 rounded-md border border-red-200 text-red-600 hover:bg-red-50 transition remove-tracker-deposit-split-btn">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    row.querySelector('.remove-tracker-deposit-split-btn').addEventListener('click', () => {
+        row.remove();
+        updateTrackerDepositSplitSummary(trackerItem);
+    });
+    row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => updateTrackerDepositSplitSummary(trackerItem)));
+    container.appendChild(row);
+    updateTrackerDepositSplitSummary(trackerItem);
+}
+
+function updateTrackerDepositSplitSummary(trackerItem) {
+    if (!trackerItem) return;
+    const mode = trackerItem.querySelector('input[name="tracker_deposit_payment_mode[]"]:checked')?.value;
+    syncTrackerDepositSplitsPayload(trackerItem);
+    if (mode !== 'split') return;
+    const depositAmount = parseFloat(trackerItem.querySelector('input[name="tracker_deposit[]"]')?.value || '0') || 0;
+    const amounts = Array.from(trackerItem.querySelectorAll('.tracker-deposit-split-amount'))
+        .map(inp => parseFloat(inp.value || '0') || 0);
+    const total = amounts.reduce((a, b) => a + b, 0);
+    const diff = Math.abs(total - depositAmount);
+    const summary = trackerItem.querySelector('.tracker-deposit-split-summary');
+    const warning = trackerItem.querySelector('.tracker-deposit-split-warning');
+    if (summary) {
+        summary.textContent = `Split total: KES ${total.toLocaleString('en-KE', {minimumFractionDigits:2})} / Deposit: KES ${depositAmount.toLocaleString('en-KE', {minimumFractionDigits:2})}`;
+    }
+    if (warning) {
+        warning.classList.toggle('hidden', diff <= 0.01);
+    }
+}
+
+function syncTrackerDepositSplitsPayload(trackerItem) {
+    const payloadInput = trackerItem.querySelector('.tracker-deposit-splits-json');
+    if (!payloadInput) return;
+    const mode = trackerItem.querySelector('input[name="tracker_deposit_payment_mode[]"]:checked')?.value;
+    if (mode !== 'split') {
+        payloadInput.value = '[]';
+        return;
+    }
+    const rows = Array.from(trackerItem.querySelectorAll('.tracker-deposit-split-row')).map(row => ({
+        method: row.querySelector('.tracker-deposit-split-method')?.value || 'cash',
+        amount: row.querySelector('.tracker-deposit-split-amount')?.value.trim() || '',
+        location: row.querySelector('.tracker-deposit-split-location')?.value.trim() || '',
+        reference: row.querySelector('.tracker-deposit-split-reference')?.value.trim() || '',
+    })).filter(r => r.amount && parseFloat(r.amount) > 0);
+    payloadInput.value = JSON.stringify(rows);
+}
+
+// ==================== Draft-autosave snapshots ====================
+// The site-wide draft-autosave system (base.html) captures form fields by
+// `name`, so it silently keeps only the LAST value for repeated names like
+// tracker_name[] or deposit_split_method[]. These snapshot functions collapse
+// each repeated block into one uniquely-named hidden JSON field so a saved
+// draft can be restored faithfully. See the 'draft-restored' listener below.
+function syncDepositSplitsSnapshot() {
+    const input = document.getElementById('id_deposit_splits_snapshot_json');
+    if (!input) return;
+    const mode = document.querySelector('input[name="deposit_payment_mode"]:checked')?.value;
+    if (mode !== 'split') {
+        input.value = '[]';
+        return;
+    }
+    const rows = Array.from(document.querySelectorAll('.deposit-split-row')).map(row => ({
+        method: row.querySelector('.deposit-split-method')?.value || 'cash',
+        amount: row.querySelector('.deposit-split-amount')?.value.trim() || '',
+        location: row.querySelector('input[name="deposit_split_location[]"]')?.value.trim() || '',
+        reference: row.querySelector('input[name="deposit_split_reference[]"]')?.value.trim() || '',
+    }));
+    input.value = JSON.stringify(rows);
+}
+
+function syncInsuranceDepositSplitsSnapshot() {
+    const input = document.getElementById('id_insurance_deposit_splits_snapshot_json');
+    if (!input) return;
+    const mode = document.querySelector('input[name="insurance_deposit_payment_mode"]:checked')?.value;
+    if (mode !== 'split') {
+        input.value = '[]';
+        return;
+    }
+    const rows = Array.from(document.querySelectorAll('.insurance-deposit-split-row')).map(row => ({
+        method: row.querySelector('.insurance-deposit-split-method')?.value || 'cash',
+        amount: row.querySelector('.insurance-deposit-split-amount')?.value.trim() || '',
+        location: row.querySelector('input[name="insurance_deposit_split_location[]"]')?.value.trim() || '',
+        reference: row.querySelector('input[name="insurance_deposit_split_reference[]"]')?.value.trim() || '',
+    }));
+    input.value = JSON.stringify(rows);
+}
+
+function syncTrackersSnapshot() {
+    const input = document.getElementById('id_trackers_snapshot_json');
+    if (!input) return;
+    const items = Array.from(document.querySelectorAll('.tracker-item'));
+    const data = items.map(item => {
+        const val = (sel) => item.querySelector(sel)?.value || '';
+        let flexibleInstallments = [];
+        try {
+            flexibleInstallments = JSON.parse(item.querySelector('input[name="tracker_flexible_installments_json[]"]')?.value || '[]');
+        } catch (e) { /* ignore */ }
+        let depositSplits = [];
+        try {
+            depositSplits = JSON.parse(item.querySelector('.tracker-deposit-splits-json')?.value || '[]');
+        } catch (e) { /* ignore */ }
+        return {
+            tracker_agent_id: val('select[name="tracker_agent_id[]"]'),
+            tracker_name: val('input[name="tracker_name[]"]'),
+            serial_number: val('input[name="tracker_serial[]"]'),
+            certificate_number: val('input[name="tracker_certificate_number[]"]'),
+            install_date: val('input[name="tracker_install_date[]"]'),
+            buying_price: val('input[name="tracker_buying_price[]"]'),
+            selling_price: val('input[name="tracker_selling_price[]"]'),
+            deposit: val('input[name="tracker_deposit[]"]'),
+            payment_type: item.querySelector('input[name="tracker_payment_type[]"]:checked')?.value || 'full',
+            payment_method: val('select[name="tracker_payment_method[]"]'),
+            flexible_installments: flexibleInstallments,
+            deposit_payment_mode: item.querySelector('input[name="tracker_deposit_payment_mode[]"]:checked')?.value || 'single',
+            deposit_payment_method: val('select[name="tracker_deposit_payment_method[]"]'),
+            deposit_payment_location: val('input[name="tracker_deposit_payment_location[]"]'),
+            deposit_transaction_reference: val('input[name="tracker_deposit_transaction_reference[]"]'),
+            deposit_splits: depositSplits,
+        };
+    });
+    input.value = JSON.stringify(data);
+}
+
 function addTrackerInstallmentRow(btnEl, trackerItemArg, dueDate = '', amount = '') {
     const trackerItem = trackerItemArg || btnEl?.closest('.tracker-item');
     if (!trackerItem) return;
@@ -1448,7 +1835,7 @@ function addTracker() {
                     <input type="hidden" name="tracker_flexible_installments_json[]" value="[]">
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Paid (KES)</label>
-                        <input type="number" name="tracker_deposit[]" class="form-input tracker-deposit" placeholder="0.00" step="0.01" min="0" oninput="updateTrackerInstallmentSummary(this.closest('.tracker-item'))">
+                        <input type="number" name="tracker_deposit[]" class="form-input tracker-deposit" placeholder="0.00" step="0.01" min="0" oninput="updateTrackerInstallmentSummary(this.closest('.tracker-item')); updateTrackerDepositSplitSummary(this.closest('.tracker-item'))">
                         <p class="text-xs text-gray-500 mt-2">Optional deposit applied toward the flexible tracker plan.</p>
                     </div>
                     <div class="tracker-installments-container space-y-2 mb-2"></div>
@@ -1456,6 +1843,47 @@ function addTracker() {
                         <i class="fas fa-plus mr-1"></i>Add Installment
                     </button>
                     <p class="tracker-flex-summary text-sm text-gray-600 mt-1"></p>
+
+                    <div class="mt-4 pt-4 border-t border-orange-100">
+                        <div class="flex items-center justify-between mb-3">
+                            <h5 class="text-xs font-semibold text-gray-900 uppercase">How is this deposit being paid?</h5>
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="radio" name="tracker_deposit_payment_mode[]" value="single" class="h-4 w-4 text-primary-600" checked onchange="toggleTrackerDepositPaymentMode(this)">
+                                    <span class="text-sm text-gray-700">Single method</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="radio" name="tracker_deposit_payment_mode[]" value="split" class="h-4 w-4 text-primary-600" onchange="toggleTrackerDepositPaymentMode(this)">
+                                    <span class="text-sm text-gray-700">Split methods</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="tracker-deposit-single-method grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                                <select name="tracker_deposit_payment_method[]" class="form-input">
+                                    ${DEPOSIT_PAYMENT_METHOD_OPTIONS_HTML}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Payment Location (optional)</label>
+                                <input type="text" name="tracker_deposit_payment_location[]" class="form-input" placeholder="e.g. Head Office, CBD Branch">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Transaction Reference (optional)</label>
+                                <input type="text" name="tracker_deposit_transaction_reference[]" class="form-input" placeholder="e.g. MPesa code, cheque no.">
+                            </div>
+                        </div>
+                        <div class="tracker-deposit-split-methods hidden">
+                            <div class="tracker-deposit-splits-container space-y-2 mb-2"></div>
+                            <button type="button" onclick="addTrackerDepositSplitRow(this)" class="mt-1 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 text-sm font-medium rounded-lg border border-orange-200 transition duration-150">
+                                <i class="fas fa-plus mr-1"></i>Add Method
+                            </button>
+                            <p class="tracker-deposit-split-summary text-sm text-gray-600 mt-1"></p>
+                            <p class="tracker-deposit-split-warning text-sm text-red-500 hidden mt-1">Split total must equal the deposit amount.</p>
+                        </div>
+                        <input type="hidden" name="tracker_deposit_splits_json[]" class="tracker-deposit-splits-json" value="[]">
+                    </div>
                 </div>
                 <div class="tracker-deduct-section hidden">
                     <div class="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -1936,13 +2364,28 @@ document.addEventListener('DOMContentLoaded', function() {
         syncFlexibleInstallmentsPayload();
         syncInsuranceInstallmentsPayload();
         syncExtraCostsPayload();
-        document.querySelectorAll('.tracker-item').forEach(ti => syncTrackerInstallmentsPayload(ti));
+        document.querySelectorAll('.tracker-item').forEach(ti => {
+            syncTrackerInstallmentsPayload(ti);
+            syncTrackerDepositSplitsPayload(ti);
+        });
+        syncDepositSplitsSnapshot();
+        syncInsuranceDepositSplitsSnapshot();
+        syncTrackersSnapshot();
         // Resolve custom paybill into the radio value
         const selectedPaybill = document.querySelector('input[name="agreement_paybill"]:checked');
         if (selectedPaybill && selectedPaybill.value === 'custom') {
             selectedPaybill.value = customPaybillInput.value.trim() || '';
         }
     });
+
+    // Keep the draft-autosave snapshot fields fresh as the user edits, so a
+    // debounced save (which can fire at any time) captures current state.
+    document.getElementById('deposit-payment-methods-section')?.addEventListener('input', syncDepositSplitsSnapshot);
+    document.getElementById('deposit-payment-methods-section')?.addEventListener('change', syncDepositSplitsSnapshot);
+    document.getElementById('insurance-deposit-section')?.addEventListener('input', syncInsuranceDepositSplitsSnapshot);
+    document.getElementById('insurance-deposit-section')?.addEventListener('change', syncInsuranceDepositSplitsSnapshot);
+    document.getElementById('trackers-container')?.addEventListener('input', syncTrackersSnapshot);
+    document.getElementById('trackers-container')?.addEventListener('change', syncTrackersSnapshot);
 
 // Auto-calculate tracker installment (legacy — kept for compatibility)
 function calculateTrackerInstallment(elem) { /* no-op */ }
@@ -2088,9 +2531,66 @@ document.addEventListener('draft-restored', function () {
         } catch (e) {}
     }
 
+    // Rebuild main deposit split-method rows from the restored snapshot
+    var depositSplitsInput = document.getElementById('id_deposit_splits_snapshot_json');
+    if (depositSplitsInput && depositSplitsInput.value && depositSplitsInput.value !== '[]') {
+        try {
+            var depositSplits = JSON.parse(depositSplitsInput.value);
+            if (Array.isArray(depositSplits) && depositSplits.length > 0) {
+                applyInitialDepositData({}, depositSplits);
+            }
+        } catch (e) {}
+    }
+
+    // Rebuild insurance deposit split-method rows from the restored snapshot
+    var insDepositSplitsInput = document.getElementById('id_insurance_deposit_splits_snapshot_json');
+    if (insDepositSplitsInput && insDepositSplitsInput.value && insDepositSplitsInput.value !== '[]') {
+        try {
+            var insDepositSplits = JSON.parse(insDepositSplitsInput.value);
+            if (Array.isArray(insDepositSplits) && insDepositSplits.length > 0) {
+                var insSplitRadio = document.querySelector('input[name="insurance_deposit_payment_mode"][value="split"]');
+                if (insSplitRadio) {
+                    insSplitRadio.checked = true;
+                    toggleInsuranceDepositPaymentMode('split');
+                }
+                var insSplitsContainer = document.getElementById('insurance-deposit-splits-container');
+                if (insSplitsContainer) {
+                    insSplitsContainer.innerHTML = '';
+                    insDepositSplits.forEach(function (split) {
+                        addInsuranceDepositSplitRow();
+                        var lastRow = insSplitsContainer.lastElementChild;
+                        if (!lastRow) return;
+                        var m = lastRow.querySelector('.insurance-deposit-split-method');
+                        var a = lastRow.querySelector('.insurance-deposit-split-amount');
+                        var l = lastRow.querySelector('input[name="insurance_deposit_split_location[]"]');
+                        var r = lastRow.querySelector('input[name="insurance_deposit_split_reference[]"]');
+                        if (m) m.value = split.method || 'cash';
+                        if (a) a.value = split.amount || '';
+                        if (l) l.value = split.location || '';
+                        if (r) r.value = split.reference || '';
+                    });
+                    updateInsuranceDepositSplitSummary();
+                }
+            }
+        } catch (e) {}
+    }
+
+    // Rebuild every tracker item (including extras beyond the default one)
+    // from the restored snapshot.
+    var trackersInput = document.getElementById('id_trackers_snapshot_json');
+    if (trackersInput && trackersInput.value && trackersInput.value !== '[]') {
+        try {
+            var trackersData = JSON.parse(trackersInput.value);
+            if (Array.isArray(trackersData) && trackersData.length > 0) {
+                applyInitialTrackerData(trackersData);
+            }
+        } catch (e) {}
+    }
+
     // Recalculate totals after restore
     updateCalculationBreakdown();
     updateProfitLoss();
+    updateTrackerExpense();
 });
 
 function updateDepositVisibility(paymentType) {

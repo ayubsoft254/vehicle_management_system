@@ -300,6 +300,12 @@ class InsurancePolicy(models.Model):
         ('cash', 'Cash'),
         ('mpesa', 'M-Pesa'),
         ('bank_transfer', 'Bank Transfer'),
+        ('equity_hoza', 'Equity Hoza'),
+        ('dib_hoza', 'DIB Hoza'),
+        ('coop_hoza', 'COOP Hoza'),
+        ('kcb_ke', 'KCB KE'),
+        ('absa_ke', 'ABSA KE'),
+        ('equity_ke', 'EQUITY KE'),
         ('cheque', 'Cheque'),
         ('card', 'Credit/Debit Card'),
         ('other', 'Other'),
@@ -332,6 +338,36 @@ class InsurancePolicy(models.Model):
         'Insurance Installment Months',
         null=True,
         blank=True,
+    )
+
+    # How the flexible-plan deposit above was actually paid — mirrors the
+    # main vehicle deposit's payment capture (method/location/reference,
+    # optionally split across multiple methods).
+    deposit_payment_method = models.CharField(
+        'Deposit Payment Method',
+        max_length=30,
+        choices=INSURANCE_PAYMENT_METHOD_CHOICES,
+        default='cash',
+        blank=True,
+    )
+
+    deposit_payment_location = models.CharField(
+        'Deposit Payment Location',
+        max_length=200,
+        blank=True,
+    )
+
+    deposit_transaction_reference = models.CharField(
+        'Deposit Transaction Reference',
+        max_length=100,
+        blank=True,
+    )
+
+    deposit_splits_json = models.TextField(
+        'Deposit Split Payments (JSON)',
+        blank=True,
+        default='[]',
+        help_text='JSON list of {method, amount, reference, location} when the deposit was split across methods'
     )
 
     insurance_monthly_installment = models.DecimalField(

@@ -422,7 +422,23 @@ class ClientVehicle(models.Model):
         default='[]',
         help_text='JSON list of extra costs with description and amount'
     )
-    
+
+    deposit_deductions_total = models.DecimalField(
+        'Deposit Deductions Total',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        default=Decimal('0.00'),
+        help_text='Total deducted from the deposit for insurance/tracker items paid via "Deduct from Deposit"'
+    )
+
+    deposit_deductions_json = models.TextField(
+        'Deposit Deductions JSON',
+        blank=True,
+        default='[]',
+        help_text='JSON breakdown of amounts deducted from the deposit (insurance/tracker line items)'
+    )
+
     deposit_paid = models.DecimalField(
         'Deposit Paid',
         max_digits=12,
@@ -911,6 +927,12 @@ class VehicleTracker(models.Model):
         ('cash', 'Cash'),
         ('mpesa', 'M-Pesa'),
         ('bank_transfer', 'Bank Transfer'),
+        ('equity_hoza', 'Equity Hoza'),
+        ('dib_hoza', 'DIB Hoza'),
+        ('coop_hoza', 'COOP Hoza'),
+        ('kcb_ke', 'KCB KE'),
+        ('absa_ke', 'ABSA KE'),
+        ('equity_ke', 'EQUITY KE'),
         ('cheque', 'Cheque'),
         ('card', 'Credit/Debit Card'),
         ('other', 'Other'),
@@ -951,6 +973,36 @@ class VehicleTracker(models.Model):
         decimal_places=2,
         default=Decimal('0.00'),
         blank=True,
+    )
+
+    # How the flexible-plan deposit above was actually paid — mirrors the
+    # main vehicle deposit's payment capture (method/location/reference,
+    # optionally split across multiple methods).
+    deposit_payment_method = models.CharField(
+        'Deposit Payment Method',
+        max_length=30,
+        choices=TRACKER_PAYMENT_METHOD_CHOICES,
+        default='cash',
+        blank=True,
+    )
+
+    deposit_payment_location = models.CharField(
+        'Deposit Payment Location',
+        max_length=200,
+        blank=True,
+    )
+
+    deposit_transaction_reference = models.CharField(
+        'Deposit Transaction Reference',
+        max_length=100,
+        blank=True,
+    )
+
+    deposit_splits_json = models.TextField(
+        'Deposit Split Payments (JSON)',
+        blank=True,
+        default='[]',
+        help_text='JSON list of {method, amount, reference, location} when the deposit was split across methods'
     )
 
     installment_months = models.PositiveIntegerField(

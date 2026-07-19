@@ -64,7 +64,7 @@ def expense_post_save(sender, instance, created, **kwargs):
                 action='expense_created',
                 model_name='Expense',
                 object_id=instance.pk,
-                details={
+                changes={
                     'title': instance.title,
                     'amount': str(instance.total_amount),
                     'category': instance.category.name if instance.category else None,
@@ -106,7 +106,7 @@ def expense_post_delete(sender, instance, **kwargs):
             action='expense_deleted',
             model_name='Expense',
             object_id=instance.pk,
-            details={
+            changes={
                 'title': instance.title,
                 'amount': str(instance.total_amount),
                 'status': instance.status,
@@ -152,7 +152,7 @@ def handle_expense_status_change(expense, old_status, new_status):
             action='expense_status_changed',
             model_name='Expense',
             object_id=expense.pk,
-            details={
+            changes={
                 'title': expense.title,
                 'old_status': old_status,
                 'new_status': new_status,
@@ -208,7 +208,7 @@ def receipt_post_save(sender, instance, created, **kwargs):
                 action='receipt_uploaded',
                 model_name='ExpenseReceipt',
                 object_id=instance.pk,
-                details={
+                changes={
                     'expense_title': instance.expense.title,
                     'file_name': instance.file_name,
                     'file_size': instance.file_size,
@@ -273,7 +273,7 @@ def report_post_save(sender, instance, created, **kwargs):
                 action='report_created',
                 model_name='ExpenseReport',
                 object_id=instance.pk,
-                details={
+                changes={
                     'report_number': instance.report_number,
                     'title': instance.title,
                     'date_range': f"{instance.start_date} to {instance.end_date}",
@@ -306,7 +306,7 @@ def recurring_expense_post_save(sender, instance, created, **kwargs):
                 action='recurring_expense_created',
                 model_name='RecurringExpense',
                 object_id=instance.pk,
-                details={
+                changes={
                     'title': instance.title,
                     'frequency': instance.frequency,
                     'amount': str(instance.amount),
@@ -366,7 +366,7 @@ def approval_workflow_post_save(sender, instance, created, **kwargs):
                 action=f'expense_{instance.status.lower()}',
                 model_name='Expense',
                 object_id=instance.expense.pk,
-                details={
+                changes={
                     'expense_title': instance.expense.title,
                     'level': instance.level,
                     'comments': instance.comments,

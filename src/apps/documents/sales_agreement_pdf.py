@@ -4,6 +4,7 @@ Generates a PDF sales agreement with auto-filled vehicle and client information
 """
 from io import BytesIO
 import base64
+import json
 from datetime import datetime
 from decimal import Decimal
 from dateutil.relativedelta import relativedelta
@@ -123,6 +124,11 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         plan = None
         _purchase_price = Decimal(str(sp.get('purchase_price') or '0'))
         _deposit_paid = Decimal(str(sp.get('deposit_paid') or '0'))
+        _deposit_deductions_total = Decimal(str(sp.get('deposit_deductions_total') or '0'))
+        _deposit_deductions = [
+            {'label': d.get('label', ''), 'amount': Decimal(str(d.get('amount') or '0'))}
+            for d in (sp.get('deposit_deductions') or [])
+        ]
         _payment_type = sp.get('payment_type', 'installment')
         _balance = Decimal(str(sp.get('balance') or '0'))
         _installment_months = sp.get('installment_months')
@@ -220,6 +226,14 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
             agreement_signature = None
         _purchase_price = client_vehicle.purchase_price
         _deposit_paid = client_vehicle.deposit_paid
+        _deposit_deductions_total = client_vehicle.deposit_deductions_total or Decimal('0.00')
+        try:
+            _deposit_deductions = [
+                {'label': d.get('label', ''), 'amount': Decimal(str(d.get('amount') or '0'))}
+                for d in json.loads(client_vehicle.deposit_deductions_json or '[]')
+            ]
+        except (TypeError, ValueError):
+            _deposit_deductions = []
         _payment_type = client_vehicle.payment_type
         _balance = client_vehicle.balance or Decimal('0.00')
         _installment_months = client_vehicle.installment_months
@@ -412,7 +426,26 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         ],
     ]
 
-    if deposit_paid > Decimal('0.00'):
+    deposit_deductions_total = _deposit_deductions_total or Decimal('0.00')
+    gross_deposit_received = deposit_paid + deposit_deductions_total
+
+    if deposit_deductions_total > Decimal('0.00'):
+        gross_label = 'AMOUNT RECEIVED IN FULL' if is_full_payment else 'AMOUNT RECEIVED (DEPOSIT)'
+        price_data.append([
+            Paragraph(f'<b>{gross_label}:</b> KES {float(gross_deposit_received):,.2f}', normal_small),
+            Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(gross_deposit_received)}', normal_small),
+        ])
+        for item in _deposit_deductions:
+            price_data.append([
+                Paragraph(f'<b>LESS — {item["label"]} (Deducted from Deposit):</b> KES {float(item["amount"]):,.2f}', normal_small),
+                '',
+            ])
+        net_label = 'NET AMOUNT CREDITED TO VEHICLE'
+        price_data.append([
+            Paragraph(f'<b>{net_label}:</b> KES {float(deposit_paid):,.2f}', normal_small),
+            Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(deposit_paid)}', normal_small),
+        ])
+    elif deposit_paid > Decimal('0.00'):
         if is_full_payment:
             paid_label = 'AMOUNT PAID IN FULL'
         else:
