@@ -948,6 +948,14 @@ def _compute_expense_report_context(request):
 def expense_report(request):
     ctx = _compute_expense_report_context(request)
     ctx['add_expense_form'] = ExpenseForm(user=request.user, initial={'expense_date': timezone.now().date()})
+    # The ledger's quick-add modal drops the Category field to keep the form
+    # short — everything typed there is filed under one default category
+    # instead, with the description carrying the "what was this for" detail.
+    default_category, _ = ExpenseCategory.objects.get_or_create(
+        code='GENERAL',
+        defaults={'name': 'General', 'requires_receipt': False, 'requires_approval': True},
+    )
+    ctx['default_category'] = default_category
     return render(request, 'expenses/expense_report.html', ctx)
 
 

@@ -168,92 +168,159 @@
 
 <!-- Add Expense modal -->
 <div id="addExpenseModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onclick="if(event.target===this)this.classList.add('hidden')">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
             <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <i class="fas fa-receipt text-emerald-600"></i>
+                <span class="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center">
+                    <i class="fas fa-receipt text-emerald-600"></i>
+                </span>
                 Add Expense
             </h3>
             <button type="button" onclick="document.getElementById('addExpenseModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 transition-colors">
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
-        <form method="post" action="{% url 'expenses:expense_create' %}" class="p-6 space-y-4">
+        <form method="post" action="{% url 'expenses:expense_create' %}" class="px-6 py-5 space-y-5" id="addExpenseForm">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <input type="hidden" name="category" value="{{ default_category.pk }}">
 
-            <div class="flex gap-6">
+            <!-- Debit / Credit segmented toggle -->
+            <div class="flex rounded-lg border border-gray-200 bg-gray-50 p-1" id="transactionTypeToggle">
                 {% for radio in add_expense_form.transaction_type %}
-                <label class="flex items-center gap-2 cursor-pointer">
+                <label class="flex-1 relative">
                     {{ radio.tag }}
-                    <span class="text-sm font-medium text-gray-700">{{ radio.choice_label }}</span>
+                    <span class="tx-type-pill flex items-center justify-center gap-2 py-2 rounded-md text-sm font-semibold cursor-pointer transition-colors text-gray-500">
+                        <i class="fas {% if radio.data.value == 'CREDIT' %}fa-rotate-left{% else %}fa-arrow-up-from-bracket{% endif %}"></i>
+                        {{ radio.choice_label }}
+                    </span>
                 </label>
                 {% endfor %}
             </div>
 
+            <!-- Title -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Title <span class="text-red-600">*</span></label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Title <span class="text-red-500">*</span></label>
                 {{ add_expense_form.title }}
             </div>
 
+            <!-- Description — the primary "what was this for" field now that
+                 Category is gone from this quick-add form. -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <p class="text-xs text-gray-400 mb-1">What was spent and what it was used for.</p>
+                <label class="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1">
+                    <i class="fas fa-align-left text-gray-400 text-xs"></i>
+                    Description
+                </label>
                 {{ add_expense_form.description }}
+                <p class="text-xs text-gray-400 mt-1">Describe what was spent and what it was used for — this is filed under
+                    <span class="font-medium text-gray-500">{{ default_category.name }}</span> and can be recategorized later from the expense's detail page.</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Amount / Currency -->
+            <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Category <span class="text-red-600">*</span></label>
-                    {{ add_expense_form.category }}
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Expense Date <span class="text-red-600">*</span></label>
-                    {{ add_expense_form.expense_date }}
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount <span class="text-red-600">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount <span class="text-red-500">*</span></label>
                     {{ add_expense_form.amount }}
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Currency <span class="text-red-600">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Currency <span class="text-red-500">*</span></label>
                     {{ add_expense_form.currency }}
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tax Amount</label>
-                    {{ add_expense_form.tax_amount }}
-                </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Date / Payment method -->
+            <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method <span class="text-red-600">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Expense Date <span class="text-red-500">*</span></label>
+                    {{ add_expense_form.expense_date }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method <span class="text-red-500">*</span></label>
                     {{ add_expense_form.payment_method }}
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Vendor / Supplier</label>
-                    {{ add_expense_form.vendor_name }}
+            </div>
+
+            <!-- Secondary details -->
+            <details class="group border border-gray-100 rounded-lg">
+                <summary class="cursor-pointer select-none px-3 py-2 text-sm font-medium text-gray-600 flex items-center justify-between">
+                    <span><i class="fas fa-ellipsis mr-2 text-gray-400"></i>More details (tax, vendor, notes)</span>
+                    <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform group-open:rotate-180"></i>
+                </summary>
+                <div class="px-3 pb-3 pt-1 space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Tax Amount</label>
+                            {{ add_expense_form.tax_amount }}
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Vendor / Supplier</label>
+                            {{ add_expense_form.vendor_name }}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Notes</label>
+                        {{ add_expense_form.notes }}
+                    </div>
                 </div>
-            </div>
+            </details>
 
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                {{ add_expense_form.notes }}
-            </div>
-
-            <div class="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+            <div class="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
                 <button type="button" onclick="document.getElementById('addExpenseModal').classList.add('hidden')"
                     class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition">
                     Cancel
                 </button>
-                <button type="submit" class="inline-flex items-center px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md transition">
+                <button type="submit" class="inline-flex items-center px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition">
                     <i class="fas fa-check mr-2"></i>Save Expense
                 </button>
             </div>
         </form>
     </div>
 </div>
+
+<style>
+    #addExpenseForm input[type="text"],
+    #addExpenseForm input[type="number"],
+    #addExpenseForm input[type="date"],
+    #addExpenseForm select,
+    #addExpenseForm textarea {
+        width: 100%;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        background-color: #fff;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    #addExpenseForm input[type="text"]:focus,
+    #addExpenseForm input[type="number"]:focus,
+    #addExpenseForm input[type="date"]:focus,
+    #addExpenseForm select:focus,
+    #addExpenseForm textarea:focus {
+        outline: none;
+        border-color: #10b981;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+    }
+    #addExpenseForm textarea {
+        min-height: 5.5rem;
+        resize: vertical;
+    }
+    /* Debit/Credit segmented toggle */
+    #transactionTypeToggle input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    #transactionTypeToggle input[type="radio"]:checked + .tx-type-pill {
+        background-color: #fff;
+        color: #1e293b;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+    #transactionTypeToggle input[value="DEBIT"]:checked + .tx-type-pill {
+        color: #b91c1c;
+    }
+    #transactionTypeToggle input[value="CREDIT"]:checked + .tx-type-pill {
+        color: #047857;
+    }
+</style>
 {% endblock %}
