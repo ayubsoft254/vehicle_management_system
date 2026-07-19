@@ -54,10 +54,24 @@ from utils.constants import AccessLevel
 logger = logging.getLogger(__name__)
 
 
+
+# Fallback KES-per-unit conversion rates, used only when the client doesn't
+# supply a live `currency_rate` (e.g. server-side/API usage). Mirrors the
+# defaults in templates/includes/_currency_switcher.html — approximate, and
+# always overridden by a real rate from the UI selector when available.
+_EXPORT_CURRENCY_FALLBACK_RATES = {
+    'USD': Decimal('0.0077'),   # 1 KES ≈ 0.0077 USD  (1 USD ≈ 130 KES)
+    'EUR': Decimal('0.0070'),   # 1 KES ≈ 0.0070 EUR  (1 EUR ≈ 142 KES)
+    'TZS': Decimal('19.2300'),  # 1 KES ≈ 19.23 TZS   (1 TZS ≈ 0.052 KES)
+    'UGX': Decimal('28.5700'),  # 1 KES ≈ 28.57 UGX   (1 UGX ≈ 0.035 KES)
+    'JPY': Decimal('1.1494'),   # 1 KES ≈ 1.1494 JPY  (1 JPY ≈ 0.87 KES)
+}
+
+
 def _parse_export_currency(request):
     """Read export currency context from query params with safe defaults."""
     currency = (request.GET.get('currency') or 'KES').strip().upper()
-    if currency not in {'KES', 'USD'}:
+    if currency != 'KES' and currency not in _EXPORT_CURRENCY_FALLBACK_RATES:
         currency = 'KES'
 
     if currency == 'KES':
@@ -74,7 +88,7 @@ def _parse_export_currency(request):
             pass
 
     # Fallback for server-side usage when a runtime rate was not supplied.
-    return currency, Decimal('0.0077')
+    return currency, _EXPORT_CURRENCY_FALLBACK_RATES[currency]
 
 
 def _convert_kes_amount(amount, fx_rate):

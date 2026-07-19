@@ -111,6 +111,9 @@
                         <option value="KES" selected>KES</option>
                         <option value="USD">USD</option>
                         <option value="EUR">EUR</option>
+                        <option value="TZS">TZS</option>
+                        <option value="UGX">UGX</option>
+                        <option value="JPY">JPY</option>
                     </select>
                 </div>
                 
@@ -188,6 +191,9 @@ document.addEventListener('DOMContentLoaded', function() {
         KES: 1,
         USD: null,
         EUR: null,
+        TZS: null,
+        UGX: null,
+        JPY: null,
     };
 
     function formatAmount(amount) {
@@ -217,12 +223,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const data = await response.json();
-        if (!data || !data.rates || !data.rates.USD || !data.rates.EUR) {
+        if (!data || !data.rates || !data.rates[currency]) {
             throw new Error('Invalid exchange rate response');
         }
 
         rates.USD = data.rates.USD;
         rates.EUR = data.rates.EUR;
+        rates.TZS = data.rates.TZS;
+        rates.UGX = data.rates.UGX;
+        rates.JPY = data.rates.JPY;
     }
 
     currencySelector.addEventListener('change', async function() {

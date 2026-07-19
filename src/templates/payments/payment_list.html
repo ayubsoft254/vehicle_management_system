@@ -18,6 +18,9 @@
                 <select id="paymentsCurrency" class="border-0 bg-transparent focus:ring-0 text-sm">
                     <option value="KES" selected>KES</option>
                     <option value="USD">USD</option>
+                    <option value="TZS">TZS</option>
+                    <option value="UGX">UGX</option>
+                    <option value="JPY">JPY</option>
                 </select>
             </div>
             <a href="{% url 'payments:paybill_tracker' %}" 
@@ -454,7 +457,7 @@
     (function() {
         const currencySelector = document.getElementById('paymentsCurrency');
         const exportCsvLink = document.getElementById('exportCsvLink');
-        const rates = { KES: 1, USD: null };
+        const rates = { KES: 1, USD: null, TZS: null, UGX: null, JPY: null };
 
         function formatMoney(value, currency) {
             return new Intl.NumberFormat('en-KE', {
@@ -496,6 +499,9 @@
             if (!response.ok) throw new Error('Failed to load exchange rates');
             const data = await response.json();
             rates.USD = data?.rates?.USD || null;
+            rates.TZS = data?.rates?.TZS || null;
+            rates.UGX = data?.rates?.UGX || null;
+            rates.JPY = data?.rates?.JPY || null;
         }
 
         async function refreshDueMonitor() {

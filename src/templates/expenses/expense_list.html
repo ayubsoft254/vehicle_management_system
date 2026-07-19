@@ -208,9 +208,9 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-semibold text-gray-900">KES {{ expense.total_amount|floatformat:2 }}</div>
+                                    <div class="text-sm font-semibold text-gray-900">{{ expense.currency }} {{ expense.total_amount|floatformat:2 }}</div>
                                     {% if expense.tax_amount > 0 %}
-                                    <div class="text-xs text-gray-500">Tax: KES {{ expense.tax_amount|floatformat:2 }}</div>
+                                    <div class="text-xs text-gray-500">Tax: {{ expense.currency }} {{ expense.tax_amount|floatformat:2 }}</div>
                                     {% endif %}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">

@@ -70,7 +70,7 @@
                             <div class="text-xs text-gray-500">{{ expense.submitted_by.email }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-semibold text-gray-900">KES {{ expense.total_amount|floatformat:2 }}</div>
+                            <div class="text-sm font-semibold text-gray-900">{{ expense.currency }} {{ expense.total_amount|floatformat:2 }}</div>
                             {% if expense.is_reimbursable %}
                             <span class="text-xs text-blue-600">
                                 <i class="fas fa-undo-alt mr-1"></i>Reimbursable

@@ -53,7 +53,7 @@
                                 </span>
                                 <span class="text-xs font-semibold text-gray-900">
                                     <i class="fas fa-money-bill-wave mr-1"></i>
-                                    KES {{ recurring.amount|floatformat:2 }}
+                                    {{ recurring.currency }} {{ recurring.amount|floatformat:2 }}
                                 </span>
                             </div>
                         </div>

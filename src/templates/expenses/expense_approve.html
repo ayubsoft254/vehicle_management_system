@@ -59,7 +59,7 @@
                     <div class="pt-4 border-t border-gray-200">
                         <div class="flex justify-between items-center">
                             <span class="text-lg font-semibold text-gray-700">Total Amount</span>
-                            <span class="text-2xl font-bold text-primary-600">KES {{ expense.total_amount|floatformat:2 }}</span>
+                            <span class="text-2xl font-bold text-primary-600">{{ expense.currency }} {{ expense.total_amount|floatformat:2 }}</span>
                         </div>
                     </div>
                 </div>

@@ -54,7 +54,7 @@
                                 {{ expense.expense_date|date:"M d, Y" }} | {{ expense.category.name }}
                             </p>
                         </div>
-                        <p class="text-sm font-bold text-gray-900">KES {{ expense.total_amount|floatformat:2 }}</p>
+                        <p class="text-sm font-bold text-gray-900">{{ expense.currency }} {{ expense.total_amount|floatformat:2 }}</p>
                     </div>
                 </div>
             </label>

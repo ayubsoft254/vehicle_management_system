@@ -294,6 +294,9 @@
                             <option value="KES" selected>KES — Kenyan Shilling</option>
                             <option value="USD">USD — US Dollar</option>
                             <option value="EUR">EUR — Euro</option>
+                            <option value="TZS">TZS — Tanzanian Shilling</option>
+                            <option value="UGX">UGX — Ugandan Shilling</option>
+                            <option value="JPY">JPY — Japanese Yen</option>
                         </select>
                     </div>
 
@@ -504,7 +507,7 @@
         const priceNodes = document.querySelectorAll('.js-public-price');
         if (!sel || !priceNodes.length) return;
 
-        const rates = { KES: 1, USD: null, EUR: null };
+        const rates = { KES: 1, USD: null, EUR: null, TZS: null, UGX: null, JPY: null };
 
         function fmt(amount, currency) {
             return currency + ' ' + new Intl.NumberFormat('en-US', {
@@ -526,6 +529,9 @@
             const data = await res.json();
             rates.USD = data.rates.USD;
             rates.EUR = data.rates.EUR;
+            rates.TZS = data.rates.TZS;
+            rates.UGX = data.rates.UGX;
+            rates.JPY = data.rates.JPY;
         }
 
         sel.addEventListener('change', async function () {

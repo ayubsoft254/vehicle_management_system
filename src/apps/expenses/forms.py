@@ -17,6 +17,15 @@ from .models import (
 
 User = get_user_model()
 
+CURRENCY_CHOICES = [
+    ('KES', 'KES — Kenyan Shilling'),
+    ('USD', 'USD — US Dollar'),
+    ('EUR', 'EUR — Euro'),
+    ('TZS', 'TZS — Tanzanian Shilling'),
+    ('UGX', 'UGX — Ugandan Shilling'),
+    ('JPY', 'JPY — Japanese Yen'),
+]
+
 
 class ExpenseForm(forms.ModelForm):
     """Form for creating and editing expenses."""
@@ -59,10 +68,9 @@ class ExpenseForm(forms.ModelForm):
                 'min': '0.01',
                 'placeholder': '0.00'
             }),
-            'currency': forms.TextInput(attrs={
-                'class': 'form-control',
-                'value': 'KES'
-            }),
+            'currency': forms.Select(attrs={
+                'class': 'form-control'
+            }, choices=CURRENCY_CHOICES),
             'tax_amount': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'step': '0.01',
@@ -468,10 +476,9 @@ class RecurringExpenseForm(forms.ModelForm):
                 'min': '0.01',
                 'placeholder': '0.00'
             }),
-            'currency': forms.TextInput(attrs={
-                'class': 'form-control',
-                'value': 'KES'
-            }),
+            'currency': forms.Select(attrs={
+                'class': 'form-control'
+            }, choices=CURRENCY_CHOICES),
             'frequency': forms.Select(attrs={
                 'class': 'form-control'
             }),

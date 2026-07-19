@@ -106,7 +106,7 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-semibold text-gray-900">KES {{ expense.total_amount|floatformat:2 }}</div>
+                            <div class="text-sm font-semibold text-gray-900">{{ expense.currency }} {{ expense.total_amount|floatformat:2 }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 

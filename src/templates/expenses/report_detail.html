@@ -104,7 +104,7 @@
                             {{ item.expense.vendor_name|default:"N/A" }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
-                            KES {{ item.expense.total_amount|floatformat:2 }}
+                            {{ item.expense.currency }} {{ item.expense.total_amount|floatformat:2 }}
                         </td>
                     </tr>
                     {% empty %}
