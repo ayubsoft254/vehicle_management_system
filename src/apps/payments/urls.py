@@ -21,6 +21,7 @@ urlpatterns = [
     # Finance account breakdown (full pages)
     path('accounts/hoza/', views.account_breakdown, {'category': 'hoza'}, name='hoza_account_breakdown'),
     path('accounts/ke/', views.account_breakdown, {'category': 'ke'}, name='ke_account_breakdown'),
+    path('accounts/other/', views.account_breakdown, {'category': 'other'}, name='other_account_breakdown'),
     path('accounts/new/', views.account_create, name='account_create'),
     path('accounts/transfer/', views.account_transfer_create, name='account_transfer_create'),
     path('accounts/<int:pk>/detail/', views.account_detail, name='account_detail'),
