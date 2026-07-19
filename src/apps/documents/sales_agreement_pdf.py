@@ -21,6 +21,29 @@ from django.utils import timezone
 
 from utils.letterhead import draw_letterhead_footer, FOOTER_RESERVED_HEIGHT
 
+RUNNING_HEADER_RESERVED_HEIGHT = 1.4 * cm
+
+
+def _draw_agreement_page(canvas, doc):
+    """Called on every physical page. Combines the shared letterhead footer
+    with a slim running header (company name + document title), so that ANY
+    page — including one produced by automatic content overflow, e.g. a long
+    Terms & Conditions table spilling onto an extra page — always carries
+    the company's identity instead of ending up bare/unheaded."""
+    draw_letterhead_footer(canvas, doc)
+    canvas.saveState()
+    page_width, page_height = doc.pagesize
+    canvas.setFont('Helvetica-Bold', 8.5)
+    canvas.setFillColor(colors.HexColor('#1e293b'))
+    canvas.drawString(1 * cm, page_height - 0.55 * cm, 'HOZA INVESTMENT (K) LIMITED')
+    canvas.setFont('Helvetica', 7.5)
+    canvas.setFillColor(colors.HexColor('#64748b'))
+    canvas.drawRightString(page_width - 1 * cm, page_height - 0.55 * cm, 'Vehicle Sales Agreement')
+    canvas.setStrokeColor(colors.HexColor('#cbd5e1'))
+    canvas.setLineWidth(0.4)
+    canvas.line(1 * cm, page_height - 0.75 * cm, page_width - 1 * cm, page_height - 0.75 * cm)
+    canvas.restoreState()
+
 
 def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     """
@@ -50,7 +73,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         pagesize=A4,
         rightMargin=1*cm,
         leftMargin=1*cm,
-        topMargin=1*cm,
+        topMargin=RUNNING_HEADER_RESERVED_HEIGHT,
         bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1*inch,
         title=f"Sales Agreement - {_title_reg}"
     )
@@ -1201,8 +1224,9 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         )
     ))
 
-    # Build PDF — every page gets the company letterhead footer strip.
-    doc.build(elements, onFirstPage=draw_letterhead_footer, onLaterPages=draw_letterhead_footer)
+    # Build PDF — every page gets the footer strip plus a slim running
+    # header, so no page (including auto-overflow ones) is ever unheaded.
+    doc.build(elements, onFirstPage=_draw_agreement_page, onLaterPages=_draw_agreement_page)
     buffer.seek(0)
     return buffer
 
