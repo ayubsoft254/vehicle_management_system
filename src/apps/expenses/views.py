@@ -7,11 +7,12 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Q, Sum, Count, Avg
+from django.db.models import Q, Sum, Count, Avg, Case, When, F, DecimalField
 from django.utils import timezone
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
+from django.utils.http import url_has_allowed_host_and_scheme
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -218,29 +219,56 @@ def expense_detail(request, pk):
     return render(request, 'expenses/expense_detail.html', context)
 
 
+def _safe_next_url(request):
+    """Read a same-site `next` target from POST or GET, if present and safe."""
+    next_url = request.POST.get('next') or request.GET.get('next')
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return next_url
+    return None
+
+
 @login_required
 def expense_create(request):
-    """Create a new expense."""
+    """Create a new expense. Supports a `next` param so it can be embedded
+    (e.g. the "Add Expense" modal on the expense ledger) and return the user
+    to wherever they started instead of the expense detail page."""
+    next_url = _safe_next_url(request)
+
     if request.method == 'POST':
         form = ExpenseForm(request.POST, user=request.user)
         if form.is_valid():
             expense = form.save()
             messages.success(request, f'Expense "{expense.title}" created successfully.')
-            
+
+            if next_url:
+                return redirect(next_url)
+
             # Redirect to upload receipt if category requires it
             if expense.category.requires_receipt:
                 messages.info(request, 'Please upload a receipt for this expense.')
                 return redirect('expenses:receipt_upload', expense_pk=expense.pk)
-            
+
             return redirect('expenses:expense_detail', pk=expense.pk)
+        elif next_url:
+            # Inline/modal submission failed validation — send the user back
+            # with the errors surfaced via messages since the modal itself
+            # won't be re-rendered on this redirect.
+            for field, errors in form.errors.items():
+                label = form.fields[field].label if field in form.fields else field
+                for error in errors:
+                    messages.error(request, f'{label}: {error}')
+            return redirect(next_url)
     else:
         form = ExpenseForm(user=request.user)
-    
+
     context = {
         'form': form,
         'title': 'Create Expense',
+        'next_url': next_url,
     }
-    
+
     return render(request, 'expenses/expense_form.html', context)
 
 
@@ -858,7 +886,7 @@ def _compute_expense_report_context(request):
         expenses = expenses.filter(category_id=category_id)
     if status:
         expenses = expenses.filter(status=status)
-    expenses = expenses.order_by('-expense_date')
+    expenses = expenses.order_by('-expense_date', '-created_at')
 
     ZERO = Decimal('0.00')
     total_amount = expenses.aggregate(t=Sum('total_amount'))['t'] or ZERO
@@ -866,13 +894,37 @@ def _compute_expense_report_context(request):
     approved_amount = expenses.filter(status='APPROVED').aggregate(t=Sum('total_amount'))['t'] or ZERO
     pending_amount = expenses.filter(status='SUBMITTED').aggregate(t=Sum('total_amount'))['t'] or ZERO
 
+    total_debits = expenses.filter(transaction_type='DEBIT').aggregate(t=Sum('total_amount'))['t'] or ZERO
+    total_credits = expenses.filter(transaction_type='CREDIT').aggregate(t=Sum('total_amount'))['t'] or ZERO
+    net_balance = total_debits - total_credits
+
+    signed_total = Case(
+        When(transaction_type='CREDIT', then=-F('total_amount')),
+        default=F('total_amount'),
+        output_field=DecimalField(max_digits=10, decimal_places=2),
+    )
     category_breakdown = list(
-        expenses.values('category__name').annotate(total=Sum('total_amount'), count=Count('id')).order_by('-total')
+        expenses.values('category__name')
+        .annotate(total=Sum(signed_total), count=Count('id'))
+        .order_by('-total')
     )
 
+    # Running balance, computed chronologically (oldest first) then mapped
+    # back onto the list in the page's usual newest-first display order —
+    # each row's balance is the cumulative net (debits minus credits) as of
+    # that transaction, regardless of which way the table reads.
+    expenses_list = list(expenses)
+    running = ZERO
+    balances_by_id = {}
+    for e in sorted(expenses_list, key=lambda x: (x.expense_date, x.created_at)):
+        running += e.signed_amount
+        balances_by_id[e.pk] = running
+    for e in expenses_list:
+        e.running_balance = balances_by_id[e.pk]
+
     return {
-        'expenses': expenses,
-        'expense_count': expenses.count(),
+        'expenses': expenses_list,
+        'expense_count': len(expenses_list),
         'date_from': date_from,
         'date_to': date_to,
         'date_from_str': date_from.isoformat(),
@@ -885,6 +937,9 @@ def _compute_expense_report_context(request):
         'paid_amount': paid_amount,
         'approved_amount': approved_amount,
         'pending_amount': pending_amount,
+        'total_debits': total_debits,
+        'total_credits': total_credits,
+        'net_balance': net_balance,
         'category_breakdown': category_breakdown,
     }
 
@@ -892,6 +947,7 @@ def _compute_expense_report_context(request):
 @login_required
 def expense_report(request):
     ctx = _compute_expense_report_context(request)
+    ctx['add_expense_form'] = ExpenseForm(user=request.user, initial={'expense_date': timezone.now().date()})
     return render(request, 'expenses/expense_report.html', ctx)
 
 
@@ -902,26 +958,31 @@ def expense_report_pdf(request):
 
     def body(elements, styles):
         elements.append(kpi_table([
-            ('Total Spend', fmt_money(ctx['total_amount'])),
+            ('Total Debits', fmt_money(ctx['total_debits'])),
+            ('Total Credits', fmt_money(ctx['total_credits'])),
+            ('Net Balance', fmt_money(ctx['net_balance'])),
             ('Paid', fmt_money(ctx['paid_amount'])),
             ('Approved (unpaid)', fmt_money(ctx['approved_amount'])),
             ('Pending Approval', fmt_money(ctx['pending_amount'])),
         ]))
         elements.append(Spacer(1, 14))
-        elements.append(Paragraph('By Category', styles['ReportSectionHeading']))
+        elements.append(Paragraph('By Category (net of credits)', styles['ReportSectionHeading']))
         cat_rows = [['Category', 'Count', 'Total']]
         for c in ctx['category_breakdown']:
             cat_rows.append([c['category__name'] or '—', str(c['count']), fmt_money(c['total'])])
         elements.append(styled_table(cat_rows, col_widths=[3 * inch, 1.5 * inch, 1.5 * inch], align_right_from=1))
         elements.append(Spacer(1, 14))
         elements.append(Paragraph('Expense Detail', styles['ReportSectionHeading']))
-        rows = [['Date', 'Title', 'Category', 'Status', 'Amount']]
+        rows = [['Date', 'Title', 'Category', 'Debit', 'Credit', 'Balance']]
         for e in ctx['expenses']:
+            is_credit = e.transaction_type == 'CREDIT'
             rows.append([
                 e.expense_date.strftime('%Y-%m-%d'), e.title, e.category.name,
-                e.get_status_display(), fmt_money(e.total_amount),
+                fmt_money(e.total_amount) if not is_credit else '',
+                fmt_money(e.total_amount) if is_credit else '',
+                fmt_money(e.running_balance),
             ])
-        elements.append(styled_table(rows, col_widths=[0.9 * inch, 2.2 * inch, 1.5 * inch, 1 * inch, 1.2 * inch], align_right_from=4))
+        elements.append(styled_table(rows, col_widths=[0.8 * inch, 1.6 * inch, 1.1 * inch, 0.95 * inch, 0.95 * inch, 1.05 * inch], align_right_from=3))
 
     return build_pdf_response(
         'expense_report.pdf', 'Expense Report',
@@ -933,21 +994,31 @@ def expense_report_pdf(request):
 def expense_report_excel(request):
     from utils.report_kit import build_excel_response
     ctx = _compute_expense_report_context(request)
-    headers = ['Date', 'Title', 'Category', 'Status', 'Vendor', 'Amount']
+    headers = ['Date', 'Title', 'Category', 'Status', 'Vendor', 'Debit', 'Credit', 'Balance']
     rows = [
-        [e.expense_date.strftime('%Y-%m-%d'), e.title, e.category.name, e.get_status_display(), e.vendor_name or '', float(e.total_amount)]
+        [
+            e.expense_date.strftime('%Y-%m-%d'), e.title, e.category.name, e.get_status_display(), e.vendor_name or '',
+            float(e.total_amount) if e.transaction_type != 'CREDIT' else 0,
+            float(e.total_amount) if e.transaction_type == 'CREDIT' else 0,
+            float(e.running_balance),
+        ]
         for e in ctx['expenses']
     ]
-    return build_excel_response('expense_report.xlsx', 'Expenses', headers, rows, currency_cols={6})
+    return build_excel_response('expense_report.xlsx', 'Expenses', headers, rows, currency_cols={6, 7, 8})
 
 
 @login_required
 def expense_report_csv(request):
     from utils.report_kit import build_csv_response
     ctx = _compute_expense_report_context(request)
-    headers = ['Date', 'Title', 'Category', 'Status', 'Vendor', 'Amount']
+    headers = ['Date', 'Title', 'Category', 'Status', 'Vendor', 'Debit', 'Credit', 'Balance']
     rows = [
-        [e.expense_date.strftime('%Y-%m-%d'), e.title, e.category.name, e.get_status_display(), e.vendor_name or '', e.total_amount]
+        [
+            e.expense_date.strftime('%Y-%m-%d'), e.title, e.category.name, e.get_status_display(), e.vendor_name or '',
+            e.total_amount if e.transaction_type != 'CREDIT' else '',
+            e.total_amount if e.transaction_type == 'CREDIT' else '',
+            e.running_balance,
+        ]
         for e in ctx['expenses']
     ]
     return build_csv_response('expense_report.csv', headers, rows)

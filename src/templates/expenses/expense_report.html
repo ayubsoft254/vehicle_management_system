@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load humanize %}
 
-{% block title %}Expense Report{% endblock %}
+{% block title %}Expense Ledger{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8 max-w-6xl">
@@ -9,9 +9,16 @@
     {% url 'expenses:expense_report_pdf' as export_pdf_url_base %}
     {% url 'expenses:expense_report_excel' as export_excel_url_base %}
     {% url 'expenses:expense_report_csv' as export_csv_url_base %}
-    {% with export_pdf_url=export_pdf_url_base|add:'?'|add:request.GET.urlencode export_excel_url=export_excel_url_base|add:'?'|add:request.GET.urlencode export_csv_url=export_csv_url_base|add:'?'|add:request.GET.urlencode report_kicker='Expenses & Payroll' report_title='Expense Report' %}
+    {% with export_pdf_url=export_pdf_url_base|add:'?'|add:request.GET.urlencode export_excel_url=export_excel_url_base|add:'?'|add:request.GET.urlencode export_csv_url=export_csv_url_base|add:'?'|add:request.GET.urlencode report_kicker='Expenses & Payroll' report_title='Expense Ledger' %}
     {% include 'reports/partials/_report_header.html' %}
     {% endwith %}
+
+    <div class="flex justify-end mb-4">
+        <button type="button" onclick="document.getElementById('addExpenseModal').classList.remove('hidden')"
+            class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md transition">
+            <i class="fas fa-plus mr-2"></i>Add Expense
+        </button>
+    </div>
 
     <!-- Filters -->
     <form method="get" class="bg-white rounded-lg border border-slate-200 p-4 mb-6">
@@ -51,30 +58,42 @@
     </form>
 
     <!-- KPIs -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
         <div class="bg-white rounded-lg border border-slate-200 p-4">
-            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Spend</p>
-            <p class="text-xl font-bold mt-1 text-slate-800">KES {{ total_amount|floatformat:0|intcomma }}</p>
-            <p class="text-xs text-slate-400 mt-0.5">{{ expense_count }} expense{{ expense_count|pluralize }}</p>
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Debits</p>
+            <p class="text-xl font-bold mt-1 text-red-700">KES {{ total_debits|floatformat:0|intcomma }}</p>
+            <p class="text-xs text-slate-400 mt-0.5">{{ expense_count }} entr{{ expense_count|pluralize:"y,ies" }}</p>
         </div>
         <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Credits</p>
+            <p class="text-xl font-bold mt-1 text-emerald-700">KES {{ total_credits|floatformat:0|intcomma }}</p>
+            <p class="text-xs text-slate-400 mt-0.5">Refunds &amp; reversals</p>
+        </div>
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Net Balance</p>
+            <p class="text-xl font-bold mt-1 text-slate-800">KES {{ net_balance|floatformat:0|intcomma }}</p>
+            <p class="text-xs text-slate-400 mt-0.5">Debits &minus; Credits</p>
+        </div>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Paid</p>
-            <p class="text-xl font-bold mt-1 text-emerald-700">KES {{ paid_amount|floatformat:0|intcomma }}</p>
+            <p class="text-lg font-bold mt-1 text-emerald-700">KES {{ paid_amount|floatformat:0|intcomma }}</p>
         </div>
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Approved (Unpaid)</p>
-            <p class="text-xl font-bold mt-1 text-slate-800">KES {{ approved_amount|floatformat:0|intcomma }}</p>
+            <p class="text-lg font-bold mt-1 text-slate-800">KES {{ approved_amount|floatformat:0|intcomma }}</p>
         </div>
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Pending Approval</p>
-            <p class="text-xl font-bold mt-1 text-amber-700">KES {{ pending_amount|floatformat:0|intcomma }}</p>
+            <p class="text-lg font-bold mt-1 text-amber-700">KES {{ pending_amount|floatformat:0|intcomma }}</p>
         </div>
     </div>
 
     <!-- By Category -->
     <div class="bg-white rounded-lg border border-slate-200 overflow-hidden mb-6">
         <div class="px-5 py-3 border-b border-slate-100">
-            <h2 class="text-sm font-semibold text-slate-700">By Category</h2>
+            <h2 class="text-sm font-semibold text-slate-700">By Category <span class="text-slate-400 font-normal">(net of credits)</span></h2>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -100,10 +119,10 @@
         </div>
     </div>
 
-    <!-- Detail -->
+    <!-- Detail (Debit / Credit / running Balance) -->
     <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
         <div class="px-5 py-3 border-b border-slate-100">
-            <h2 class="text-sm font-semibold text-slate-700">Expense Detail</h2>
+            <h2 class="text-sm font-semibold text-slate-700">Ledger Detail</h2>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -113,26 +132,128 @@
                         <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">Title</th>
                         <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">Category</th>
                         <th class="px-5 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase">Status</th>
-                        <th class="px-5 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase">Amount</th>
+                        <th class="px-5 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase">Debit</th>
+                        <th class="px-5 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase">Credit</th>
+                        <th class="px-5 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase">Balance</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     {% for e in expenses %}
                     <tr class="hover:bg-slate-50">
-                        <td class="px-5 py-3 text-slate-600">{{ e.expense_date|date:"Y-m-d" }}</td>
+                        <td class="px-5 py-3 text-slate-600 whitespace-nowrap">{{ e.expense_date|date:"Y-m-d" }}</td>
                         <td class="px-5 py-3 font-medium text-slate-800">
                             <a href="{% url 'expenses:expense_detail' e.pk %}" class="hover:text-slate-900">{{ e.title }}</a>
+                            {% if e.related_payslip_id or e.related_loan_id or e.related_deduction_id %}
+                            <span class="ml-1 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded bg-indigo-100 text-indigo-700" title="Auto-posted from payroll">Payroll</span>
+                            {% endif %}
                         </td>
                         <td class="px-5 py-3 text-slate-600">{{ e.category.name }}</td>
                         <td class="px-5 py-3 text-slate-600">{{ e.get_status_display }}</td>
-                        <td class="px-5 py-3 text-right font-semibold text-slate-800">KES {{ e.total_amount|floatformat:0|intcomma }}</td>
+                        <td class="px-5 py-3 text-right font-semibold text-red-700">
+                            {% if e.transaction_type != 'CREDIT' %}{{ e.currency }} {{ e.total_amount|floatformat:0|intcomma }}{% endif %}
+                        </td>
+                        <td class="px-5 py-3 text-right font-semibold text-emerald-700">
+                            {% if e.transaction_type == 'CREDIT' %}{{ e.currency }} {{ e.total_amount|floatformat:0|intcomma }}{% endif %}
+                        </td>
+                        <td class="px-5 py-3 text-right font-semibold text-slate-800">{{ e.currency }} {{ e.running_balance|floatformat:0|intcomma }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" class="px-5 py-6 text-center text-slate-400">No expenses in this period.</td></tr>
+                    <tr><td colspan="7" class="px-5 py-6 text-center text-slate-400">No expenses in this period.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+    </div>
+</div>
+
+<!-- Add Expense modal -->
+<div id="addExpenseModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onclick="if(event.target===this)this.classList.add('hidden')">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <i class="fas fa-receipt text-emerald-600"></i>
+                Add Expense
+            </h3>
+            <button type="button" onclick="document.getElementById('addExpenseModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form method="post" action="{% url 'expenses:expense_create' %}" class="p-6 space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+            <div class="flex gap-6">
+                {% for radio in add_expense_form.transaction_type %}
+                <label class="flex items-center gap-2 cursor-pointer">
+                    {{ radio.tag }}
+                    <span class="text-sm font-medium text-gray-700">{{ radio.choice_label }}</span>
+                </label>
+                {% endfor %}
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Title <span class="text-red-600">*</span></label>
+                {{ add_expense_form.title }}
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <p class="text-xs text-gray-400 mb-1">What was spent and what it was used for.</p>
+                {{ add_expense_form.description }}
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Category <span class="text-red-600">*</span></label>
+                    {{ add_expense_form.category }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Expense Date <span class="text-red-600">*</span></label>
+                    {{ add_expense_form.expense_date }}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount <span class="text-red-600">*</span></label>
+                    {{ add_expense_form.amount }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Currency <span class="text-red-600">*</span></label>
+                    {{ add_expense_form.currency }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tax Amount</label>
+                    {{ add_expense_form.tax_amount }}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method <span class="text-red-600">*</span></label>
+                    {{ add_expense_form.payment_method }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Vendor / Supplier</label>
+                    {{ add_expense_form.vendor_name }}
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                {{ add_expense_form.notes }}
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+                <button type="button" onclick="document.getElementById('addExpenseModal').classList.add('hidden')"
+                    class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition">
+                    Cancel
+                </button>
+                <button type="submit" class="inline-flex items-center px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-md transition">
+                    <i class="fas fa-check mr-2"></i>Save Expense
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}

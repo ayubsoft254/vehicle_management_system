@@ -41,13 +41,13 @@ class ExpenseAdmin(admin.ModelAdmin):
     """Admin interface for expenses."""
     
     list_display = (
-        'title', 'category_link', 'amount_display', 'status_badge',
-        'submitted_by', 'expense_date', 'is_reimbursable', 
+        'title', 'category_link', 'transaction_type', 'amount_display', 'status_badge',
+        'submitted_by', 'expense_date', 'is_reimbursable',
         'reimbursed', 'created_at'
     )
-    
+
     list_filter = (
-        'status', 'is_reimbursable', 'reimbursed', 'category',
+        'status', 'transaction_type', 'is_reimbursable', 'reimbursed', 'category',
         'expense_date', 'payment_method', 'created_at'
     )
     

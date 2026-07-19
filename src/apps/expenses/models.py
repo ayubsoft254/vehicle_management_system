@@ -114,7 +114,12 @@ class Expense(models.Model):
         ('MOBILE_MONEY', 'Mobile Money'),
         ('OTHER', 'Other'),
     ]
-    
+
+    TRANSACTION_TYPE_CHOICES = [
+        ('DEBIT', 'Debit — Money Out'),
+        ('CREDIT', 'Credit — Refund / Reversal'),
+    ]
+
     # Basic Information
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
@@ -141,7 +146,13 @@ class Expense(models.Model):
         decimal_places=2,
         editable=False
     )
-    
+    transaction_type = models.CharField(
+        max_length=10,
+        choices=TRANSACTION_TYPE_CHOICES,
+        default='DEBIT',
+        help_text='Debit records money spent; Credit records a refund or reversal that reduces the ledger balance.'
+    )
+
     # Date and Payment
     expense_date = models.DateField()
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
@@ -240,13 +251,22 @@ class Expense(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.title} - {self.amount} {self.currency}"
-    
+        sign = '-' if self.transaction_type == 'CREDIT' else ''
+        return f"{self.title} - {sign}{self.amount} {self.currency}"
+
     def save(self, *args, **kwargs):
         """Calculate total amount before saving."""
         self.total_amount = self.amount + self.tax_amount
         super().save(*args, **kwargs)
-    
+
+    @property
+    def signed_amount(self):
+        """Total amount as it contributes to the ledger balance — positive
+        for a Debit (money out), negative for a Credit (refund/reversal)."""
+        if self.transaction_type == 'CREDIT':
+            return -self.total_amount
+        return self.total_amount
+
     def approve(self, user):
         """Approve the expense."""
         if self.status == 'SUBMITTED':

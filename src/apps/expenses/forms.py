@@ -44,9 +44,9 @@ class ExpenseForm(forms.ModelForm):
     class Meta:
         model = Expense
         fields = [
-            'title', 'description', 'category', 'amount', 'currency',
-            'tax_amount', 'expense_date', 'payment_method', 'vendor_name',
-            'invoice_number', 'related_vehicle', 'related_client',
+            'title', 'description', 'category', 'transaction_type', 'amount',
+            'currency', 'tax_amount', 'expense_date', 'payment_method',
+            'vendor_name', 'invoice_number', 'related_vehicle', 'related_client',
             'is_reimbursable', 'notes'
         ]
         widgets = {
@@ -61,6 +61,9 @@ class ExpenseForm(forms.ModelForm):
             }),
             'category': forms.Select(attrs={
                 'class': 'form-control'
+            }),
+            'transaction_type': forms.RadioSelect(attrs={
+                'class': 'transaction-type-radio'
             }),
             'amount': forms.NumberInput(attrs={
                 'class': 'form-control',
