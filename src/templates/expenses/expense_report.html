@@ -139,7 +139,7 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     {% for e in expenses %}
-                    <tr class="hover:bg-slate-50">
+                    <tr class="hover:bg-slate-50 cursor-pointer" onclick="window.location='{% url 'expenses:expense_detail' e.pk %}'">
                         <td class="px-5 py-3 text-slate-600 whitespace-nowrap">{{ e.expense_date|date:"Y-m-d" }}</td>
                         <td class="px-5 py-3 font-medium text-slate-800">
                             <a href="{% url 'expenses:expense_detail' e.pk %}" class="hover:text-slate-900">{{ e.title }}</a>

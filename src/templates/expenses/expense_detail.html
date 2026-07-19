@@ -19,8 +19,8 @@
             <p class="mt-1 text-sm text-gray-600">Expense Details</p>
         </div>
         <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
-            {% if expense.can_edit %}
-            <a href="{% url 'expenses:expense_update' expense.pk %}" 
+            {% if can_edit %}
+            <a href="{% url 'expenses:expense_update' expense.pk %}"
                class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-edit mr-2"></i>
                 Edit
@@ -29,15 +29,15 @@
             {% if expense.status == 'DRAFT' %}
             <form method="post" action="{% url 'expenses:expense_submit' expense.pk %}" class="inline">
                 {% csrf_token %}
-                <button type="submit" 
+                <button type="submit"
                         class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                     <i class="fas fa-paper-plane mr-2"></i>
                     Submit for Approval
                 </button>
             </form>
             {% endif %}
-            {% if perms.expenses.approve_expense and expense.status == 'SUBMITTED' %}
-            <a href="{% url 'expenses:expense_approve' expense.pk %}" 
+            {% if can_approve %}
+            <a href="{% url 'expenses:expense_approve' expense.pk %}"
                class="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-check-circle mr-2"></i>
                 Review
@@ -151,7 +151,7 @@
                         <i class="fas fa-paperclip text-primary-600 mr-2"></i>
                         Receipts ({{ receipts.count }})
                     </h2>
-                    {% if expense.can_edit %}
+                    {% if can_edit %}
                     <a href="{% url 'expenses:receipt_upload' expense.pk %}" 
                        class="text-sm text-primary-600 hover:text-primary-700 font-medium">
                         <i class="fas fa-plus mr-1"></i> Upload Receipt
@@ -175,7 +175,7 @@
                                        class="text-xs text-primary-600 hover:text-primary-700">
                                         <i class="fas fa-eye mr-1"></i> View
                                     </a>
-                                    {% if expense.can_edit %}
+                                    {% if can_edit %}
                                     <form method="post" action="{% url 'expenses:receipt_delete' receipt.pk %}" class="inline">
                                         {% csrf_token %}
                                         <button type="submit" 
@@ -313,8 +313,8 @@
                     Quick Actions
                 </h3>
                 <div class="space-y-2">
-                    {% if expense.can_delete %}
-                    <a href="{% url 'expenses:expense_delete' expense.pk %}" 
+                    {% if can_delete %}
+                    <a href="{% url 'expenses:expense_delete' expense.pk %}"
                        class="block w-full text-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition duration-150 ease-in-out">
                         <i class="fas fa-trash mr-2"></i> Delete Expense
                     </a>
