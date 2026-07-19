@@ -58,6 +58,12 @@
                             Employee <span class="text-red-500">*</span>
                         </label>
                         {{ form.employee }}
+                        {% if employee %}
+                            <p class="text-xs text-purple-700 mt-1.5 flex items-center">
+                                <i class="fas fa-check-circle mr-1.5"></i>
+                                Applying on behalf of <span class="font-semibold ml-1">{{ employee.get_full_name }}</span>
+                            </p>
+                        {% endif %}
                         {% if form.employee.errors %}
                             <p class="text-xs text-red-500 mt-1">{{ form.employee.errors.0 }}</p>
                         {% endif %}
@@ -292,6 +298,37 @@
         </div>
     </div>
 </div>
+
+<style>
+#loan-form input[type="text"],
+#loan-form input[type="number"],
+#loan-form input[type="date"],
+#loan-form select,
+#loan-form textarea {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #111827;
+    background-color: #fff;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+#loan-form input[type="text"]:focus,
+#loan-form input[type="number"]:focus,
+#loan-form input[type="date"]:focus,
+#loan-form select:focus,
+#loan-form textarea:focus {
+    border-color: #9333ea;
+    box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.15);
+}
+#loan-form textarea {
+    min-height: 5rem;
+    resize: vertical;
+}
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

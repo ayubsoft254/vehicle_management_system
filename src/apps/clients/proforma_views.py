@@ -920,13 +920,11 @@ def proforma_pdf(request, pk):
         elements.append(Paragraph('FINANCIAL SUMMARY', styles['ReportSectionHeading']))
         financial_rows = [
             ['Vehicle Selling Price', fmt_money(proforma.selling_price)],
-            ['Deposit Required', fmt_money(proforma.deposit_required)],
-            ['Financing Amount', fmt_money(proforma.financing_amount)],
-            ['Total Purchase Price', fmt_money(proforma.total_price)],
+            ['Deposit Paid', fmt_money(proforma.total_deposits_confirmed)],
+            ['Balance', fmt_money(proforma.remaining_balance)],
         ]
         if proforma.payment_mode == 'bank_financing':
             financial_rows.insert(0, ['Bank / Financial Institution', proforma.financing_bank or '—'])
-        financial_rows.append(['Payment Mode', proforma.get_payment_mode_display()])
         elements.append(styled_table(
             financial_rows, col_widths=[2.3 * inch, 4.2 * inch],
             header=False, align_right_from=1))

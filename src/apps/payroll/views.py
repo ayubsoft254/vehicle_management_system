@@ -967,6 +967,15 @@ def loan_list(request):
 @login_required
 def loan_create(request):
     """Create loan application."""
+    # Pre-populate employee from ?employee= query param (e.g. linked from employee profile)
+    employee_id = request.GET.get('employee') or request.POST.get('employee')
+    employee_obj = None
+    if employee_id:
+        try:
+            employee_obj = Employee.objects.get(pk=employee_id)
+        except Employee.DoesNotExist:
+            pass
+
     if request.method == 'POST':
         form = LoanForm(request.POST)
         if form.is_valid():
@@ -974,13 +983,17 @@ def loan_create(request):
             messages.success(request, 'Loan application submitted.')
             return redirect('payroll:loan_list')
     else:
-        form = LoanForm()
-    
+        initial = {}
+        if employee_obj:
+            initial['employee'] = employee_obj
+        form = LoanForm(initial=initial)
+
     context = {
         'form': form,
         'title': 'Apply for Loan',
+        'employee': employee_obj,
     }
-    
+
     return render(request, 'payroll/loan_form.html', context)
 
 
