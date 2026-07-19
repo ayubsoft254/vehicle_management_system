@@ -37,12 +37,6 @@ from .reservation_services import process_reservations, _managers, _notify
 
 ZERO = Decimal('0.00')
 
-DEFAULT_PAYMENT_TERMS = (
-    'Deposit payable on commitment; balance payable on or before vehicle '
-    'release. Bank financing proceeds payable directly to the company '
-    'account. This proforma invoice is not a sales agreement.'
-)
-
 DEFAULT_TERMS_CONDITIONS = (
     '1. This proforma invoice is valid until the expiry date shown above.\n'
     '2. A proforma invoice does not reserve the vehicle. The vehicle remains '
@@ -108,7 +102,7 @@ class ProformaInvoiceForm(forms.ModelForm):
             'client', 'vehicle', 'issue_date', 'expiry_date', 'payment_mode',
             'financing_bank', 'selling_price', 'deposit_required',
             'financing_amount', 'total_price', 'company_account',
-            'payment_terms', 'terms_conditions', 'notes',
+            'terms_conditions', 'notes',
         ]
         labels = {
             'deposit_required': 'Deposit Paid',
@@ -116,7 +110,6 @@ class ProformaInvoiceForm(forms.ModelForm):
         widgets = {
             'issue_date': forms.DateInput(attrs={'type': 'date'}),
             'expiry_date': forms.DateInput(attrs={'type': 'date'}),
-            'payment_terms': forms.Textarea(attrs={'rows': 3}),
             'terms_conditions': forms.Textarea(attrs={'rows': 5}),
             'notes': forms.Textarea(attrs={'rows': 2}),
         }
@@ -237,7 +230,6 @@ def proforma_list(request):
 @module_permission_required('clients', AccessLevel.READ_WRITE)
 def proforma_create(request):
     initial = {
-        'payment_terms': DEFAULT_PAYMENT_TERMS,
         'terms_conditions': DEFAULT_TERMS_CONDITIONS,
         'issue_date': timezone.now().date(),
         'expiry_date': timezone.now().date() + timedelta(days=14),
@@ -930,22 +922,23 @@ def proforma_pdf(request, pk):
             ]))
             return table
 
+        # One continuous 4-column grid for client + vehicle fields — kept to
+        # a single column count top to bottom rather than mixing a 2-column
+        # client block with a 3-column vehicle block.
+        four_col = [1.625 * inch] * 4
         elements.append(Paragraph('CLIENT &amp; VEHICLE DETAILS', heading))
         elements.append(field_grid([
             ('Name', client.get_full_name()),
             (client.get_id_type_display(), client.id_number),
             ('Phone', client.phone_primary or '—'),
             ('Email', client.email or '—'),
-        ], col_widths=[3.25 * inch, 3.25 * inch]))
-        elements.append(Spacer(1, 4))
-        elements.append(field_grid([
             ('Reg No', vehicle.registration_number or '—'),
             ('Chassis No', vehicle.vin),
             ('Make / Model', f'{vehicle.make} {vehicle.model}'),
             ('Year', vehicle.year),
             ('Engine', vehicle.engine_size or '—'),
             ('Colour', vehicle.color or '—'),
-        ], col_widths=[2.17 * inch, 2.17 * inch, 2.16 * inch]))
+        ], col_widths=four_col))
         elements.append(Spacer(1, 6))
 
         elements.append(Paragraph('FINANCIAL SUMMARY', heading))
@@ -971,13 +964,6 @@ def proforma_pdf(request, pk):
             ], col_widths=[3.25 * inch, 3.25 * inch]))
             elements.append(Spacer(1, 6))
 
-        if proforma.payment_terms:
-            elements.append(Paragraph('PAYMENT TERMS', heading))
-            for line in proforma.payment_terms.splitlines():
-                if line.strip():
-                    elements.append(Paragraph(line.strip(), compact))
-            elements.append(Spacer(1, 4))
-
         if proforma.terms_conditions:
             elements.append(Paragraph('TERMS &amp; CONDITIONS', heading))
             for line in proforma.terms_conditions.splitlines():
@@ -991,10 +977,7 @@ def proforma_pdf(request, pk):
             ('Approval Status', proforma.get_approval_status_display()),
         ], col_widths=[3.25 * inch, 3.25 * inch]))
         elements.append(Spacer(1, 6))
-        elements.append(Paragraph(
-            'This proforma invoice is issued for quotation/financing purposes '
-            'only and does not constitute a sale or reservation of the vehicle.',
-            styles['ReportCompanyMeta']))
+        elements.append(Paragraph('www.hozacars.com', styles['ReportCompanyMeta']))
 
     _audit(request, 'export', f'Downloaded proforma PDF {proforma.number}',
            object_id=str(proforma.pk))
