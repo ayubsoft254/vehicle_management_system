@@ -661,7 +661,9 @@ def account_transactions(request, method):
 
 # ==================== FINANCE ACCOUNT BREAKDOWN VIEWS ====================
 
-CATEGORY_LABELS = {'hoza': 'Hoza', 'ke': 'KE'}
+CATEGORY_LABELS = {'hoza': 'Hoza', 'ke': 'KE', 'other': 'Other'}
+CATEGORY_ACCENTS = {'hoza': 'orange', 'ke': 'cyan', 'other': 'amber'}
+CATEGORY_ICONS = {'hoza': 'fa-layer-group', 'ke': 'fa-university', 'other': 'fa-wallet'}
 
 
 def _is_approver(user):
@@ -719,7 +721,8 @@ def account_breakdown(request, category):
     context = {
         'category': category,
         'category_label': CATEGORY_LABELS[category],
-        'is_hoza': category == 'hoza',
+        'accent': CATEGORY_ACCENTS.get(category, 'cyan'),
+        'category_icon': CATEGORY_ICONS.get(category, 'fa-university'),
         'accounts': accounts,
         'summary': summary,
         'pending_approvals': pending_approvals,
