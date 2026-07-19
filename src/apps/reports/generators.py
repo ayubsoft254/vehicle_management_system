@@ -79,8 +79,10 @@ def generate_pdf_report(report, data, date_from, date_to):
     file_path = get_report_file_path(report, 'pdf')
     ensure_directory_exists(file_path)
     
+    from utils.letterhead import draw_letterhead_footer, FOOTER_RESERVED_HEIGHT
+
     # Create PDF
-    doc = SimpleDocTemplate(file_path, pagesize=letter)
+    doc = SimpleDocTemplate(file_path, pagesize=letter, bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch)
     story = []
     styles = getSampleStyleSheet()
     
@@ -160,7 +162,7 @@ def generate_pdf_report(report, data, date_from, date_to):
                     story.append(Spacer(1, 0.3 * inch))
     
     # Build PDF
-    doc.build(story)
+    doc.build(story, onFirstPage=draw_letterhead_footer, onLaterPages=draw_letterhead_footer)
     
     file_size = os.path.getsize(file_path)
     

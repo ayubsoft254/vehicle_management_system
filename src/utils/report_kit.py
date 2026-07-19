@@ -10,7 +10,6 @@ palette and one table style rather than each view inventing its own.
 import csv
 import io
 
-from django.conf import settings
 from django.http import HttpResponse
 from django.utils import timezone
 
@@ -20,12 +19,16 @@ from reportlab.lib.pagesizes import A4, landscape as _landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import (
-    HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
 )
 
 import openpyxl
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
+
+from utils.letterhead import (
+    draw_letterhead, FOOTER_RESERVED_HEIGHT, HEADER_RESERVED_HEIGHT,
+)
 
 # ---------------------------------------------------------------------------
 # Shared palette — muted slate/navy, deliberately avoids bright gradients
@@ -76,41 +79,26 @@ def _report_styles():
     return styles
 
 
-def _footer(canvas, doc):
-    canvas.saveState()
-    canvas.setStrokeColor(BORDER_GREY)
-    canvas.setLineWidth(0.5)
-    page_width = doc.pagesize[0]
-    canvas.line(0.75 * inch, 0.55 * inch, page_width - 0.75 * inch, 0.55 * inch)
-    canvas.setFont('Helvetica', 7)
-    canvas.setFillColor(MUTED_TEXT)
-    canvas.drawString(0.75 * inch, 0.4 * inch, f"{settings.COMPANY_NAME} — Confidential")
-    canvas.drawRightString(page_width - 0.75 * inch, 0.4 * inch, f"Page {doc.page}")
-    canvas.restoreState()
-
-
 def build_pdf_response(filename, title, subtitle=None, meta_lines=None,
                         build_body=None, landscape_mode=False):
     """
     Render a complete letterhead + title + footer PDF and return it as a
     file-download HttpResponse. `build_body(elements, styles)` appends the
-    report-specific Flowables (KPI blocks, tables, notes).
+    report-specific Flowables (KPI blocks, tables, notes). The company
+    letterhead (header band + footer trust strip) is drawn on the canvas by
+    utils.letterhead so it's identical across every report and doesn't
+    consume space in the flowable body.
     """
     buffer = io.BytesIO()
     pagesize = _landscape(A4) if landscape_mode else A4
     doc = SimpleDocTemplate(
         buffer, pagesize=pagesize,
-        topMargin=0.6 * inch, bottomMargin=0.75 * inch,
+        topMargin=HEADER_RESERVED_HEIGHT + 0.1 * inch,
+        bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch,
         leftMargin=0.75 * inch, rightMargin=0.75 * inch,
     )
     styles = _report_styles()
     elements = []
-
-    elements.append(Paragraph(settings.COMPANY_NAME, styles['ReportCompanyName']))
-    meta_bits = [b for b in (settings.COMPANY_ADDRESS, settings.COMPANY_PHONE, settings.COMPANY_EMAIL) if b]
-    elements.append(Paragraph(' &middot; '.join(meta_bits), styles['ReportCompanyMeta']))
-    elements.append(Spacer(1, 8))
-    elements.append(HRFlowable(width='100%', thickness=1, color=NAVY, spaceAfter=10))
 
     elements.append(Paragraph(title.upper(), styles['ReportTitle']))
     sub_bits = [subtitle] if subtitle else []
@@ -125,7 +113,7 @@ def build_pdf_response(filename, title, subtitle=None, meta_lines=None,
     if build_body:
         build_body(elements, styles)
 
-    doc.build(elements, onFirstPage=_footer, onLaterPages=_footer)
+    doc.build(elements, onFirstPage=draw_letterhead, onLaterPages=draw_letterhead)
     buffer.seek(0)
     response = HttpResponse(buffer, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'

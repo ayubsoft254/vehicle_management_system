@@ -16,6 +16,8 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib import colors
 from django.utils import timezone
 
+from utils.letterhead import draw_letterhead_footer, FOOTER_RESERVED_HEIGHT
+
 
 def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     """
@@ -46,7 +48,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         rightMargin=1*cm,
         leftMargin=1*cm,
         topMargin=1*cm,
-        bottomMargin=1*cm,
+        bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1*inch,
         title=f"Sales Agreement - {_title_reg}"
     )
     
@@ -1178,8 +1180,8 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         )
     ))
 
-    # Build PDF
-    doc.build(elements)
+    # Build PDF — every page gets the company letterhead footer strip.
+    doc.build(elements, onFirstPage=draw_letterhead_footer, onLaterPages=draw_letterhead_footer)
     buffer.seek(0)
     return buffer
 

@@ -19,6 +19,8 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfgen import canvas
 
+from utils.letterhead import draw_letterhead_footer, FOOTER_RESERVED_HEIGHT
+
 
 # ==================== CALCULATION UTILITIES ====================
 
@@ -250,7 +252,7 @@ def generate_payment_receipt_pdf(payment):
         HttpResponse: PDF response
     """
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch)
     elements = []
     styles = getSampleStyleSheet()
     
@@ -354,7 +356,7 @@ def generate_payment_receipt_pdf(payment):
     elements.append(Paragraph(footer_text, styles['Normal']))
     
     # Build PDF
-    doc.build(elements)
+    doc.build(elements, onFirstPage=draw_letterhead_footer, onLaterPages=draw_letterhead_footer)
     buffer.seek(0)
     
     # Create response
@@ -375,7 +377,7 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
         HttpResponse: PDF response
     """
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch)
     elements = []
     styles = getSampleStyleSheet()
     
@@ -489,7 +491,7 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
     elements.append(signature_table)
     
     # Build PDF
-    doc.build(elements)
+    doc.build(elements, onFirstPage=draw_letterhead_footer, onLaterPages=draw_letterhead_footer)
     buffer.seek(0)
     
     response = HttpResponse(buffer, content_type='application/pdf')
@@ -509,7 +511,7 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
         HttpResponse: PDF response
     """
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch)
     elements = []
     styles = getSampleStyleSheet()
     
@@ -592,7 +594,7 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
         elements.append(payment_table)
     
     # Build PDF
-    doc.build(elements)
+    doc.build(elements, onFirstPage=draw_letterhead_footer, onLaterPages=draw_letterhead_footer)
     buffer.seek(0)
     
     response = HttpResponse(buffer, content_type='application/pdf')
@@ -608,7 +610,7 @@ def generate_client_statement_pdf(client, rows, summary):
     matches the on-screen statement and its CSV/Excel exports.
     """
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch)
     elements = []
     styles = getSampleStyleSheet()
 
@@ -673,7 +675,7 @@ def generate_client_statement_pdf(client, rows, summary):
     ]))
     elements.append(ledger_table)
 
-    doc.build(elements)
+    doc.build(elements, onFirstPage=draw_letterhead_footer, onLaterPages=draw_letterhead_footer)
     buffer.seek(0)
 
     response = HttpResponse(buffer, content_type='application/pdf')
@@ -692,7 +694,7 @@ def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decima
         HttpResponse: PDF response
     """
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch)
     elements = []
     styles = getSampleStyleSheet()
     
@@ -782,7 +784,7 @@ def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decima
     elements.append(Paragraph(footer_text, styles['Italic']))
     
     # Build PDF
-    doc.build(elements)
+    doc.build(elements, onFirstPage=draw_letterhead_footer, onLaterPages=draw_letterhead_footer)
     buffer.seek(0)
     
     response = HttpResponse(buffer, content_type='application/pdf')
