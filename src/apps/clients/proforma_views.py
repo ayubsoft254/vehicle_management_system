@@ -922,10 +922,8 @@ def proforma_pdf(request, pk):
             ]))
             return table
 
-        # One continuous 4-column grid for client + vehicle fields — kept to
-        # a single column count top to bottom rather than mixing a 2-column
-        # client block with a 3-column vehicle block.
-        four_col = [1.625 * inch] * 4
+        # One continuous 2-column grid for client + vehicle fields, matching
+        # the Financial Summary table's column count.
         elements.append(Paragraph('CLIENT &amp; VEHICLE DETAILS', heading))
         elements.append(field_grid([
             ('Name', client.get_full_name()),
@@ -938,7 +936,7 @@ def proforma_pdf(request, pk):
             ('Year', vehicle.year),
             ('Engine', vehicle.engine_size or '—'),
             ('Colour', vehicle.color or '—'),
-        ], col_widths=four_col))
+        ], col_widths=[3.25 * inch, 3.25 * inch]))
         elements.append(Spacer(1, 6))
 
         elements.append(Paragraph('FINANCIAL SUMMARY', heading))
