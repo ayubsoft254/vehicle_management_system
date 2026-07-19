@@ -15,7 +15,6 @@ from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django import forms
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -108,14 +107,16 @@ class ProformaInvoiceForm(forms.ModelForm):
         fields = [
             'client', 'vehicle', 'issue_date', 'expiry_date', 'payment_mode',
             'financing_bank', 'selling_price', 'deposit_required',
-            'financing_amount', 'total_price', 'payment_terms',
-            'bank_details', 'terms_conditions', 'notes',
+            'financing_amount', 'total_price', 'company_account',
+            'payment_terms', 'terms_conditions', 'notes',
         ]
+        labels = {
+            'deposit_required': 'Deposit Paid',
+        }
         widgets = {
             'issue_date': forms.DateInput(attrs={'type': 'date'}),
             'expiry_date': forms.DateInput(attrs={'type': 'date'}),
             'payment_terms': forms.Textarea(attrs={'rows': 3}),
-            'bank_details': forms.Textarea(attrs={'rows': 3}),
             'terms_conditions': forms.Textarea(attrs={'rows': 5}),
             'notes': forms.Textarea(attrs={'rows': 2}),
         }
@@ -238,7 +239,6 @@ def proforma_create(request):
     initial = {
         'payment_terms': DEFAULT_PAYMENT_TERMS,
         'terms_conditions': DEFAULT_TERMS_CONDITIONS,
-        'bank_details': getattr(settings, 'COMPANY_BANK_DETAILS', ''),
         'issue_date': timezone.now().date(),
         'expiry_date': timezone.now().date() + timedelta(days=14),
     }
@@ -884,10 +884,14 @@ def convert_proforma(request, pk):
 @login_required
 @module_permission_required('clients', AccessLevel.READ_ONLY)
 def proforma_pdf(request, pk):
-    """Professional, printable proforma invoice PDF."""
-    from utils.report_kit import build_pdf_response, styled_table, fmt_money
+    """Professional, printable proforma invoice PDF — compressed to fit a
+    single page: dense multi-field-per-row tables instead of one field per
+    row, tight padding, and a preselected Company Account block."""
+    from utils.report_kit import build_pdf_response, fmt_money, BORDER_GREY, LIGHT_GREY
+    from reportlab.lib import colors
     from reportlab.lib.units import inch
-    from reportlab.platypus import Paragraph, Spacer
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
     proforma = get_object_or_404(
         ProformaInvoice.objects.select_related('client', 'vehicle', 'prepared_by'),
@@ -897,66 +901,96 @@ def proforma_pdf(request, pk):
     vehicle = proforma.vehicle
 
     def body(elements, styles):
-        elements.append(Paragraph('CLIENT DETAILS', styles['ReportSectionHeading']))
-        elements.append(styled_table([
-            ['Name', client.get_full_name()],
-            ['ID / Passport', f'{client.get_id_type_display()}: {client.id_number}'],
-            ['Phone', client.phone_primary or '—'],
-            ['Email', client.email or '—'],
-        ], col_widths=[2.3 * inch, 4.2 * inch], header=False))
-        elements.append(Spacer(1, 10))
+        compact = ParagraphStyle('ProformaCompact', parent=styles['Normal'], fontSize=8, leading=10)
+        heading = styles['ReportSectionHeading']
+        heading.spaceBefore = 6
+        heading.spaceAfter = 3
 
-        elements.append(Paragraph('VEHICLE DETAILS', styles['ReportSectionHeading']))
-        elements.append(styled_table([
-            ['Registration Number', vehicle.registration_number or '—'],
-            ['Chassis Number', vehicle.vin],
-            ['Make / Model', f'{vehicle.make} {vehicle.model}'],
-            ['Year of Manufacture', str(vehicle.year)],
-            ['Engine Capacity', vehicle.engine_size or '—'],
-            ['Colour', vehicle.color or '—'],
-        ], col_widths=[2.3 * inch, 4.2 * inch], header=False))
-        elements.append(Spacer(1, 10))
+        def field_grid(pairs, col_widths):
+            """Lay out (label, value) pairs several-per-row as bold-label
+            Paragraphs inside one dense table, instead of one field per row."""
+            rows, row = [], []
+            for label, value in pairs:
+                row.append(Paragraph(f'<b>{label}:</b> {value}', compact))
+                if len(row) == len(col_widths):
+                    rows.append(row)
+                    row = []
+            if row:
+                row += [''] * (len(col_widths) - len(row))
+                rows.append(row)
+            table = Table(rows, colWidths=col_widths)
+            table.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.4, BORDER_GREY),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                ('TOPPADDING', (0, 0), (-1, -1), 3),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, LIGHT_GREY]),
+            ]))
+            return table
 
-        elements.append(Paragraph('FINANCIAL SUMMARY', styles['ReportSectionHeading']))
-        financial_rows = [
-            ['Vehicle Selling Price', fmt_money(proforma.selling_price)],
-            ['Deposit Paid', fmt_money(proforma.total_deposits_confirmed)],
-            ['Balance', fmt_money(proforma.remaining_balance)],
-        ]
+        elements.append(Paragraph('CLIENT &amp; VEHICLE DETAILS', heading))
+        elements.append(field_grid([
+            ('Name', client.get_full_name()),
+            (client.get_id_type_display(), client.id_number),
+            ('Phone', client.phone_primary or '—'),
+            ('Email', client.email or '—'),
+        ], col_widths=[3.25 * inch, 3.25 * inch]))
+        elements.append(Spacer(1, 4))
+        elements.append(field_grid([
+            ('Reg No', vehicle.registration_number or '—'),
+            ('Chassis No', vehicle.vin),
+            ('Make / Model', f'{vehicle.make} {vehicle.model}'),
+            ('Year', vehicle.year),
+            ('Engine', vehicle.engine_size or '—'),
+            ('Colour', vehicle.color or '—'),
+        ], col_widths=[2.17 * inch, 2.17 * inch, 2.16 * inch]))
+        elements.append(Spacer(1, 6))
+
+        elements.append(Paragraph('FINANCIAL SUMMARY', heading))
+        financial_pairs = []
         if proforma.payment_mode == 'bank_financing':
-            financial_rows.insert(0, ['Bank / Financial Institution', proforma.financing_bank or '—'])
-        elements.append(styled_table(
-            financial_rows, col_widths=[2.3 * inch, 4.2 * inch],
-            header=False, align_right_from=1))
-        elements.append(Spacer(1, 10))
+            financial_pairs.append(('Bank / Institution', proforma.financing_bank or '—'))
+        financial_pairs += [
+            ('Selling Price', fmt_money(proforma.selling_price)),
+            ('Deposit Paid', fmt_money(proforma.total_deposits_confirmed)),
+            ('Balance', fmt_money(proforma.remaining_balance)),
+        ]
+        elements.append(field_grid(financial_pairs, col_widths=[3.25 * inch, 3.25 * inch]))
+        elements.append(Spacer(1, 6))
+
+        account = proforma.get_company_account_details()
+        if account:
+            elements.append(Paragraph('COMPANY ACCOUNT', heading))
+            elements.append(field_grid([
+                ('Bank', account['bank']),
+                ('Branch', account['branch']),
+                ('Account Name', account['account_name']),
+                ('Account No', account['account_number']),
+            ], col_widths=[3.25 * inch, 3.25 * inch]))
+            elements.append(Spacer(1, 6))
 
         if proforma.payment_terms:
-            elements.append(Paragraph('PAYMENT TERMS', styles['ReportSectionHeading']))
+            elements.append(Paragraph('PAYMENT TERMS', heading))
             for line in proforma.payment_terms.splitlines():
                 if line.strip():
-                    elements.append(Paragraph(line.strip(), styles['Normal']))
-            elements.append(Spacer(1, 8))
-
-        if proforma.bank_details:
-            elements.append(Paragraph('COMPANY BANK DETAILS', styles['ReportSectionHeading']))
-            for line in proforma.bank_details.splitlines():
-                if line.strip():
-                    elements.append(Paragraph(line.strip(), styles['Normal']))
-            elements.append(Spacer(1, 8))
+                    elements.append(Paragraph(line.strip(), compact))
+            elements.append(Spacer(1, 4))
 
         if proforma.terms_conditions:
-            elements.append(Paragraph('TERMS & CONDITIONS', styles['ReportSectionHeading']))
+            elements.append(Paragraph('TERMS &amp; CONDITIONS', heading))
             for line in proforma.terms_conditions.splitlines():
                 if line.strip():
-                    elements.append(Paragraph(line.strip(), styles['Normal']))
-            elements.append(Spacer(1, 12))
+                    elements.append(Paragraph(line.strip(), compact))
+            elements.append(Spacer(1, 6))
 
         prepared = proforma.prepared_by.get_full_name() if proforma.prepared_by else '—'
-        elements.append(styled_table([
-            ['Prepared By', prepared,
-             'Approval Status', proforma.get_approval_status_display()],
-        ], col_widths=[1.4 * inch, 1.9 * inch, 1.4 * inch, 1.8 * inch], header=False))
-        elements.append(Spacer(1, 8))
+        elements.append(field_grid([
+            ('Prepared By', prepared),
+            ('Approval Status', proforma.get_approval_status_display()),
+        ], col_widths=[3.25 * inch, 3.25 * inch]))
+        elements.append(Spacer(1, 6))
         elements.append(Paragraph(
             'This proforma invoice is issued for quotation/financing purposes '
             'only and does not constitute a sale or reservation of the vehicle.',
