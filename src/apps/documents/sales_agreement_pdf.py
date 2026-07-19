@@ -12,7 +12,10 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm, inch
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image, HRFlowable
+from reportlab.platypus import (
+    SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image,
+    HRFlowable, KeepTogether,
+)
 from reportlab.lib import colors
 from django.utils import timezone
 
@@ -344,7 +347,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     elements.append(Spacer(1, 0.3*cm))
 
     # ---- DESCRIPTION OF THE VEHICLE ----
-    elements.append(Paragraph('<b>DESCRIPTION OF THE VEHICLE</b>', heading_style))
+    vehicle_heading = Paragraph('<b>DESCRIPTION OF THE VEHICLE</b>', heading_style)
 
     vehicle_data = [
         [
@@ -373,11 +376,11 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
         ('LINEBELOW', (0, -1), (-1, -1), 0.5, colors.grey),
     ]))
-    elements.append(vehicle_table)
+    elements.append(KeepTogether([vehicle_heading, vehicle_table]))
     elements.append(Spacer(1, 0.3*cm))
 
     # ---- CLIENT PERSONAL DETAILS ----
-    elements.append(Paragraph('<b>CLIENT PERSONAL DETAILS</b>', heading_style))
+    client_heading = Paragraph('<b>CLIENT PERSONAL DETAILS</b>', heading_style)
 
     client_data = [
         [
@@ -411,7 +414,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
         ('LINEBELOW', (0, -1), (-1, -1), 0.5, colors.grey),
     ]))
-    elements.append(client_table)
+    elements.append(KeepTogether([client_heading, client_table]))
     elements.append(Spacer(1, 0.3*cm))
 
     # ---- PRICING DETAILS ----
@@ -516,7 +519,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         ('LINEBELOW', (0, 2), (-1, 2), 0.5, colors.HexColor('#d1d5db')),
         ('LINEBEFORE', (1, 0), (1, -1), 0.5, colors.HexColor('#e5e7eb')),
     ]))
-    elements.append(sig1_table)
+    elements.append(KeepTogether([sig1_table]))
 
     # ============================================================
     # PAGE 2 — INSURANCE & TRACKER DETAILS
@@ -762,7 +765,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         ('LINEBELOW', (0, 2), (-1, 2), 0.5, colors.HexColor('#d1d5db')),
         ('LINEBEFORE', (1, 0), (1, -1), 0.5, colors.HexColor('#e5e7eb')),
     ]))
-    elements.append(sig2_table)
+    elements.append(KeepTogether([sig2_table]))
 
     elements.append(Spacer(1, 0.2*cm))
 
@@ -916,12 +919,13 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
         ]))
-        elements.append(sched_sig_table)
+        elements.append(KeepTogether([sched_sig_table]))
 
     # ============================================================
     # PAGE 4 — TERMS AND CONDITIONS
     # ============================================================
     elements.append(PageBreak())
+    elements.append(Paragraph('<b>HOZA INVESTMENT (K) LTD - MOMBASA KENYA</b>', title_style))
     elements.append(Paragraph('<b>TERMS AND CONDITIONS</b>', heading_style))
     elements.append(Paragraph(
         '<b>IT IS FURTHER AGREED BETWEEN THE PURCHASER &amp; THE VENDOR AS FOLLOWS:-</b>',
@@ -957,14 +961,22 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         "11. Baada ya kulipa pesa zote za kununua gari mnunuzi anahitajika kulipa pesa ya kuhamisha usajili wa gari kwa majina yake, anastahili pia kulipia shughuli za kufanyia gari ukaguzi na shughuli zingine zenye umuhimu za kukamilika pia anafaa kupeana nakala ya pin/kitambulisho na kartasi zote zinazohitajika kwa ajili ya kumiliki logbook kwa majina yake.",
     ]
 
-    # Two-column layout: English left, Swahili right
-    terms_data = []
+    # Two-column layout: English left, Swahili right. A header row is
+    # included (with repeatRows=1) so that if this table is long enough to
+    # spill onto another page, the continuation still identifies itself
+    # instead of showing bare clause text with no context.
+    terms_header_style = ParagraphStyle(
+        'TermsHeader', parent=normal_small, textColor=colors.white, fontName='Helvetica-Bold',
+    )
+    terms_data = [
+        [Paragraph('ENGLISH', terms_header_style), Paragraph('KISWAHILI', terms_header_style)],
+    ]
     for eng, swa in zip(english_terms, swahili_terms):
         terms_data.append([
             Paragraph(eng, normal_small),
             Paragraph(swa, normal_small),
         ])
-    terms_table = Table(terms_data, colWidths=[9.5*cm, 8.5*cm])
+    terms_table = Table(terms_data, colWidths=[9.5*cm, 8.5*cm], repeatRows=1)
     terms_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -972,6 +984,9 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         ('RIGHTPADDING', (0, 0), (-1, -1), 4),
         ('TOPPADDING', (0, 0), (-1, -1), 2),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#374151')),
+        ('TOPPADDING', (0, 0), (-1, 0), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
     ]))
     elements.append(terms_table)
     elements.append(Spacer(1, 0.3*cm))
@@ -1077,7 +1092,13 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         # Vertical divider between the two columns in sig rows
         ('LINEBEFORE', (1, 0), (1, -1), 0.5, colors.HexColor('#e5e7eb')),
     ]))
-    elements.append(full_sig_table)
+    # Kept together with its own heading so that if it doesn't fit in the
+    # remaining space on the terms page, it moves as a whole onto a fresh
+    # page — with proper page identity — rather than splitting mid-block.
+    elements.append(KeepTogether([
+        Paragraph('<b>SIGNATURES</b>', heading_style),
+        full_sig_table,
+    ]))
 
     # ============================================================
     # PAGE 5 — PAYMENT DETAILS
@@ -1161,7 +1182,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         ('TOPPADDING', (0, 0), (-1, -1), 3),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
     ]))
-    elements.append(received_table)
+    elements.append(KeepTogether([received_table]))
     elements.append(Spacer(1, 1.0*cm))
     elements.append(HRFlowable(width='100%', thickness=0.6, color=colors.grey, spaceBefore=4, spaceAfter=4))
     elements.append(Spacer(1, 0.1*cm))
