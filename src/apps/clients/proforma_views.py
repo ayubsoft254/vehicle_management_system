@@ -241,8 +241,11 @@ def proforma_create(request):
         if vehicle:
             initial.update({
                 'vehicle': vehicle,
-                'selling_price': vehicle.website_display_price,
-                'total_price': vehicle.website_display_price,
+                # website_price, not website_display_price — a proforma should
+                # start at the publicly quoted price, or 0, never silently
+                # fall back to the internal vehicle cost.
+                'selling_price': vehicle.website_price or Decimal('0.00'),
+                'total_price': vehicle.website_price or Decimal('0.00'),
                 'deposit_required': vehicle.deposit_required,
             })
     client_id = request.GET.get('client')
