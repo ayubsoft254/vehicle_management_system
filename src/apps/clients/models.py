@@ -1525,7 +1525,6 @@ class ProformaInvoice(models.Model):
         help_text='Which company bank account to print on the invoice',
     )
 
-    payment_terms = models.TextField('Payment Terms', blank=True)
     bank_details = models.TextField('Company Bank Details', blank=True)
     terms_conditions = models.TextField('Terms & Conditions', blank=True)
     notes = models.TextField(blank=True)
