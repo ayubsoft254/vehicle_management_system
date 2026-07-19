@@ -431,17 +431,17 @@ def payment_list(request):
         is_reversed=False,
     ).aggregate(Sum('amount'))['amount__sum'] or 0
 
-    hoza_methods = {'equity_hoza', 'dib_hoza', 'coop_hoza'}
+    # Cash/Other totals below are deliberately computed from an *unfiltered*
+    # payments queryset, not the search/date-filtered `active_payments` above.
+    # These cards represent standing account totals (mirrored by their own
+    # breakdown pages), so they must never fluctuate just because the payment
+    # list underneath happens to be filtered/searched.
+    all_active_payments = Payment.objects.filter(is_reversed=False)
 
-    hoza_total = Decimal('0.00')
-    ke_total = Decimal('0.00')
     cash_total = Decimal('0.00')
     other_total = Decimal('0.00')
 
-    hoza_breakdown = {'equity_hoza': Decimal('0.00'), 'dib_hoza': Decimal('0.00'), 'coop_hoza': Decimal('0.00')}
-    ke_breakdown = {'kcb_ke': Decimal('0.00'), 'absa_ke': Decimal('0.00'), 'equity_ke': Decimal('0.00')}
-
-    for payment in active_payments:
+    for payment in all_active_payments:
         if payment.splits.exists():
             portions = [(split.payment_method, split.amount) for split in payment.splits.all()]
         else:
@@ -450,16 +450,23 @@ def payment_list(request):
         for method, amount in portions:
             method_value = (method or '').lower()
             amt = amount or Decimal('0.00')
-            if method_value in hoza_methods:
-                hoza_total += amt
-                hoza_breakdown[method_value] = hoza_breakdown.get(method_value, Decimal('0.00')) + amt
-            elif method_value.endswith('_ke'):
-                ke_total += amt
-                ke_breakdown[method_value] = ke_breakdown.get(method_value, Decimal('0.00')) + amt
+            if method_value in {'equity_hoza', 'dib_hoza', 'coop_hoza'} or method_value.endswith('_ke'):
+                continue
             elif method_value == 'cash':
                 cash_total += amt
             else:
                 other_total += amt
+
+    # Hoza/KE totals come straight from the Account model (opening balance +
+    # money in/out, including any manual transactions/transfers) — the exact
+    # same calculation their breakdown/manager pages use, so the dashboard
+    # card can never disagree with the page it links to.
+    hoza_total = sum(
+        (a.current_balance for a in Account.objects.filter(category='hoza')), Decimal('0.00')
+    )
+    ke_total = sum(
+        (a.current_balance for a in Account.objects.filter(category='ke')), Decimal('0.00')
+    )
 
     withdrawals = AccountWithdrawal.objects.order_by('-withdrawal_date', '-created_at')
     hoza_withdrawals_total = Decimal('0.00')
@@ -471,8 +478,6 @@ def payment_list(request):
         elif withdrawal.is_ke:
             ke_withdrawals_total += withdrawal.amount
 
-    adjusted_hoza_total = hoza_total - hoza_withdrawals_total
-    adjusted_ke_total = ke_total - ke_withdrawals_total
     recent_withdrawals = withdrawals[:5]
 
     due_stats = _build_due_monitor_stats()
@@ -487,14 +492,12 @@ def payment_list(request):
         'total_payments': total_payments,
         'payment_count': payment_count,
         'this_month_payments': this_month_payments,
-        'hoza_total': adjusted_hoza_total,
-        'ke_total': adjusted_ke_total,
+        'hoza_total': hoza_total,
+        'ke_total': ke_total,
         'hoza_withdrawals_total': hoza_withdrawals_total,
         'ke_withdrawals_total': ke_withdrawals_total,
         'cash_total': cash_total,
         'other_total': other_total,
-        'hoza_breakdown': hoza_breakdown,
-        'ke_breakdown': ke_breakdown,
         'payment_methods': Payment.PAYMENT_METHOD_CHOICES,
         'recent_withdrawals': recent_withdrawals,
         **due_stats,
