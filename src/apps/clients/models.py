@@ -1415,6 +1415,36 @@ class ProformaInvoice(models.Model):
         ('installment', 'Hire Purchase'),
     ]
 
+    # Company bank accounts a proforma can be issued against — preselected
+    # so the printed invoice always shows a complete, correct account block
+    # rather than free-typed bank details.
+    COMPANY_ACCOUNT_CHOICES = [
+        ('equity', 'Equity Bank — Moi Avenue Branch, Mombasa'),
+        ('dib', 'DIB (Dubai Islamic Bank) — Kilindini Branch, Mombasa'),
+        ('coop', 'Co-operative Bank of Kenya — Nkrumah Road Branch, Mombasa'),
+    ]
+
+    COMPANY_ACCOUNTS = {
+        'equity': {
+            'bank': 'Equity Bank',
+            'branch': 'Moi Avenue Branch, Mombasa',
+            'account_name': 'HOZA INVESTMENT (K) LIMITED',
+            'account_number': '0250279299771',
+        },
+        'dib': {
+            'bank': 'DIB (Dubai Islamic Bank)',
+            'branch': 'Kilindini Branch, Mombasa',
+            'account_name': 'HOZA INVESTMENT K LIMITED',
+            'account_number': '003505100422901',
+        },
+        'coop': {
+            'bank': 'Co-operative Bank of Kenya',
+            'branch': 'Nkrumah Road Branch, Mombasa',
+            'account_name': 'Hoza Investment K Limited',
+            'account_number': '01192447998000',
+        },
+    }
+
     number = models.CharField(
         'Proforma Number',
         max_length=30,
@@ -1485,6 +1515,14 @@ class ProformaInvoice(models.Model):
         max_digits=12, decimal_places=2,
         default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))]
+    )
+
+    company_account = models.CharField(
+        'Company Account',
+        max_length=10,
+        choices=COMPANY_ACCOUNT_CHOICES,
+        blank=True,
+        help_text='Which company bank account to print on the invoice',
     )
 
     payment_terms = models.TextField('Payment Terms', blank=True)
@@ -1563,6 +1601,11 @@ class ProformaInvoice(models.Model):
 
     def __str__(self):
         return f"{self.number} — {self.client.get_full_name()} — {self.vehicle}"
+
+    def get_company_account_details(self):
+        """Full bank/branch/account-name/account-number block for whichever
+        company account was preselected, or None if none was chosen."""
+        return self.COMPANY_ACCOUNTS.get(self.company_account)
 
     def save(self, *args, **kwargs):
         if not self.number:
