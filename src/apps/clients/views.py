@@ -672,7 +672,10 @@ def assign_vehicle(request, client_pk):
                 tracker_selling_prices = request.POST.getlist('tracker_selling_price[]')
                 tracker_deposits = request.POST.getlist('tracker_deposit[]')
                 tracker_payment_types = request.POST.getlist('tracker_payment_type[]')
-                tracker_payment_methods = request.POST.getlist('tracker_payment_method[]')
+                # The "how is this being paid" block is the single source for
+                # payment method now — there's no separate standalone method
+                # dropdown in the form any more (mirrors client_vehicle_update).
+                tracker_payment_methods = request.POST.getlist('tracker_deposit_payment_method[]')
                 tracker_flex_jsons = request.POST.getlist('tracker_flexible_installments_json[]')
                 tracker_interest_rates = request.POST.getlist('tracker_interest_rate[]')
                 tracker_deposit_payment_methods = request.POST.getlist('tracker_deposit_payment_method[]')
@@ -1039,8 +1042,58 @@ def assign_vehicle(request, client_pk):
             messages.error(request, 'Please correct the errors below.')
             # Preserve flexible installments so the UI can rebuild after validation errors
             initial_flexible_installments_json = request.POST.get('flexible_installments_json', '[]')
+
+            # Preserve tracker rows too — otherwise a validation error anywhere
+            # else on the form silently wipes every tracker the user just
+            # filled in: these are repeated `name="tracker_*[]"` inputs with
+            # no server-side value binding, so on re-render they come back
+            # blank unless we rebuild `initial_trackers_json` (the same JSON
+            # shape client_vehicle_update uses) from the raw POST data so the
+            # existing applyInitialTrackerData() JS can restore them.
+            _t_names = request.POST.getlist('tracker_name[]')
+            _t_serials = request.POST.getlist('tracker_serial[]')
+            _t_certs = request.POST.getlist('tracker_certificate_number[]')
+            _t_agent_ids = request.POST.getlist('tracker_agent_id[]')
+            _t_install_dates = request.POST.getlist('tracker_install_date[]')
+            _t_buying = request.POST.getlist('tracker_buying_price[]')
+            _t_selling = request.POST.getlist('tracker_selling_price[]')
+            _t_deposit = request.POST.getlist('tracker_deposit[]')
+            _t_ptype = request.POST.getlist('tracker_payment_type[]')
+            _t_flex_json = request.POST.getlist('tracker_flexible_installments_json[]')
+            _t_dep_method = request.POST.getlist('tracker_deposit_payment_method[]')
+            _t_dep_location = request.POST.getlist('tracker_deposit_payment_location[]')
+            _t_dep_ref = request.POST.getlist('tracker_deposit_transaction_reference[]')
+            _t_dep_splits_json = request.POST.getlist('tracker_deposit_splits_json[]')
+
+            def _at(lst, i):
+                return lst[i] if i < len(lst) else ''
+
+            initial_trackers_data = []
+            for i, _t_name in enumerate(_t_names):
+                if not _t_name.strip():
+                    continue
+                _deposit_splits = _safe_json_loads(_at(_t_dep_splits_json, i))
+                initial_trackers_data.append({
+                    'tracker_name': _t_name,
+                    'serial_number': _at(_t_serials, i),
+                    'certificate_number': _at(_t_certs, i),
+                    'tracker_agent_id': _at(_t_agent_ids, i),
+                    'install_date': _at(_t_install_dates, i),
+                    'buying_price': _at(_t_buying, i),
+                    'selling_price': _at(_t_selling, i),
+                    'deposit': _at(_t_deposit, i),
+                    'payment_type': _at(_t_ptype, i) or 'full',
+                    'flexible_installments': _safe_json_loads(_at(_t_flex_json, i)),
+                    'deposit_payment_mode': 'split' if _deposit_splits else 'single',
+                    'deposit_payment_method': _at(_t_dep_method, i) or 'cash',
+                    'deposit_payment_location': _at(_t_dep_location, i),
+                    'deposit_transaction_reference': _at(_t_dep_ref, i),
+                    'deposit_splits': _deposit_splits,
+                })
+            initial_trackers_json = json.dumps(initial_trackers_data)
     else:
         initial_flexible_installments_json = '[]'
+        initial_trackers_json = '[]'
         # Check if vehicle_id is provided via query parameter (from quick-sell feature)
         vehicle_id = request.GET.get('vehicle_id')
         initial_data = {}
@@ -1094,6 +1147,7 @@ def assign_vehicle(request, client_pk):
         'tracker_agents': tracker_agents,
         'tracker_agents_json': json.dumps([{'id': a.pk, 'name': a.name} for a in tracker_agents]),
         'initial_flexible_installments_json': initial_flexible_installments_json,
+        'initial_trackers_json': initial_trackers_json,
         'broker_ledger_data': json.dumps([
             {'id': b.pk, 'name': b.name, 'id_number': b.id_number, 'phone': b.phone}
             for b in brokers
