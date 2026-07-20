@@ -415,9 +415,10 @@ def payment_list(request):
             Q(transaction_reference__icontains=search) |
             Q(client_vehicle__client__first_name__icontains=search) |
             Q(client_vehicle__client__last_name__icontains=search) |
-            Q(client_vehicle__vehicle__registration_number__icontains=search)
+            Q(client_vehicle__vehicle__registration_number__icontains=search) |
+            Q(client_vehicle__vehicle__vin__icontains=search)
         )
-    
+
     # Statistics (active, non-reversed payments only)
     active_payments = payments.filter(is_reversed=False)
     total_payments = active_payments.aggregate(Sum('amount'))['amount__sum'] or 0
@@ -1779,9 +1780,10 @@ def installment_plan_list(request):
         plans = plans.filter(
             Q(client_vehicle__client__first_name__icontains=search) |
             Q(client_vehicle__client__last_name__icontains=search) |
-            Q(client_vehicle__vehicle__registration_number__icontains=search)
+            Q(client_vehicle__vehicle__registration_number__icontains=search) |
+            Q(client_vehicle__vehicle__vin__icontains=search)
         )
-    
+
     # Statistics
     total_plans = plans.count()
     active_plans = plans.filter(is_active=True, is_completed=False).count()
