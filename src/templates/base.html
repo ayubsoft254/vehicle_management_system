@@ -249,6 +249,11 @@
                                     <i class="fas fa-book-open w-4 text-indigo-400 group-hover:text-indigo-600"></i>
                                     <span class="ml-2 font-semibold">Main Ledger</span>
                                 </a>
+                                <a href="{% url 'vehicles:sales_ledger' %}"
+                                   class="flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-emerald-50 hover:text-emerald-700 transition-colors duration-200 group">
+                                    <i class="fas fa-file-invoice-dollar w-4 text-emerald-400 group-hover:text-emerald-600"></i>
+                                    <span class="ml-2 font-semibold">Sales Ledger</span>
+                                </a>
                                 <div class="border-t border-gray-100 my-1"></div>
                                 <a href="{% url 'vehicles:broker_ledger_list' %}"
                                    class="flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-amber-50 hover:text-amber-700 transition-colors duration-200 group">
