@@ -23,15 +23,17 @@
                     <option value="JPY">JPY</option>
                 </select>
             </div>
-            {% url 'payments:defaulters_report_export' 'pdf' as export_pdf_url %}
+            {% url 'payments:defaulters_report_export' 'pdf' as export_pdf_url_base %}
+            {% url 'payments:defaulters_report_export' 'excel' as export_excel_url_base %}
+            {% url 'payments:defaulters_report_export' 'csv' as export_csv_url_base %}
+            {% with export_pdf_url=export_pdf_url_base|add:'?'|add:filter_qs export_excel_url=export_excel_url_base|add:'?'|add:filter_qs export_csv_url=export_csv_url_base|add:'?'|add:filter_qs %}
             <a href="{{ export_pdf_url }}"
                     class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-print mr-2"></i>
                 Print Report
             </a>
-            {% url 'payments:defaulters_report_export' 'excel' as export_excel_url %}
-            {% url 'payments:defaulters_report_export' 'csv' as export_csv_url %}
             {% include 'reports/partials/_export_bar.html' %}
+            {% endwith %}
             <a href="{% url 'payments:overdue_payments' %}"
                class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
                 <i class="fas fa-arrow-left mr-2"></i>
@@ -179,6 +181,33 @@
         </div>
     </div>
 
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <form method="get" class="flex flex-wrap items-end gap-3">
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Search</label>
+                <input type="text" name="search" value="{{ search|default:'' }}" placeholder="Client name, reg no. or VIN..."
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Purchased From</label>
+                <input type="date" name="date_from" value="{{ date_from|default:'' }}"
+                       class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Purchased To</label>
+                <input type="date" name="date_to" value="{{ date_to|default:'' }}"
+                       class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg">
+                <i class="fas fa-filter mr-1"></i>Filter
+            </button>
+            {% if search or date_from or date_to %}
+            <a href="{% url 'payments:defaulters_report' %}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">Reset</a>
+            {% endif %}
+        </form>
+    </div>
+
     <!-- Defaulters List -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
@@ -248,6 +277,7 @@
                         <td class="px-6 py-4">
                             <div class="text-sm font-medium text-gray-900">{{ defaulter.vehicle.registration_number }}</div>
                             <div class="text-xs text-gray-500">{{ defaulter.vehicle.make }} {{ defaulter.vehicle.model }}</div>
+                            <div class="text-xs text-gray-400 font-mono">{{ defaulter.vehicle.vin }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-bold

@@ -3130,7 +3130,11 @@ def _compute_defaulters_context(request):
     not yet been recorded as overdue).
     Shared by the on-screen defaulters report and its PDF/Excel/CSV exports.
     """
+    from utils.ledger import parse_date_range
+
     today = timezone.now().date()
+    date_from, date_to = parse_date_range(request)
+    search = request.GET.get('search', '').strip()
 
     # Find every vehicle purchase that still has an outstanding balance.
     # Exclude deactivated records (repossessed vehicles).
@@ -3139,6 +3143,18 @@ def _compute_defaulters_context(request):
         is_paid_off=False,
         is_active=True,
     ).select_related('client', 'vehicle').order_by('purchase_date')
+
+    if date_from:
+        outstanding_cvs = outstanding_cvs.filter(purchase_date__gte=date_from)
+    if date_to:
+        outstanding_cvs = outstanding_cvs.filter(purchase_date__lte=date_to)
+    if search:
+        outstanding_cvs = outstanding_cvs.filter(
+            Q(client__first_name__icontains=search) |
+            Q(client__last_name__icontains=search) |
+            Q(vehicle__registration_number__icontains=search) |
+            Q(vehicle__vin__icontains=search)
+        )
 
     defaulters = {}
     for cv in outstanding_cvs:
@@ -3228,8 +3244,24 @@ def _compute_defaulters_context(request):
         'moderate_count': len(moderate_defaulters),
         'moderate_amount': moderate_amount,
         'now': timezone.now(),
+        'search': search,
+        'date_from': date_from,
+        'date_to': date_to,
+        'filter_qs': _build_filter_qs(search, date_from, date_to),
     }
     return context
+
+
+def _build_filter_qs(search, date_from, date_to):
+    import urllib.parse
+    params = {}
+    if search:
+        params['search'] = search
+    if date_from:
+        params['date_from'] = date_from.isoformat()
+    if date_to:
+        params['date_to'] = date_to.isoformat()
+    return urllib.parse.urlencode(params)
 
 
 @login_required
@@ -3244,16 +3276,17 @@ def defaulters_report_export(request, fmt):
     """Export the Defaulters Report as PDF/Excel/CSV."""
     from utils.report_kit import export_rows
     ctx = _compute_defaulters_context(request)
-    headers = ['Client', 'Phone', 'Vehicle', 'Days Overdue', 'Outstanding', 'Last Payment']
+    headers = ['Client', 'Phone', 'Vehicle', 'Reg. No.', 'VIN', 'Days Overdue', 'Outstanding', 'Last Payment']
     rows = [
         [
             d['client'].get_full_name(), d['client'].phone_primary or '', d['vehicle'].full_name,
+            d['vehicle'].registration_number or '', d['vehicle'].vin,
             d['days_overdue'], float(d['total_outstanding']),
             d['last_payment_date'].strftime('%Y-%m-%d') if d['last_payment_date'] else '',
         ]
         for d in ctx['defaulters']
     ]
-    return export_rows(fmt, 'defaulters_report', 'Defaulters Report', headers, rows, currency_cols={5})
+    return export_rows(fmt, 'defaulters_report', 'Defaulters Report', headers, rows, currency_cols={6})
 
 
 @login_required
