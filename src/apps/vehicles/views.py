@@ -2087,6 +2087,106 @@ def vehicle_reports(request):
     return render(request, 'vehicles/vehicle_reports.html', context)
 
 
+@login_required
+def vehicle_reports_pdf(request):
+    """PDF version of the vehicle inventory and financial analytics report."""
+    from utils.report_kit import build_pdf_response, fmt_money, kpi_table, styled_table
+    from reportlab.lib.units import inch
+    from reportlab.platypus import Paragraph, Spacer
+    import datetime as dt
+
+    can_see_prices = _can_view_vehicle_prices(request.user)
+    vehicles = Vehicle.objects.all()
+    today = dt.date.today()
+
+    status_breakdown = []
+    total_count = vehicles.count()
+    for val, label in VehicleStatus.CHOICES:
+        count = vehicles.filter(status=val).count()
+        status_breakdown.append({'status': label, 'value': val, 'count': count})
+
+    available_qs = vehicles.filter(status=VehicleStatus.AVAILABLE)
+    sold_qs = vehicles.filter(status=VehicleStatus.SOLD)
+
+    if can_see_prices:
+        inv_agg = available_qs.aggregate(
+            total_purchase=Coalesce(Sum('purchase_price'), Value(0, output_field=DecimalField())),
+            total_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+        )
+        sold_agg = sold_qs.aggregate(
+            total_purchase=Coalesce(Sum('purchase_price'), Value(0, output_field=DecimalField())),
+            total_selling=Coalesce(Sum('selling_price'), Value(0, output_field=DecimalField())),
+        )
+    else:
+        inv_agg = sold_agg = {'total_purchase': 0, 'total_selling': 0}
+
+    by_make = list(
+        vehicles.values('make').annotate(count=Count('id')).order_by('-count')[:10]
+    )
+    fuel_choices = [('petrol', 'Petrol'), ('diesel', 'Diesel'), ('electric', 'Electric'),
+                    ('hybrid', 'Hybrid'), ('other', 'Other')]
+    by_fuel = [{'label': label, 'count': vehicles.filter(fuel_type=val).count()} for val, label in fuel_choices]
+    body_choices = [('sedan', 'Sedan'), ('suv', 'SUV'), ('hatchback', 'Hatchback'),
+                    ('pickup', 'Pickup Truck'), ('van', 'Van'), ('coupe', 'Coupe'),
+                    ('wagon', 'Station Wagon'), ('other', 'Other')]
+    by_body = [
+        {'label': label, 'count': vehicles.filter(body_type=val).count()}
+        for val, label in body_choices if vehicles.filter(body_type=val).exists()
+    ]
+
+    def body(elements, styles):
+        heading = styles['ReportSectionHeading']
+        heading.spaceBefore = 8
+        heading.spaceAfter = 4
+
+        kpi_pairs = [
+            ('Total Vehicles', str(total_count)),
+            ('Available', str(available_qs.count())),
+            ('Sold', str(sold_qs.count())),
+        ]
+        if can_see_prices:
+            kpi_pairs += [
+                ('Available Inventory Value', fmt_money(inv_agg['total_selling'])),
+                ('Sold Value', fmt_money(sold_agg['total_selling'])),
+            ]
+        elements.append(kpi_table(kpi_pairs, col_widths=[3 * inch, 3 * inch]))
+        elements.append(Spacer(1, 10))
+
+        elements.append(Paragraph('STATUS BREAKDOWN', heading))
+        elements.append(styled_table(
+            [['Status', 'Count']] + [[s['status'], str(s['count'])] for s in status_breakdown],
+            align_right_from=1,
+        ))
+        elements.append(Spacer(1, 10))
+
+        elements.append(Paragraph('TOP MAKES', heading))
+        elements.append(styled_table(
+            [['Make', 'Count']] + [[m['make'] or '—', str(m['count'])] for m in by_make],
+            align_right_from=1,
+        ))
+        elements.append(Spacer(1, 10))
+
+        elements.append(Paragraph('FUEL TYPE', heading))
+        elements.append(styled_table(
+            [['Fuel Type', 'Count']] + [[f['label'], str(f['count'])] for f in by_fuel],
+            align_right_from=1,
+        ))
+        elements.append(Spacer(1, 10))
+
+        if by_body:
+            elements.append(Paragraph('BODY TYPE', heading))
+            elements.append(styled_table(
+                [['Body Type', 'Count']] + [[b['label'], str(b['count'])] for b in by_body],
+                align_right_from=1,
+            ))
+
+    return build_pdf_response(
+        'vehicle-reports.pdf', 'Vehicle Inventory & Financial Report',
+        subtitle=f'Generated {today.strftime("%d %B %Y")}',
+        build_body=body,
+    )
+
+
 # ==================== BROKER LEDGER VIEWS ====================
 
 @login_required
