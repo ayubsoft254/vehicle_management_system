@@ -323,6 +323,101 @@ def vehicle_detail_view(request, pk):
 
 
 @login_required
+def vehicle_detail_pdf(request, pk):
+    """Printable spec-sheet PDF for a single vehicle."""
+    from utils.report_kit import build_pdf_response, fmt_money, BORDER_GREY, LIGHT_GREY
+
+    can_view_prices = _can_view_vehicle_prices(request.user)
+    vehicle = get_object_or_404(
+        Vehicle.objects.select_related('added_by'), pk=pk
+    )
+
+    def body(elements, styles):
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+
+        compact = ParagraphStyle('VehicleSpecCompact', parent=styles['Normal'], fontSize=8, leading=10)
+        heading = styles['ReportSectionHeading']
+        heading.spaceBefore = 6
+        heading.spaceAfter = 3
+
+        def field_grid(pairs, col_widths):
+            rows, row = [], []
+            for label, value in pairs:
+                row.append(Paragraph(f'<b>{label}:</b> {value}', compact))
+                if len(row) == len(col_widths):
+                    rows.append(row)
+                    row = []
+            if row:
+                row += [''] * (len(col_widths) - len(row))
+                rows.append(row)
+            table = Table(rows, colWidths=col_widths)
+            table.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.4, BORDER_GREY),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                ('TOPPADDING', (0, 0), (-1, -1), 3),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, LIGHT_GREY]),
+            ]))
+            return table
+
+        elements.append(Paragraph('IDENTIFICATION', heading))
+        elements.append(field_grid([
+            ('Reg No', vehicle.registration_number or '—'),
+            ('Chassis No (VIN)', vehicle.vin),
+            ('Make / Model', f'{vehicle.make} {vehicle.model}'),
+            ('Year', vehicle.year),
+            ('Status', vehicle.get_status_display()),
+            ('Location', vehicle.get_location_display() if vehicle.location else '—'),
+        ], col_widths=[3.25 * inch, 3.25 * inch]))
+        elements.append(Spacer(1, 6))
+
+        elements.append(Paragraph('SPECIFICATIONS', heading))
+        elements.append(field_grid([
+            ('Mileage', f'{vehicle.mileage:,} KM' if vehicle.mileage is not None else '—'),
+            ('Fuel Type', vehicle.get_fuel_type_display()),
+            ('Transmission', vehicle.get_transmission_display()),
+            ('Body Type', vehicle.get_body_type_display() if vehicle.body_type else '—'),
+            ('Color', vehicle.color or '—'),
+            ('Seats', vehicle.seats or '—'),
+            ('Engine Size', vehicle.engine_size or '—'),
+            ('Condition', vehicle.get_condition_display() if vehicle.condition else '—'),
+        ], col_widths=[3.25 * inch, 3.25 * inch]))
+        elements.append(Spacer(1, 6))
+
+        if can_view_prices:
+            elements.append(Paragraph('PRICING', heading))
+            elements.append(field_grid([
+                ('Purchase Price', fmt_money(vehicle.purchase_price)),
+                ('Selling Price', fmt_money(vehicle.selling_price)),
+                ('Website Price', fmt_money(vehicle.website_price) if vehicle.website_price else '—'),
+                ('Deposit Required', fmt_money(vehicle.deposit_required)),
+            ], col_widths=[3.25 * inch, 3.25 * inch]))
+        else:
+            elements.append(Paragraph('PRICING', heading))
+            elements.append(field_grid([
+                ('Selling Price', fmt_money(vehicle.website_display_price)),
+            ], col_widths=[3.25 * inch, 3.25 * inch]))
+        elements.append(Spacer(1, 6))
+        elements.append(Paragraph('www.hozacars.com', styles['ReportCompanyMeta']))
+
+    try:
+        AuditLog.log_read(user=request.user, obj=vehicle, ip_address=request.META.get('REMOTE_ADDR'))
+    except Exception:
+        pass
+
+    return build_pdf_response(
+        f'vehicle-{vehicle.pk}-spec-sheet.pdf', 'Vehicle Spec Sheet',
+        subtitle=vehicle.full_name,
+        build_body=body,
+    )
+
+
+@login_required
 @module_permission_required('vehicles', AccessLevel.READ_WRITE)
 def vehicle_create_view(request):
     """Create new vehicle"""

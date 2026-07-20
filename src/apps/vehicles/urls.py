@@ -14,6 +14,7 @@ urlpatterns = [
     # Vehicle CRUD
     path('create/', views.vehicle_create_view, name='create'),
     path('<int:pk>/', views.vehicle_detail_view, name='detail'),
+    path('<int:pk>/pdf/', views.vehicle_detail_pdf, name='vehicle_detail_pdf'),
     path('<int:pk>/edit/', views.vehicle_update_view, name='update'),
     path('<int:pk>/move/', views.vehicle_move_view, name='move'),
     path('<int:pk>/delete/', views.vehicle_delete_view, name='delete'),

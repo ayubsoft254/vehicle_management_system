@@ -1239,10 +1239,10 @@
                         </a>
                         {% endif %}
                     {% endif %}
-                    <button onclick="window.print()" 
+                    <a href="{% url 'vehicles:vehicle_detail_pdf' vehicle.pk %}"
                             class="block w-full text-center px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg border border-gray-300 transition">
                         Print Details
-                    </button>
+                    </a>
                 </div>
             </div>
         </div>
