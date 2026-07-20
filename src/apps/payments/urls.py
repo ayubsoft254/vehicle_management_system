@@ -17,6 +17,7 @@ urlpatterns = [
     path('withdrawals/', views.account_withdrawal_list, name='account_withdrawal_list'),
     path('accounts/<str:method>/transactions/', views.account_transactions, name='account_transactions'),
     path('<int:pk>/receipt/', views.payment_receipt, name='payment_receipt'),
+    path('<int:pk>/receipt/pdf/', views.payment_receipt_pdf, name='payment_receipt_pdf'),
 
     # Finance account breakdown (full pages)
     path('accounts/hoza/', views.account_breakdown, {'category': 'hoza'}, name='hoza_account_breakdown'),

@@ -1556,8 +1556,145 @@ def payment_receipt(request, pk):
     }
     
     log_audit(request.user, 'view', 'Payment', f'Generated receipt for {payment.receipt_number}')
-    
+
     return render(request, 'payments/payment_receipt.html', context)
+
+
+@login_required
+def payment_receipt_pdf(request, pk):
+    """Printable PDF version of the payment receipt."""
+    from utils.report_kit import build_pdf_response, fmt_money, BORDER_GREY, LIGHT_GREY
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+
+    payment = get_object_or_404(
+        Payment.objects.select_related(
+            'client_vehicle__client', 'client_vehicle__vehicle', 'recorded_by'
+        ).prefetch_related('splits'),
+        pk=pk,
+    )
+    client_vehicle = payment.client_vehicle
+    client = client_vehicle.client
+    vehicle = client_vehicle.vehicle
+
+    def body(elements, styles):
+        compact = ParagraphStyle('ReceiptCompact', parent=styles['Normal'], fontSize=8, leading=10)
+        heading = styles['ReportSectionHeading']
+        heading.spaceBefore = 6
+        heading.spaceAfter = 3
+
+        def field_grid(pairs, col_widths):
+            rows, row = [], []
+            for label, value in pairs:
+                row.append(Paragraph(f'<b>{label}:</b> {value}', compact))
+                if len(row) == len(col_widths):
+                    rows.append(row)
+                    row = []
+            if row:
+                row += [''] * (len(col_widths) - len(row))
+                rows.append(row)
+            table = Table(rows, colWidths=col_widths)
+            table.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.4, BORDER_GREY),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                ('TOPPADDING', (0, 0), (-1, -1), 3),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, LIGHT_GREY]),
+            ]))
+            return table
+
+        if payment.is_reversed:
+            elements.append(Paragraph(
+                f'<font color="red"><b>VOID — PAYMENT REVERSED</b></font> on '
+                f'{payment.reversed_at.strftime("%d %B %Y, %H:%M") if payment.reversed_at else "—"}'
+                f'{" by " + (payment.reversed_by.get_full_name() or payment.reversed_by.username) if payment.reversed_by else ""}.'
+                f'{" Reason: " + payment.reversal_reason if payment.reversal_reason else ""}',
+                compact,
+            ))
+            elements.append(Spacer(1, 8))
+
+        elements.append(Paragraph('RECEIVED FROM', heading))
+        elements.append(field_grid([
+            ('Name', client.get_full_name()),
+            ('ID Number', client.id_number or '—'),
+            ('Phone', client.phone_primary or '—'),
+            ('Email', client.email or '—'),
+        ], col_widths=[3.25 * inch, 3.25 * inch]))
+        elements.append(Spacer(1, 6))
+
+        elements.append(Paragraph('VEHICLE DETAILS', heading))
+        elements.append(field_grid([
+            ('Reg No', vehicle.registration_number or '—'),
+            ('Chassis No', vehicle.vin),
+            ('Make / Model', f'{vehicle.make} {vehicle.model}'),
+            ('Year', vehicle.year),
+        ], col_widths=[3.25 * inch, 3.25 * inch]))
+        elements.append(Spacer(1, 6))
+
+        elements.append(Paragraph('PAYMENT INFORMATION', heading))
+        if payment.splits.exists():
+            split_headers = ['Method', 'Reference', 'Amount']
+            split_rows = [split_headers] + [
+                [s.get_payment_method_display(), s.transaction_reference or '—', fmt_money(s.amount)]
+                for s in payment.splits.all()
+            ]
+            split_table = Table(split_rows, colWidths=[2.2 * inch, 2.2 * inch, 2.2 * inch])
+            split_table.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.4, BORDER_GREY),
+                ('BACKGROUND', (0, 0), (-1, 0), LIGHT_GREY),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ]))
+            elements.append(split_table)
+        else:
+            elements.append(field_grid([
+                ('Method', payment.get_payment_method_display()),
+                ('Reference', payment.transaction_reference or '—'),
+            ], col_widths=[3.25 * inch, 3.25 * inch]))
+        elements.append(Spacer(1, 4))
+        elements.append(Paragraph(f'<b>Amount Paid: {fmt_money(payment.amount)}</b>', styles['ReportSectionHeading']))
+        elements.append(Spacer(1, 6))
+
+        elements.append(Paragraph('ACCOUNT SUMMARY', heading))
+        elements.append(field_grid([
+            ('Total Purchase Price', fmt_money(client_vehicle.purchase_price)),
+            ('Total Paid to Date', fmt_money(client_vehicle.total_paid)),
+            ('Outstanding Balance', fmt_money(client_vehicle.balance)),
+            ('Payment Progress', f'{client_vehicle.payment_progress:.1f}%'),
+        ], col_widths=[3.25 * inch, 3.25 * inch]))
+        elements.append(Spacer(1, 6))
+
+        if payment.notes:
+            elements.append(Paragraph('NOTES', heading))
+            elements.append(Paragraph(payment.notes, compact))
+            elements.append(Spacer(1, 6))
+
+        received_by = payment.recorded_by.get_full_name() if payment.recorded_by else 'System (recorded automatically)'
+        elements.append(field_grid([
+            ('Received By', received_by),
+            ('Recorded At', payment.created_at.strftime('%d %B %Y, %H:%M')),
+        ], col_widths=[3.25 * inch, 3.25 * inch]))
+        elements.append(Spacer(1, 6))
+        elements.append(Paragraph(
+            'This is an official payment receipt. Please retain for your records.',
+            compact,
+        ))
+
+    log_audit(request.user, 'export', 'Payment', f'Downloaded PDF receipt for {payment.receipt_number}')
+
+    return build_pdf_response(
+        f'receipt-{payment.receipt_number}.pdf',
+        'Payment Receipt',
+        subtitle=f'{payment.receipt_number} — {client.get_full_name()}',
+        build_body=body,
+    )
 
 
 # ==================== INSTALLMENT PLAN VIEWS ====================
