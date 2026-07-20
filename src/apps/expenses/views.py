@@ -609,8 +609,57 @@ def report_detail(request, pk):
         'expenses': expenses,
         'category_totals': category_totals,
     }
-    
+
     return render(request, 'expenses/report_detail.html', context)
+
+
+@login_required
+def report_detail_pdf(request, pk):
+    """PDF version of a single submitted expense report."""
+    from utils.report_kit import build_pdf_response, fmt_money, kpi_table, styled_table
+
+    report = get_object_or_404(ExpenseReport, pk=pk)
+    if not (report.submitted_by == request.user or request.user.has_perm('expenses.view_all_reports')):
+        messages.error(request, 'You do not have permission to view this report.')
+        return redirect('expenses:report_list')
+
+    expenses = report.items.select_related(
+        'expense__category', 'expense__submitted_by', 'expense__related_vehicle'
+    ).order_by('expense__expense_date')
+
+    def body(elements, styles):
+        elements.append(kpi_table([
+            ('Total Expenses', str(expenses.count())),
+            ('Total Amount', fmt_money(report.total_amount)),
+            ('Period', f'{report.start_date.strftime("%d %b")} - {report.end_date.strftime("%d %b %Y")}'),
+            ('Status', report.get_status_display()),
+        ], col_widths=[2.6 * inch, 2.6 * inch]))
+        elements.append(Spacer(1, 10))
+
+        headers = ['Date', 'Expense', 'Category', 'Vendor', 'Vehicle', 'Amount']
+        table_data = [headers]
+        for item in expenses:
+            expense = item.expense
+            vehicle = expense.related_vehicle
+            if vehicle:
+                vehicle_label = ' / '.join(filter(None, [vehicle.registration_number, vehicle.vin])) or '—'
+            else:
+                vehicle_label = '—'
+            table_data.append([
+                expense.expense_date.strftime('%d %b %Y'),
+                expense.title,
+                expense.category.name,
+                expense.vendor_name or 'N/A',
+                vehicle_label,
+                f'{expense.currency} {expense.total_amount:,.2f}',
+            ])
+        elements.append(styled_table(table_data, align_right_from=5))
+
+    return build_pdf_response(
+        f'{report.report_number}.pdf', report.title,
+        subtitle=f'{report.report_number} — {report.get_status_display()}',
+        build_body=body,
+    )
 
 
 @login_required

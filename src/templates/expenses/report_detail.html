@@ -34,11 +34,11 @@
                 </button>
             </form>
             {% endif %}
-            <button onclick="window.print()" 
+            <a href="{% url 'expenses:report_detail_pdf' report.pk %}"
                     class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-print mr-2"></i>
                 Print
-            </button>
+            </a>
         </div>
     </div>
 
@@ -46,7 +46,7 @@
     <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <p class="text-sm font-medium text-gray-600">Total Expenses</p>
-            <p class="text-2xl font-bold text-gray-900 mt-2">{{ report.expense_count }}</p>
+            <p class="text-2xl font-bold text-gray-900 mt-2">{{ expenses|length }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <p class="text-sm font-medium text-gray-600">Total Amount</p>
@@ -79,6 +79,7 @@
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expense</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vehicle</th>
                         <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
                     </tr>
                 </thead>
@@ -103,19 +104,25 @@
                         <td class="px-6 py-4 text-sm text-gray-900">
                             {{ item.expense.vendor_name|default:"N/A" }}
                         </td>
+                        <td class="px-6 py-4 text-sm text-gray-500">
+                            {% if item.expense.related_vehicle %}
+                                {{ item.expense.related_vehicle.registration_number|default:"—" }}
+                                {% if item.expense.related_vehicle.vin %}<br><span class="text-xs text-gray-400">{{ item.expense.related_vehicle.vin }}</span>{% endif %}
+                            {% else %}—{% endif %}
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
                             {{ item.expense.currency }} {{ item.expense.total_amount|floatformat:2 }}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">
                             No expenses in this report yet
                         </td>
                     </tr>
                     {% endfor %}
                     <tr class="bg-gray-50 font-bold">
-                        <td colspan="4" class="px-6 py-4 text-right text-sm text-gray-900">Total:</td>
+                        <td colspan="5" class="px-6 py-4 text-right text-sm text-gray-900">Total:</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-lg text-primary-600">
                             KES {{ report.total_amount|floatformat:2 }}
                         </td>
