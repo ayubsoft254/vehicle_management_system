@@ -139,9 +139,10 @@
             {% if date_from or date_to %}
             <a href="{% url 'payments:account_detail' account.pk %}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">Reset</a>
             {% endif %}
-            <button type="button" onclick="window.print()" class="ml-auto px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium rounded-lg">
+            <a href="{% url 'payments:account_detail_pdf' account.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}" target="_blank"
+                class="ml-auto px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium rounded-lg">
                 <i class="fas fa-print mr-1"></i>Print
-            </button>
+            </a>
         </form>
         {% if date_from or date_to %}
         <p class="text-xs text-gray-500 mt-2">

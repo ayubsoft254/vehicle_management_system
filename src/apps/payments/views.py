@@ -735,14 +735,8 @@ def account_breakdown(request, category):
     return render(request, 'payments/account_breakdown.html', context)
 
 
-@login_required
-def account_detail(request, pk):
-    """Full ledger for a single account: opening balance, totals and full transaction history."""
-    from utils.ledger import parse_date_range
-
-    account = get_object_or_404(Account, pk=pk)
-    date_from, date_to = parse_date_range(request)
-
+def _account_ledger_rows(account, date_from, date_to):
+    """Shared by the on-screen account ledger and its PDF export so they never disagree."""
     rows = []
 
     for payment in account._legacy_payment_qs().select_related(
@@ -847,6 +841,17 @@ def account_detail(request, pk):
         rows = [r for r in rows if r['date'] >= date_from]
     if date_to:
         rows = [r for r in rows if r['date'] <= date_to]
+    return rows
+
+
+@login_required
+def account_detail(request, pk):
+    """Full ledger for a single account: opening balance, totals and full transaction history."""
+    from utils.ledger import parse_date_range
+
+    account = get_object_or_404(Account, pk=pk)
+    date_from, date_to = parse_date_range(request)
+    rows = _account_ledger_rows(account, date_from, date_to)
 
     # A date-filtered report should print as one page; only the default
     # (unfiltered, potentially very long) history stays paginated on screen.
@@ -871,6 +876,54 @@ def account_detail(request, pk):
 
     log_audit(request.user, 'view', 'Account', f'Viewed ledger for {account.name}')
     return render(request, 'payments/account_detail.html', context)
+
+
+@login_required
+def account_detail_pdf(request, pk):
+    """Printable PDF statement for a single finance account."""
+    from utils.ledger import parse_date_range
+    from utils.report_kit import build_pdf_response, fmt_money, kpi_table, styled_table
+
+    account = get_object_or_404(Account, pk=pk)
+    date_from, date_to = parse_date_range(request)
+    rows = _account_ledger_rows(account, date_from, date_to)
+
+    def body(elements, styles):
+        from reportlab.lib.units import inch
+        from reportlab.platypus import Spacer
+
+        elements.append(kpi_table([
+            ('Opening Balance', fmt_money(account.opening_balance)),
+            ('Total Debits', fmt_money(account.money_in_total)),
+            ('Total Credits', fmt_money(account.money_out_total)),
+            ('Current Balance', fmt_money(account.current_balance)),
+        ], col_widths=[2.6 * inch, 2.6 * inch]))
+        elements.append(Spacer(1, 10))
+
+        headers = ['Date', 'Reference', 'Type', 'Narration', 'Debit', 'Credit', 'Balance']
+        table_data = [headers]
+        for row in rows:
+            table_data.append([
+                row['date'].strftime('%d %b %Y') if row['date'] else '',
+                row['reference'] or '—',
+                row['type_label'] + (' (REVERSED)' if row.get('is_reversed') else ''),
+                (row['narration'] or '')[:60],
+                fmt_money(row['money_in']) if row['money_in'] else '—',
+                fmt_money(row['money_out']) if row['money_out'] else '—',
+                fmt_money(row['running_balance']),
+            ])
+        elements.append(styled_table(table_data, align_right_from=4))
+
+    subtitle = account.name
+    if date_from or date_to:
+        subtitle += f" — {date_from or 'the beginning'} to {date_to or 'today'}"
+
+    log_audit(request.user, 'export', 'Account', f'Downloaded PDF statement for {account.name}')
+
+    return build_pdf_response(
+        f'account-{account.pk}-statement.pdf', 'Account Statement', subtitle=subtitle,
+        build_body=body, landscape_mode=True,
+    )
 
 
 @login_required
