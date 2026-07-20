@@ -54,13 +54,19 @@ def compute_vehicle_total_cost(vehicle):
 
 
 def compute_sale_profit(client_vehicle):
-    """Actual profit/loss for a completed sale: agreed selling price minus total cost
-    (including this sale's broker commission).
+    """Actual profit/loss for a single completed sale: agreed selling price minus
+    total cost (including this sale's broker commission).
 
     Revenue uses ClientVehicle.purchase_price - the field balance/total_paid
     and every other report (dashboard, financial reports) already treat as
     the authoritative sale price. final_selling_price is left blank (0) on
     most historical sales, so it isn't reliable here.
+
+    NOTE: if the same vehicle was sold more than once (e.g. repossessed and
+    resold), each sale's row here carries that vehicle's full acquisition
+    and program cost - correct for reading a single row in isolation, but
+    summing this across multiple rows for the same vehicle double-counts
+    that shared cost. Use bulk_sale_totals() for any aggregate total.
     """
     cost = compute_vehicle_total_cost(client_vehicle.vehicle)
     commission_amount = client_vehicle.commission_amount or ZERO
@@ -78,3 +84,66 @@ def compute_sale_profit(client_vehicle):
         'is_profit': profit >= ZERO,
         'margin_percentage': margin_percentage,
     }
+
+
+def bulk_sale_totals(client_vehicle_qs):
+    """
+    Bulk (no N+1) revenue/cost totals for a ClientVehicle queryset - the
+    aggregate counterpart to compute_sale_profit(). Used for any *total*
+    (dashboard KPI cards, Sales Ledger summary cards) rather than summing
+    compute_sale_profit() per row, because a vehicle sold more than once
+    would otherwise have its shared costs (purchase price, duty, clearance,
+    extra costs, insurance, tracker, repossession) counted once per sale
+    instead of once. Broker commission is the one cost that IS genuinely
+    per-sale (ClientVehicle.commission_amount), so it's summed directly
+    without deduplication.
+
+    Each cost component is a separate .aggregate() call against its own
+    model rather than one call joining every reverse relation at once, to
+    avoid the classic Django fan-out (row-multiplying) bug from aggregating
+    across multiple one-to-many joins in a single query.
+    """
+    from apps.insurance.models import InsurancePolicy
+    from apps.expenses.models import Expense
+    from apps.repossessions.models import Repossession, RepossessionExpense
+
+    agg = client_vehicle_qs.aggregate(
+        total_sales=Sum('purchase_price'),
+        total_commission=Sum('commission_amount'),
+    )
+    total_sales = agg['total_sales'] or ZERO
+    total_commission = agg['total_commission'] or ZERO
+
+    # Deduplicated by vehicle - these costs belong to the vehicle, not to
+    # any one sale of it, so a resold vehicle must only be counted once.
+    vehicle_ids = list(set(client_vehicle_qs.values_list('vehicle_id', flat=True)))
+    from .models import Vehicle, VehicleExtraCost
+
+    vehicle_agg = Vehicle.objects.filter(id__in=vehicle_ids).aggregate(
+        total_purchase=Sum('purchase_price'),
+        total_duty=Sum('duty_cost'),
+        total_clearance=Sum('clearance_cost'),
+    )
+    base_cost = (
+        (vehicle_agg['total_purchase'] or ZERO)
+        + (vehicle_agg['total_duty'] or ZERO)
+        + (vehicle_agg['total_clearance'] or ZERO)
+    )
+    extra_costs = VehicleExtraCost.objects.filter(
+        vehicle_id__in=vehicle_ids
+    ).aggregate(t=Sum('amount'))['t'] or ZERO
+    insurance_cost = InsurancePolicy.objects.filter(
+        vehicle_id__in=vehicle_ids
+    ).aggregate(t=Sum('buying_price'))['t'] or ZERO
+    tracker_cost = Expense.objects.filter(
+        related_vehicle_id__in=vehicle_ids
+    ).filter(
+        Q(category__name__icontains='track') | Q(category__code__icontains='TRACKER')
+    ).aggregate(t=Sum('amount'))['t'] or ZERO
+    repossession_cost = (
+        (Repossession.objects.filter(vehicle_id__in=vehicle_ids).aggregate(t=Sum('total_cost'))['t'] or ZERO)
+        + (RepossessionExpense.objects.filter(repossession__vehicle_id__in=vehicle_ids).aggregate(t=Sum('amount'))['t'] or ZERO)
+    )
+
+    total_cost = base_cost + total_commission + extra_costs + insurance_cost + tracker_cost + repossession_cost
+    return total_sales, total_cost
