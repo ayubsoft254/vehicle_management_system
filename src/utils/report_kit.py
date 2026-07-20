@@ -159,6 +159,55 @@ def kpi_table(pairs, col_widths=None):
     return table
 
 
+def ledger_statement_pdf_response(filename, title, subtitle, statement_rows, statement_summary,
+                                   debit_hint=None, credit_hint=None, meta_lines=None):
+    """
+    A single-entity debit/credit statement PDF - the printable counterpart
+    to includes/ledger_statement.html. Used by every party ledger detail
+    page (broker, tracker agent, clearing agent, Japan supplier, insurance
+    agent) so their "Print" button downloads the same statement shown on
+    screen instead of just opening the browser print dialog.
+    """
+    def body(elements, styles):
+        if debit_hint or credit_hint:
+            hint_bits = []
+            if debit_hint:
+                hint_bits.append(f'<b>Debit:</b> {debit_hint}')
+            if credit_hint:
+                hint_bits.append(f'<b>Credit:</b> {credit_hint}')
+            elements.append(Paragraph('  &middot;  '.join(hint_bits), styles['ReportCompanyMeta']))
+            elements.append(Spacer(1, 6))
+
+        elements.append(kpi_table([
+            ('Opening Balance', fmt_money(statement_summary['opening_balance'])),
+            ('Total Debits', fmt_money(statement_summary['total_debits'])),
+            ('Total Credits', fmt_money(statement_summary['total_credits'])),
+            ('Closing Balance', fmt_money(statement_summary['closing_balance'])),
+        ], col_widths=[2.6 * inch, 2.6 * inch]))
+        elements.append(Spacer(1, 10))
+
+        headers = ['Date', 'Reference', 'Description', 'Related', 'Method', 'Debit', 'Credit', 'Balance', 'Status']
+        table_data = [headers]
+        for row in statement_rows:
+            table_data.append([
+                row['date'].strftime('%d %b %Y') if row['date'] else '',
+                row['reference'] or '—',
+                (row['description'] or '') + (' (REVERSED)' if row.get('is_reversed') else ''),
+                row['related'] or '—',
+                row['method'] or '—',
+                fmt_money(row['debit']) if row['debit'] else '—',
+                fmt_money(row['credit']) if row['credit'] else '—',
+                fmt_money(row['running_balance']),
+                row['status'] or '—',
+            ])
+        elements.append(styled_table(table_data, align_right_from=5))
+
+    return build_pdf_response(
+        filename, title, subtitle=subtitle, meta_lines=meta_lines,
+        build_body=body, landscape_mode=True,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Excel
 # ---------------------------------------------------------------------------
