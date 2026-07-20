@@ -21,62 +21,6 @@ User = get_user_model()
 # DASHBOARD DATA AGGREGATION
 # ============================================================================
 
-def _bulk_sale_totals(client_vehicle_qs):
-    """
-    Bulk (no N+1) revenue/cost totals for a ClientVehicle queryset, matching
-    the same cost components as the per-sale "Actual Profit" calculation on
-    the vehicle detail page and the Sales Ledger (purchase price + duty +
-    clearance + commission + extra costs + insurance + tracker + repossession
-    costs), so the dashboard profit KPI never disagrees with those pages.
-
-    Each cost component is a separate .aggregate() call against its own
-    model rather than one call joining every reverse relation at once, to
-    avoid the classic Django fan-out (row-multiplying) bug from aggregating
-    across multiple one-to-many joins in a single query.
-    """
-    from apps.vehicles.models import VehicleExtraCost
-    from apps.insurance.models import InsurancePolicy
-    from apps.expenses.models import Expense
-    from apps.repossessions.models import Repossession, RepossessionExpense
-
-    ZERO = Decimal('0.00')
-
-    agg = client_vehicle_qs.aggregate(
-        total_sales=Sum('purchase_price'),
-        total_purchase=Sum('vehicle__purchase_price'),
-        total_duty=Sum('vehicle__duty_cost'),
-        total_clearance=Sum('vehicle__clearance_cost'),
-        total_commission=Sum('commission_amount'),
-    )
-    total_sales = agg['total_sales'] or ZERO
-    base_cost = (
-        (agg['total_purchase'] or ZERO)
-        + (agg['total_duty'] or ZERO)
-        + (agg['total_clearance'] or ZERO)
-        + (agg['total_commission'] or ZERO)
-    )
-
-    vehicle_ids = list(client_vehicle_qs.values_list('vehicle_id', flat=True))
-    extra_costs = VehicleExtraCost.objects.filter(
-        vehicle_id__in=vehicle_ids
-    ).aggregate(t=Sum('amount'))['t'] or ZERO
-    insurance_cost = InsurancePolicy.objects.filter(
-        vehicle_id__in=vehicle_ids
-    ).aggregate(t=Sum('buying_price'))['t'] or ZERO
-    tracker_cost = Expense.objects.filter(
-        related_vehicle_id__in=vehicle_ids
-    ).filter(
-        Q(category__name__icontains='track') | Q(category__code__icontains='TRACKER')
-    ).aggregate(t=Sum('amount'))['t'] or ZERO
-    repossession_cost = (
-        (Repossession.objects.filter(vehicle_id__in=vehicle_ids).aggregate(t=Sum('total_cost'))['t'] or ZERO)
-        + (RepossessionExpense.objects.filter(repossession__vehicle_id__in=vehicle_ids).aggregate(t=Sum('amount'))['t'] or ZERO)
-    )
-
-    total_cost = base_cost + extra_costs + insurance_cost + tracker_cost + repossession_cost
-    return total_sales, total_cost
-
-
 def get_dashboard_overview_data(user=None):
     """
     Get overview data for main dashboard — expanded with financial analytics,
@@ -181,13 +125,17 @@ def get_dashboard_overview_data(user=None):
     # Commission (ClientVehicle.commission_amount), extra costs, insurance
     # and tracker/repossession costs are real costs against a sale — a
     # previous version of this calculation only subtracted purchase price +
-    # duty + clearance, silently overstating profit. _bulk_sale_totals()
-    # mirrors the full "Actual Profit" cost basis used elsewhere in the app.
+    # duty + clearance, silently overstating profit. bulk_sale_totals()
+    # (shared with the Sales Ledger page) mirrors the full "Actual Profit"
+    # cost basis used elsewhere in the app, deduplicated per vehicle so a
+    # resold vehicle's shared costs aren't counted once per sale.
+    from apps.vehicles.utils import bulk_sale_totals
+
     sold_profit_qs = sold_cv
-    total_sales_value, total_cost_base = _bulk_sale_totals(sold_profit_qs)
+    total_sales_value, total_cost_base = bulk_sale_totals(sold_profit_qs)
     total_profit_loss = total_sales_value - total_cost_base
 
-    m_sales, m_cost = _bulk_sale_totals(
+    m_sales, m_cost = bulk_sale_totals(
         sold_profit_qs.filter(purchase_date__gte=first_day_of_month)
     )
     monthly_profit = m_sales - m_cost
