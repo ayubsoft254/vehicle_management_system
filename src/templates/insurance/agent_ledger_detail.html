@@ -57,6 +57,7 @@
     </div>
 
     <!-- Debit / Credit Statement -->
+    {% url 'insurance:agent_ledger_pdf' agent.pk as statement_pdf_url %}
     {% include 'includes/ledger_statement.html' %}
 
     <!-- Policies Table -->

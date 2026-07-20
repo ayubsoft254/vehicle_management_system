@@ -53,6 +53,7 @@
     </div>
 
     <!-- Debit / Credit Statement -->
+    {% url 'vehicles:broker_ledger_pdf' broker.pk as statement_pdf_url %}
     {% include 'includes/ledger_statement.html' %}
 
     <!-- Sales / Commission Records Table -->

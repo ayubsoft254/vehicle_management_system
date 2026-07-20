@@ -67,6 +67,7 @@
     {% endif %}
 
     <!-- Debit / Credit Statement -->
+    {% url 'vehicles:japan_supplier_ledger_pdf' supplier.pk as statement_pdf_url %}
     {% include 'includes/ledger_statement.html' %}
 
     <!-- Vehicle Purchase Records -->
