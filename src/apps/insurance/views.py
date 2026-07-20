@@ -513,6 +513,7 @@ def claim_list(request):
                 Q(claim_number__icontains=search) |
                 Q(policy__policy_number__icontains=search) |
                 Q(policy__vehicle__registration_number__icontains=search) |
+                Q(policy__vehicle__vin__icontains=search) |
                 Q(policy__client__first_name__icontains=search) |
                 Q(policy__client__last_name__icontains=search)
             )

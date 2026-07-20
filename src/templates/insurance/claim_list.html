@@ -108,7 +108,12 @@
                             <tr class="hover:bg-gray-50 transition">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ claim.claim_number }}</td>
                                 <td class="px-6 py-4">
-                                    <div class="text-sm text-gray-900">{{ claim.policy.vehicle }}</div>
+                                    <div class="text-sm text-gray-900">{{ claim.policy.vehicle.full_name }}</div>
+                                    <div class="text-xs text-gray-400 font-mono">
+                                        {% if claim.policy.vehicle.registration_number %}{{ claim.policy.vehicle.registration_number }}{% endif %}
+                                        {% if claim.policy.vehicle.registration_number and claim.policy.vehicle.vin %} &middot; {% endif %}
+                                        {{ claim.policy.vehicle.vin }}
+                                    </div>
                                     <div class="text-xs text-gray-500">{{ claim.policy.policy_number }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ claim.get_claim_type_display }}</td>

@@ -67,8 +67,12 @@
                             <tr class="hover:bg-gray-50 transition {% if policy.days_until_expiry <= 7 %}bg-red-50{% elif policy.days_until_expiry <= 15 %}bg-yellow-50{% endif %}">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ policy.policy_number }}</td>
                                 <td class="px-6 py-4">
-                                    <div class="text-sm text-gray-900">{{ policy.vehicle }}</div>
-                                    <div class="text-xs text-gray-500">{{ policy.vehicle.registration_number }}</div>
+                                    <div class="text-sm text-gray-900">{{ policy.vehicle.full_name }}</div>
+                                    <div class="text-xs text-gray-500">
+                                        {% if policy.vehicle.registration_number %}{{ policy.vehicle.registration_number }}{% endif %}
+                                        {% if policy.vehicle.registration_number and policy.vehicle.vin %} &middot; {% endif %}
+                                        {{ policy.vehicle.vin }}
+                                    </div>
                                 </td>
                                 <td class="px-6 py-4">
                                     {% if policy.client %}
