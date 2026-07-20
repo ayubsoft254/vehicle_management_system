@@ -732,8 +732,14 @@ def report_analytics(request):
 # FINANCIAL REPORTS
 # ============================================================================
 
-def _build_financial_overview_context():
-    """Cross-app financial analytics, shared by the on-screen report and its PDF/Excel/CSV exports."""
+def _build_financial_overview_context(date_from=None, date_to=None):
+    """Cross-app financial analytics, shared by the on-screen report and its PDF/Excel/CSV exports.
+
+    date_from/date_to scope the sales-related aggregates (sales_agg,
+    payment_type_data, top_clients, gross_profit) by ClientVehicle.purchase_date.
+    Insurance/tracker/clearance/inventory aggregates stay all-time - they're
+    party-level running ledgers with no single "purchase date" of their own.
+    """
     from django.db.models import DecimalField, Value, F
     from django.db.models.functions import Coalesce
     from apps.clients.models import ClientVehicle
@@ -742,6 +748,10 @@ def _build_financial_overview_context():
 
     # ---- Sales revenue (sold vehicles via ClientVehicle) ----
     sales_qs = ClientVehicle.objects.filter(vehicle__status='sold')
+    if date_from:
+        sales_qs = sales_qs.filter(purchase_date__gte=date_from)
+    if date_to:
+        sales_qs = sales_qs.filter(purchase_date__lte=date_to)
     sales_agg = sales_qs.aggregate(
         total_revenue=Coalesce(Sum('purchase_price'), Value(0, output_field=DecimalField())),
         total_collected=Coalesce(Sum('total_paid'), Value(0, output_field=DecimalField())),
@@ -853,6 +863,8 @@ def _build_financial_overview_context():
         'gross_profit': gross_profit,
         'today': today,
         'month_start': month_start,
+        'date_from': date_from,
+        'date_to': date_to,
     }
 
 
@@ -860,19 +872,36 @@ def _build_financial_overview_context():
 def financial_reports(request):
     """Cross-app financial overview: sales, collections, commissions and payouts."""
     from django.urls import reverse
-    context = _build_financial_overview_context()
+    from utils.ledger import parse_date_range
+    import urllib.parse
+
+    date_from, date_to = parse_date_range(request)
+    context = _build_financial_overview_context(date_from, date_to)
     context['can_see_prices'] = request.user.is_staff
-    context['report_subtitle'] = f"Cross-portfolio snapshot as of {context['today'].strftime('%d %B %Y')}"
-    context['export_pdf_url'] = reverse('reports:financial_reports_pdf')
-    context['export_excel_url'] = reverse('reports:financial_reports_excel')
-    context['export_csv_url'] = reverse('reports:financial_reports_csv')
+    if date_from or date_to:
+        context['report_subtitle'] = f"Sales from {date_from or 'the beginning'} to {date_to or 'today'}"
+    else:
+        context['report_subtitle'] = f"Cross-portfolio snapshot as of {context['today'].strftime('%d %B %Y')}"
+    qs_params = {}
+    if date_from:
+        qs_params['date_from'] = date_from.isoformat()
+    if date_to:
+        qs_params['date_to'] = date_to.isoformat()
+    filter_qs = urllib.parse.urlencode(qs_params)
+    context['filter_qs'] = filter_qs
+    context['export_pdf_url'] = reverse('reports:financial_reports_pdf') + ('?' + filter_qs if filter_qs else '')
+    context['export_excel_url'] = reverse('reports:financial_reports_excel') + ('?' + filter_qs if filter_qs else '')
+    context['export_csv_url'] = reverse('reports:financial_reports_csv') + ('?' + filter_qs if filter_qs else '')
     return render(request, 'reports/financial_reports.html', context)
 
 
 @login_required
 def financial_reports_pdf(request):
     from utils.report_kit import build_pdf_response, styled_table, kpi_table, fmt_money
-    ctx = _build_financial_overview_context()
+    from utils.ledger import parse_date_range
+
+    date_from, date_to = parse_date_range(request)
+    ctx = _build_financial_overview_context(date_from, date_to)
 
     def body(elements, styles):
         elements.append(Paragraph('Sales Overview', styles['ReportSectionHeading']))
@@ -907,16 +936,24 @@ def financial_reports_pdf(request):
             ])
         elements.append(styled_table(rows, col_widths=[1.8 * inch, 0.8 * inch, 1.3 * inch, 1.3 * inch, 1.3 * inch], align_right_from=1))
 
+    if date_from or date_to:
+        subtitle = f"Sales from {date_from or 'the beginning'} to {date_to or 'today'}"
+    else:
+        subtitle = f"As at {ctx['today'].strftime('%d %B %Y')}"
+
     return build_pdf_response(
         'financial_overview.pdf', 'Financial Overview',
-        subtitle=f"As at {ctx['today'].strftime('%d %B %Y')}", build_body=body,
+        subtitle=subtitle, build_body=body,
     )
 
 
 @login_required
 def financial_reports_excel(request):
     from utils.report_kit import build_excel_response
-    ctx = _build_financial_overview_context()
+    from utils.ledger import parse_date_range
+
+    date_from, date_to = parse_date_range(request)
+    ctx = _build_financial_overview_context(date_from, date_to)
     headers = ['Client', 'Vehicles', 'Total Purchase', 'Paid', 'Balance']
     rows = [
         [f"{c['client__first_name']} {c['client__last_name']}", c['vehicle_count'], float(c['total_purchase']), float(c['total_paid']), float(c['balance'])]
@@ -928,7 +965,10 @@ def financial_reports_excel(request):
 @login_required
 def financial_reports_csv(request):
     from utils.report_kit import build_csv_response
-    ctx = _build_financial_overview_context()
+    from utils.ledger import parse_date_range
+
+    date_from, date_to = parse_date_range(request)
+    ctx = _build_financial_overview_context(date_from, date_to)
     headers = ['Client', 'Vehicles', 'Total Purchase', 'Paid', 'Balance']
     rows = [
         [f"{c['client__first_name']} {c['client__last_name']}", c['vehicle_count'], c['total_purchase'], c['total_paid'], c['balance']]

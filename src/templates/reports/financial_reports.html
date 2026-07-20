@@ -10,6 +10,29 @@
     {% include 'reports/partials/_report_header.html' %}
     {% endwith %}
 
+    <!-- Date range filter (scopes sales figures below by purchase date) -->
+    <div class="bg-white rounded-lg border border-slate-200 p-4 mb-6">
+        <form method="get" class="flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Sales From</label>
+                <input type="date" name="date_from" value="{{ date_from|default:'' }}"
+                    class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Sales To</label>
+                <input type="date" name="date_to" value="{{ date_to|default:'' }}"
+                    class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+            </div>
+            <button type="submit" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg">
+                <i class="fas fa-filter mr-1"></i>Filter
+            </button>
+            {% if date_from or date_to %}
+            <a href="{% url 'reports:financial_reports' %}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">Reset</a>
+            {% endif %}
+        </form>
+        <p class="text-xs text-slate-400 mt-2">Filters the sales, gross profit and top-clients figures below by vehicle purchase date. Insurance/tracker/clearance ledgers stay all-time.</p>
+    </div>
+
     {% if not can_see_prices %}
     <div class="bg-amber-50 border border-amber-200 rounded-md p-4 mb-6 flex items-center text-amber-800 text-sm">
         <i class="fas fa-lock mr-2"></i>
