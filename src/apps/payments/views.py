@@ -738,7 +738,10 @@ def account_breakdown(request, category):
 @login_required
 def account_detail(request, pk):
     """Full ledger for a single account: opening balance, totals and full transaction history."""
+    from utils.ledger import parse_date_range
+
     account = get_object_or_404(Account, pk=pk)
+    date_from, date_to = parse_date_range(request)
 
     rows = []
 
@@ -837,7 +840,18 @@ def account_detail(request, pk):
         row['running_balance'] = running
     rows.reverse()
 
-    paginator = Paginator(rows, 50)
+    # Running balances above reflect the true all-time cumulative balance,
+    # so the date filter is applied to the already-balanced list purely for
+    # display/print - it never resets the balance to zero mid-history.
+    if date_from:
+        rows = [r for r in rows if r['date'] >= date_from]
+    if date_to:
+        rows = [r for r in rows if r['date'] <= date_to]
+
+    # A date-filtered report should print as one page; only the default
+    # (unfiltered, potentially very long) history stays paginated on screen.
+    page_size = len(rows) if (date_from or date_to) else 50
+    paginator = Paginator(rows, max(page_size, 1))
     page_obj = paginator.get_page(request.GET.get('page'))
 
     context = {
@@ -851,6 +865,8 @@ def account_detail(request, pk):
         'pending_balance': account.pending_balance,
         'pending_count': account.transactions.filter(approval_status='pending').count(),
         'rows': page_obj,
+        'date_from': date_from,
+        'date_to': date_to,
     }
 
     log_audit(request.user, 'view', 'Account', f'Viewed ledger for {account.name}')
