@@ -485,10 +485,17 @@ class Vehicle(models.Model):
 
     @property
     def website_display_price(self):
-        """Price displayed on website pages, defaults to selling price."""
-        if self.website_price is not None and self.website_price > Decimal('0.00'):
-            return self.website_price
-        return self.selling_price or Decimal('0.00')
+        """
+        Price displayed on public/website pages. Deliberately does NOT fall
+        back to selling_price (an internal cost-derived figure) when
+        website_price is unset - staff viewing this value (admin panel,
+        vehicle list, "Potential Profit") should see the same 0 a visitor
+        sees, so an unset website price is obvious rather than silently
+        masked by an internal number. Business logic that needs an internal
+        reference price (e.g. defaulting a sale price) should read
+        selling_price directly instead of this property.
+        """
+        return self.website_price or Decimal('0.00')
     
     @property
     def is_available(self):
