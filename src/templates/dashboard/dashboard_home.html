@@ -456,7 +456,11 @@
                                 <td class="px-3 py-2 text-sm text-gray-800">
                                     <a href="{% url 'vehicles:detail' vehicle.id %}" class="font-semibold hover:text-blue-600">{{ vehicle.vehicle_name }}</a>
                                 </td>
-                                <td class="px-3 py-2 text-sm text-gray-600">{{ vehicle.registration_number|default:vehicle.vin }}</td>
+                                <td class="px-3 py-2 text-sm text-gray-600">
+                                    {% if vehicle.registration_number %}{{ vehicle.registration_number }}{% endif %}
+                                    {% if vehicle.registration_number and vehicle.vin %}<br>{% endif %}
+                                    {% if vehicle.vin %}<span class="text-xs text-gray-400">{{ vehicle.vin }}</span>{% endif %}
+                                </td>
                                 <td class="px-3 py-2 text-sm text-gray-700">{{ vehicle.purchase_date }}</td>
                                 <td class="px-3 py-2 text-sm font-semibold text-amber-700">{{ vehicle.age_days }}</td>
                                 <td class="px-3 py-2 text-sm">
