@@ -303,7 +303,7 @@
                         </div>
                         <div class="flex justify-between items-center mb-4">
                             <div>
-                                <p class="text-sm font-semibold text-primary-600 js-landing-currency" data-kes="{{ vehicle.website_display_price|default:'0' }}" data-prefix="Negotiable">Negotiable KES {{ vehicle.website_display_price|floatformat:0 }}</p>
+                                <p class="text-sm font-semibold text-primary-600 js-landing-currency" data-kes="{{ vehicle.website_price|default:'0' }}" data-prefix="Negotiable">Negotiable KES {{ vehicle.website_price|default:0|floatformat:0 }}</p>
                             </div>
                         </div>
                         <a href="{% url 'dashboard:public_vehicle_detail' vehicle.pk %}" 
@@ -392,7 +392,7 @@
                                 <span><i class="fas fa-cog mr-1"></i>{{ vehicle.get_transmission_display }}</span>
                             </div>
                             <div class="mb-3">
-                                <p class="text-sm font-semibold text-primary-600 js-landing-currency" data-kes="{{ vehicle.website_display_price|default:'0' }}" data-prefix="Negotiable">Negotiable KES {{ vehicle.website_display_price|floatformat:0 }}</p>
+                                <p class="text-sm font-semibold text-primary-600 js-landing-currency" data-kes="{{ vehicle.website_price|default:'0' }}" data-prefix="Negotiable">Negotiable KES {{ vehicle.website_price|default:0|floatformat:0 }}</p>
                             </div>
                             <a href="{% url 'dashboard:public_vehicle_detail' vehicle.pk %}" 
                                class="block w-full bg-primary-600 hover:bg-primary-700 text-white text-center px-4 py-2 rounded-lg font-semibold transition-all duration-300 text-sm">
