@@ -158,8 +158,11 @@ def proforma_list(request):
     """Proforma & reservation workbench: KPI cards + filterable list."""
     process_reservations()  # keep expiry state fresh even without cron
 
+    from utils.ledger import parse_date_range
+
     status_filter = request.GET.get('status', '').strip()
     search = request.GET.get('q', '').strip()
+    date_from, date_to = parse_date_range(request)
 
     proformas = ProformaInvoice.objects.select_related(
         'client', 'vehicle', 'prepared_by'
@@ -167,6 +170,10 @@ def proforma_list(request):
 
     if status_filter:
         proformas = proformas.filter(status=status_filter)
+    if date_from:
+        proformas = proformas.filter(issue_date__gte=date_from)
+    if date_to:
+        proformas = proformas.filter(issue_date__lte=date_to)
     if search:
         proformas = proformas.filter(
             Q(number__icontains=search)
@@ -214,6 +221,8 @@ def proforma_list(request):
         'kpis': kpis,
         'status_filter': status_filter,
         'search': search,
+        'date_from': date_from,
+        'date_to': date_to,
         'status_choices': ProformaInvoice.STATUS_CHOICES,
         'review_reservations': review_reservations,
         'can_confirm_deposit': _can_confirm_deposit(request.user),
