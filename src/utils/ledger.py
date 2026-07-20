@@ -19,9 +19,28 @@ Convention per ledger perspective:
 
 An entry never carries the same amount in both the debit and credit column.
 """
+import datetime as _dt
 from decimal import Decimal
 
 ZERO = Decimal('0.00')
+
+
+def parse_date_range(request):
+    """Read date_from/date_to GET params as date objects (or None each).
+
+    Shared by every party/agent ledger detail view so the on-screen filter,
+    the printed report and the running balance all agree on what "a specific
+    date range or a specific date" means (from == to selects a single day).
+    """
+    def _parse(key):
+        raw = request.GET.get(key, '').strip()
+        if not raw:
+            return None
+        try:
+            return _dt.date.fromisoformat(raw)
+        except ValueError:
+            return None
+    return _parse('date_from'), _parse('date_to')
 
 
 def make_entry(date, description, *, debit=ZERO, credit=ZERO, reference='',
