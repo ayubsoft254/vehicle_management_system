@@ -28,11 +28,11 @@
             {% url 'vehicles:sales_ledger_export' 'csv' as export_csv_url_base %}
             {% with export_pdf_url=export_pdf_url_base|add:'?'|add:filter_qs export_excel_url=export_excel_url_base|add:'?'|add:filter_qs export_csv_url=export_csv_url_base|add:'?'|add:filter_qs %}
             {% include 'reports/partials/_export_bar.html' %}
-            {% endwith %}
-            <button onclick="window.print()"
+            <a href="{{ export_pdf_url }}"
                 class="inline-flex items-center gap-2 px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-md transition">
                 <i class="fas fa-print text-slate-400"></i>Print
-            </button>
+            </a>
+            {% endwith %}
         </div>
     </div>
 
