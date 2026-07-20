@@ -1249,8 +1249,9 @@ def tracker_agent_ledger_list(request):
 @login_required
 def tracker_agent_ledger_detail(request, pk):
     """Show all tracker records for an agent and allow marking them paid."""
-    from utils.ledger import make_entry, build_statement
+    from utils.ledger import make_entry, build_statement, parse_date_range
 
+    date_from, date_to = parse_date_range(request)
     agent = get_object_or_404(TrackerAgent, pk=pk)
     records = agent.tracker_records.select_related('vehicle', 'client_vehicle__client').order_by('-created_at')
     from .models import TrackerAgentPayment
@@ -1281,6 +1282,10 @@ def tracker_agent_ledger_detail(request, pk):
         )
         for p in payments
     ]
+    if date_from:
+        entries = [e for e in entries if e['date'] >= date_from]
+    if date_to:
+        entries = [e for e in entries if e['date'] <= date_to]
     statement_rows, statement_summary = build_statement(entries, balance_from='credit')
 
     context = {
@@ -1291,6 +1296,8 @@ def tracker_agent_ledger_detail(request, pk):
         'statement_summary': statement_summary,
         'debit_hint': 'payment made to agent',
         'credit_hint': 'tracker billed by agent',
+        'date_from': date_from,
+        'date_to': date_to,
     }
     return render(request, 'vehicles/tracker_agent_ledger_detail.html', context)
 
@@ -1360,8 +1367,9 @@ def clearing_agent_ledger_list(request):
 @login_required
 def clearing_agent_ledger_detail(request, pk):
     """Show all clearance records for an agent and allow marking them paid."""
-    from utils.ledger import make_entry, build_statement
+    from utils.ledger import make_entry, build_statement, parse_date_range
 
+    date_from, date_to = parse_date_range(request)
     agent = get_object_or_404(ClearingAgent, pk=pk)
     records = agent.clearance_records.select_related('vehicle').order_by('-date')
     from .models import ClearingAgentPayment
@@ -1393,6 +1401,10 @@ def clearing_agent_ledger_detail(request, pk):
         )
         for p in payments
     ]
+    if date_from:
+        entries = [e for e in entries if e['date'] >= date_from]
+    if date_to:
+        entries = [e for e in entries if e['date'] <= date_to]
     statement_rows, statement_summary = build_statement(entries, balance_from='credit')
 
     context = {
@@ -1403,6 +1415,8 @@ def clearing_agent_ledger_detail(request, pk):
         'statement_summary': statement_summary,
         'debit_hint': 'payment made to agent',
         'credit_hint': 'clearance billed by agent',
+        'date_from': date_from,
+        'date_to': date_to,
     }
     return render(request, 'vehicles/clearing_agent_ledger_detail.html', context)
 
@@ -1601,8 +1615,9 @@ def japan_supplier_ledger_list(request):
 @login_required
 def japan_supplier_ledger_detail(request, pk):
     """Show all purchase records for a supplier and payment history."""
-    from utils.ledger import make_entry, build_statement
+    from utils.ledger import make_entry, build_statement, parse_date_range
 
+    date_from, date_to = parse_date_range(request)
     supplier = get_object_or_404(JapanSupplier, pk=pk)
     records = supplier.supplier_records.select_related('vehicle').order_by('-date')
     payments = supplier.payments.select_related('recorded_by').order_by('-payment_date')
@@ -1640,6 +1655,10 @@ def japan_supplier_ledger_detail(request, pk):
         )
         for p in payments
     ]
+    if date_from:
+        entries = [e for e in entries if e['date'] >= date_from]
+    if date_to:
+        entries = [e for e in entries if e['date'] <= date_to]
     statement_rows, statement_summary = build_statement(entries, balance_from='credit')
 
     context = {
@@ -1651,6 +1670,8 @@ def japan_supplier_ledger_detail(request, pk):
         'statement_summary': statement_summary,
         'debit_hint': 'payment made to supplier',
         'credit_hint': 'vehicle billed by supplier',
+        'date_from': date_from,
+        'date_to': date_to,
     }
     return render(request, 'vehicles/japan_supplier_ledger_detail.html', context)
 
@@ -1921,8 +1942,9 @@ def broker_ledger_list(request):
 @login_required
 def broker_ledger_detail(request, pk):
     """Show all sales for a broker and allow marking commissions paid."""
-    from utils.ledger import make_entry, build_statement
+    from utils.ledger import make_entry, build_statement, parse_date_range
 
+    date_from, date_to = parse_date_range(request)
     broker = get_object_or_404(Broker, pk=pk)
     sales = broker.sales.select_related('vehicle', 'client').order_by('-purchase_date')
     payments = broker.payments.select_related('recorded_by').order_by('-payment_date')
@@ -1952,6 +1974,10 @@ def broker_ledger_detail(request, pk):
         )
         for p in payments
     ]
+    if date_from:
+        entries = [e for e in entries if e['date'] >= date_from]
+    if date_to:
+        entries = [e for e in entries if e['date'] <= date_to]
     statement_rows, statement_summary = build_statement(entries, balance_from='credit')
 
     context = {
@@ -1962,6 +1988,8 @@ def broker_ledger_detail(request, pk):
         'statement_summary': statement_summary,
         'debit_hint': 'commission paid to broker',
         'credit_hint': 'commission earned by broker',
+        'date_from': date_from,
+        'date_to': date_to,
     }
     return render(request, 'vehicles/broker_ledger_detail.html', context)
 
@@ -2749,3 +2777,109 @@ def main_ledger_export(request, fmt):
     headers, rows = _main_ledger_export_rows(ctx)
     subtitle = f"{ctx['date_from']} to {ctx['date_to']}"
     return export_rows(fmt, 'main_ledger', 'Main Ledger', headers, rows, currency_cols={6, 7, 8}, subtitle=subtitle)
+
+
+# ==================== SALES LEDGER ====================
+# Every completed sale (a ClientVehicle against a sold Vehicle) with its
+# actual revenue, total cost and profit/loss, filterable by sale date so a
+# specific date or date range shows whether the business made a profit or a
+# loss on the vehicles sold in that window.
+
+def _sales_ledger_queryset(date_from, date_to):
+    sales = ClientVehicle.objects.filter(vehicle__status=VehicleStatus.SOLD).select_related(
+        'client', 'vehicle', 'broker'
+    ).prefetch_related(
+        'vehicle__extra_costs',
+        'vehicle__insurance_policies',
+        'vehicle__expenses__category',
+        'vehicle__repossessions__expenses',
+        'vehicle__repossessions__additional_cost_items',
+    ).order_by('-purchase_date', '-created_at')
+
+    if date_from:
+        sales = sales.filter(purchase_date__gte=date_from)
+    if date_to:
+        sales = sales.filter(purchase_date__lte=date_to)
+    return sales
+
+
+def _sales_ledger_rows(date_from, date_to):
+    from .utils import compute_sale_profit
+
+    rows = []
+    for cv in _sales_ledger_queryset(date_from, date_to):
+        result = compute_sale_profit(cv)
+        rows.append({
+            'client_vehicle': cv,
+            'vehicle': cv.vehicle,
+            'client': cv.client,
+            'sale_date': cv.purchase_date,
+            **result,
+        })
+    return rows
+
+
+@login_required
+@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
+def sales_ledger(request):
+    """Every completed vehicle sale with revenue, total cost and actual profit/loss."""
+    import urllib.parse
+    from utils.ledger import parse_date_range
+
+    date_from, date_to = parse_date_range(request)
+    rows = _sales_ledger_rows(date_from, date_to)
+
+    total_revenue = sum((r['revenue'] for r in rows), Decimal('0.00'))
+    total_cost = sum((r['total_cost'] for r in rows), Decimal('0.00'))
+    total_profit = total_revenue - total_cost
+    profitable_count = sum(1 for r in rows if r['profit'] > 0)
+    loss_count = sum(1 for r in rows if r['profit'] < 0)
+
+    qs_params = {}
+    if date_from:
+        qs_params['date_from'] = date_from.isoformat()
+    if date_to:
+        qs_params['date_to'] = date_to.isoformat()
+    filter_qs = urllib.parse.urlencode(qs_params)
+
+    context = {
+        'rows': rows,
+        'date_from': date_from,
+        'date_to': date_to,
+        'filter_qs': filter_qs,
+        'sale_count': len(rows),
+        'total_revenue': total_revenue,
+        'total_cost': total_cost,
+        'total_profit': total_profit,
+        'is_profit_overall': total_profit >= 0,
+        'profitable_count': profitable_count,
+        'loss_count': loss_count,
+        'breakeven_count': len(rows) - profitable_count - loss_count,
+    }
+    return render(request, 'vehicles/sales_ledger.html', context)
+
+
+@login_required
+@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
+def sales_ledger_export(request, fmt):
+    """Export the Sales Ledger (same date filters as the on-screen view) as PDF/Excel/CSV."""
+    from utils.report_kit import export_rows
+    from utils.ledger import parse_date_range
+
+    date_from, date_to = parse_date_range(request)
+    rows = _sales_ledger_rows(date_from, date_to)
+
+    headers = ['Sale Date', 'Vehicle', 'Reg. No.', 'Client', 'Revenue', 'Total Cost', 'Profit / (Loss)', 'Result']
+    export_data = [
+        [
+            r['sale_date'], r['vehicle'].full_name, r['vehicle'].registration_number or '',
+            r['client'].get_full_name(), float(r['revenue']), float(r['total_cost']),
+            float(r['profit']), 'Profit' if r['profit'] >= 0 else 'Loss',
+        ]
+        for r in rows
+    ]
+    subtitle = f"{date_from or 'the beginning'} to {date_to or 'today'}"
+    return export_rows(
+        fmt, 'sales_ledger', 'Sales Ledger', headers, export_data,
+        currency_cols={5, 6, 7}, subtitle=subtitle,
+    )
