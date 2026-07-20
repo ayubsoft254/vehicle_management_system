@@ -2825,12 +2825,17 @@ def sales_ledger(request):
     """Every completed vehicle sale with revenue, total cost and actual profit/loss."""
     import urllib.parse
     from utils.ledger import parse_date_range
+    from .utils import bulk_sale_totals
 
     date_from, date_to = parse_date_range(request)
     rows = _sales_ledger_rows(date_from, date_to)
 
-    total_revenue = sum((r['revenue'] for r in rows), Decimal('0.00'))
-    total_cost = sum((r['total_cost'] for r in rows), Decimal('0.00'))
+    # Summary totals come from bulk_sale_totals() (shared with the dashboard),
+    # not by summing each row's compute_sale_profit() - if the same vehicle
+    # was sold more than once (repossessed and resold), each row correctly
+    # carries that vehicle's full cost for reading in isolation, but summing
+    # rows would then double-count that shared cost in the total.
+    total_revenue, total_cost = bulk_sale_totals(_sales_ledger_queryset(date_from, date_to))
     total_profit = total_revenue - total_cost
     profitable_count = sum(1 for r in rows if r['profit'] > 0)
     loss_count = sum(1 for r in rows if r['profit'] < 0)
