@@ -991,6 +991,114 @@ def proforma_pdf(request, pk):
     )
 
 
+@login_required
+@module_permission_required('clients', AccessLevel.READ_ONLY)
+def proforma_deposit_receipt(request, pk, deposit_pk):
+    """Printable PDF receipt for a single confirmed commitment deposit."""
+    from utils.report_kit import build_pdf_response, fmt_money, BORDER_GREY, LIGHT_GREY
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+
+    proforma = get_object_or_404(
+        ProformaInvoice.objects.select_related('client', 'vehicle'), pk=pk
+    )
+    deposit = get_object_or_404(
+        ProformaDeposit.objects.select_related('confirmed_by', 'account', 'converted_payment'),
+        pk=deposit_pk, proforma=proforma,
+    )
+    client = proforma.client
+    vehicle = proforma.vehicle
+
+    def body(elements, styles):
+        compact = ParagraphStyle('ReceiptCompact', parent=styles['Normal'], fontSize=8, leading=10)
+        heading = styles['ReportSectionHeading']
+        heading.spaceBefore = 6
+        heading.spaceAfter = 3
+
+        def field_grid(pairs, col_widths):
+            rows, row = [], []
+            for label, value in pairs:
+                row.append(Paragraph(f'<b>{label}:</b> {value}', compact))
+                if len(row) == len(col_widths):
+                    rows.append(row)
+                    row = []
+            if row:
+                row += [''] * (len(col_widths) - len(row))
+                rows.append(row)
+            table = Table(rows, colWidths=col_widths)
+            table.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.4, BORDER_GREY),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                ('TOPPADDING', (0, 0), (-1, -1), 3),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, LIGHT_GREY]),
+            ]))
+            return table
+
+        if deposit.is_reversed:
+            status = 'REVERSED'
+        elif deposit.converted_payment:
+            status = 'Transferred to Sale'
+        else:
+            status = 'Held'
+
+        elements.append(Paragraph('CLIENT &amp; VEHICLE DETAILS', heading))
+        elements.append(field_grid([
+            ('Name', client.get_full_name()),
+            (client.get_id_type_display(), client.id_number),
+            ('Phone', client.phone_primary or '—'),
+            ('Proforma No', proforma.number),
+            ('Reg No', vehicle.registration_number or '—'),
+            ('Chassis No', vehicle.vin),
+            ('Make / Model', f'{vehicle.make} {vehicle.model}'),
+            ('Year', vehicle.year),
+        ], col_widths=[3.25 * inch, 3.25 * inch]))
+        elements.append(Spacer(1, 6))
+
+        elements.append(Paragraph('DEPOSIT DETAILS', heading))
+        elements.append(field_grid([
+            ('Amount', fmt_money(deposit.amount)),
+            ('Payment Date', deposit.payment_date.strftime('%d %B %Y')),
+            ('Method', deposit.get_payment_method_display()),
+            ('Account', deposit.account.name if deposit.account else '—'),
+            ('Reference', deposit.transaction_reference or '—'),
+            ('Confirmed By', deposit.confirmed_by.get_full_name() if deposit.confirmed_by else '—'),
+            ('Status', status),
+            ('Confirmed At', deposit.confirmed_at.strftime('%d %B %Y, %H:%M')),
+        ], col_widths=[3.25 * inch, 3.25 * inch]))
+        elements.append(Spacer(1, 6))
+
+        if deposit.is_reversed:
+            elements.append(Paragraph(
+                'This deposit was later reversed and no longer counts towards the '
+                'reservation or client balance. This receipt is kept for audit purposes only.',
+                compact,
+            ))
+            elements.append(Spacer(1, 6))
+
+        elements.append(Paragraph(
+            'This receipt confirms a commitment deposit held against the proforma '
+            'invoice above. It is not a receipt for the full vehicle purchase price.',
+            compact,
+        ))
+        elements.append(Spacer(1, 6))
+        elements.append(Paragraph('www.hozacars.com', styles['ReportCompanyMeta']))
+
+    _audit(request, 'export', f'Downloaded deposit receipt for proforma {proforma.number}',
+           object_id=str(deposit.pk))
+
+    return build_pdf_response(
+        f'deposit-receipt-{proforma.number}-{deposit.pk}.pdf',
+        'Deposit Receipt',
+        subtitle=f'{proforma.number} — {client.get_full_name()}',
+        build_body=body,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Reservation settings (admin only)
 # ---------------------------------------------------------------------------

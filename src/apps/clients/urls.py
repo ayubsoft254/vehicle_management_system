@@ -84,6 +84,7 @@ urlpatterns = [
     path('proformas/<int:pk>/cancel/', proforma_views.proforma_cancel, name='proforma_cancel'),
     path('proformas/<int:pk>/confirm-deposit/', proforma_views.confirm_deposit, name='proforma_confirm_deposit'),
     path('proformas/<int:pk>/deposits/<int:deposit_pk>/reverse/', proforma_views.reverse_deposit, name='proforma_reverse_deposit'),
+    path('proformas/<int:pk>/deposits/<int:deposit_pk>/receipt/', proforma_views.proforma_deposit_receipt, name='proforma_deposit_receipt'),
     path('proformas/<int:pk>/convert/', proforma_views.convert_proforma, name='proforma_convert'),
     path('reservations/<int:pk>/extend/', proforma_views.reservation_extend, name='reservation_extend'),
     path('reservations/<int:pk>/release/', proforma_views.reservation_release, name='reservation_release'),
