@@ -100,11 +100,11 @@
            class="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-center font-semibold text-gray-700 hover:bg-gray-50 transition">
             Back to Vehicle
         </a>
-        <button onclick="window.print()" 
-                class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">
+        <a href="{% url 'clients:portal_payment_bank_details_pdf' client_vehicle.id payment_type %}"
+                class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition text-center">
             <i class="fas fa-print mr-2"></i>
             Print Details
-        </button>
+        </a>
     </div>
 
     <!-- Note -->

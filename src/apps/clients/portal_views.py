@@ -1003,8 +1003,92 @@ def portal_payment_bank_details(request, client_vehicle_id, payment_type):
         'payment_type': payment_type,
         'bank_details': bank_details,
     }
-    
+
     return render(request, 'clients/portal/payment_bank_details.html', context)
+
+
+@login_required
+@client_required
+def portal_payment_bank_details_pdf(request, client_vehicle_id, payment_type):
+    """PDF version of the bank transfer instructions."""
+    from utils.report_kit import build_pdf_response, fmt_money, kpi_table
+
+    client = get_client_from_user(request.user)
+    if not client:
+        messages.error(request, 'Client profile not found.')
+        return redirect('clients:portal_dashboard')
+
+    client_vehicle = get_object_or_404(
+        ClientVehicle.objects.select_related('vehicle'), id=client_vehicle_id, client=client
+    )
+
+    if payment_type == 'down_payment':
+        amount_to_pay = client_vehicle.deposit_paid
+    elif payment_type == 'balance':
+        amount_to_pay = client_vehicle.balance
+    else:
+        next_schedule = PaymentSchedule.objects.filter(
+            installment_plan__client_vehicle=client_vehicle, is_paid=False
+        ).order_by('due_date').first()
+        amount_to_pay = next_schedule.amount_due if next_schedule else Decimal('0')
+
+    bank_details = {
+        'bank_name': 'Example Bank Limited',
+        'account_name': 'Vehicle Management System',
+        'account_number': '1234567890',
+        'branch': 'Main Branch',
+        'swift_code': 'EXAMPLEKE',
+    }
+
+    def body(elements, styles):
+        from reportlab.lib.units import inch
+        from reportlab.platypus import Paragraph, Spacer
+
+        heading = styles['ReportSectionHeading']
+        heading.spaceBefore = 8
+        heading.spaceAfter = 4
+
+        elements.append(Paragraph(f'<b>Amount to Transfer: {fmt_money(amount_to_pay)}</b>', heading))
+        elements.append(Spacer(1, 10))
+
+        elements.append(Paragraph('OUR BANK DETAILS', heading))
+        elements.append(kpi_table([
+            ('Bank Name', bank_details['bank_name']),
+            ('Account Name', bank_details['account_name']),
+            ('Account Number', bank_details['account_number']),
+            ('Branch', bank_details['branch']),
+            ('SWIFT Code', bank_details['swift_code']),
+        ], col_widths=[2.6 * inch, 2.6 * inch]))
+        elements.append(Spacer(1, 10))
+
+        elements.append(Paragraph(
+            f'<b>Reference:</b> {client_vehicle.vehicle.registration_number or client_vehicle.vehicle.vin} — {client.get_full_name()}',
+            styles['Normal'],
+        ))
+        elements.append(Spacer(1, 10))
+
+        elements.append(Paragraph('PAYMENT INSTRUCTIONS', heading))
+        for line in [
+            'Log into your online banking or visit your bank branch',
+            'Initiate a transfer to the account details above',
+            f'Enter the exact amount: {fmt_money(amount_to_pay)}',
+            'Use the reference code provided above',
+            'Complete the transfer and save your receipt',
+            'Send proof of payment via email or WhatsApp',
+        ]:
+            elements.append(Paragraph(f'• {line}', styles['Normal']))
+        elements.append(Spacer(1, 10))
+
+        elements.append(Paragraph(
+            'Send payment proof to: payments@vehiclemanagement.com or WhatsApp +254 700 000 000',
+            styles['ReportCompanyMeta'],
+        ))
+
+    return build_pdf_response(
+        f'bank-transfer-details-{client_vehicle.pk}.pdf', 'Bank Transfer Payment Details',
+        subtitle=f'{client.get_full_name()} — {client_vehicle.vehicle.full_name}',
+        build_body=body,
+    )
 
 
 # ==================== VEHICLE REMOVAL ====================
