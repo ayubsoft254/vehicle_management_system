@@ -69,6 +69,10 @@ urlpatterns = [
     path('main-ledger/', views.main_ledger_view, name='main_ledger'),
     path('main-ledger/export/<str:fmt>/', views.main_ledger_export, name='main_ledger_export'),
 
+    # Sales Ledger
+    path('sales-ledger/', views.sales_ledger, name='sales_ledger'),
+    path('sales-ledger/export/<str:fmt>/', views.sales_ledger_export, name='sales_ledger_export'),
+
     # Partner ledger exports (broker/tracker_agent/clearing_agent/japan_supplier x pdf/excel/csv)
     path('ledgers/<str:kind>/export/<str:fmt>/', views.party_ledger_export, name='party_ledger_export'),
 
