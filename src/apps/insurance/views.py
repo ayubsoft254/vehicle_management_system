@@ -1527,8 +1527,9 @@ def agent_ledger_export(request, fmt):
 @login_required
 def agent_ledger_detail(request, pk):
     """Show all policies for an insurance agent and allow marking them paid."""
-    from utils.ledger import make_entry, build_statement
+    from utils.ledger import make_entry, build_statement, parse_date_range
 
+    date_from, date_to = parse_date_range(request)
     agent = get_object_or_404(InsuranceAgent, pk=pk)
     policies = agent.policies.select_related('vehicle', 'client').order_by('-start_date')
     from .models import InsuranceAgentPayment
@@ -1559,6 +1560,10 @@ def agent_ledger_detail(request, pk):
         )
         for p in payments
     ]
+    if date_from:
+        entries = [e for e in entries if e['date'] >= date_from]
+    if date_to:
+        entries = [e for e in entries if e['date'] <= date_to]
     statement_rows, statement_summary = build_statement(entries, balance_from='credit')
 
     context = {
@@ -1569,6 +1574,8 @@ def agent_ledger_detail(request, pk):
         'statement_summary': statement_summary,
         'debit_hint': 'payment made to agent',
         'credit_hint': 'policy premium billed by agent',
+        'date_from': date_from,
+        'date_to': date_to,
     }
     log_audit(request.user, 'view', 'InsuranceAgent', f'Viewed ledger for agent {agent.name}')
     return render(request, 'insurance/agent_ledger_detail.html', context)
