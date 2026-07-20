@@ -6,7 +6,13 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
-    <nav class="flex mb-6" aria-label="Breadcrumb">
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; }
+        }
+    </style>
+    <nav class="flex mb-6 no-print" aria-label="Breadcrumb">
         <ol class="inline-flex items-center space-x-1 md:space-x-3">
             <li class="inline-flex items-center">
                 <a href="{% url 'payments:payment_list' %}" class="text-gray-700 hover:text-primary-600 inline-flex items-center">
@@ -40,7 +46,7 @@
             </h1>
             <p class="mt-2 text-gray-600">{{ account.get_category_display }} &middot; {{ account.get_account_type_display }}</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2 no-print">
             {% if account.is_active %}
             <a href="{% url 'payments:account_transaction_create' account.pk %}"
                class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 shadow-sm">
@@ -103,7 +109,7 @@
     </div>
 
     {% if pending_count %}
-    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-sm text-yellow-800 flex items-center justify-between flex-wrap gap-2">
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-sm text-yellow-800 flex items-center justify-between flex-wrap gap-2 no-print">
         <div>
             <i class="fas fa-clock mr-2"></i>{{ pending_count }} transaction{{ pending_count|pluralize }} pending approval on this account.
             Pending balance (if all approved): <span class="font-semibold">KES {{ pending_balance|floatformat:2 }}</span>
@@ -113,6 +119,37 @@
         {% endif %}
     </div>
     {% endif %}
+
+    <!-- Date range filter + Print (No Print) -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 no-print">
+        <form method="get" class="flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">From</label>
+                <input type="date" name="date_from" value="{{ date_from|default:'' }}"
+                       class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">To</label>
+                <input type="date" name="date_to" value="{{ date_to|default:'' }}"
+                       class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg">
+                <i class="fas fa-filter mr-1"></i>Filter
+            </button>
+            {% if date_from or date_to %}
+            <a href="{% url 'payments:account_detail' account.pk %}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">Reset</a>
+            {% endif %}
+            <button type="button" onclick="window.print()" class="ml-auto px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium rounded-lg">
+                <i class="fas fa-print mr-1"></i>Print
+            </button>
+        </form>
+        {% if date_from or date_to %}
+        <p class="text-xs text-gray-500 mt-2">
+            Showing transactions from <span class="font-medium">{{ date_from|default:"the beginning" }}</span>
+            to <span class="font-medium">{{ date_to|default:"today" }}</span>.
+        </p>
+        {% endif %}
+    </div>
 
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
@@ -189,7 +226,7 @@
     </div>
 
     {% if rows.has_other_pages %}
-    <div class="mt-4">
+    <div class="mt-4 no-print">
         <div class="flex items-center justify-between">
             <div class="text-sm text-gray-600">Page {{ rows.number }} of {{ rows.paginator.num_pages }}</div>
             <div class="space-x-2">
