@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center justify-between mb-6 no-print">
         <a href="{% url 'insurance:agent_ledger_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-800">
             <i class="fas fa-arrow-left mr-2"></i>Back to Agent Ledger
         </a>
@@ -60,7 +60,7 @@
     {% include 'includes/ledger_statement.html' %}
 
     <!-- Policies Table -->
-    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+    <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8 no-print">
         <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
             <h2 class="text-lg font-semibold text-gray-900">Policies ({{ policies|length }})</h2>
         </div>
@@ -105,7 +105,7 @@
     </div>
 
     <!-- Payment History -->
-    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+    <div class="bg-white rounded-xl shadow-md overflow-hidden no-print">
         <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
             <h2 class="text-lg font-semibold text-gray-900 flex items-center">
                 <i class="fas fa-history text-indigo-600 mr-2"></i>Payment History
