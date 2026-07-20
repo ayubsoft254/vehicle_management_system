@@ -114,9 +114,9 @@
         <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 class="text-xl font-bold text-gray-900">Employee Payslips</h2>
             <div class="flex space-x-2">
-                <button onclick="window.print()" class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                <a href="{% url 'payroll:payroll_run_payslips_pdf' payroll_run.pk %}" class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                     <i class="fas fa-print mr-2"></i> Print All
-                </button>
+                </a>
                 <a href="#" class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">
                     <i class="fas fa-file-excel mr-2"></i> Export
                 </a>

@@ -45,6 +45,7 @@ urlpatterns = [
     path('runs/', views.payroll_run_list, name='payroll_run_list'),
     path('runs/create/', views.payroll_run_create, name='payroll_run_create'),
     path('runs/<int:pk>/', views.payroll_run_detail, name='payroll_run_detail'),
+    path('runs/<int:pk>/payslips/pdf/', views.payroll_run_payslips_pdf, name='payroll_run_payslips_pdf'),
     path('runs/<int:pk>/process/', views.payroll_run_process, name='payroll_run_process'),
     path('runs/<int:pk>/approve/', views.payroll_run_approve, name='payroll_run_approve'),
     
