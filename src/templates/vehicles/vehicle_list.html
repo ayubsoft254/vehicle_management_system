@@ -204,7 +204,7 @@
     <!-- Statistics Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <!-- Total Vehicles -->
-        <div class="stats-card bg-white p-6">
+        <a href="{% url 'vehicles:list' %}" class="stats-card bg-white p-6 block transition hover:shadow-md {% if not request.GET.status %}ring-2 ring-blue-400{% endif %}">
             <div class="flex items-center">
                 <div class="flex-shrink-0 bg-blue-100 rounded-md p-3">
                     <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,10 +216,10 @@
                     <p class="text-2xl font-bold text-gray-900">{{ total_vehicles }}</p>
                 </div>
             </div>
-        </div>
+        </a>
 
         <!-- Available -->
-        <div class="stats-card bg-white p-6">
+        <a href="{% url 'vehicles:list' %}?status=available" class="stats-card bg-white p-6 block transition hover:shadow-md {% if request.GET.status == 'available' %}ring-2 ring-green-400{% endif %}">
             <div class="flex items-center">
                 <div class="flex-shrink-0 bg-green-100 rounded-md p-3">
                     <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -231,10 +231,10 @@
                     <p class="text-2xl font-bold text-green-600">{{ available_count }}</p>
                 </div>
             </div>
-        </div>
+        </a>
 
         <!-- Sold -->
-        <div class="stats-card bg-white p-6">
+        <a href="{% url 'vehicles:list' %}?status=sold" class="stats-card bg-white p-6 block transition hover:shadow-md {% if request.GET.status == 'sold' %}ring-2 ring-purple-400{% endif %}">
             <div class="flex items-center">
                 <div class="flex-shrink-0 bg-purple-100 rounded-md p-3">
                     <svg class="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -246,10 +246,10 @@
                     <p class="text-2xl font-bold text-purple-600">{{ sold_count }}</p>
                 </div>
             </div>
-        </div>
+        </a>
 
         <!-- Reserved -->
-        <div class="stats-card bg-white p-6">
+        <a href="{% url 'vehicles:list' %}?status=reserved" class="stats-card bg-white p-6 block transition hover:shadow-md {% if request.GET.status == 'reserved' %}ring-2 ring-yellow-400{% endif %}">
             <div class="flex items-center">
                 <div class="flex-shrink-0 bg-yellow-100 rounded-md p-3">
                     <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -261,7 +261,7 @@
                     <p class="text-2xl font-bold text-yellow-600">{{ reserved_count }}</p>
                 </div>
             </div>
-        </div>
+        </a>
 
         <!-- Inventory Value -->
         <div class="stats-card bg-white p-6">
