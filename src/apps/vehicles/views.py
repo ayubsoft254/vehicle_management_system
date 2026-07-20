@@ -1246,15 +1246,11 @@ def tracker_agent_ledger_list(request):
     return render(request, 'vehicles/tracker_agent_ledger_list.html', context)
 
 
-@login_required
-def tracker_agent_ledger_detail(request, pk):
-    """Show all tracker records for an agent and allow marking them paid."""
-    from utils.ledger import make_entry, build_statement, parse_date_range
+def _tracker_agent_statement(agent, date_from, date_to):
+    """Shared by the on-screen detail view and its PDF export so they never disagree."""
+    from utils.ledger import make_entry, build_statement
 
-    date_from, date_to = parse_date_range(request)
-    agent = get_object_or_404(TrackerAgent, pk=pk)
     records = agent.tracker_records.select_related('vehicle', 'client_vehicle__client').order_by('-created_at')
-    from .models import TrackerAgentPayment
     payments = agent.payments.select_related('recorded_by').order_by('-payment_date')
 
     entries = [
@@ -1287,6 +1283,17 @@ def tracker_agent_ledger_detail(request, pk):
     if date_to:
         entries = [e for e in entries if e['date'] <= date_to]
     statement_rows, statement_summary = build_statement(entries, balance_from='credit')
+    return records, payments, statement_rows, statement_summary
+
+
+@login_required
+def tracker_agent_ledger_detail(request, pk):
+    """Show all tracker records for an agent and allow marking them paid."""
+    from utils.ledger import parse_date_range
+
+    date_from, date_to = parse_date_range(request)
+    agent = get_object_or_404(TrackerAgent, pk=pk)
+    records, payments, statement_rows, statement_summary = _tracker_agent_statement(agent, date_from, date_to)
 
     context = {
         'agent': agent,
@@ -1300,6 +1307,27 @@ def tracker_agent_ledger_detail(request, pk):
         'date_to': date_to,
     }
     return render(request, 'vehicles/tracker_agent_ledger_detail.html', context)
+
+
+@login_required
+def tracker_agent_ledger_pdf(request, pk):
+    """Printable PDF statement for a single tracker agent."""
+    from utils.ledger import parse_date_range
+    from utils.report_kit import ledger_statement_pdf_response
+
+    date_from, date_to = parse_date_range(request)
+    agent = get_object_or_404(TrackerAgent, pk=pk)
+    _, _, statement_rows, statement_summary = _tracker_agent_statement(agent, date_from, date_to)
+
+    subtitle = agent.name
+    if date_from or date_to:
+        subtitle += f" — {date_from or 'the beginning'} to {date_to or 'today'}"
+
+    return ledger_statement_pdf_response(
+        f'tracker-agent-{agent.pk}-statement.pdf', 'Tracker Agent Statement', subtitle,
+        statement_rows, statement_summary,
+        debit_hint='payment made to agent', credit_hint='tracker billed by agent',
+    )
 
 
 @login_required
@@ -1364,15 +1392,11 @@ def clearing_agent_ledger_list(request):
     return render(request, 'vehicles/clearing_agent_ledger_list.html', context)
 
 
-@login_required
-def clearing_agent_ledger_detail(request, pk):
-    """Show all clearance records for an agent and allow marking them paid."""
-    from utils.ledger import make_entry, build_statement, parse_date_range
+def _clearing_agent_statement(agent, date_from, date_to):
+    """Shared by the on-screen detail view and its PDF export so they never disagree."""
+    from utils.ledger import make_entry, build_statement
 
-    date_from, date_to = parse_date_range(request)
-    agent = get_object_or_404(ClearingAgent, pk=pk)
     records = agent.clearance_records.select_related('vehicle').order_by('-date')
-    from .models import ClearingAgentPayment
     payments = agent.payments.select_related('recorded_by').order_by('-payment_date')
 
     entries = [
@@ -1406,6 +1430,17 @@ def clearing_agent_ledger_detail(request, pk):
     if date_to:
         entries = [e for e in entries if e['date'] <= date_to]
     statement_rows, statement_summary = build_statement(entries, balance_from='credit')
+    return records, payments, statement_rows, statement_summary
+
+
+@login_required
+def clearing_agent_ledger_detail(request, pk):
+    """Show all clearance records for an agent and allow marking them paid."""
+    from utils.ledger import parse_date_range
+
+    date_from, date_to = parse_date_range(request)
+    agent = get_object_or_404(ClearingAgent, pk=pk)
+    records, payments, statement_rows, statement_summary = _clearing_agent_statement(agent, date_from, date_to)
 
     context = {
         'agent': agent,
@@ -1419,6 +1454,27 @@ def clearing_agent_ledger_detail(request, pk):
         'date_to': date_to,
     }
     return render(request, 'vehicles/clearing_agent_ledger_detail.html', context)
+
+
+@login_required
+def clearing_agent_ledger_pdf(request, pk):
+    """Printable PDF statement for a single clearing agent."""
+    from utils.ledger import parse_date_range
+    from utils.report_kit import ledger_statement_pdf_response
+
+    date_from, date_to = parse_date_range(request)
+    agent = get_object_or_404(ClearingAgent, pk=pk)
+    _, _, statement_rows, statement_summary = _clearing_agent_statement(agent, date_from, date_to)
+
+    subtitle = agent.name
+    if date_from or date_to:
+        subtitle += f" — {date_from or 'the beginning'} to {date_to or 'today'}"
+
+    return ledger_statement_pdf_response(
+        f'clearing-agent-{agent.pk}-statement.pdf', 'Clearing Agent Statement', subtitle,
+        statement_rows, statement_summary,
+        debit_hint='payment made to agent', credit_hint='clearance billed by agent',
+    )
 
 
 @login_required
@@ -1612,17 +1668,13 @@ def japan_supplier_ledger_list(request):
     return render(request, 'vehicles/japan_supplier_ledger_list.html', context)
 
 
-@login_required
-def japan_supplier_ledger_detail(request, pk):
-    """Show all purchase records for a supplier and payment history."""
-    from utils.ledger import make_entry, build_statement, parse_date_range
+def _japan_supplier_statement(supplier, date_from, date_to, vehicle_search=''):
+    """Shared by the on-screen detail view and its PDF export so they never disagree."""
+    from utils.ledger import make_entry, build_statement
 
-    date_from, date_to = parse_date_range(request)
-    supplier = get_object_or_404(JapanSupplier, pk=pk)
     records = supplier.supplier_records.select_related('vehicle').order_by('-date')
     payments = supplier.payments.select_related('recorded_by').order_by('-payment_date')
 
-    vehicle_search = request.GET.get('vehicle_search', '').strip()
     if vehicle_search:
         records = records.filter(
             Q(vehicle__vin__icontains=vehicle_search) |
@@ -1660,6 +1712,20 @@ def japan_supplier_ledger_detail(request, pk):
     if date_to:
         entries = [e for e in entries if e['date'] <= date_to]
     statement_rows, statement_summary = build_statement(entries, balance_from='credit')
+    return records, payments, statement_rows, statement_summary
+
+
+@login_required
+def japan_supplier_ledger_detail(request, pk):
+    """Show all purchase records for a supplier and payment history."""
+    from utils.ledger import parse_date_range
+
+    date_from, date_to = parse_date_range(request)
+    supplier = get_object_or_404(JapanSupplier, pk=pk)
+    vehicle_search = request.GET.get('vehicle_search', '').strip()
+    records, payments, statement_rows, statement_summary = _japan_supplier_statement(
+        supplier, date_from, date_to, vehicle_search
+    )
 
     context = {
         'supplier': supplier,
@@ -1674,6 +1740,30 @@ def japan_supplier_ledger_detail(request, pk):
         'date_to': date_to,
     }
     return render(request, 'vehicles/japan_supplier_ledger_detail.html', context)
+
+
+@login_required
+def japan_supplier_ledger_pdf(request, pk):
+    """Printable PDF statement for a single Japan supplier."""
+    from utils.ledger import parse_date_range
+    from utils.report_kit import ledger_statement_pdf_response
+
+    date_from, date_to = parse_date_range(request)
+    supplier = get_object_or_404(JapanSupplier, pk=pk)
+    vehicle_search = request.GET.get('vehicle_search', '').strip()
+    _, _, statement_rows, statement_summary = _japan_supplier_statement(
+        supplier, date_from, date_to, vehicle_search
+    )
+
+    subtitle = supplier.name
+    if date_from or date_to:
+        subtitle += f" — {date_from or 'the beginning'} to {date_to or 'today'}"
+
+    return ledger_statement_pdf_response(
+        f'japan-supplier-{supplier.pk}-statement.pdf', 'Japan Supplier Statement', subtitle,
+        statement_rows, statement_summary,
+        debit_hint='payment made to supplier', credit_hint='vehicle billed by supplier',
+    )
 
 
 @login_required
@@ -1939,13 +2029,10 @@ def broker_ledger_list(request):
     return render(request, 'vehicles/broker_ledger_list.html', context)
 
 
-@login_required
-def broker_ledger_detail(request, pk):
-    """Show all sales for a broker and allow marking commissions paid."""
-    from utils.ledger import make_entry, build_statement, parse_date_range
+def _broker_statement(broker, date_from, date_to):
+    """Shared by the on-screen detail view and its PDF export so they never disagree."""
+    from utils.ledger import make_entry, build_statement
 
-    date_from, date_to = parse_date_range(request)
-    broker = get_object_or_404(Broker, pk=pk)
     sales = broker.sales.select_related('vehicle', 'client').order_by('-purchase_date')
     payments = broker.payments.select_related('recorded_by').order_by('-payment_date')
 
@@ -1979,6 +2066,17 @@ def broker_ledger_detail(request, pk):
     if date_to:
         entries = [e for e in entries if e['date'] <= date_to]
     statement_rows, statement_summary = build_statement(entries, balance_from='credit')
+    return sales, payments, statement_rows, statement_summary
+
+
+@login_required
+def broker_ledger_detail(request, pk):
+    """Show all sales for a broker and allow marking commissions paid."""
+    from utils.ledger import parse_date_range
+
+    date_from, date_to = parse_date_range(request)
+    broker = get_object_or_404(Broker, pk=pk)
+    sales, payments, statement_rows, statement_summary = _broker_statement(broker, date_from, date_to)
 
     context = {
         'broker': broker,
@@ -1992,6 +2090,27 @@ def broker_ledger_detail(request, pk):
         'date_to': date_to,
     }
     return render(request, 'vehicles/broker_ledger_detail.html', context)
+
+
+@login_required
+def broker_ledger_pdf(request, pk):
+    """Printable PDF statement for a single broker."""
+    from utils.ledger import parse_date_range
+    from utils.report_kit import ledger_statement_pdf_response
+
+    date_from, date_to = parse_date_range(request)
+    broker = get_object_or_404(Broker, pk=pk)
+    _, _, statement_rows, statement_summary = _broker_statement(broker, date_from, date_to)
+
+    subtitle = broker.name
+    if date_from or date_to:
+        subtitle += f" — {date_from or 'the beginning'} to {date_to or 'today'}"
+
+    return ledger_statement_pdf_response(
+        f'broker-{broker.pk}-statement.pdf', 'Broker Statement', subtitle,
+        statement_rows, statement_summary,
+        debit_hint='commission paid to broker', credit_hint='commission earned by broker',
+    )
 
 
 @login_required

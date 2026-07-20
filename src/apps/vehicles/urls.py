@@ -46,12 +46,14 @@ urlpatterns = [
     # Tracker Agent Ledger
     path('tracker-agents/', views.tracker_agent_ledger_list, name='tracker_agent_ledger_list'),
     path('tracker-agents/<int:pk>/', views.tracker_agent_ledger_detail, name='tracker_agent_ledger_detail'),
+    path('tracker-agents/<int:pk>/pdf/', views.tracker_agent_ledger_pdf, name='tracker_agent_ledger_pdf'),
     path('tracker-records/<int:pk>/mark-paid/', views.tracker_record_mark_paid, name='tracker_record_mark_paid'),
     path('tracker-agents/<int:agent_pk>/mark-all-paid/', views.tracker_agent_mark_all_paid, name='tracker_agent_mark_all_paid'),
 
     # Clearing Agent Ledger
     path('clearing-agents/', views.clearing_agent_ledger_list, name='clearing_agent_ledger_list'),
     path('clearing-agents/<int:pk>/', views.clearing_agent_ledger_detail, name='clearing_agent_ledger_detail'),
+    path('clearing-agents/<int:pk>/pdf/', views.clearing_agent_ledger_pdf, name='clearing_agent_ledger_pdf'),
     path('clearance-records/<int:pk>/mark-paid/', views.clearance_record_mark_paid, name='clearance_record_mark_paid'),
     path('clearing-agents/<int:agent_pk>/mark-all-paid/', views.clearing_agent_mark_all_paid, name='clearing_agent_mark_all_paid'),
     path('tracker-agents/<int:agent_pk>/record-payment/', views.record_tracker_agent_payment, name='record_tracker_agent_payment'),
@@ -60,6 +62,7 @@ urlpatterns = [
     # Japan Supplier Ledger
     path('japan-suppliers/', views.japan_supplier_ledger_list, name='japan_supplier_ledger_list'),
     path('japan-suppliers/<int:pk>/', views.japan_supplier_ledger_detail, name='japan_supplier_ledger_detail'),
+    path('japan-suppliers/<int:pk>/pdf/', views.japan_supplier_ledger_pdf, name='japan_supplier_ledger_pdf'),
     path('japan-supplier-records/<int:pk>/mark-paid/', views.japan_supplier_record_mark_paid, name='japan_supplier_record_mark_paid'),
     path('japan-suppliers/<int:supplier_pk>/mark-all-paid/', views.japan_supplier_mark_all_paid, name='japan_supplier_mark_all_paid'),
     path('japan-suppliers/<int:supplier_pk>/record-payment/', views.record_japan_supplier_payment, name='record_japan_supplier_payment'),
@@ -79,6 +82,7 @@ urlpatterns = [
     # Broker Ledger
     path('brokers/', views.broker_ledger_list, name='broker_ledger_list'),
     path('brokers/<int:pk>/', views.broker_ledger_detail, name='broker_ledger_detail'),
+    path('brokers/<int:pk>/pdf/', views.broker_ledger_pdf, name='broker_ledger_pdf'),
     path('brokers/<int:broker_pk>/mark-all-paid/', views.broker_mark_all_paid, name='broker_mark_all_paid'),
     path('brokers/<int:broker_pk>/record-payment/', views.record_broker_payment, name='record_broker_payment'),
     path('broker-sales/<int:pk>/mark-paid/', views.broker_commission_mark_paid, name='broker_commission_mark_paid'),
