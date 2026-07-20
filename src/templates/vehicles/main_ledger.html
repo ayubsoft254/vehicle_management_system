@@ -6,8 +6,15 @@
 {% block content %}
 <div class="container mx-auto px-4 py-8">
 
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; }
+        }
+    </style>
+
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 no-print">
         <div>
             <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
                 <i class="fas fa-book-open text-indigo-600"></i>
@@ -22,6 +29,10 @@
             {% with export_pdf_url=export_pdf_url_base|add:'?'|add:filter_qs export_excel_url=export_excel_url_base|add:'?'|add:filter_qs export_csv_url=export_csv_url_base|add:'?'|add:filter_qs %}
             {% include 'reports/partials/_export_bar.html' %}
             {% endwith %}
+            <button onclick="window.print()"
+                class="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-md font-medium text-sm transition">
+                <i class="fas fa-print text-slate-400"></i> Print
+            </button>
             <button onclick="document.getElementById('entry-modal').classList.remove('hidden')"
                 class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm transition shadow-sm">
                 <i class="fas fa-plus"></i> Record Entry
@@ -30,7 +41,7 @@
     </div>
 
     <!-- Filters -->
-    <form method="get" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+    <form method="get" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 no-print">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">From</label>
@@ -225,7 +236,7 @@
                         <th class="px-4 py-3 text-right">Debit</th>
                         <th class="px-4 py-3 text-right">Credit</th>
                         <th class="px-4 py-3 text-right">Balance</th>
-                        <th class="px-4 py-3 text-center w-8"></th>
+                        <th class="px-4 py-3 text-center w-8 no-print"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
@@ -299,7 +310,7 @@
                             ({{ t.running_balance|floatformat:0|intcomma|cut:"-" }})
                             {% endif %}
                         </td>
-                        <td class="px-4 py-3 text-center">
+                        <td class="px-4 py-3 text-center no-print">
                             {% if t.manual_id %}
                             <a href="?delete_entry={{ t.manual_id }}&date_from={{ date_from_str }}&date_to={{ date_to_str }}&category={{ category_filter }}&q={{ search }}"
                                onclick="return confirm('Delete this entry?')"
