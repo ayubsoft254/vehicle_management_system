@@ -705,7 +705,10 @@ def assign_vehicle(request, client_pk):
                     )
                     base_vehicle_price = _latest_repo.outstanding_amount + _repo_costs
                 else:
-                    base_vehicle_price = parse_money(client_vehicle.vehicle.website_display_price)
+                    # selling_price (not website_display_price) - defaulting a sale
+                    # price must use the internal reference price, not the public
+                    # website listing price, which is legitimately often unset (0).
+                    base_vehicle_price = parse_money(client_vehicle.vehicle.selling_price)
 
                 extra_cost_rows, extra_costs_total = parse_extra_costs(request.POST.get('extra_costs_json', '[]'))
 
@@ -1120,7 +1123,9 @@ def assign_vehicle(request, client_pk):
             vehicle_prices[v.id] = repo_total
             vehicle_cost_prices[v.id] = repo_total
         else:
-            vehicle_prices[v.id] = float(v.website_display_price or Decimal('0.00'))
+            # selling_price, not website_display_price - see assign_vehicle's
+            # base_vehicle_price comment above.
+            vehicle_prices[v.id] = float(v.selling_price or Decimal('0.00'))
             vehicle_cost_prices[v.id] = float(v.total_program_cost)
 
     # Get insurance and tracker agents
@@ -1507,7 +1512,9 @@ def client_vehicle_update(request, pk):
                 if name.strip():
                     tracker_addon += parse_money(tracker_selling_prices[i] if i < len(tracker_selling_prices) else '0')
 
-            base_vehicle_price = parse_money(updated_client_vehicle.vehicle.website_display_price)
+            # selling_price, not website_display_price - see assign_vehicle's
+            # base_vehicle_price comment.
+            base_vehicle_price = parse_money(updated_client_vehicle.vehicle.selling_price)
 
             extra_cost_rows, extra_costs_total = parse_extra_costs(request.POST.get('extra_costs_json', '[]'))
 
@@ -1783,7 +1790,9 @@ def client_vehicle_update(request, pk):
     
     # Get vehicle prices for JavaScript (include the currently assigned vehicle)
     vehicles = Vehicle.objects.filter(Q(status='available') | Q(id=client_vehicle.vehicle.id))
-    vehicle_prices = {v.id: float(v.website_display_price or Decimal('0.00')) for v in vehicles}
+    # selling_price, not website_display_price - see assign_vehicle's
+    # base_vehicle_price comment.
+    vehicle_prices = {v.id: float(v.selling_price or Decimal('0.00')) for v in vehicles}
     vehicle_cost_prices = {v.id: float(v.total_program_cost) for v in vehicles}
 
     # Prefill insurance and tracker sections for edit mode.
