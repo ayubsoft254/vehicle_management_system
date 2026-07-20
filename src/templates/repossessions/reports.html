@@ -13,14 +13,38 @@
             <p class="text-gray-500 text-sm">Comprehensive statistics &mdash; as of {{ today|date:"N j, Y" }}</p>
         </div>
         <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
-            {% url 'repossessions:repossession_reports_pdf' as export_pdf_url %}
-            {% url 'repossessions:repossession_reports_excel' as export_excel_url %}
-            {% url 'repossessions:repossession_reports_csv' as export_csv_url %}
+            {% url 'repossessions:repossession_reports_pdf' as export_pdf_url_base %}
+            {% url 'repossessions:repossession_reports_excel' as export_excel_url_base %}
+            {% url 'repossessions:repossession_reports_csv' as export_csv_url_base %}
+            {% with export_pdf_url=export_pdf_url_base|add:date_query export_excel_url=export_excel_url_base|add:date_query export_csv_url=export_csv_url_base|add:date_query %}
             {% include 'reports/partials/_export_bar.html' %}
+            {% endwith %}
             <a href="{% url 'repossessions:repossession_dashboard' %}" class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition text-sm">
                 <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
             </a>
         </div>
+    </div>
+
+    <!-- Date range filter -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
+        <form method="get" class="flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Initiated From</label>
+                <input type="date" name="date_from" value="{{ date_from|default:'' }}"
+                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Initiated To</label>
+                <input type="date" name="date_to" value="{{ date_to|default:'' }}"
+                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg">
+                <i class="fas fa-filter mr-1"></i>Filter
+            </button>
+            {% if date_from or date_to %}
+            <a href="{% url 'repossessions:repossession_reports' %}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">Reset</a>
+            {% endif %}
+        </form>
     </div>
 
     {% include "includes/_currency_switcher.html" %}
@@ -298,7 +322,14 @@
                             </a>
                         </td>
                         <td class="px-5 py-3 font-medium text-gray-800">{{ repo.client.get_full_name }}</td>
-                        <td class="px-5 py-3 text-gray-600">{{ repo.vehicle.make }} {{ repo.vehicle.model }}</td>
+                        <td class="px-5 py-3 text-gray-600">
+                            {{ repo.vehicle.make }} {{ repo.vehicle.model }}
+                            <p class="text-xs text-gray-400 font-mono">
+                                {% if repo.vehicle.registration_number %}{{ repo.vehicle.registration_number }}{% endif %}
+                                {% if repo.vehicle.registration_number and repo.vehicle.vin %} &middot; {% endif %}
+                                {{ repo.vehicle.vin }}
+                            </p>
+                        </td>
                         <td class="px-5 py-3">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs
                                 {% if repo.status == 'VEHICLE_RECOVERED' %}bg-teal-100 text-teal-800

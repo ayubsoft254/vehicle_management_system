@@ -886,9 +886,16 @@ def recovery_attempt_create(request, repossession_pk):
 def _compute_repossession_report_context(request):
     """Repossession analytics — shared by the on-screen report and its
     PDF/Excel/CSV exports."""
+    from utils.ledger import parse_date_range
+
     today = date.today()
+    date_from, date_to = parse_date_range(request)
 
     all_repos = Repossession.objects.all()
+    if date_from:
+        all_repos = all_repos.filter(initiated_date__gte=date_from)
+    if date_to:
+        all_repos = all_repos.filter(initiated_date__lte=date_to)
     total_repos = all_repos.count()
     completed_repos = all_repos.filter(status='COMPLETED')
     cancelled_repos = all_repos.filter(status='CANCELLED')
@@ -993,6 +1000,9 @@ def _compute_repossession_report_context(request):
         'this_month_count': this_month_count,
         'today': today,
         'all_repos': all_repos.select_related('client', 'vehicle').order_by('-initiated_date'),
+        'date_from': date_from,
+        'date_to': date_to,
+        'date_query': f'?date_from={date_from.isoformat() if date_from else ""}&date_to={date_to.isoformat() if date_to else ""}',
     }
     return context
 
