@@ -1,5 +1,11 @@
 {% load humanize %}
-{# Standard debit/credit ledger statement. Expects: statement_rows, statement_summary, statement_title (optional), debit_hint / credit_hint (optional). #}
+{# Standard debit/credit ledger statement. Expects: statement_rows, statement_summary, statement_title (optional), debit_hint / credit_hint (optional), date_from / date_to (optional, date objects). #}
+<style>
+    @media print {
+        .no-print { display: none !important; }
+        body { background: white; }
+    }
+</style>
 <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
     <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between flex-wrap gap-2">
         <h2 class="text-lg font-semibold text-gray-900 flex items-center">
@@ -10,6 +16,38 @@
         <p class="text-xs text-gray-400">
             {% if debit_hint %}<span class="mr-3"><span class="font-semibold text-gray-500">Debit:</span> {{ debit_hint }}</span>{% endif %}
             {% if credit_hint %}<span><span class="font-semibold text-gray-500">Credit:</span> {{ credit_hint }}</span>{% endif %}
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Date range filter + Print (No Print) -->
+    <div class="px-6 py-3 border-b border-gray-100 bg-white no-print">
+        <form method="get" class="flex flex-wrap items-end gap-3">
+            {% for key, value in request.GET.items %}{% if key != 'date_from' and key != 'date_to' %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">From</label>
+                <input type="date" name="date_from" value="{{ date_from|default:'' }}"
+                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">To</label>
+                <input type="date" name="date_to" value="{{ date_to|default:'' }}"
+                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg">
+                <i class="fas fa-filter mr-1"></i>Filter
+            </button>
+            {% if date_from or date_to %}
+            <a href="{{ request.path }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">Reset</a>
+            {% endif %}
+            <button type="button" onclick="window.print()" class="ml-auto px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium rounded-lg">
+                <i class="fas fa-print mr-1"></i>Print
+            </button>
+        </form>
+        {% if date_from or date_to %}
+        <p class="text-xs text-gray-500 mt-2">
+            Showing entries from <span class="font-medium">{{ date_from|default:"the beginning" }}</span>
+            to <span class="font-medium">{{ date_to|default:"today" }}</span>.
         </p>
         {% endif %}
     </div>
