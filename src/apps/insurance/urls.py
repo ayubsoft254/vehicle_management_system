@@ -90,6 +90,7 @@ urlpatterns = [
     path('agents/', views.agent_ledger_list, name='agent_ledger_list'),
     path('agents/export/<str:fmt>/', views.agent_ledger_export, name='agent_ledger_export'),
     path('agents/<int:pk>/', views.agent_ledger_detail, name='agent_ledger_detail'),
+    path('agents/<int:pk>/pdf/', views.agent_ledger_pdf, name='agent_ledger_pdf'),
     path('agents/policies/<int:pk>/mark-paid/', views.agent_ledger_mark_paid, name='agent_ledger_mark_paid'),
     path('agents/<int:agent_pk>/mark-all-paid/', views.agent_ledger_mark_all_paid, name='agent_ledger_mark_all_paid'),
     path('agents/<int:agent_pk>/record-payment/', views.record_insurance_agent_payment, name='record_insurance_agent_payment'),

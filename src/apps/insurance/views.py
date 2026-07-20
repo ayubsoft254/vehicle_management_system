@@ -1524,15 +1524,11 @@ def agent_ledger_export(request, fmt):
     return export_rows(fmt, 'insurance_agent_ledger', 'Insurance Agent Ledger', headers, rows, currency_cols={4, 5, 6})
 
 
-@login_required
-def agent_ledger_detail(request, pk):
-    """Show all policies for an insurance agent and allow marking them paid."""
-    from utils.ledger import make_entry, build_statement, parse_date_range
+def _insurance_agent_statement(agent, date_from, date_to):
+    """Shared by the on-screen detail view and its PDF export so they never disagree."""
+    from utils.ledger import make_entry, build_statement
 
-    date_from, date_to = parse_date_range(request)
-    agent = get_object_or_404(InsuranceAgent, pk=pk)
     policies = agent.policies.select_related('vehicle', 'client').order_by('-start_date')
-    from .models import InsuranceAgentPayment
     payments = agent.payments.select_related('recorded_by').order_by('-payment_date')
 
     entries = [
@@ -1565,6 +1561,17 @@ def agent_ledger_detail(request, pk):
     if date_to:
         entries = [e for e in entries if e['date'] <= date_to]
     statement_rows, statement_summary = build_statement(entries, balance_from='credit')
+    return policies, payments, statement_rows, statement_summary
+
+
+@login_required
+def agent_ledger_detail(request, pk):
+    """Show all policies for an insurance agent and allow marking them paid."""
+    from utils.ledger import parse_date_range
+
+    date_from, date_to = parse_date_range(request)
+    agent = get_object_or_404(InsuranceAgent, pk=pk)
+    policies, payments, statement_rows, statement_summary = _insurance_agent_statement(agent, date_from, date_to)
 
     context = {
         'agent': agent,
@@ -1579,6 +1586,28 @@ def agent_ledger_detail(request, pk):
     }
     log_audit(request.user, 'view', 'InsuranceAgent', f'Viewed ledger for agent {agent.name}')
     return render(request, 'insurance/agent_ledger_detail.html', context)
+
+
+@login_required
+def agent_ledger_pdf(request, pk):
+    """Printable PDF statement for a single insurance agent."""
+    from utils.ledger import parse_date_range
+    from utils.report_kit import ledger_statement_pdf_response
+
+    date_from, date_to = parse_date_range(request)
+    agent = get_object_or_404(InsuranceAgent, pk=pk)
+    _, _, statement_rows, statement_summary = _insurance_agent_statement(agent, date_from, date_to)
+
+    subtitle = agent.name
+    if date_from or date_to:
+        subtitle += f" — {date_from or 'the beginning'} to {date_to or 'today'}"
+
+    log_audit(request.user, 'export', 'InsuranceAgent', f'Downloaded PDF statement for agent {agent.name}')
+    return ledger_statement_pdf_response(
+        f'insurance-agent-{agent.pk}-statement.pdf', 'Insurance Agent Statement', subtitle,
+        statement_rows, statement_summary,
+        debit_hint='payment made to agent', credit_hint='policy premium billed by agent',
+    )
 
 
 @login_required
