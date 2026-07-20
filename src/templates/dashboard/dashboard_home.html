@@ -159,7 +159,7 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div class="bg-white border border-red-100 rounded-xl shadow-sm p-6">
+                <a href="{% url 'clients:client_ledger_list' %}" class="block bg-white border border-red-100 rounded-xl shadow-sm p-6 hover:shadow-md hover:border-red-200 transition duration-200">
                     <div class="flex items-start justify-between">
                         <div>
                             <p class="text-sm font-semibold text-red-600">Total Money Outside</p>
@@ -170,9 +170,9 @@
                             <i class="fas fa-hand-holding-usd"></i>
                         </span>
                     </div>
-                </div>
+                </a>
 
-                <div class="bg-white border border-emerald-100 rounded-xl shadow-sm p-6">
+                <a href="{% url 'vehicles:sales_ledger' %}" class="block bg-white border border-emerald-100 rounded-xl shadow-sm p-6 hover:shadow-md hover:border-emerald-200 transition duration-200">
                     <div class="flex items-start justify-between">
                         <div>
                             <p class="text-sm font-semibold text-emerald-600">Total Sales</p>
@@ -183,7 +183,7 @@
                             <i class="fas fa-cash-register"></i>
                         </span>
                     </div>
-                </div>
+                </a>
 
                 <div class="bg-white border border-indigo-100 rounded-xl shadow-sm p-6">
                     <div class="flex items-start justify-between">
@@ -198,7 +198,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white border {% if overview_data.profit.is_profitable %}border-green-100{% else %}border-red-100{% endif %} rounded-xl shadow-sm p-6">
+                <a href="{% url 'vehicles:sales_ledger' %}" class="block bg-white border {% if overview_data.profit.is_profitable %}border-green-100 hover:border-green-200{% else %}border-red-100 hover:border-red-200{% endif %} rounded-xl shadow-sm p-6 hover:shadow-md transition duration-200">
                     <div class="flex items-start justify-between">
                         <div>
                             <p class="text-sm font-semibold {% if overview_data.profit.is_profitable %}text-green-600{% else %}text-red-600{% endif %}">Total Profit / Loss</p>
@@ -209,7 +209,7 @@
                             <i class="fas {% if overview_data.profit.is_profitable %}fa-arrow-trend-up{% else %}fa-arrow-trend-down{% endif %}"></i>
                         </span>
                     </div>
-                </div>
+                </a>
             </div>
             {% endif %}
 
