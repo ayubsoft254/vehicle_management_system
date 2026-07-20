@@ -84,7 +84,14 @@
                             <a href="{% url 'insurance:policy_detail' policy.pk %}" class="text-primary-600 hover:underline font-mono text-xs">{{ policy.policy_number }}</a>
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-800">
-                            {% if policy.vehicle %}{{ policy.vehicle.make }} {{ policy.vehicle.model }} {{ policy.vehicle.year|stringformat:"d" }}{% else %}—{% endif %}
+                            {% if policy.vehicle %}
+                                {{ policy.vehicle.make }} {{ policy.vehicle.model }} {{ policy.vehicle.year|stringformat:"d" }}
+                                <p class="text-xs text-gray-400">
+                                    {% if policy.vehicle.registration_number %}{{ policy.vehicle.registration_number }}{% endif %}
+                                    {% if policy.vehicle.registration_number and policy.vehicle.vin %} &middot; {% endif %}
+                                    {{ policy.vehicle.vin }}
+                                </p>
+                            {% else %}—{% endif %}
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-600">
                             {% if policy.client %}{{ policy.client.get_full_name }}{% else %}—{% endif %}

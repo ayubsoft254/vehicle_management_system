@@ -87,6 +87,11 @@
                             <a href="{% url 'vehicles:detail' record.vehicle.pk %}" class="text-primary-600 hover:underline">
                                 {{ record.vehicle.make }} {{ record.vehicle.model }} {{ record.vehicle.year|stringformat:"d" }}
                             </a>
+                            <p class="text-xs text-gray-400">
+                                {% if record.vehicle.registration_number %}{{ record.vehicle.registration_number }}{% endif %}
+                                {% if record.vehicle.registration_number and record.vehicle.vin %} &middot; {% endif %}
+                                {{ record.vehicle.vin }}
+                            </p>
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-600">
                             {% if record.client_vehicle and record.client_vehicle.client %}{{ record.client_vehicle.client.get_full_name }}{% else %}—{% endif %}
