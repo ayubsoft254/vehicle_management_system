@@ -682,12 +682,82 @@ def payslip_detail(request, pk):
 @login_required
 def payslip_download(request, pk):
     """Download payslip as PDF."""
-    payslip = get_object_or_404(Payslip, pk=pk)
-    
-    # TODO: Generate PDF
-    # For now, return simple response
-    messages.info(request, 'PDF generation not yet implemented.')
-    return redirect('payroll:payslip_detail', pk=pk)
+    from utils.report_kit import build_pdf_response, fmt_money, kpi_table
+
+    payslip = get_object_or_404(Payslip.objects.select_related('employee', 'payroll_run'), pk=pk)
+    employee = payslip.employee
+
+    def body(elements, styles):
+        heading = styles['ReportSectionHeading']
+        heading.spaceBefore = 8
+        heading.spaceAfter = 4
+
+        elements.append(kpi_table([
+            ('Employee', employee.get_full_name()),
+            ('Employee ID', employee.employee_id),
+            ('Job Title', employee.job_title or '—'),
+            ('Payroll Number', payslip.payroll_run.payroll_number),
+            ('Payment Period', payslip.payroll_run.payroll_month.strftime('%B %Y')),
+            ('Working / Worked Days', f'{payslip.working_days} / {payslip.days_worked}'),
+        ], col_widths=[2.6 * inch, 2.6 * inch]))
+        elements.append(Spacer(1, 10))
+
+        elements.append(Paragraph('EARNINGS', heading))
+        earnings_rows = [['Description', 'Amount (KES)']]
+        earning_fields = [
+            ('Basic Salary', payslip.basic_salary),
+            ('Housing Allowance', payslip.housing_allowance),
+            ('Transport Allowance', payslip.transport_allowance),
+            ('Medical Allowance', payslip.medical_allowance),
+            ('Meal Allowance', payslip.meal_allowance),
+            ('Other Allowances', payslip.other_allowances),
+            ('Commission', payslip.commission_amount),
+            ('Overtime', payslip.overtime_amount),
+            ('Bonus', payslip.bonus_amount),
+        ]
+        for label, amount in earning_fields:
+            if amount:
+                earnings_rows.append([label, f'{amount:,.2f}'])
+        earnings_rows.append(['GROSS SALARY', f'{payslip.gross_salary:,.2f}'])
+        elements.append(kpi_table(earnings_rows[1:], col_widths=[4 * inch, 2 * inch]))
+        elements.append(Spacer(1, 10))
+
+        elements.append(Paragraph('DEDUCTIONS', heading))
+        deduction_fields = [
+            ('Income Tax (PAYE)', payslip.income_tax),
+            ('Pension (NSSF)', payslip.pension_contribution),
+            ('Insurance (NHIF)', payslip.insurance_deduction),
+            ('Loan Repayment', payslip.loan_repayment),
+            ('Other Deductions', payslip.other_deductions),
+        ]
+        deduction_rows = [[label, f'{amount:,.2f}'] for label, amount in deduction_fields if amount]
+        deduction_rows.append(['TOTAL DEDUCTIONS', f'{payslip.total_deductions:,.2f}'])
+        elements.append(kpi_table(deduction_rows, col_widths=[4 * inch, 2 * inch]))
+        elements.append(Spacer(1, 10))
+
+        elements.append(Paragraph(f'<b>NET SALARY: {fmt_money(payslip.net_salary)}</b>', styles['ReportSectionHeading']))
+        elements.append(Spacer(1, 10))
+
+        if employee.bank_name:
+            elements.append(Paragraph('PAYMENT DETAILS', heading))
+            elements.append(kpi_table([
+                ('Bank Name', employee.bank_name),
+                ('Account Number', employee.bank_account_number or '—'),
+                ('Payment Status', 'PAID' if payslip.is_paid else 'PENDING'),
+            ], col_widths=[2.6 * inch, 2.6 * inch]))
+            elements.append(Spacer(1, 8))
+
+        elements.append(Paragraph(
+            'This is a computer-generated document. No signature is required.',
+            styles['ReportCompanyMeta'],
+        ))
+
+    return build_pdf_response(
+        f'payslip-{employee.employee_id}-{payslip.payroll_run.payroll_month.strftime("%Y%m")}.pdf',
+        'Payslip',
+        subtitle=f'{employee.get_full_name()} — {payslip.payroll_run.payroll_month.strftime("%B %Y")}',
+        build_body=body,
+    )
 
 
 # ============================================================================

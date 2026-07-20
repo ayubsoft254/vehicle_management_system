@@ -13,11 +13,11 @@
             <i class="fas fa-arrow-left mr-2"></i> Back to Payroll
         </a>
         <div class="space-x-2">
-            <button onclick="window.print()" 
-                    class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg">
+            <a href="{% url 'payroll:payslip_download' payslip.pk %}"
+               class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg">
                 <i class="fas fa-print mr-2"></i> Print
-            </button>
-            <a href="{% url 'payroll:payslip_download' payslip.pk %}" 
+            </a>
+            <a href="{% url 'payroll:payslip_download' payslip.pk %}"
                class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg">
                 <i class="fas fa-download mr-2"></i> Download PDF
             </a>
