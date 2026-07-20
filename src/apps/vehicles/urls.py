@@ -87,6 +87,7 @@ urlpatterns = [
     path('brokers/<int:broker_pk>/record-payment/', views.record_broker_payment, name='record_broker_payment'),
     path('broker-sales/<int:pk>/mark-paid/', views.broker_commission_mark_paid, name='broker_commission_mark_paid'),
     path('broker-payments/<int:payment_pk>/voucher/', views.broker_voucher_print, name='broker_voucher_print'),
+    path('broker-payments/<int:payment_pk>/voucher/pdf/', views.broker_voucher_pdf, name='broker_voucher_pdf'),
 
     # Business Loans (money loaned out by the business)
     path('business-loans/', views.business_loan_list, name='business_loan_list'),

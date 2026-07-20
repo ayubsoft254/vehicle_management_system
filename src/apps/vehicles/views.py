@@ -2203,6 +2203,46 @@ def broker_voucher_print(request, payment_pk):
     return render(request, 'vehicles/broker_voucher_print.html', {'payment': payment})
 
 
+@login_required
+def broker_voucher_pdf(request, payment_pk):
+    """PDF version of the broker payment voucher."""
+    from utils.report_kit import build_pdf_response, fmt_money, kpi_table
+
+    payment = get_object_or_404(BrokerPayment.objects.select_related('broker', 'recorded_by'), pk=payment_pk)
+
+    def body(elements, styles):
+        from reportlab.lib.units import inch
+        from reportlab.platypus import Paragraph, Spacer
+
+        pairs = [
+            ('Amount Paid', fmt_money(payment.amount)),
+            ('Paid To (Broker)', payment.broker.name),
+            ('Payment Date', payment.payment_date.strftime('%d %B %Y')),
+            ('Payment Method', payment.get_payment_method_display()),
+            ('Reference / Receipt No.', payment.reference_number or '—'),
+            ('Recorded By', payment.recorded_by.get_full_name() if payment.recorded_by else '—'),
+            ('Date Recorded', payment.created_at.strftime('%d %B %Y, %H:%M')),
+        ]
+        elements.append(kpi_table(pairs, col_widths=[2.6 * inch, 2.6 * inch]))
+        elements.append(Spacer(1, 8))
+
+        if payment.notes:
+            elements.append(Paragraph(f'<b>Notes:</b> {payment.notes}', styles['Normal']))
+            elements.append(Spacer(1, 8))
+
+        elements.append(Paragraph(
+            'Authorised By: ______________________  &nbsp;&nbsp;&nbsp;&nbsp;  '
+            f'Received By ({payment.broker.name}): ______________________',
+            styles['Normal'],
+        ))
+
+    return build_pdf_response(
+        f'voucher-{payment.voucher_number}.pdf', 'Payment Voucher',
+        subtitle=f'Voucher No: {payment.voucher_number} — Broker Commission Payment',
+        build_body=body,
+    )
+
+
 # ==================== PARTNER LEDGER EXPORTS ====================
 # Broker, Tracker Agent, Clearing Agent and Japan Supplier ledgers all share
 # the same "party with billed/paid/owed totals" shape, so one parametrized
