@@ -79,9 +79,11 @@
                             <a href="{% url 'vehicles:detail' sale.vehicle.pk %}" class="font-medium text-primary-600 hover:underline">
                                 {{ sale.vehicle.make }} {{ sale.vehicle.model }} {{ sale.vehicle.year|stringformat:"d" }}
                             </a>
-                            {% if sale.vehicle.registration_number %}
-                            <p class="text-xs text-gray-400">{{ sale.vehicle.registration_number }}</p>
-                            {% endif %}
+                            <p class="text-xs text-gray-400">
+                                {% if sale.vehicle.registration_number %}{{ sale.vehicle.registration_number }}{% endif %}
+                                {% if sale.vehicle.registration_number and sale.vehicle.vin %} &middot; {% endif %}
+                                {{ sale.vehicle.vin }}
+                            </p>
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-700">
                             <a href="{% url 'clients:client_detail' sale.client.pk %}" class="hover:text-primary-600">

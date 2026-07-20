@@ -60,7 +60,7 @@
                 <select name="vehicle" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
                     <option value="">All Vehicles</option>
                     {% for cv in client_vehicles %}
-                    <option value="{{ cv.pk }}" {% if vehicle_pk == cv.pk|stringformat:'s' %}selected{% endif %}>{{ cv.vehicle.full_name }}</option>
+                    <option value="{{ cv.pk }}" {% if vehicle_pk == cv.pk|stringformat:'s' %}selected{% endif %}>{{ cv.vehicle.full_name }} ({% if cv.vehicle.registration_number %}{{ cv.vehicle.registration_number }}{% if cv.vehicle.vin %} / {{ cv.vehicle.vin }}{% endif %}{% else %}{{ cv.vehicle.vin }}{% endif %})</option>
                     {% endfor %}
                 </select>
             </div>
@@ -174,7 +174,11 @@
                         <tr>
                             <td class="px-4 py-3 text-sm">
                                 <a href="{% url 'clients:client_vehicle_detail' v.client_vehicle.pk %}" class="font-medium hover:text-primary-600">{{ v.client_vehicle.vehicle.full_name }}</a>
-                                <p class="text-gray-500 text-xs">{{ v.client_vehicle.vehicle.registration_number }}</p>
+                                <p class="text-gray-500 text-xs">
+                                    {% if v.client_vehicle.vehicle.registration_number %}{{ v.client_vehicle.vehicle.registration_number }}{% endif %}
+                                    {% if v.client_vehicle.vehicle.registration_number and v.client_vehicle.vehicle.vin %} &middot; {% endif %}
+                                    {{ v.client_vehicle.vehicle.vin }}
+                                </p>
                             </td>
                             <td class="px-4 py-3 text-sm">{{ v.sale_type }}</td>
                             <td class="px-4 py-3 text-sm text-right">{{ v.client_vehicle.purchase_price|floatformat:2 }}</td>
@@ -232,7 +236,13 @@
                             </td>
                             <td class="px-3 py-3 text-sm">{{ row.payment_method|default:'—' }}</td>
                             <td class="px-3 py-3 text-sm max-w-xs truncate">{{ row.narration|default:'—' }}</td>
-                            <td class="px-3 py-3 text-sm">{{ row.related_vehicle.registration_number|default:'—' }}</td>
+                            <td class="px-3 py-3 text-sm">
+                                {% if row.related_vehicle %}
+                                    {{ row.related_vehicle.registration_number|default:'' }}
+                                    {% if row.related_vehicle.registration_number and row.related_vehicle.vin %}<br>{% endif %}
+                                    <span class="text-xs text-gray-400">{{ row.related_vehicle.vin }}</span>
+                                {% else %}—{% endif %}
+                            </td>
                             <td class="px-3 py-3 text-sm text-right">{% if row.debit %}{{ row.debit|floatformat:2 }}{% else %}—{% endif %}</td>
                             <td class="px-3 py-3 text-sm text-right {% if row.is_reversed %}line-through text-gray-400{% else %}text-green-600{% endif %}">
                                 {% if row.is_reversed %}{{ row.display_amount|floatformat:2 }}{% elif row.credit %}{{ row.credit|floatformat:2 }}{% else %}—{% endif %}

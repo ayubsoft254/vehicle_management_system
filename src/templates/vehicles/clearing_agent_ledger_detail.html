@@ -76,9 +76,11 @@
                             <a href="{% url 'vehicles:detail' record.vehicle.pk %}" class="text-primary-600 hover:underline font-medium">
                                 {{ record.vehicle.make }} {{ record.vehicle.model }} {{ record.vehicle.year|stringformat:"d" }}
                             </a>
-                            {% if record.vehicle.registration_number %}
-                            <p class="text-xs text-gray-400">{{ record.vehicle.registration_number }}</p>
-                            {% endif %}
+                            <p class="text-xs text-gray-400">
+                                {% if record.vehicle.registration_number %}{{ record.vehicle.registration_number }}{% endif %}
+                                {% if record.vehicle.registration_number and record.vehicle.vin %} &middot; {% endif %}
+                                {{ record.vehicle.vin }}
+                            </p>
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-500">{{ record.date|default:"—" }}</td>
                         <td class="px-4 py-3 text-right text-sm font-medium text-gray-800">KES {{ record.amount|floatformat:0|intcomma }}</td>
