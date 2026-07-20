@@ -1965,9 +1965,15 @@ def vehicle_reports(request):
     """Comprehensive vehicle inventory and financial analytics."""
     from django.db.models import Min, Max
     from datetime import date
+    from utils.ledger import parse_date_range
 
     can_see_prices = _can_view_vehicle_prices(request.user)
+    date_from, date_to = parse_date_range(request)
     vehicles = Vehicle.objects.all()
+    if date_from:
+        vehicles = vehicles.filter(date_added__date__gte=date_from)
+    if date_to:
+        vehicles = vehicles.filter(date_added__date__lte=date_to)
     today = date.today()
 
     # ── Status breakdown ─────────────────────────────────────────────────────
@@ -2068,6 +2074,8 @@ def vehicle_reports(request):
 
     context = {
         'can_see_prices': can_see_prices,
+        'date_from': date_from,
+        'date_to': date_to,
         'total_count': total_count,
         'status_breakdown': status_breakdown,
         'available_count': available_qs.count(),
@@ -2091,12 +2099,18 @@ def vehicle_reports(request):
 def vehicle_reports_pdf(request):
     """PDF version of the vehicle inventory and financial analytics report."""
     from utils.report_kit import build_pdf_response, fmt_money, kpi_table, styled_table
+    from utils.ledger import parse_date_range
     from reportlab.lib.units import inch
     from reportlab.platypus import Paragraph, Spacer
     import datetime as dt
 
     can_see_prices = _can_view_vehicle_prices(request.user)
+    date_from, date_to = parse_date_range(request)
     vehicles = Vehicle.objects.all()
+    if date_from:
+        vehicles = vehicles.filter(date_added__date__gte=date_from)
+    if date_to:
+        vehicles = vehicles.filter(date_added__date__lte=date_to)
     today = dt.date.today()
 
     status_breakdown = []
@@ -2180,9 +2194,14 @@ def vehicle_reports_pdf(request):
                 align_right_from=1,
             ))
 
+    if date_from or date_to:
+        subtitle = f"Added {date_from or 'the beginning'} to {date_to or 'today'}"
+    else:
+        subtitle = f'Generated {today.strftime("%d %B %Y")}'
+
     return build_pdf_response(
         'vehicle-reports.pdf', 'Vehicle Inventory & Financial Report',
-        subtitle=f'Generated {today.strftime("%d %B %Y")}',
+        subtitle=subtitle,
         build_body=body,
     )
 

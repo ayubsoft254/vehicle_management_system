@@ -17,7 +17,7 @@
                class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition">
                 <i class="fas fa-file-csv mr-2"></i>Export CSV
             </a>
-            <a href="{% url 'vehicles:vehicle_reports_pdf' %}"
+            <a href="{% url 'vehicles:vehicle_reports_pdf' %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}"
                     class="inline-flex items-center px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition">
                 <i class="fas fa-print mr-2"></i>Print
             </a>
@@ -26,6 +26,28 @@
                 <i class="fas fa-arrow-left mr-2"></i>Vehicles
             </a>
         </div>
+    </div>
+
+    <!-- Date range filter (scopes every breakdown below by date added to inventory) -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
+        <form method="get" class="flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Added From</label>
+                <input type="date" name="date_from" value="{{ date_from|default:'' }}"
+                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Added To</label>
+                <input type="date" name="date_to" value="{{ date_to|default:'' }}"
+                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg">
+                <i class="fas fa-filter mr-1"></i>Filter
+            </button>
+            {% if date_from or date_to %}
+            <a href="{% url 'vehicles:vehicle_reports' %}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">Reset</a>
+            {% endif %}
+        </form>
     </div>
 
     {% include "includes/_currency_switcher.html" %}
