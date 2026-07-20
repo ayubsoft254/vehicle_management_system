@@ -133,16 +133,21 @@ def get_dashboard_overview_data(user=None):
     new_clients_today = Client.objects.filter(date_registered__date=today).count()
 
     # ── Payment statistics ────────────────────────────────────────────
-    payments_today        = Payment.objects.filter(payment_date=today)
+    # is_reversed=False on every aggregate below - a reversed/refunded
+    # payment must not still count towards revenue collected.
+    payments_today        = Payment.objects.filter(payment_date=today, is_reversed=False)
     total_payments_today  = payments_today.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     payments_count_today  = payments_today.count()
 
     monthly_revenue = Payment.objects.filter(
         payment_date__gte=first_day_of_month,
-        payment_date__lte=today
+        payment_date__lte=today,
+        is_reversed=False,
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-    total_revenue_all_time = Payment.objects.aggregate(
+    total_revenue_all_time = Payment.objects.filter(
+        is_reversed=False
+    ).aggregate(
         total=Sum('amount')
     )['total'] or Decimal('0.00')
 
@@ -159,7 +164,12 @@ def get_dashboard_overview_data(user=None):
     ).count()
 
     # ── TOTAL SALES ───────────────────────────────────────────────────
-    sold_cv = ClientVehicle.objects.select_related('vehicle', 'client')
+    # Scoped to vehicle__status=SOLD - the same filter the Sales Ledger page
+    # uses - so the "Total Sales" card and what you land on after clicking
+    # through to the Sales Ledger always agree on the same set of sales.
+    sold_cv = ClientVehicle.objects.filter(
+        vehicle__status=VehicleStatus.SOLD
+    ).select_related('vehicle', 'client')
     total_sales_revenue   = sold_cv.aggregate(total=Sum('purchase_price'))['total'] or Decimal('0.00')
     total_sales_count     = sold_cv.count()
     monthly_sales_count   = sold_cv.filter(purchase_date__gte=first_day_of_month).count()
@@ -173,7 +183,7 @@ def get_dashboard_overview_data(user=None):
     # previous version of this calculation only subtracted purchase price +
     # duty + clearance, silently overstating profit. _bulk_sale_totals()
     # mirrors the full "Actual Profit" cost basis used elsewhere in the app.
-    sold_profit_qs = ClientVehicle.objects.select_related('vehicle')
+    sold_profit_qs = sold_cv
     total_sales_value, total_cost_base = _bulk_sale_totals(sold_profit_qs)
     total_profit_loss = total_sales_value - total_cost_base
 
@@ -249,9 +259,18 @@ def get_dashboard_overview_data(user=None):
 
     defaulters = sorted(seen_clients.values(), key=lambda x: x['days_overdue'], reverse=True)[:10]
 
+    # Numerator scoped to the same vehicle__status=SOLD sales the "Total
+    # Sales" denominator counts - total_revenue_all_time (used elsewhere for
+    # "all cash collected, any vehicle, any status") would otherwise divide
+    # by a narrower book than it was collected against.
+    revenue_towards_sold = Payment.objects.filter(
+        client_vehicle__vehicle__status=VehicleStatus.SOLD,
+        is_reversed=False,
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
     collection_rate = Decimal('0.00')
     if total_sales_revenue > 0:
-        collection_rate = ((total_revenue_all_time / total_sales_revenue) * Decimal('100')).quantize(Decimal('0.01'))
+        collection_rate = ((revenue_towards_sold / total_sales_revenue) * Decimal('100')).quantize(Decimal('0.01'))
 
     # ── DAILY REPORT ─────────────────────────────────────────────────
     from apps.expenses.models import Expense
