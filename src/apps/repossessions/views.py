@@ -295,6 +295,7 @@ def repossession_list(request):
                 Q(vehicle__make__icontains=query) |
                 Q(vehicle__model__icontains=query) |
                 Q(vehicle__registration_number__icontains=query) |
+                Q(vehicle__vin__icontains=query) |
                 Q(client__name__icontains=query) |
                 Q(client__email__icontains=query)
             )

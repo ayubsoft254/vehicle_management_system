@@ -72,7 +72,8 @@ class AuctionListView(ListView):
                 Q(auction_number__icontains=search) |
                 Q(vehicle__make__icontains=search) |
                 Q(vehicle__model__icontains=search) |
-                Q(vehicle__vin__icontains=search)
+                Q(vehicle__vin__icontains=search) |
+                Q(vehicle__registration_number__icontains=search)
             )
         
         # Price range

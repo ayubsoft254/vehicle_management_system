@@ -145,7 +145,12 @@
                     <div class="p-4">
                         <!-- Title -->
                         <h3 class="text-lg font-bold text-gray-900 mb-1">{{ auction.title }}</h3>
-                        <p class="text-sm text-gray-600 mb-2">{{ auction.vehicle }}</p>
+                        <p class="text-sm text-gray-600">{{ auction.vehicle.full_name }}</p>
+                        <p class="text-xs text-gray-400 font-mono mb-2">
+                            {% if auction.vehicle.registration_number %}{{ auction.vehicle.registration_number }}{% endif %}
+                            {% if auction.vehicle.registration_number and auction.vehicle.vin %} &middot; {% endif %}
+                            {{ auction.vehicle.vin }}
+                        </p>
                         <p class="text-xs text-gray-500 mb-3">{{ auction.auction_number }}</p>
 
                         <!-- Status & Type -->
