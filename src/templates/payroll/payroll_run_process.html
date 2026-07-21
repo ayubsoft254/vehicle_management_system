@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Process Payroll - {{ month|date:"F Y" }}{% endblock %}
+{% block title %}Process Payroll - {{ payroll_run.payroll_month|date:"F Y" }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6 max-w-4xl">
-    
+
     <!-- Back Button -->
     <div class="mb-4">
-        <a href="{% url 'payroll:payroll_run_list' %}" 
+        <a href="{% url 'payroll:payroll_run_list' %}"
            class="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
             <i class="fas fa-arrow-left mr-2"></i> Back to Payroll Runs
         </a>
@@ -17,7 +17,7 @@
     <!-- Page Header -->
     <div class="mb-6">
         <h1 class="text-3xl font-bold text-gray-900">Process Payroll</h1>
-        <p class="mt-1 text-sm text-gray-600">{{ month|date:"F Y" }}</p>
+        <p class="mt-1 text-sm text-gray-600">{{ payroll_run.payroll_number }} &middot; {{ payroll_run.payroll_month|date:"F Y" }}</p>
     </div>
 
     <!-- Warning Banner -->
@@ -27,14 +27,24 @@
             <div>
                 <h3 class="text-sm font-bold text-yellow-900 mb-1">Important Information</h3>
                 <ul class="text-sm text-yellow-800 space-y-1">
-                    <li>• This will generate payslips for all active employees</li>
-                    <li>• Salary calculations will include all allowances, commissions, and deductions</li>
-                    <li>• This operation cannot be undone - please review carefully before proceeding</li>
-                    <li>• Processing time may vary depending on the number of employees</li>
+                    <li>&bull; This will generate a payslip for every active employee with a salary structure</li>
+                    <li>&bull; Salary calculations include allowances, approved commissions and active deductions</li>
+                    <li>&bull; This operation cannot be undone — please review carefully before proceeding</li>
                 </ul>
             </div>
         </div>
     </div>
+
+    {% if ready_count < employee_count %}
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <p class="text-sm text-red-800">
+            <i class="fas fa-exclamation-circle mr-2"></i>
+            Of <strong>{{ employee_count }}</strong> active employee(s), only <strong>{{ ready_count }}</strong> have a
+            salary structure set up and will receive a payslip. Employees without a salary structure are skipped —
+            set one up first if this isn't expected.
+        </p>
+    </div>
+    {% endif %}
 
     <!-- Preview Summary -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
@@ -45,11 +55,11 @@
             <!-- Summary Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 <div class="bg-blue-50 rounded-lg p-4">
-                    <p class="text-sm text-blue-700 font-medium">Total Employees</p>
-                    <p class="text-3xl font-bold text-blue-900 mt-2">{{ employee_count }}</p>
+                    <p class="text-sm text-blue-700 font-medium">Employees Ready</p>
+                    <p class="text-3xl font-bold text-blue-900 mt-2">{{ ready_count }} / {{ employee_count }}</p>
                 </div>
                 <div class="bg-green-50 rounded-lg p-4">
-                    <p class="text-sm text-green-700 font-medium">Working Days</p>
+                    <p class="text-sm text-green-700 font-medium">Calendar Days in Month</p>
                     <p class="text-3xl font-bold text-green-900 mt-2">{{ working_days }}</p>
                 </div>
             </div>
@@ -86,24 +96,39 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Basic Salary</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Est. Net Pay</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    {% for employee in employees %}
+                    {% for row in preview_rows %}
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">{{ employee.get_full_name }}</div>
-                            <div class="text-xs text-gray-500">{{ employee.employee_id }}</div>
+                            <div class="text-sm font-medium text-gray-900">{{ row.employee.get_full_name }}</div>
+                            <div class="text-xs text-gray-500">{{ row.employee.employee_id }}</div>
                         </td>
+                        {% if row.has_salary %}
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            KES {{ employee.basic_salary|floatformat:0 }}
+                            KES {{ row.basic_salary|floatformat:0 }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">
+                            KES {{ row.net_estimate|floatformat:0 }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                                Active
+                                Ready
                             </span>
                         </td>
+                        {% else %}
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400" colspan="2">
+                            No salary structure set up
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
+                                Will be skipped
+                            </span>
+                        </td>
+                        {% endif %}
                     </tr>
                     {% empty %}
                     <tr>
@@ -120,10 +145,10 @@
     <!-- Confirmation Form -->
     <form method="post" class="bg-white rounded-lg shadow-sm border-2 border-primary-300">
         {% csrf_token %}
-        
+
         <div class="p-6">
             <h2 class="text-lg font-bold text-gray-900 mb-4">Confirmation</h2>
-            
+
             <div class="space-y-4">
                 <label class="flex items-start">
                     <input type="checkbox" name="confirm_calculations" required class="mt-1 mr-3 w-5 h-5">
@@ -131,14 +156,14 @@
                         I confirm that all salary structures, commissions, and deductions are up to date and accurate
                     </span>
                 </label>
-                
+
                 <label class="flex items-start">
                     <input type="checkbox" name="confirm_attendance" required class="mt-1 mr-3 w-5 h-5">
                     <span class="text-sm text-gray-700">
                         I confirm that attendance records for this period have been reviewed and finalized
                     </span>
                 </label>
-                
+
                 <label class="flex items-start">
                     <input type="checkbox" name="confirm_process" required class="mt-1 mr-3 w-5 h-5">
                     <span class="text-sm text-gray-700">
@@ -150,7 +175,7 @@
             <div class="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p class="text-sm text-red-800">
                     <i class="fas fa-exclamation-circle mr-2"></i>
-                    <strong>Final Warning:</strong> Once processed, this payroll run will be locked and cannot be modified. 
+                    <strong>Final Warning:</strong> Once processed, this payroll run will be locked and cannot be modified.
                     Make sure all information is correct before proceeding.
                 </p>
             </div>
@@ -158,11 +183,11 @@
 
         <!-- Form Actions -->
         <div class="p-6 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
-            <a href="{% url 'payroll:payroll_run_list' %}" 
+            <a href="{% url 'payroll:payroll_run_list' %}"
                class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition duration-150 ease-in-out">
                 Cancel
             </a>
-            <button type="submit" 
+            <button type="submit"
                     class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out">
                 <i class="fas fa-play-circle mr-2"></i> Process Payroll
             </button>
