@@ -31,10 +31,17 @@
             </a>
             {% endif %}
             {% if can_confirm_deposit and proforma.status != 'converted' and proforma.status != 'cancelled' and proforma.status != 'expired' and proforma.status != 'draft' %}
-            <button onclick="document.getElementById('deposit-modal').classList.remove('hidden')"
-                class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition text-sm">
-                <i class="fas fa-hand-holding-usd mr-2"></i>Confirm Deposit
-            </button>
+                {% if proforma.deposit_fully_paid %}
+                <button type="button" disabled title="The full deposit (KES {{ proforma.deposit_required|floatformat:0|intcomma }}) is already held — no further deposit is needed."
+                    class="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-500 rounded-lg text-sm cursor-not-allowed">
+                    <i class="fas fa-check-circle mr-2"></i>Deposit Confirmed
+                </button>
+                {% else %}
+                <button onclick="document.getElementById('deposit-modal').classList.remove('hidden')"
+                    class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition text-sm">
+                    <i class="fas fa-hand-holding-usd mr-2"></i>Confirm Deposit
+                </button>
+                {% endif %}
             {% endif %}
             {% if proforma.status == 'deposit_paid' or proforma.status == 'reserved' %}
             <button onclick="document.getElementById('convert-modal').classList.remove('hidden')"
@@ -205,13 +212,13 @@
                                 </td>
                                 <td class="px-4 py-3 text-right whitespace-nowrap">
                                     <a href="{% url 'clients:proforma_deposit_receipt' proforma.pk d.pk %}" target="_blank"
-                                        class="text-xs text-primary-600 hover:text-primary-800 mr-2" title="Download receipt">
-                                        <i class="fas fa-receipt"></i>
+                                        class="inline-flex items-center text-xs font-medium text-primary-600 hover:text-primary-800 mr-3" title="Download receipt">
+                                        <i class="fas fa-receipt mr-1"></i>Receipt
                                     </a>
                                     {% if is_manager and not d.is_reversed and not d.converted_payment %}
                                     <button onclick="openReverseModal({{ d.pk }}, '{{ d.amount|floatformat:2 }}')"
-                                        class="text-xs text-red-500 hover:text-red-700" title="Reverse this deposit">
-                                        <i class="fas fa-undo"></i>
+                                        class="inline-flex items-center text-xs font-medium text-red-500 hover:text-red-700" title="Reverse this deposit">
+                                        <i class="fas fa-undo mr-1"></i>Reverse
                                     </button>
                                     {% endif %}
                                 </td>
