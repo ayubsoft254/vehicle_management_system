@@ -9,7 +9,7 @@
     {% url 'expenses:expense_report_pdf' as export_pdf_url_base %}
     {% url 'expenses:expense_report_excel' as export_excel_url_base %}
     {% url 'expenses:expense_report_csv' as export_csv_url_base %}
-    {% with export_pdf_url=export_pdf_url_base|add:'?'|add:request.GET.urlencode export_excel_url=export_excel_url_base|add:'?'|add:request.GET.urlencode export_csv_url=export_csv_url_base|add:'?'|add:request.GET.urlencode report_kicker='Expenses & Payroll' report_title='Expense Ledger' %}
+    {% with export_pdf_url=export_pdf_url_base|add:'?'|add:request.GET.urlencode export_excel_url=export_excel_url_base|add:'?'|add:request.GET.urlencode export_csv_url=export_csv_url_base|add:'?'|add:request.GET.urlencode report_kicker='Expenses & Payroll' report_title='Expense Ledger' export_pdf_label='Print' %}
     {% include 'reports/partials/_report_header.html' %}
     {% endwith %}
 
@@ -22,7 +22,12 @@
 
     <!-- Filters -->
     <form method="get" class="bg-white rounded-lg border border-slate-200 p-4 mb-6">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+            <div class="lg:col-span-2">
+                <label class="block text-xs font-medium text-slate-500 mb-1">Search</label>
+                <input type="text" name="search" value="{{ search|default:'' }}" placeholder="Title, description, vendor or invoice no..."
+                       class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
+            </div>
             <div>
                 <label class="block text-xs font-medium text-slate-500 mb-1">From</label>
                 <input type="date" name="date_from" value="{{ date_from_str }}" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
@@ -49,8 +54,14 @@
                     {% endfor %}
                 </select>
             </div>
-            <div>
-                <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-md transition">
+            <div class="lg:col-span-6 flex justify-end gap-2">
+                {% if search or category_id or status %}
+                <a href="{% url 'expenses:expense_report' %}?date_from={{ date_from_str }}&date_to={{ date_to_str }}"
+                   class="inline-flex items-center px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-md transition">
+                    Clear
+                </a>
+                {% endif %}
+                <button type="submit" class="inline-flex items-center justify-center px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-md transition">
                     <i class="fas fa-filter mr-2"></i>Generate
                 </button>
             </div>
