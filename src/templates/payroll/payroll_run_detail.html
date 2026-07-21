@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Payroll Run Detail - {{ payroll_run.month|date:"F Y" }}{% endblock %}
+{% block title %}Payroll Run Detail - {{ payroll_run.payroll_month|date:"F Y" }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
-    
+
     <!-- Back Button -->
     <div class="mb-4">
-        <a href="{% url 'payroll:payroll_run_list' %}" 
+        <a href="{% url 'payroll:payroll_run_list' %}"
            class="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
             <i class="fas fa-arrow-left mr-2"></i> Back to Payroll Runs
         </a>
@@ -18,11 +18,11 @@
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
             <div>
-                <h1 class="text-3xl font-bold text-gray-900">Payroll Run - {{ payroll_run.month|date:"F Y" }}</h1>
-                <p class="mt-1 text-sm text-gray-600">{{ payroll_run.name }}</p>
+                <h1 class="text-3xl font-bold text-gray-900">Payroll Run - {{ payroll_run.payroll_month|date:"F Y" }}</h1>
+                <p class="mt-1 text-sm text-gray-600">{{ payroll_run.payroll_number }}{% if payroll_run.notes %} &middot; {{ payroll_run.notes }}{% endif %}</p>
             </div>
             <div class="mt-4 sm:mt-0">
-                <span class="px-4 py-2 text-sm font-medium rounded-full 
+                <span class="px-4 py-2 text-sm font-medium rounded-full
                     {% if payroll_run.status == 'DRAFT' %}bg-gray-100 text-gray-800
                     {% elif payroll_run.status == 'PROCESSING' %}bg-yellow-100 text-yellow-800
                     {% elif payroll_run.status == 'COMPLETED' %}bg-blue-100 text-blue-800
@@ -60,7 +60,7 @@
         <h2 class="text-xl font-bold text-gray-900 mb-4">Payroll Workflow</h2>
         <div class="flex items-center justify-between">
             <div class="flex-1 text-center">
-                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center 
+                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center
                     {% if payroll_run.status == 'DRAFT' %}bg-primary-600 text-white
                     {% else %}bg-green-600 text-white{% endif %}">
                     <i class="fas fa-file-alt"></i>
@@ -69,7 +69,7 @@
             </div>
             <div class="flex-1 border-t-2 border-gray-300 mx-2"></div>
             <div class="flex-1 text-center">
-                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center 
+                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center
                     {% if payroll_run.status == 'PROCESSING' %}bg-primary-600 text-white
                     {% elif payroll_run.status in 'COMPLETED,APPROVED,PAID' %}bg-green-600 text-white
                     {% else %}bg-gray-300 text-gray-600{% endif %}">
@@ -79,7 +79,7 @@
             </div>
             <div class="flex-1 border-t-2 border-gray-300 mx-2"></div>
             <div class="flex-1 text-center">
-                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center 
+                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center
                     {% if payroll_run.status == 'COMPLETED' %}bg-primary-600 text-white
                     {% elif payroll_run.status in 'APPROVED,PAID' %}bg-green-600 text-white
                     {% else %}bg-gray-300 text-gray-600{% endif %}">
@@ -89,7 +89,7 @@
             </div>
             <div class="flex-1 border-t-2 border-gray-300 mx-2"></div>
             <div class="flex-1 text-center">
-                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center 
+                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center
                     {% if payroll_run.status == 'APPROVED' %}bg-primary-600 text-white
                     {% elif payroll_run.status == 'PAID' %}bg-green-600 text-white
                     {% else %}bg-gray-300 text-gray-600{% endif %}">
@@ -99,7 +99,7 @@
             </div>
             <div class="flex-1 border-t-2 border-gray-300 mx-2"></div>
             <div class="flex-1 text-center">
-                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center 
+                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center
                     {% if payroll_run.status == 'PAID' %}bg-green-600 text-white
                     {% else %}bg-gray-300 text-gray-600{% endif %}">
                     <i class="fas fa-dollar-sign"></i>
@@ -109,6 +109,22 @@
         </div>
     </div>
 
+    {% if dept_breakdown %}
+    <!-- Department Breakdown -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">Department Breakdown</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {% for dept in dept_breakdown %}
+            <div class="bg-gray-50 rounded-lg p-4">
+                <p class="text-sm font-medium text-gray-700">{{ dept.employee__department|default:"Unassigned" }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ dept.count }} employee(s)</p>
+                <p class="text-lg font-bold text-primary-600 mt-1">KES {{ dept.total|floatformat:0 }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Payslips Table -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
@@ -116,9 +132,6 @@
             <div class="flex space-x-2">
                 <a href="{% url 'payroll:payroll_run_payslips_pdf' payroll_run.pk %}" class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
                     <i class="fas fa-print mr-2"></i> Print All
-                </a>
-                <a href="#" class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">
-                    <i class="fas fa-file-excel mr-2"></i> Export
                 </a>
             </div>
         </div>
@@ -131,11 +144,12 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gross Pay</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deductions</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net Pay</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    {% for payslip in payslips %}
+                    {% for payslip in page_obj %}
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-medium text-gray-900">{{ payslip.employee.get_full_name }}</div>
@@ -153,18 +167,25 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-primary-600">
                             KES {{ payslip.net_salary|floatformat:0 }}
                         </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if payslip.is_paid %}
+                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Paid</span>
+                            {% else %}
+                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">Unpaid</span>
+                            {% endif %}
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <a href="{% url 'payroll:payslip_detail' payslip.pk %}" class="text-primary-600 hover:text-primary-900 mr-3">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <a href="#" class="text-red-600 hover:text-red-900">
+                            <a href="{% url 'payroll:payslip_download' payslip.pk %}" class="text-red-600 hover:text-red-900">
                                 <i class="fas fa-file-pdf"></i>
                             </a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="px-6 py-12 text-center">
+                        <td colspan="7" class="px-6 py-12 text-center">
                             <p class="text-gray-500 text-lg">No payslips generated yet</p>
                         </td>
                     </tr>
@@ -172,10 +193,39 @@
                 </tbody>
             </table>
         </div>
+
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div class="flex-1 flex justify-between sm:hidden">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+                {% endif %}
+            </div>
+            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <p class="text-sm text-gray-700">
+                    Showing <span class="font-medium">{{ page_obj.start_index }}</span> to <span class="font-medium">{{ page_obj.end_index }}</span> of <span class="font-medium">{{ page_obj.paginator.count }}</span> payslips
+                </p>
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                    {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"><i class="fas fa-angle-left"></i></a>
+                    {% endif %}
+                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+                    {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"><i class="fas fa-angle-right"></i></a>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Actions -->
-    {% if payroll_run.status == 'COMPLETED' and perms.payroll.approve_payrollrun %}
+    {% if payroll_run.status == 'COMPLETED' and is_approver %}
     <div class="mt-6 flex justify-end">
         <form method="post" action="{% url 'payroll:payroll_run_approve' payroll_run.pk %}">
             {% csrf_token %}
@@ -183,6 +233,27 @@
                 <i class="fas fa-check mr-2"></i> Approve Payroll Run
             </button>
         </form>
+    </div>
+    {% elif payroll_run.status == 'APPROVED' and is_approver %}
+    <div class="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-bold text-gray-900 mb-2">Mark as Paid</h2>
+        <p class="text-sm text-gray-600 mb-4">
+            This marks all {{ unpaid_count }} unpaid payslip(s) as paid and posts each employee's net salary
+            into the expense ledger.
+        </p>
+        <form method="post" action="{% url 'payroll:payroll_run_mark_paid' payroll_run.pk %}" class="flex flex-col sm:flex-row gap-3">
+            {% csrf_token %}
+            <input type="text" name="payment_reference" placeholder="Payment reference (optional)"
+                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm">
+            <button type="submit" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg whitespace-nowrap">
+                <i class="fas fa-dollar-sign mr-2"></i> Mark Payroll as Paid
+            </button>
+        </form>
+    </div>
+    {% elif payroll_run.status == 'PAID' %}
+    <div class="mt-6 bg-purple-50 border border-purple-200 rounded-lg p-4 text-sm text-purple-800">
+        <i class="fas fa-check-circle mr-2"></i>
+        Paid on {{ payroll_run.payment_date|date:"F j, Y" }}. Salaries have been posted to the expense ledger.
     </div>
     {% endif %}
 </div>
