@@ -36,9 +36,14 @@
         </div>
     </div>
 
-    <!-- Date range filter -->
+    <!-- Search + Date range filter -->
     <form method="get" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 no-print">
         <div class="flex flex-wrap items-end gap-3">
+            <div class="flex-1 min-w-[220px]">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Search</label>
+                <input type="text" name="search" value="{{ search|default:'' }}" placeholder="Registration number or VIN..."
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">From</label>
                 <input type="date" name="date_from" value="{{ date_from|default:'' }}"
@@ -52,7 +57,7 @@
             <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg">
                 <i class="fas fa-filter mr-1"></i>Filter
             </button>
-            {% if date_from or date_to %}
+            {% if date_from or date_to or search %}
             <a href="{% url 'vehicles:sales_ledger' %}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">Reset</a>
             {% endif %}
         </div>
@@ -136,7 +141,11 @@
                             <a href="{% url 'vehicles:detail' row.vehicle.pk %}" class="font-medium text-primary-600 hover:text-primary-800">
                                 {{ row.vehicle.full_name }}
                             </a>
-                            {% if row.vehicle.registration_number %}<p class="text-xs text-gray-400">{{ row.vehicle.registration_number }}</p>{% endif %}
+                            <p class="text-xs text-gray-400 font-mono">
+                                {% if row.vehicle.registration_number %}{{ row.vehicle.registration_number }}{% endif %}
+                                {% if row.vehicle.registration_number and row.vehicle.vin %} &middot; {% endif %}
+                                {{ row.vehicle.vin }}
+                            </p>
                         </td>
                         <td class="px-4 py-3">
                             <a href="{% url 'clients:client_detail' row.client.pk %}" class="text-gray-700 hover:text-primary-600">

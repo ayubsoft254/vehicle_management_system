@@ -3158,7 +3158,7 @@ def main_ledger_export(request, fmt):
 # specific date or date range shows whether the business made a profit or a
 # loss on the vehicles sold in that window.
 
-def _sales_ledger_queryset(date_from, date_to):
+def _sales_ledger_queryset(date_from, date_to, search=''):
     sales = ClientVehicle.objects.filter(vehicle__status=VehicleStatus.SOLD).select_related(
         'client', 'vehicle', 'broker'
     ).prefetch_related(
@@ -3173,14 +3173,19 @@ def _sales_ledger_queryset(date_from, date_to):
         sales = sales.filter(purchase_date__gte=date_from)
     if date_to:
         sales = sales.filter(purchase_date__lte=date_to)
+    if search:
+        sales = sales.filter(
+            Q(vehicle__registration_number__icontains=search) |
+            Q(vehicle__vin__icontains=search)
+        )
     return sales
 
 
-def _sales_ledger_rows(date_from, date_to):
+def _sales_ledger_rows(date_from, date_to, search=''):
     from .utils import compute_sale_profit
 
     rows = []
-    for cv in _sales_ledger_queryset(date_from, date_to):
+    for cv in _sales_ledger_queryset(date_from, date_to, search):
         result = compute_sale_profit(cv)
         rows.append({
             'client_vehicle': cv,
@@ -3201,14 +3206,15 @@ def sales_ledger(request):
     from .utils import bulk_sale_totals
 
     date_from, date_to = parse_date_range(request)
-    rows = _sales_ledger_rows(date_from, date_to)
+    search = request.GET.get('search', '').strip()
+    rows = _sales_ledger_rows(date_from, date_to, search)
 
     # Summary totals come from bulk_sale_totals() (shared with the dashboard),
     # not by summing each row's compute_sale_profit() - if the same vehicle
     # was sold more than once (repossessed and resold), each row correctly
     # carries that vehicle's full cost for reading in isolation, but summing
     # rows would then double-count that shared cost in the total.
-    total_revenue, total_cost = bulk_sale_totals(_sales_ledger_queryset(date_from, date_to))
+    total_revenue, total_cost = bulk_sale_totals(_sales_ledger_queryset(date_from, date_to, search))
     total_profit = total_revenue - total_cost
     profitable_count = sum(1 for r in rows if r['profit'] > 0)
     loss_count = sum(1 for r in rows if r['profit'] < 0)
@@ -3218,12 +3224,15 @@ def sales_ledger(request):
         qs_params['date_from'] = date_from.isoformat()
     if date_to:
         qs_params['date_to'] = date_to.isoformat()
+    if search:
+        qs_params['search'] = search
     filter_qs = urllib.parse.urlencode(qs_params)
 
     context = {
         'rows': rows,
         'date_from': date_from,
         'date_to': date_to,
+        'search': search,
         'filter_qs': filter_qs,
         'sale_count': len(rows),
         'total_revenue': total_revenue,
@@ -3245,19 +3254,22 @@ def sales_ledger_export(request, fmt):
     from utils.ledger import parse_date_range
 
     date_from, date_to = parse_date_range(request)
-    rows = _sales_ledger_rows(date_from, date_to)
+    search = request.GET.get('search', '').strip()
+    rows = _sales_ledger_rows(date_from, date_to, search)
 
-    headers = ['Sale Date', 'Vehicle', 'Reg. No.', 'Client', 'Revenue', 'Total Cost', 'Profit / (Loss)', 'Result']
+    headers = ['Sale Date', 'Vehicle', 'Reg. No.', 'VIN', 'Client', 'Revenue', 'Total Cost', 'Profit / (Loss)', 'Result']
     export_data = [
         [
-            r['sale_date'], r['vehicle'].full_name, r['vehicle'].registration_number or '',
+            r['sale_date'], r['vehicle'].full_name, r['vehicle'].registration_number or '', r['vehicle'].vin,
             r['client'].get_full_name(), float(r['revenue']), float(r['total_cost']),
             float(r['profit']), 'Profit' if r['profit'] >= 0 else 'Loss',
         ]
         for r in rows
     ]
     subtitle = f"{date_from or 'the beginning'} to {date_to or 'today'}"
+    if search:
+        subtitle += f' — search: "{search}"'
     return export_rows(
         fmt, 'sales_ledger', 'Sales Ledger', headers, export_data,
-        currency_cols={5, 6, 7}, subtitle=subtitle,
+        currency_cols={6, 7, 8}, subtitle=subtitle,
     )
