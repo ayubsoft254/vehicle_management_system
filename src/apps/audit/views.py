@@ -342,7 +342,7 @@ def audit_cleanup_view(request):
         )
         
         messages.success(request, f'{count} old audit logs have been deleted.')
-        return redirect('audit:list')
+        return redirect('audit:log_list')
     
     # Show cleanup form
     context = {
