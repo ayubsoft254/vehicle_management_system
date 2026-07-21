@@ -28,6 +28,19 @@
         <p class="text-gray-600 mt-1">Apply for an employee loan with payroll deduction</p>
     </div>
 
+    {% if is_approver %}
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-sm text-green-800">
+        <i class="fas fa-check-circle mr-2"></i>
+        You're an admin/approver — this loan will be approved and disbursed immediately, and posted to the
+        expense ledger, with no separate approval step.
+    </div>
+    {% else %}
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-800">
+        <i class="fas fa-info-circle mr-2"></i>
+        This loan application will be submitted as pending until an admin approves it.
+    </div>
+    {% endif %}
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Form -->
         <div class="lg:col-span-2">
