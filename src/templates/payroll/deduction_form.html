@@ -73,6 +73,15 @@
                             {% if form.deduction_type.errors %}
                                 <p class="text-xs text-red-500 mt-1">{{ form.deduction_type.errors.0 }}</p>
                             {% endif %}
+                            <div id="advance-notice" class="hidden mt-2 text-xs rounded-lg p-2
+                                {% if is_approver %}bg-green-50 text-green-700 border border-green-200
+                                {% else %}bg-yellow-50 text-yellow-700 border border-yellow-200{% endif %}">
+                                {% if is_approver %}
+                                <i class="fas fa-check-circle mr-1"></i>Salary advances are paid out immediately and posted to the expense ledger — no separate approval step.
+                                {% else %}
+                                <i class="fas fa-exclamation-triangle mr-1"></i>Only an admin/approver can process salary advances.
+                                {% endif %}
+                            </div>
                         </div>
 
                         <div>
@@ -271,4 +280,18 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var typeField = document.getElementById('{{ form.deduction_type.id_for_label }}');
+    var notice = document.getElementById('advance-notice');
+    if (!typeField || !notice) return;
+
+    function toggleNotice() {
+        notice.classList.toggle('hidden', typeField.value !== 'ADVANCE');
+    }
+    typeField.addEventListener('change', toggleNotice);
+    toggleNotice();
+});
+</script>
 {% endblock %}
