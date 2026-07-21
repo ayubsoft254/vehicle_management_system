@@ -14,7 +14,7 @@
 
     <!-- Key Metrics -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-6">
+        <a href="{% url 'payroll:employee_list' %}?status=ACTIVE" class="block bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-6 hover:shadow-md transition">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-blue-900">Active Employees</p>
@@ -24,7 +24,7 @@
                     <i class="fas fa-users text-2xl text-blue-700"></i>
                 </div>
             </div>
-        </div>
+        </a>
 
         <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-6">
             <div class="flex items-center justify-between">
@@ -42,7 +42,7 @@
             </div>
         </div>
 
-        <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg shadow-sm border border-yellow-200 p-6">
+        <a href="{% url 'payroll:leave_list' %}?status=PENDING" class="block bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg shadow-sm border border-yellow-200 p-6 hover:shadow-md transition">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-yellow-900">Pending Leaves</p>
@@ -52,9 +52,9 @@
                     <i class="fas fa-calendar-times text-2xl text-yellow-700"></i>
                 </div>
             </div>
-        </div>
+        </a>
 
-        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-sm border border-purple-200 p-6">
+        <a href="#pending-approvals" class="block bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-sm border border-purple-200 p-6 hover:shadow-md transition">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-purple-900">Pending Items</p>
@@ -64,7 +64,7 @@
                     <i class="fas fa-clipboard-list text-2xl text-purple-700"></i>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -218,7 +218,7 @@
             </div>
 
             <!-- Pending Approvals -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div id="pending-approvals" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 scroll-mt-4">
                 <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
                     <i class="fas fa-exclamation-circle text-yellow-600 mr-2"></i>
                     Pending Approvals
