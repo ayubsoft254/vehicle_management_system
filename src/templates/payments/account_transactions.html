@@ -52,6 +52,23 @@
         </div>
     </div>
 
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <form method="get" class="flex flex-wrap items-end gap-4">
+            <div class="flex-1 min-w-[240px]">
+                <label for="txnSearch" class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                <input type="text" id="txnSearch" name="search" value="{{ search|default:'' }}"
+                       placeholder="Client name, reg no. or VIN..."
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            </div>
+            <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-search mr-2"></i> Search
+            </button>
+            {% if search %}
+            <a href="{% url 'payments:account_transactions' method %}" class="px-4 py-2 text-gray-600 hover:text-gray-900 text-sm">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -60,6 +77,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client / Reason</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recorded By</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
@@ -91,6 +109,14 @@
                             {{ txn.reference|default:'—' }}
                             {% endif %}
                         </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if txn.vehicle %}
+                            <div class="text-sm text-gray-900">{{ txn.vehicle.registration_number|default:'—' }}</div>
+                            <div class="text-xs text-gray-400 font-mono">{{ txn.vehicle.vin|default:'' }}</div>
+                            {% else %}
+                            <span class="text-sm text-gray-400">—</span>
+                            {% endif %}
+                        </td>
                         <td class="px-6 py-4 text-sm text-gray-600">{% if txn.client %}{{ txn.reference|default:'—' }}{% else %}—{% endif %}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{% if txn.recorded_by %}{{ txn.recorded_by.get_full_name }}{% else %}System{% endif %}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold
@@ -107,7 +133,9 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="px-6 py-10 text-center text-sm text-gray-500">No transactions recorded for this account yet.</td>
+                        <td colspan="7" class="px-6 py-10 text-center text-sm text-gray-500">
+                            {% if search %}No transactions match "{{ search }}".{% else %}No transactions recorded for this account yet.{% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -121,10 +149,10 @@
             <div class="text-sm text-gray-600">Page {{ transactions.number }} of {{ transactions.paginator.num_pages }}</div>
             <div class="space-x-2">
                 {% if transactions.has_previous %}
-                <a href="?page={{ transactions.previous_page_number }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700">Previous</a>
+                <a href="?page={{ transactions.previous_page_number }}&{{ request.GET.urlencode }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700">Previous</a>
                 {% endif %}
                 {% if transactions.has_next %}
-                <a href="?page={{ transactions.next_page_number }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700">Next</a>
+                <a href="?page={{ transactions.next_page_number }}&{{ request.GET.urlencode }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700">Next</a>
                 {% endif %}
             </div>
         </div>
