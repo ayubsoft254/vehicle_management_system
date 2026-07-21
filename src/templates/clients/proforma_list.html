@@ -16,6 +16,10 @@
             </p>
         </div>
         <div class="flex items-center gap-3">
+            <a href="{% url 'clients:proforma_list_pdf' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
+               class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm">
+                <i class="fas fa-print mr-2"></i>Print
+            </a>
             {% if user.is_superuser or user.role == 'admin' %}
             <a href="{% url 'clients:reservation_settings' %}"
                class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm">

@@ -76,6 +76,7 @@ urlpatterns = [
     # ==================== PROFORMA INVOICES & RESERVATIONS ====================
 
     path('proformas/', proforma_views.proforma_list, name='proforma_list'),
+    path('proformas/export/pdf/', proforma_views.proforma_list_pdf, name='proforma_list_pdf'),
     path('proformas/create/', proforma_views.proforma_create, name='proforma_create'),
     path('proformas/settings/', proforma_views.reservation_settings, name='reservation_settings'),
     path('proformas/<int:pk>/', proforma_views.proforma_detail, name='proforma_detail'),

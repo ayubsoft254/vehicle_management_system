@@ -152,12 +152,8 @@ class ProformaInvoiceForm(forms.ModelForm):
 # List / dashboard
 # ---------------------------------------------------------------------------
 
-@login_required
-@module_permission_required('clients', AccessLevel.READ_ONLY)
-def proforma_list(request):
-    """Proforma & reservation workbench: KPI cards + filterable list."""
-    process_reservations()  # keep expiry state fresh even without cron
-
+def _filtered_proformas(request):
+    """Status/search/date filters shared by the on-screen proforma list and its PDF export."""
     from utils.ledger import parse_date_range
 
     status_filter = request.GET.get('status', '').strip()
@@ -184,6 +180,16 @@ def proforma_list(request):
             | Q(vehicle__make__icontains=search)
             | Q(vehicle__model__icontains=search)
         )
+    return proformas, status_filter, search, date_from, date_to
+
+
+@login_required
+@module_permission_required('clients', AccessLevel.READ_ONLY)
+def proforma_list(request):
+    """Proforma & reservation workbench: KPI cards + filterable list."""
+    process_reservations()  # keep expiry state fresh even without cron
+
+    proformas, status_filter, search, date_from, date_to = _filtered_proformas(request)
 
     today = timezone.now().date()
     month_start = today.replace(day=1)
@@ -229,6 +235,49 @@ def proforma_list(request):
         'is_manager': _is_manager(request.user),
     }
     return render(request, 'clients/proforma_list.html', context)
+
+
+@login_required
+@module_permission_required('clients', AccessLevel.READ_ONLY)
+def proforma_list_pdf(request):
+    """PDF report of the proforma list, same filters as the on-screen view."""
+    from utils.report_kit import build_pdf_response, fmt_money, styled_table
+
+    proformas, status_filter, search, date_from, date_to = _filtered_proformas(request)
+    proformas = proformas.order_by('-issue_date')[:500]
+
+    def body(elements, styles):
+        headers = ['Proforma', 'Issue Date', 'Client', 'Vehicle', 'Reg. No. / VIN', 'Total Price', 'Deposit Held', 'Status']
+        table_data = [headers]
+        for p in proformas:
+            vehicle_id = ' / '.join(filter(None, [p.vehicle.registration_number, p.vehicle.vin])) or '—'
+            table_data.append([
+                p.number,
+                p.issue_date.strftime('%d %b %Y'),
+                p.client.get_full_name(),
+                p.vehicle.full_name,
+                vehicle_id,
+                fmt_money(p.total_price),
+                fmt_money(p.total_deposits_confirmed) if p.total_deposits_confirmed else '—',
+                p.get_status_display(),
+            ])
+        elements.append(styled_table(table_data, align_right_from=5))
+
+    meta_bits = []
+    if status_filter:
+        meta_bits.append(f'Status: {dict(ProformaInvoice.STATUS_CHOICES).get(status_filter, status_filter)}')
+    if search:
+        meta_bits.append(f'Search: "{search}"')
+    if date_from or date_to:
+        meta_bits.append(f'Issued {date_from or "the beginning"} to {date_to or "today"}')
+    subtitle = ' — '.join(meta_bits) if meta_bits else f'{proformas.count()} proforma(s)'
+
+    _audit(request, 'export', 'Downloaded proforma list PDF')
+
+    return build_pdf_response(
+        'proforma-list.pdf', 'Proforma List',
+        subtitle=subtitle, build_body=body, landscape_mode=True,
+    )
 
 
 # ---------------------------------------------------------------------------
