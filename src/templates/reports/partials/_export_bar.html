@@ -7,7 +7,7 @@ those URLs (e.g. "{% url '...' %}?{{ filter_qs }}").
     {% if export_pdf_url %}
     <a href="{{ export_pdf_url }}"
        class="inline-flex items-center px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-md transition">
-        <i class="fas fa-file-pdf mr-2 text-slate-400"></i>PDF
+        <i class="fas {% if export_pdf_label == 'Print' %}fa-print{% else %}fa-file-pdf{% endif %} mr-2 text-slate-400"></i>{{ export_pdf_label|default:"PDF" }}
     </a>
     {% endif %}
     {% if export_excel_url %}
