@@ -593,6 +593,7 @@ def account_transactions(request, method):
 
     label = method_labels[method]
     transactions = []
+    search = request.GET.get('search', '').strip()
 
     direct_payments = Payment.objects.filter(payment_method=method).select_related(
         'client_vehicle__client', 'client_vehicle__vehicle', 'recorded_by'
@@ -605,6 +606,7 @@ def account_transactions(request, method):
             'amount': payment.amount,
             'reference': payment.transaction_reference or payment.receipt_number,
             'client': payment.client_vehicle.client,
+            'vehicle': payment.client_vehicle.vehicle,
             'detail_url': reverse('payments:payment_detail', args=[payment.pk]),
             'recorded_by': payment.recorded_by,
         })
@@ -621,6 +623,7 @@ def account_transactions(request, method):
             'amount': split.amount,
             'reference': split.transaction_reference or payment.receipt_number,
             'client': payment.client_vehicle.client,
+            'vehicle': payment.client_vehicle.vehicle,
             'detail_url': reverse('payments:payment_detail', args=[payment.pk]),
             'recorded_by': payment.recorded_by,
         })
@@ -634,16 +637,34 @@ def account_transactions(request, method):
             'amount': withdrawal.amount,
             'reference': withdrawal.reason,
             'client': None,
+            'vehicle': None,
             'detail_url': None,
             'recorded_by': withdrawal.recorded_by,
         })
 
     transactions.sort(key=lambda t: (t['date'], t['sort_key']), reverse=True)
 
+    # Totals reflect the whole account regardless of search (same convention
+    # as the paybill tracker) - search only narrows which rows are listed.
     total_additions = sum((t['amount'] for t in transactions if t['type'] == 'addition'), Decimal('0.00'))
     total_reversed = sum((t['amount'] for t in transactions if t['type'] == 'reversed'), Decimal('0.00'))
     total_withdrawals = sum((t['amount'] for t in transactions if t['type'] == 'withdrawal'), Decimal('0.00'))
     net_total = total_additions - total_withdrawals
+
+    if search:
+        search_lower = search.lower()
+        def _matches(t):
+            if t['vehicle'] and (
+                search_lower in (t['vehicle'].registration_number or '').lower() or
+                search_lower in (t['vehicle'].vin or '').lower()
+            ):
+                return True
+            if t['client'] and search_lower in t['client'].get_full_name().lower():
+                return True
+            if t['reference'] and search_lower in t['reference'].lower():
+                return True
+            return False
+        transactions = [t for t in transactions if _matches(t)]
 
     paginator = Paginator(transactions, 50)
     page_obj = paginator.get_page(request.GET.get('page'))
@@ -653,6 +674,7 @@ def account_transactions(request, method):
         'label': label,
         'is_hoza': method in AccountWithdrawal.HOZA_METHODS,
         'transactions': page_obj,
+        'search': search,
         'total_additions': total_additions,
         'total_reversed': total_reversed,
         'total_withdrawals': total_withdrawals,
@@ -736,7 +758,7 @@ def account_breakdown(request, category):
     return render(request, 'payments/account_breakdown.html', context)
 
 
-def _account_ledger_rows(account, date_from, date_to):
+def _account_ledger_rows(account, date_from, date_to, search=None):
     """Shared by the on-screen account ledger and its PDF export so they never disagree."""
     rows = []
 
@@ -842,6 +864,25 @@ def _account_ledger_rows(account, date_from, date_to):
         rows = [r for r in rows if r['date'] >= date_from]
     if date_to:
         rows = [r for r in rows if r['date'] <= date_to]
+
+    if search:
+        search_lower = search.lower()
+
+        def _matches(r):
+            vehicle = r.get('related_vehicle')
+            if vehicle and (
+                search_lower in (vehicle.registration_number or '').lower() or
+                search_lower in (vehicle.vin or '').lower()
+            ):
+                return True
+            client = r.get('related_client')
+            if client and search_lower in client.get_full_name().lower():
+                return True
+            if r.get('reference') and search_lower in r['reference'].lower():
+                return True
+            return False
+        rows = [r for r in rows if _matches(r)]
+
     return rows
 
 
@@ -852,11 +893,12 @@ def account_detail(request, pk):
 
     account = get_object_or_404(Account, pk=pk)
     date_from, date_to = parse_date_range(request)
-    rows = _account_ledger_rows(account, date_from, date_to)
+    search = request.GET.get('search', '').strip()
+    rows = _account_ledger_rows(account, date_from, date_to, search)
 
-    # A date-filtered report should print as one page; only the default
-    # (unfiltered, potentially very long) history stays paginated on screen.
-    page_size = len(rows) if (date_from or date_to) else 50
+    # A date/search-filtered report should print as one page; only the
+    # default (unfiltered, potentially very long) history stays paginated.
+    page_size = len(rows) if (date_from or date_to or search) else 50
     paginator = Paginator(rows, max(page_size, 1))
     page_obj = paginator.get_page(request.GET.get('page'))
 
@@ -873,6 +915,7 @@ def account_detail(request, pk):
         'rows': page_obj,
         'date_from': date_from,
         'date_to': date_to,
+        'search': search,
     }
 
     log_audit(request.user, 'view', 'Account', f'Viewed ledger for {account.name}')
@@ -887,7 +930,8 @@ def account_detail_pdf(request, pk):
 
     account = get_object_or_404(Account, pk=pk)
     date_from, date_to = parse_date_range(request)
-    rows = _account_ledger_rows(account, date_from, date_to)
+    search = request.GET.get('search', '').strip()
+    rows = _account_ledger_rows(account, date_from, date_to, search)
 
     def body(elements, styles):
         from reportlab.lib.units import inch
@@ -901,23 +945,31 @@ def account_detail_pdf(request, pk):
         ], col_widths=[2.6 * inch, 2.6 * inch]))
         elements.append(Spacer(1, 10))
 
-        headers = ['Date', 'Reference', 'Type', 'Narration', 'Debit', 'Credit', 'Balance']
+        headers = ['Date', 'Reference', 'Type', 'Vehicle', 'Narration', 'Debit', 'Credit', 'Balance']
         table_data = [headers]
         for row in rows:
+            vehicle = row.get('related_vehicle')
+            vehicle_label = ' / '.join(filter(None, [
+                vehicle.registration_number if vehicle else '',
+                vehicle.vin if vehicle else '',
+            ])) or '—'
             table_data.append([
                 row['date'].strftime('%d %b %Y') if row['date'] else '',
                 row['reference'] or '—',
                 row['type_label'] + (' (REVERSED)' if row.get('is_reversed') else ''),
+                vehicle_label,
                 (row['narration'] or '')[:60],
                 fmt_money(row['money_in']) if row['money_in'] else '—',
                 fmt_money(row['money_out']) if row['money_out'] else '—',
                 fmt_money(row['running_balance']),
             ])
-        elements.append(styled_table(table_data, align_right_from=4))
+        elements.append(styled_table(table_data, align_right_from=5))
 
     subtitle = account.name
     if date_from or date_to:
         subtitle += f" — {date_from or 'the beginning'} to {date_to or 'today'}"
+    if search:
+        subtitle += f' — search: "{search}"'
 
     log_audit(request.user, 'export', 'Account', f'Downloaded PDF statement for {account.name}')
 
@@ -2367,8 +2419,12 @@ def payment_analytics(request):
     previous_start = start_date - timedelta(days=period_days)
     previous_end = start_date - timedelta(days=1)
 
-    period_payments = Payment.objects.filter(payment_date__gte=start_date, payment_date__lte=today)
-    previous_period_payments = Payment.objects.filter(payment_date__gte=previous_start, payment_date__lte=previous_end)
+    period_payments = Payment.objects.filter(
+        payment_date__gte=start_date, payment_date__lte=today, is_reversed=False
+    )
+    previous_period_payments = Payment.objects.filter(
+        payment_date__gte=previous_start, payment_date__lte=previous_end, is_reversed=False
+    )
 
     total_revenue = period_payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     total_transactions = period_payments.count()
@@ -2391,9 +2447,22 @@ def payment_analytics(request):
     else:
         transaction_growth = Decimal('0.00')
 
+    # Collection rate = how much of what was actually *due* on scheduled
+    # installments this period has been paid. Previously this divided
+    # total_revenue (every payment in the period, including one-off cash
+    # sales with no installment plan at all) by expected_total (only
+    # scheduled installment dues) — two different populations, so a single
+    # large cash sale could push the "rate" past 100% (seen as high as
+    # 467%). Scope both sides to the same schedules and cap each schedule's
+    # contribution at its own amount_due so early/overpayment on one
+    # schedule can't inflate the overall rate past 100%.
     expected_schedules = PaymentSchedule.objects.filter(due_date__gte=start_date, due_date__lte=today)
-    expected_total = expected_schedules.aggregate(total=Sum('amount_due'))['total'] or Decimal('0.00')
-    collection_rate = ((total_revenue / expected_total) * 100) if expected_total > 0 else Decimal('0.00')
+    schedule_totals = expected_schedules.aggregate(due=Sum('amount_due'), paid=Sum('amount_paid'))
+    expected_total = schedule_totals['due'] or Decimal('0.00')
+    collected_against_schedule = schedule_totals['paid'] or Decimal('0.00')
+    if collected_against_schedule > expected_total:
+        collected_against_schedule = expected_total
+    collection_rate = ((collected_against_schedule / expected_total) * 100) if expected_total > 0 else Decimal('0.00')
 
     method_rows = period_payments.values('payment_method').annotate(
         total=Sum('amount'),
@@ -2456,7 +2525,8 @@ def payment_analytics(request):
     overdue_percentage = (overdue_count / status_total * 100) if status_total else 0
 
     monthly_rows = Payment.objects.filter(
-        payment_date__gte=(today - timedelta(days=180))
+        payment_date__gte=(today - timedelta(days=180)),
+        is_reversed=False
     ).annotate(
         month=TruncMonth('payment_date')
     ).values('month').annotate(
@@ -2495,7 +2565,7 @@ def payment_analytics(request):
             'bar_width': bar_width,
         })
 
-    recent_payments = Payment.objects.select_related(
+    recent_payments = Payment.objects.filter(is_reversed=False).select_related(
         'client_vehicle__client',
         'client_vehicle__vehicle'
     ).order_by('-payment_date', '-created_at')[:10]
