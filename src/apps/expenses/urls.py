@@ -12,6 +12,7 @@ urlpatterns = [
     # Expense List and Search URLs
     # ========================================================================
     path('', views.expense_list, name='expense_list'),
+    path('export/pdf/', views.expense_list_pdf, name='expense_list_pdf'),
     path('my-expenses/', views.my_expenses, name='my_expenses'),
     path('pending-approval/', views.pending_approval, name='pending_approval'),
     path('dashboard/', views.expense_dashboard, name='expense_dashboard'),

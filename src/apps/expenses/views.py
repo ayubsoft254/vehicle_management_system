@@ -35,20 +35,20 @@ from .forms import (
 # ============================================================================
 
 @login_required
-def expense_list(request):
-    """Display list of expenses with search and filters."""
+def _filtered_expenses(request):
+    """Search/filter logic shared by the on-screen expense list and its PDF export."""
     form = ExpenseSearchForm(request.GET or None)
-    
+
     # Base queryset - expenses user can view
     if request.user.has_perm('expenses.view_all_expenses'):
         expenses = Expense.objects.all()
     else:
         expenses = Expense.objects.filter(submitted_by=request.user)
-    
+
     expenses = expenses.select_related(
         'submitted_by', 'category', 'approved_by', 'related_vehicle', 'related_client'
     ).prefetch_related('tags')
-    
+
     # Apply filters
     if form.is_valid():
         query = form.cleaned_data.get('query')
@@ -59,59 +59,65 @@ def expense_list(request):
                 Q(vendor_name__icontains=query) |
                 Q(invoice_number__icontains=query)
             )
-        
+
         category = form.cleaned_data.get('category')
         if category:
             expenses = expenses.filter(category=category)
-        
+
         status = form.cleaned_data.get('status')
         if status:
             expenses = expenses.filter(status=status)
-        
+
         date_from = form.cleaned_data.get('date_from')
         if date_from:
             expenses = expenses.filter(expense_date__gte=date_from)
-        
+
         date_to = form.cleaned_data.get('date_to')
         if date_to:
             expenses = expenses.filter(expense_date__lte=date_to)
-        
+
         min_amount = form.cleaned_data.get('min_amount')
         if min_amount:
             expenses = expenses.filter(amount__gte=min_amount)
-        
+
         max_amount = form.cleaned_data.get('max_amount')
         if max_amount:
             expenses = expenses.filter(amount__lte=max_amount)
-        
+
         submitted_by = form.cleaned_data.get('submitted_by')
         if submitted_by:
             expenses = expenses.filter(submitted_by=submitted_by)
-        
+
         is_reimbursable = form.cleaned_data.get('is_reimbursable')
         if is_reimbursable is not None:
             expenses = expenses.filter(is_reimbursable=is_reimbursable)
-    
+
     # Sort expenses
     sort_by = request.GET.get('sort', '-expense_date')
     expenses = expenses.order_by(sort_by)
-    
+    return expenses, form, sort_by
+
+
+def expense_list(request):
+    """Display list of expenses with search and filters."""
+    expenses, form, sort_by = _filtered_expenses(request)
+
     # Calculate totals for filtered expenses
     totals = expenses.aggregate(
         total_amount=Sum('total_amount'),
         count=Count('id')
     )
-    
+
     # Pagination
     paginator = Paginator(expenses, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
     # Get categories for sidebar
     categories = ExpenseCategory.objects.filter(is_active=True).annotate(
         expense_count=Count('expenses')
     )
-    
+
     context = {
         'page_obj': page_obj,
         'form': form,
@@ -119,8 +125,53 @@ def expense_list(request):
         'totals': totals,
         'sort_by': sort_by,
     }
-    
+
     return render(request, 'expenses/expense_list.html', context)
+
+
+@login_required
+def expense_list_pdf(request):
+    """PDF report of the expense list, same filters as the on-screen view."""
+    from utils.report_kit import build_pdf_response, fmt_money, kpi_table, styled_table
+
+    expenses, form, sort_by = _filtered_expenses(request)
+    totals = expenses.aggregate(total_amount=Sum('total_amount'), count=Count('id'))
+    expenses = expenses[:500]
+
+    def body(elements, styles):
+        elements.append(kpi_table([
+            ('Total Expenses', str(totals['count'] or 0)),
+            ('Total Amount', fmt_money(totals['total_amount'])),
+        ], col_widths=[2.6 * inch, 2.6 * inch]))
+        elements.append(Spacer(1, 10))
+
+        headers = ['Date', 'Title', 'Category', 'Vendor', 'Amount', 'Submitted By', 'Status']
+        table_data = [headers]
+        for expense in expenses:
+            table_data.append([
+                expense.expense_date.strftime('%d %b %Y'),
+                expense.title,
+                expense.category.name if expense.category else '—',
+                expense.vendor_name or '—',
+                f'{expense.currency} {expense.total_amount:,.2f}',
+                expense.submitted_by.get_full_name() if expense.submitted_by else '—',
+                expense.get_status_display(),
+            ])
+        elements.append(styled_table(table_data, align_right_from=4))
+
+    meta_bits = []
+    if form.is_valid() and form.cleaned_data.get('query'):
+        meta_bits.append(f'Search: "{form.cleaned_data["query"]}"')
+    if form.is_valid() and form.cleaned_data.get('date_from'):
+        meta_bits.append(f'From {form.cleaned_data["date_from"]}')
+    if form.is_valid() and form.cleaned_data.get('date_to'):
+        meta_bits.append(f'To {form.cleaned_data["date_to"]}')
+    subtitle = ' — '.join(meta_bits) if meta_bits else f"{totals['count'] or 0} expense(s)"
+
+    return build_pdf_response(
+        'expense-list.pdf', 'Expense List',
+        subtitle=subtitle, build_body=body,
+    )
 
 
 @login_required
