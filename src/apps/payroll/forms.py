@@ -33,33 +33,33 @@ class EmployeeForm(forms.ModelForm):
             'address_line1', 'address_line2', 'city', 'state', 'postal_code', 'country'
         ]
         widgets = {
-            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First name'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last name'}),
-            'middle_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Middle name (optional)'}),
-            'date_of_birth': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+254...'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'email@example.com'}),
-            'national_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'National ID'}),
-            'employment_type': forms.Select(attrs={'class': 'form-control'}),
-            'status': forms.Select(attrs={'class': 'form-control'}),
-            'job_title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Job title'}),
-            'hire_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'termination_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'bank_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Bank name'}),
-            'bank_account_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Account number'}),
-            'bank_branch': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Branch (optional)'}),
-            'tax_identification_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'KRA PIN'}),
-            'pension_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'NSSF number'}),
-            'insurance_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'NHIF number'}),
-            'emergency_contact_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Emergency contact name'}),
-            'emergency_contact_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Emergency contact phone'}),
-            'emergency_contact_relationship': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Relationship'}),
-            'address_line1': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Address'}),
-            'address_line2': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Address line 2 (optional)'}),
-            'city': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'City'}),
-            'state': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'State/County'}),
-            'postal_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Postal code'}),
-            'country': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Country'}),
+            'first_name': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'First name'}),
+            'last_name': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Last name'}),
+            'middle_name': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Middle name (optional)'}),
+            'date_of_birth': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'phone_number': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': '+254...'}),
+            'email': forms.EmailInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'email@example.com'}),
+            'national_id': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'National ID'}),
+            'employment_type': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm'}),
+            'status': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm'}),
+            'job_title': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Job title'}),
+            'hire_date': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'termination_date': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'bank_name': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Bank name'}),
+            'bank_account_number': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Account number'}),
+            'bank_branch': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Branch (optional)'}),
+            'tax_identification_number': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'KRA PIN'}),
+            'pension_number': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'NSSF number'}),
+            'insurance_number': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'NHIF number'}),
+            'emergency_contact_name': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Emergency contact name'}),
+            'emergency_contact_phone': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Emergency contact phone'}),
+            'emergency_contact_relationship': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Relationship'}),
+            'address_line1': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Address'}),
+            'address_line2': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Address line 2 (optional)'}),
+            'city': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'City'}),
+            'state': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'State/County'}),
+            'postal_code': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Postal code'}),
+            'country': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Country'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -82,18 +82,18 @@ class SalaryStructureForm(forms.ModelForm):
             'effective_from', 'effective_to'
         ]
         widgets = {
-            'basic_salary': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
-            'housing_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
-            'transport_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
-            'medical_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
-            'meal_allowance': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
-            'other_allowances': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
-            'commission_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'commission_amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
-            'overtime_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'overtime_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
-            'effective_from': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'effective_to': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'basic_salary': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'housing_allowance': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'transport_allowance': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'medical_allowance': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'meal_allowance': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'other_allowances': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'commission_enabled': forms.CheckboxInput(attrs={'class': 'w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500'}),
+            'commission_amount': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'overtime_enabled': forms.CheckboxInput(attrs={'class': 'w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500'}),
+            'overtime_rate': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'effective_from': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'effective_to': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -126,12 +126,12 @@ class CommissionForm(forms.ModelForm):
         model = Commission
         fields = ['employee', 'description', 'amount', 'commission_date', 'payroll_month', 'notes']
         widgets = {
-            'employee': forms.Select(attrs={'class': 'form-control'}),
-            'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Vehicle sale commission — Client X'}),
-            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
-            'commission_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'payroll_month': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Optional notes'}),
+            'employee': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm'}),
+            'description': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'e.g. Vehicle sale commission — Client X'}),
+            'amount': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'commission_date': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'payroll_month': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'notes': forms.Textarea(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'rows': 3, 'placeholder': 'Optional notes'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -150,17 +150,17 @@ class DeductionForm(forms.ModelForm):
             'is_active', 'reference_number', 'notes'
         ]
         widgets = {
-            'employee': forms.Select(attrs={'class': 'form-control select2'}),
-            'deduction_type': forms.Select(attrs={'class': 'form-control'}),
-            'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Deduction description'}),
-            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
-            'frequency': forms.Select(attrs={'class': 'form-control'}),
-            'is_percentage': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'end_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'reference_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Reference number'}),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'employee': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm'}),
+            'deduction_type': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm'}),
+            'description': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Deduction description'}),
+            'amount': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.01', 'min': '0'}),
+            'frequency': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm'}),
+            'is_percentage': forms.CheckboxInput(attrs={'class': 'w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500'}),
+            'start_date': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'end_date': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500'}),
+            'reference_number': forms.TextInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'placeholder': 'Reference number'}),
+            'notes': forms.Textarea(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'rows': 3}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -190,17 +190,24 @@ class DeductionForm(forms.ModelForm):
 
 class PayrollRunForm(forms.ModelForm):
     """Form for creating payroll runs."""
-    
+
+    # An <input type="month"> submits "YYYY-MM" (no day), which Django's
+    # DateField can't parse with its default input formats — explicitly
+    # accept that format too, alongside the usual full-date one.
+    payroll_month = forms.DateField(
+        input_formats=['%Y-%m', '%Y-%m-%d'],
+        widget=forms.DateInput(attrs={
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm',
+            'type': 'month'
+        }),
+    )
+
     class Meta:
         model = PayrollRun
         fields = ['payroll_month', 'notes']
         widgets = {
-            'payroll_month': forms.DateInput(attrs={
-                'class': 'form-control',
-                'type': 'month'
-            }),
             'notes': forms.Textarea(attrs={
-                'class': 'form-control',
+                'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm',
                 'rows': 3,
                 'placeholder': 'Payroll notes (optional)'
             }),
@@ -239,13 +246,13 @@ class AttendanceForm(forms.ModelForm):
             'check_in_time', 'check_out_time', 'hours_worked', 'notes'
         ]
         widgets = {
-            'employee': forms.Select(attrs={'class': 'form-control select2'}),
-            'attendance_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'status': forms.Select(attrs={'class': 'form-control'}),
-            'check_in_time': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
-            'check_out_time': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
-            'hours_worked': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.5', 'min': '0'}),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'employee': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm'}),
+            'attendance_date': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'status': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm'}),
+            'check_in_time': forms.TimeInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'time'}),
+            'check_out_time': forms.TimeInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'time'}),
+            'hours_worked': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.5', 'min': '0'}),
+            'notes': forms.Textarea(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'rows': 2}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -278,12 +285,12 @@ class LeaveForm(forms.ModelForm):
             'days_requested', 'reason'
         ]
         widgets = {
-            'employee': forms.Select(attrs={'class': 'form-control select2'}),
-            'leave_type': forms.Select(attrs={'class': 'form-control'}),
-            'start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'end_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'days_requested': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
-            'reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Reason for leave'}),
+            'employee': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm'}),
+            'leave_type': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm'}),
+            'start_date': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'end_date': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'days_requested': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'min': '1'}),
+            'reason': forms.Textarea(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'rows': 4, 'placeholder': 'Reason for leave'}),
         }
     
     def clean(self):
@@ -308,13 +315,13 @@ class LeaveApprovalForm(forms.Form):
     
     action = forms.ChoiceField(
         choices=ACTION_CHOICES,
-        widget=forms.RadioSelect(attrs={'class': 'form-check-input'})
+        widget=forms.RadioSelect(attrs={'class': 'w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500'})
     )
     
     rejection_reason = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={
-            'class': 'form-control',
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm',
             'rows': 3,
             'placeholder': 'Reason for rejection (required if rejecting)'
         })
@@ -340,7 +347,7 @@ class LoanForm(forms.ModelForm):
         required=False,
         min_value=1,
         widget=forms.NumberInput(attrs={
-            'class': 'form-control',
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm',
             'placeholder': 'e.g. 12',
             'id': 'id_installment_months',
         }),
@@ -355,15 +362,15 @@ class LoanForm(forms.ModelForm):
             'purpose', 'notes',
         ]
         widgets = {
-            'employee': forms.Select(attrs={'class': 'form-control'}),
-            'loan_amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
-            'interest_rate': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'max': '100', 'placeholder': '0.00'}),
-            'monthly_repayment': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': 'Auto-calculated'}),
-            'disbursement_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'repayment_start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'expected_completion_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'purpose': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Purpose of loan'}),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Optional notes'}),
+            'employee': forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm'}),
+            'loan_amount': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'interest_rate': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.01', 'min': '0', 'max': '100', 'placeholder': '0.00'}),
+            'monthly_repayment': forms.NumberInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'step': '0.01', 'min': '0', 'placeholder': 'Auto-calculated'}),
+            'disbursement_date': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'repayment_start_date': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'expected_completion_date': forms.DateInput(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'type': 'date'}),
+            'purpose': forms.Textarea(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'rows': 3, 'placeholder': 'Purpose of loan'}),
+            'notes': forms.Textarea(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm', 'rows': 2, 'placeholder': 'Optional notes'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -396,7 +403,7 @@ class PayrollSearchForm(forms.Form):
         queryset=Employee.objects.filter(status='ACTIVE'),
         required=False,
         widget=forms.Select(attrs={
-            'class': 'form-control select2',
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm',
             'data-placeholder': 'All employees'
         })
     )
@@ -404,23 +411,25 @@ class PayrollSearchForm(forms.Form):
     department = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm',
             'placeholder': 'Department'
         })
     )
     
     month_from = forms.DateField(
         required=False,
+        input_formats=['%Y-%m', '%Y-%m-%d'],
         widget=forms.DateInput(attrs={
-            'class': 'form-control',
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm',
             'type': 'month'
         })
     )
-    
+
     month_to = forms.DateField(
         required=False,
+        input_formats=['%Y-%m', '%Y-%m-%d'],
         widget=forms.DateInput(attrs={
-            'class': 'form-control',
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm',
             'type': 'month'
         })
     )
@@ -428,7 +437,7 @@ class PayrollSearchForm(forms.Form):
     status = forms.ChoiceField(
         required=False,
         choices=[('', 'All statuses')] + list(PayrollRun.STATUS_CHOICES),
-        widget=forms.Select(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm'})
     )
     
     def clean(self):
@@ -448,14 +457,14 @@ class BulkAttendanceForm(forms.Form):
     
     attendance_date = forms.DateField(
         widget=forms.DateInput(attrs={
-            'class': 'form-control',
+            'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm',
             'type': 'date'
         })
     )
     
     status = forms.ChoiceField(
         choices=Attendance.STATUS_CHOICES,
-        widget=forms.Select(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={'class': 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm'})
     )
     
     employee_ids = forms.CharField(
