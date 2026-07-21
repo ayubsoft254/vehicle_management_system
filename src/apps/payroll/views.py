@@ -358,24 +358,30 @@ def commission_create(request):
 def commission_approve(request, pk):
     """Approve a commission."""
     commission = get_object_or_404(Commission, pk=pk)
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
     if not _is_approver(request.user):
-        return JsonResponse({
-            'error': 'Not authorized',
-            'message': 'You are not authorized to approve commissions.'
-        }, status=403)
+        if is_ajax:
+            return JsonResponse({
+                'error': 'Not authorized',
+                'message': 'You are not authorized to approve commissions.'
+            }, status=403)
+        messages.error(request, 'You are not authorized to approve commissions.')
+        return redirect('payroll:commission_list')
 
     if commission.approve(request.user):
-        messages.success(request, f'Commission approved.')
+        messages.success(request, 'Commission approved.')
+        if is_ajax:
+            return JsonResponse({'success': True, 'message': 'Commission approved successfully.'})
+        return redirect('payroll:commission_list')
+
+    if is_ajax:
         return JsonResponse({
-            'success': True,
-            'message': 'Commission approved successfully.'
-        })
-    
-    return JsonResponse({
-        'error': 'Cannot approve commission',
-        'message': 'Commission is not pending.'
-    }, status=400)
+            'error': 'Cannot approve commission',
+            'message': 'Commission is not pending.'
+        }, status=400)
+    messages.error(request, 'Commission is not pending.')
+    return redirect('payroll:commission_list')
 
 
 # ============================================================================
@@ -741,30 +747,36 @@ def payroll_run_process(request, pk):
 def payroll_run_approve(request, pk):
     """Approve a payroll run."""
     payroll_run = get_object_or_404(PayrollRun, pk=pk)
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
     if not _is_approver(request.user):
-        return JsonResponse({
-            'error': 'Not authorized',
-            'message': 'You are not authorized to approve payroll runs.'
-        }, status=403)
+        if is_ajax:
+            return JsonResponse({
+                'error': 'Not authorized',
+                'message': 'You are not authorized to approve payroll runs.'
+            }, status=403)
+        messages.error(request, 'You are not authorized to approve payroll runs.')
+        return redirect('payroll:payroll_run_detail', pk=payroll_run.pk)
 
     if payroll_run.status != 'COMPLETED':
-        return JsonResponse({
-            'error': 'Cannot approve',
-            'message': 'Payroll must be completed first.'
-        }, status=400)
+        if is_ajax:
+            return JsonResponse({
+                'error': 'Cannot approve',
+                'message': 'Payroll must be completed first.'
+            }, status=400)
+        messages.error(request, 'Payroll must be completed first.')
+        return redirect('payroll:payroll_run_detail', pk=payroll_run.pk)
 
     payroll_run.status = 'APPROVED'
     payroll_run.approved_by = request.user
     payroll_run.approved_at = timezone.now()
     payroll_run.save()
 
-    messages.success(request, f'Payroll approved successfully.')
+    messages.success(request, 'Payroll approved successfully.')
 
-    return JsonResponse({
-        'success': True,
-        'message': 'Payroll approved successfully.'
-    })
+    if is_ajax:
+        return JsonResponse({'success': True, 'message': 'Payroll approved successfully.'})
+    return redirect('payroll:payroll_run_detail', pk=payroll_run.pk)
 
 
 @login_required
@@ -776,40 +788,52 @@ def payroll_run_mark_paid(request, pk):
     ledger (see payslip_post_save -> post_salary_expense).
     """
     payroll_run = get_object_or_404(PayrollRun, pk=pk)
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
     if not _is_approver(request.user):
-        return JsonResponse({
-            'error': 'Not authorized',
-            'message': 'You are not authorized to mark payroll as paid.'
-        }, status=403)
+        if is_ajax:
+            return JsonResponse({
+                'error': 'Not authorized',
+                'message': 'You are not authorized to mark payroll as paid.'
+            }, status=403)
+        messages.error(request, 'You are not authorized to mark payroll as paid.')
+        return redirect('payroll:payroll_run_detail', pk=payroll_run.pk)
 
     if payroll_run.status != 'APPROVED':
-        return JsonResponse({
-            'error': 'Cannot mark paid',
-            'message': 'Payroll must be approved before it can be marked as paid.'
-        }, status=400)
+        if is_ajax:
+            return JsonResponse({
+                'error': 'Cannot mark paid',
+                'message': 'Payroll must be approved before it can be marked as paid.'
+            }, status=400)
+        messages.error(request, 'Payroll must be approved before it can be marked as paid.')
+        return redirect('payroll:payroll_run_detail', pk=payroll_run.pk)
 
     payment_reference = request.POST.get('payment_reference', '').strip()
     today = timezone.now().date()
 
-    with transaction.atomic():
-        for payslip in payroll_run.payslips.filter(is_paid=False):
-            payslip.is_paid = True
-            payslip.payment_date = today
-            if payment_reference:
-                payslip.payment_reference = payment_reference
-            payslip.save()
+    try:
+        with transaction.atomic():
+            for payslip in payroll_run.payslips.filter(is_paid=False):
+                payslip.is_paid = True
+                payslip.payment_date = today
+                if payment_reference:
+                    payslip.payment_reference = payment_reference
+                payslip.save()
 
-        payroll_run.status = 'PAID'
-        payroll_run.payment_date = today
-        payroll_run.save()
+            payroll_run.status = 'PAID'
+            payroll_run.payment_date = today
+            payroll_run.save()
+    except Exception as e:
+        if is_ajax:
+            return JsonResponse({'error': 'Failed', 'message': f'Error marking payroll as paid: {e}'}, status=500)
+        messages.error(request, f'Error marking payroll as paid: {e}')
+        return redirect('payroll:payroll_run_detail', pk=payroll_run.pk)
 
     messages.success(request, 'Payroll marked as paid. Salaries have been posted to the expense ledger.')
 
-    return JsonResponse({
-        'success': True,
-        'message': 'Payroll marked as paid and posted to the expense ledger.'
-    })
+    if is_ajax:
+        return JsonResponse({'success': True, 'message': 'Payroll marked as paid and posted to the expense ledger.'})
+    return redirect('payroll:payroll_run_detail', pk=payroll_run.pk)
 
 
 # ============================================================================
@@ -1268,30 +1292,36 @@ def loan_create(request):
 def loan_approve(request, pk):
     """Approve a loan."""
     loan = get_object_or_404(Loan, pk=pk)
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
     if not _is_approver(request.user):
-        return JsonResponse({
-            'error': 'Not authorized',
-            'message': 'You are not authorized to approve loans.'
-        }, status=403)
+        if is_ajax:
+            return JsonResponse({
+                'error': 'Not authorized',
+                'message': 'You are not authorized to approve loans.'
+            }, status=403)
+        messages.error(request, 'You are not authorized to approve loans.')
+        return redirect('payroll:loan_list')
 
     if loan.status != 'PENDING':
-        return JsonResponse({
-            'error': 'Cannot approve',
-            'message': 'Loan is not pending.'
-        }, status=400)
-    
+        if is_ajax:
+            return JsonResponse({
+                'error': 'Cannot approve',
+                'message': 'Loan is not pending.'
+            }, status=400)
+        messages.error(request, 'Loan is not pending.')
+        return redirect('payroll:loan_list')
+
     loan.status = 'APPROVED'
     loan.approved_by = request.user
     loan.approved_at = timezone.now()
     loan.save()
-    
+
     messages.success(request, 'Loan approved.')
-    
-    return JsonResponse({
-        'success': True,
-        'message': 'Loan approved successfully.'
-    })
+
+    if is_ajax:
+        return JsonResponse({'success': True, 'message': 'Loan approved successfully.'})
+    return redirect('payroll:loan_list')
 
 
 # ============================================================================
