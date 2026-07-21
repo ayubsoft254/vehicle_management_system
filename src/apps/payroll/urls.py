@@ -48,6 +48,7 @@ urlpatterns = [
     path('runs/<int:pk>/payslips/pdf/', views.payroll_run_payslips_pdf, name='payroll_run_payslips_pdf'),
     path('runs/<int:pk>/process/', views.payroll_run_process, name='payroll_run_process'),
     path('runs/<int:pk>/approve/', views.payroll_run_approve, name='payroll_run_approve'),
+    path('runs/<int:pk>/mark-paid/', views.payroll_run_mark_paid, name='payroll_run_mark_paid'),
     
     # ========================================================================
     # Payslip URLs
