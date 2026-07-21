@@ -30,6 +30,24 @@ from .forms import (
 )
 
 
+def _is_approver(user):
+    """
+    True for users trusted to approve payroll actions (loans, commissions,
+    payroll runs) immediately, and to process loans/advances without going
+    through the normal pending-approval queue. Mirrors the same convention
+    used for account-level approvals in apps.payments.views._is_approver.
+    """
+    if user.is_superuser:
+        return True
+    from apps.permissions.models import RolePermission
+    from utils.constants import AccessLevel
+    try:
+        permission = RolePermission.objects.get(role=user.role, module_name='payroll')
+    except RolePermission.DoesNotExist:
+        return False
+    return permission.access_level == AccessLevel.FULL_ACCESS
+
+
 # ============================================================================
 # Dashboard and Overview
 # ============================================================================
@@ -303,6 +321,7 @@ def commission_list(request):
         'page_obj': page_obj,
         'commissions': page_obj,
         'status_filter': status_filter,
+        'is_approver': _is_approver(request.user),
         'month_filter': month_filter,
         'total_amount': all_commissions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00'),
         'pending_count': all_commissions.filter(status='PENDING').count(),
@@ -339,7 +358,13 @@ def commission_create(request):
 def commission_approve(request, pk):
     """Approve a commission."""
     commission = get_object_or_404(Commission, pk=pk)
-    
+
+    if not _is_approver(request.user):
+        return JsonResponse({
+            'error': 'Not authorized',
+            'message': 'You are not authorized to approve commissions.'
+        }, status=403)
+
     if commission.approve(request.user):
         messages.success(request, f'Commission approved.')
         return JsonResponse({
@@ -405,18 +430,33 @@ def deduction_list(request):
 @login_required
 def deduction_create(request):
     """Create a new deduction."""
+    is_approver = _is_approver(request.user)
+
     if request.method == 'POST':
         form = DeductionForm(request.POST)
         if form.is_valid():
-            deduction = form.save()
-            messages.success(request, f'Deduction created successfully.')
-            return redirect('payroll:deduction_list')
+            if form.cleaned_data['deduction_type'] == 'ADVANCE' and not is_approver:
+                # Salary advances pay out immediately with no separate
+                # approval step, so only an approver (admin) may create one.
+                form.add_error(None, 'Only an admin/approver can process salary advances.')
+            else:
+                deduction = form.save()
+                if deduction.deduction_type == 'ADVANCE':
+                    messages.success(
+                        request,
+                        f'Salary advance processed for {deduction.employee.get_full_name()}. '
+                        f'Posted to the expense ledger.'
+                    )
+                else:
+                    messages.success(request, 'Deduction created successfully.')
+                return redirect('payroll:deduction_list')
     else:
         form = DeductionForm()
-    
+
     context = {
         'form': form,
         'title': 'Add Deduction',
+        'is_approver': is_approver,
     }
     
     return render(request, 'payroll/deduction_form.html', context)
@@ -466,27 +506,29 @@ def payroll_run_list(request):
 def payroll_run_detail(request, pk):
     """Display payroll run details."""
     payroll_run = get_object_or_404(PayrollRun, pk=pk)
-    
+
     # Get payslips
     payslips = payroll_run.payslips.select_related('employee').order_by('employee__employee_id')
-    
+
     # Department breakdown
     dept_breakdown = payslips.values('employee__department').annotate(
         count=Count('id'),
         total=Sum('net_salary')
     ).order_by('employee__department')
-    
+
     # Pagination
     paginator = Paginator(payslips, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
     context = {
         'payroll_run': payroll_run,
         'page_obj': page_obj,
         'dept_breakdown': dept_breakdown,
+        'is_approver': _is_approver(request.user),
+        'unpaid_count': payslips.filter(is_paid=False).count(),
     }
-    
+
     return render(request, 'payroll/payroll_run_detail.html', context)
 
 
@@ -511,130 +553,186 @@ def payroll_run_create(request):
     return render(request, 'payroll/payroll_run_form.html', context)
 
 
+def _compute_payslip_fields(employee, payroll_run):
+    """
+    Compute every Payslip field for one employee for this payroll run,
+    without saving anything. Shared by the process preview (GET) and the
+    actual Payslip creation (POST) below so the two can never disagree.
+    """
+    salary = employee.salary_structure
+    year = payroll_run.payroll_month.year
+    month = payroll_run.payroll_month.month
+    working_days = calendar.monthrange(year, month)[1]
+
+    attendance_records = employee.attendance_records.filter(
+        attendance_date__year=year,
+        attendance_date__month=month
+    )
+    days_worked = attendance_records.filter(status='PRESENT').count()
+    absent_days = attendance_records.filter(status='ABSENT').count()
+
+    commissions = employee.commissions.filter(
+        payroll_month=payroll_run.payroll_month,
+        status='APPROVED'
+    )
+    commission_amount = commissions.aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+
+    deductions = employee.deductions.filter(is_active=True)
+
+    income_tax = Decimal('0.00')
+    pension = Decimal('0.00')
+    insurance = Decimal('0.00')
+    loan_repayment = Decimal('0.00')
+    other_deductions_total = Decimal('0.00')
+
+    gross = salary.calculate_gross_salary()
+
+    for deduction in deductions:
+        if deduction.is_applicable_for_month(year, month):
+            amount = deduction.calculate_deduction_amount(gross)
+
+            if deduction.deduction_type == 'TAX':
+                income_tax += amount
+            elif deduction.deduction_type == 'PENSION':
+                pension += amount
+            elif deduction.deduction_type == 'INSURANCE':
+                insurance += amount
+            elif deduction.deduction_type in ['LOAN', 'ADVANCE']:
+                loan_repayment += amount
+            else:
+                other_deductions_total += amount
+
+    gross_total = gross + commission_amount
+    deductions_total = income_tax + pension + insurance + loan_repayment + other_deductions_total
+
+    return {
+        'basic_salary': salary.basic_salary,
+        'housing_allowance': salary.housing_allowance,
+        'transport_allowance': salary.transport_allowance,
+        'medical_allowance': salary.medical_allowance,
+        'meal_allowance': salary.meal_allowance,
+        'other_allowances': salary.other_allowances,
+        'commission_amount': commission_amount,
+        'income_tax': income_tax,
+        'pension_contribution': pension,
+        'insurance_deduction': insurance,
+        'loan_repayment': loan_repayment,
+        'other_deductions': other_deductions_total,
+        'working_days': working_days,
+        'days_worked': days_worked,
+        'absent_days': absent_days,
+        'gross_total': gross_total,
+        'deductions_total': deductions_total,
+        'net_total': gross_total - deductions_total,
+    }
+
+
 @login_required
 def payroll_run_process(request, pk):
     """Process payroll run - generate payslips."""
     payroll_run = get_object_or_404(PayrollRun, pk=pk)
-    
+
     if payroll_run.status not in ['DRAFT', 'PROCESSING']:
         messages.error(request, 'This payroll has already been processed.')
         return redirect('payroll:payroll_run_detail', pk=payroll_run.pk)
-    
+
     if request.method == 'POST':
         try:
             with transaction.atomic():
                 # Mark as processing
                 payroll_run.status = 'PROCESSING'
                 payroll_run.save()
-                
+
                 # Get active employees
                 employees = Employee.objects.filter(status='ACTIVE').select_related('salary_structure')
-                
+
                 for employee in employees:
                     # Skip if no salary structure
                     if not hasattr(employee, 'salary_structure'):
                         continue
-                    
-                    salary = employee.salary_structure
-                    
-                    # Calculate working days for the month
-                    year = payroll_run.payroll_month.year
-                    month = payroll_run.payroll_month.month
-                    working_days = calendar.monthrange(year, month)[1]
-                    
-                    # Get attendance for the month
-                    attendance_records = employee.attendance_records.filter(
-                        attendance_date__year=year,
-                        attendance_date__month=month
-                    )
-                    days_worked = attendance_records.filter(status='PRESENT').count()
-                    absent_days = attendance_records.filter(status='ABSENT').count()
-                    
-                    # Get commissions for the month
-                    commissions = employee.commissions.filter(
-                        payroll_month=payroll_run.payroll_month,
-                        status='APPROVED'
-                    )
-                    commission_amount = commissions.aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
-                    
-                    # Get deductions
-                    deductions = employee.deductions.filter(is_active=True)
-                    
-                    income_tax = Decimal('0.00')
-                    pension = Decimal('0.00')
-                    insurance = Decimal('0.00')
-                    loan_repayment = Decimal('0.00')
-                    other_deductions_total = Decimal('0.00')
-                    
-                    gross = salary.calculate_gross_salary()
-                    
-                    for deduction in deductions:
-                        if deduction.is_applicable_for_month(year, month):
-                            amount = deduction.calculate_deduction_amount(gross)
-                            
-                            if deduction.deduction_type == 'TAX':
-                                income_tax += amount
-                            elif deduction.deduction_type == 'PENSION':
-                                pension += amount
-                            elif deduction.deduction_type == 'INSURANCE':
-                                insurance += amount
-                            elif deduction.deduction_type in ['LOAN', 'ADVANCE']:
-                                loan_repayment += amount
-                            else:
-                                other_deductions_total += amount
-                    
+
+                    data = _compute_payslip_fields(employee, payroll_run)
+
                     # Create payslip
                     Payslip.objects.create(
                         payroll_run=payroll_run,
                         employee=employee,
-                        basic_salary=salary.basic_salary,
-                        housing_allowance=salary.housing_allowance,
-                        transport_allowance=salary.transport_allowance,
-                        medical_allowance=salary.medical_allowance,
-                        meal_allowance=salary.meal_allowance,
-                        other_allowances=salary.other_allowances,
-                        commission_amount=commission_amount,
+                        basic_salary=data['basic_salary'],
+                        housing_allowance=data['housing_allowance'],
+                        transport_allowance=data['transport_allowance'],
+                        medical_allowance=data['medical_allowance'],
+                        meal_allowance=data['meal_allowance'],
+                        other_allowances=data['other_allowances'],
+                        commission_amount=data['commission_amount'],
                         overtime_amount=Decimal('0.00'),  # TODO: Calculate overtime
                         bonus_amount=Decimal('0.00'),  # TODO: Handle bonuses
-                        income_tax=income_tax,
-                        pension_contribution=pension,
-                        insurance_deduction=insurance,
-                        loan_repayment=loan_repayment,
-                        other_deductions=other_deductions_total,
-                        working_days=working_days,
-                        days_worked=days_worked,
-                        absent_days=absent_days,
+                        income_tax=data['income_tax'],
+                        pension_contribution=data['pension_contribution'],
+                        insurance_deduction=data['insurance_deduction'],
+                        loan_repayment=data['loan_repayment'],
+                        other_deductions=data['other_deductions'],
+                        working_days=data['working_days'],
+                        days_worked=data['days_worked'],
+                        absent_days=data['absent_days'],
                     )
-                
+
                 # Update payroll totals
                 payroll_run.calculate_totals()
-                
+
                 # Mark as completed
                 payroll_run.status = 'COMPLETED'
                 payroll_run.processed_by = request.user
                 payroll_run.processed_at = timezone.now()
                 payroll_run.save()
-                
+
                 messages.success(
                     request,
                     f'Payroll processed successfully. {payroll_run.total_employees} payslips generated.'
                 )
                 return redirect('payroll:payroll_run_detail', pk=payroll_run.pk)
-        
+
         except Exception as e:
             messages.error(request, f'Error processing payroll: {str(e)}')
             payroll_run.status = 'DRAFT'
             payroll_run.save()
-    
-    # Get preview of employees to be processed
-    employees = Employee.objects.filter(status='ACTIVE')
-    
+
+    # Build an accurate preview using the exact same calculation the POST
+    # above will use, so the numbers shown here never disagree with what
+    # actually gets processed.
+    employees = Employee.objects.filter(status='ACTIVE').select_related('salary_structure')
+    preview_rows = []
+    working_days = calendar.monthrange(payroll_run.payroll_month.year, payroll_run.payroll_month.month)[1]
+    estimated_gross = Decimal('0.00')
+    estimated_deductions = Decimal('0.00')
+    ready_count = 0
+
+    for employee in employees:
+        if not hasattr(employee, 'salary_structure'):
+            preview_rows.append({'employee': employee, 'has_salary': False})
+            continue
+        data = _compute_payslip_fields(employee, payroll_run)
+        estimated_gross += data['gross_total']
+        estimated_deductions += data['deductions_total']
+        ready_count += 1
+        preview_rows.append({
+            'employee': employee,
+            'has_salary': True,
+            'basic_salary': data['basic_salary'],
+            'net_estimate': data['net_total'],
+        })
+
     context = {
         'payroll_run': payroll_run,
         'employees': employees,
         'employee_count': employees.count(),
+        'ready_count': ready_count,
+        'preview_rows': preview_rows,
+        'working_days': working_days,
+        'estimated_gross': estimated_gross,
+        'estimated_deductions': estimated_deductions,
+        'estimated_net': estimated_gross - estimated_deductions,
     }
-    
+
     return render(request, 'payroll/payroll_run_process.html', context)
 
 
@@ -643,23 +741,74 @@ def payroll_run_process(request, pk):
 def payroll_run_approve(request, pk):
     """Approve a payroll run."""
     payroll_run = get_object_or_404(PayrollRun, pk=pk)
-    
+
+    if not _is_approver(request.user):
+        return JsonResponse({
+            'error': 'Not authorized',
+            'message': 'You are not authorized to approve payroll runs.'
+        }, status=403)
+
     if payroll_run.status != 'COMPLETED':
         return JsonResponse({
             'error': 'Cannot approve',
             'message': 'Payroll must be completed first.'
         }, status=400)
-    
+
     payroll_run.status = 'APPROVED'
     payroll_run.approved_by = request.user
     payroll_run.approved_at = timezone.now()
     payroll_run.save()
-    
+
     messages.success(request, f'Payroll approved successfully.')
-    
+
     return JsonResponse({
         'success': True,
         'message': 'Payroll approved successfully.'
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def payroll_run_mark_paid(request, pk):
+    """
+    Mark an approved payroll run as paid. This marks every payslip in the
+    run as paid, which posts each employee's net salary into the expense
+    ledger (see payslip_post_save -> post_salary_expense).
+    """
+    payroll_run = get_object_or_404(PayrollRun, pk=pk)
+
+    if not _is_approver(request.user):
+        return JsonResponse({
+            'error': 'Not authorized',
+            'message': 'You are not authorized to mark payroll as paid.'
+        }, status=403)
+
+    if payroll_run.status != 'APPROVED':
+        return JsonResponse({
+            'error': 'Cannot mark paid',
+            'message': 'Payroll must be approved before it can be marked as paid.'
+        }, status=400)
+
+    payment_reference = request.POST.get('payment_reference', '').strip()
+    today = timezone.now().date()
+
+    with transaction.atomic():
+        for payslip in payroll_run.payslips.filter(is_paid=False):
+            payslip.is_paid = True
+            payslip.payment_date = today
+            if payment_reference:
+                payslip.payment_reference = payment_reference
+            payslip.save()
+
+        payroll_run.status = 'PAID'
+        payroll_run.payment_date = today
+        payroll_run.save()
+
+    messages.success(request, 'Payroll marked as paid. Salaries have been posted to the expense ledger.')
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Payroll marked as paid and posted to the expense ledger.'
     })
 
 
@@ -1057,6 +1206,7 @@ def loan_list(request):
         'page_obj': page_obj,
         'loans': page_obj,
         'status_filter': status_filter,
+        'is_approver': _is_approver(request.user),
         'total_loans': all_loans.aggregate(total=Sum('loan_amount'))['total'] or Decimal('0.00'),
         'active_count': all_loans.filter(status__in=['ACTIVE', 'APPROVED']).count(),
         'paid_count': all_loans.filter(status='COMPLETED').count(),
@@ -1082,7 +1232,20 @@ def loan_create(request):
         form = LoanForm(request.POST)
         if form.is_valid():
             loan = form.save()
-            messages.success(request, 'Loan application submitted.')
+            if _is_approver(request.user):
+                # Admins/approvers can process loans and advances immediately —
+                # skip the pending-approval queue entirely.
+                loan.status = 'APPROVED'
+                loan.approved_by = request.user
+                loan.approved_at = timezone.now()
+                loan.save()
+                messages.success(
+                    request,
+                    f'Loan approved and disbursed to {loan.employee.get_full_name()}. '
+                    f'Posted to the expense ledger.'
+                )
+            else:
+                messages.success(request, 'Loan application submitted for approval.')
             return redirect('payroll:loan_list')
     else:
         initial = {}
@@ -1094,6 +1257,7 @@ def loan_create(request):
         'form': form,
         'title': 'Apply for Loan',
         'employee': employee_obj,
+        'is_approver': _is_approver(request.user),
     }
 
     return render(request, 'payroll/loan_form.html', context)
@@ -1104,7 +1268,13 @@ def loan_create(request):
 def loan_approve(request, pk):
     """Approve a loan."""
     loan = get_object_or_404(Loan, pk=pk)
-    
+
+    if not _is_approver(request.user):
+        return JsonResponse({
+            'error': 'Not authorized',
+            'message': 'You are not authorized to approve loans.'
+        }, status=403)
+
     if loan.status != 'PENDING':
         return JsonResponse({
             'error': 'Cannot approve',
