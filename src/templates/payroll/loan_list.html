@@ -123,6 +123,14 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            {% if loan.status == 'PENDING' and is_approver %}
+                            <form method="post" action="{% url 'payroll:loan_approve' loan.pk %}" class="inline-block">
+                                {% csrf_token %}
+                                <button type="submit" class="text-green-600 hover:text-green-900 mr-3">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </form>
+                            {% endif %}
                             <a href="{% url 'payroll:employee_detail' loan.employee.pk %}" class="text-primary-600 hover:text-primary-900">
                                 <i class="fas fa-eye"></i>
                             </a>
