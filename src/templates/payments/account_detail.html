@@ -123,6 +123,12 @@
     <!-- Date range filter + Print (No Print) -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 no-print">
         <form method="get" class="flex flex-wrap items-end gap-3">
+            <div class="flex-1 min-w-[220px]">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Search</label>
+                <input type="text" name="search" value="{{ search|default:'' }}"
+                       placeholder="Client name, reg no. or VIN..."
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+            </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">From</label>
                 <input type="date" name="date_from" value="{{ date_from|default:'' }}"
@@ -136,18 +142,20 @@
             <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg">
                 <i class="fas fa-filter mr-1"></i>Filter
             </button>
-            {% if date_from or date_to %}
+            {% if date_from or date_to or search %}
             <a href="{% url 'payments:account_detail' account.pk %}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">Reset</a>
             {% endif %}
-            <a href="{% url 'payments:account_detail_pdf' account.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}" target="_blank"
+            <a href="{% url 'payments:account_detail_pdf' account.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}&search={{ search|default:'' }}" target="_blank"
                 class="ml-auto px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium rounded-lg">
                 <i class="fas fa-print mr-1"></i>Print
             </a>
         </form>
-        {% if date_from or date_to %}
+        {% if date_from or date_to or search %}
         <p class="text-xs text-gray-500 mt-2">
-            Showing transactions from <span class="font-medium">{{ date_from|default:"the beginning" }}</span>
-            to <span class="font-medium">{{ date_to|default:"today" }}</span>.
+            Showing transactions
+            {% if search %}matching "<span class="font-medium">{{ search }}</span>"{% endif %}
+            {% if date_from or date_to %}from <span class="font-medium">{{ date_from|default:"the beginning" }}</span>
+            to <span class="font-medium">{{ date_to|default:"today" }}</span>{% endif %}.
         </p>
         {% endif %}
     </div>
@@ -162,6 +170,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Narration</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Related</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Debit</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Credit</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
@@ -187,6 +196,14 @@
                         <td class="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{{ row.narration|default:'—' }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                             {% if row.related_client %}<a href="{% url 'clients:client_detail' row.related_client.pk %}" class="hover:text-primary-600">{{ row.related_client.get_full_name }}</a>{% else %}—{% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if row.related_vehicle %}
+                            <div class="text-sm text-gray-900">{{ row.related_vehicle.registration_number|default:'—' }}</div>
+                            <div class="text-xs text-gray-400 font-mono">{{ row.related_vehicle.vin|default:'' }}</div>
+                            {% else %}
+                            <span class="text-sm text-gray-400">—</span>
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-green-600 {% if row.is_reversed and row.display_direction == 'in' %}line-through text-gray-400{% endif %}">
                             {% if row.is_reversed and row.display_direction == 'in' %}KES {{ row.display_amount|floatformat:2 }}
@@ -218,7 +235,9 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="12" class="px-6 py-10 text-center text-sm text-gray-500">No transactions recorded for this account yet.</td>
+                        <td colspan="13" class="px-6 py-10 text-center text-sm text-gray-500">
+                            {% if search %}No transactions match "{{ search }}".{% else %}No transactions recorded for this account yet.{% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -232,10 +251,10 @@
             <div class="text-sm text-gray-600">Page {{ rows.number }} of {{ rows.paginator.num_pages }}</div>
             <div class="space-x-2">
                 {% if rows.has_previous %}
-                <a href="?page={{ rows.previous_page_number }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700">Previous</a>
+                <a href="?page={{ rows.previous_page_number }}&{{ request.GET.urlencode }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700">Previous</a>
                 {% endif %}
                 {% if rows.has_next %}
-                <a href="?page={{ rows.next_page_number }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700">Next</a>
+                <a href="?page={{ rows.next_page_number }}&{{ request.GET.urlencode }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700">Next</a>
                 {% endif %}
             </div>
         </div>
