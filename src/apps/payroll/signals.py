@@ -596,12 +596,26 @@ def create_payroll_audit_log(sender, instance, created, **kwargs):
     """
     try:
         from apps.audit.models import AuditLog
-        
-        action = 'created' if created else f'status_changed_to_{instance.status.lower()}'
-        
+
+        # AuditLog.action is a short fixed-choice field (create/read/update/
+        # delete/login/logout/export - max_length=20), not a free-form slug.
+        # f'payroll_status_changed_to_{status}' (e.g. for COMPLETED/APPROVED/
+        # PAID) is well over 20 characters, so this insert silently failed
+        # on Postgres (SQLite doesn't enforce VARCHAR length, so it never
+        # surfaced in dev) - and because it's swallowed by the except below,
+        # it left the surrounding transaction.atomic() block poisoned,
+        # aborting the whole payroll run with "You can't execute queries
+        # until the end of the 'atomic' block." The status detail is still
+        # captured in `changes` and `description` below, so nothing is lost
+        # by using the plain action code here.
+        action_code = 'create' if created else 'update'
+
         AuditLog.objects.create(
             user=instance.processed_by if instance.processed_by else None,
-            action=f'payroll_{action}',
+            action=action_code,
+            description=f"Payroll {instance.payroll_number} " + (
+                'created' if created else f'status changed to {instance.get_status_display()}'
+            ),
             model_name='PayrollRun',
             object_id=instance.pk,
             changes={
