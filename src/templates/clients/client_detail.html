@@ -566,7 +566,8 @@
                                     {% endif %}
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-900">
-                                    {{ payment.client_vehicle.vehicle.registration_number }}
+                                    <div>{{ payment.client_vehicle.vehicle.registration_number|default:'—' }}</div>
+                                    <div class="text-xs text-gray-400 font-mono">{{ payment.client_vehicle.vehicle.vin|default:'' }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold {% if payment.is_reversed %}text-red-400 line-through{% else %}text-green-600{% endif %}">
                                     KES {{ payment.amount|floatformat:2 }}
