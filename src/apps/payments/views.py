@@ -2525,16 +2525,15 @@ def payment_analytics(request):
     return render(request, 'payments/payment_analytics.html', context)
 
 
-@login_required
-def paybill_tracker(request):
-    """Display paybill account balance and incoming M-Pesa transaction history."""
-    # Backfill: ensure every M-Pesa Payment that has no PaybillTransaction yet
-    # gets a synthetic one so it immediately appears in the tracker.
-    _backfill_paybill_transactions()
+def _filtered_paybill_transactions(request):
+    """paybill/search/date filters shared by the on-screen tracker and its PDF export.
 
-    # Refresh the paybill balance only when needed on page load.
-    if _should_request_paybill_balance_on_load():
-        _request_paybill_balance()
+    Returns (transactions, all_transactions_for_stats, paybill_filter, search, date_from, date_to).
+    all_transactions_for_stats stays scoped to the paybill filter only (not
+    search/date) since the per-paybill breakdown cards are meant to show that
+    account's totals, not the current search result.
+    """
+    from utils.ledger import parse_date_range
 
     all_transactions = PaybillTransaction.objects.all().order_by(
         F('trans_time').desc(nulls_last=True), '-created_at'
@@ -2546,6 +2545,41 @@ def paybill_tracker(request):
         transactions = all_transactions.filter(business_short_code=paybill_filter)
     else:
         transactions = all_transactions
+
+    search = request.GET.get('search', '').strip()
+    if search:
+        transactions = transactions.filter(
+            Q(trans_id__icontains=search) |
+            Q(bill_ref_number__icontains=search) |
+            Q(msisdn__icontains=search) |
+            Q(first_name__icontains=search) |
+            Q(middle_name__icontains=search) |
+            Q(last_name__icontains=search)
+        )
+
+    date_from, date_to = parse_date_range(request)
+    if date_from:
+        transactions = transactions.filter(trans_time__date__gte=date_from)
+    if date_to:
+        transactions = transactions.filter(trans_time__date__lte=date_to)
+
+    return transactions, all_transactions, paybill_filter, search, date_from, date_to
+
+
+@login_required
+def paybill_tracker(request):
+    """Display paybill account balance and incoming M-Pesa transaction history."""
+    # Backfill: ensure every M-Pesa Payment that has no PaybillTransaction yet
+    # gets a synthetic one so it immediately appears in the tracker.
+    _backfill_paybill_transactions()
+
+    # Refresh the paybill balance only when needed on page load.
+    if _should_request_paybill_balance_on_load():
+        _request_paybill_balance()
+
+    transactions, all_transactions, paybill_filter, search, date_from, date_to = (
+        _filtered_paybill_transactions(request)
+    )
 
     latest_snapshot = PaybillBalanceSnapshot.objects.first()
     latest_successful_snapshot = PaybillBalanceSnapshot.objects.filter(
@@ -2601,10 +2635,66 @@ def paybill_tracker(request):
         'paybill_stats': paybill_stats,
         'paybill_filter': paybill_filter,
         'configured_paybills': configured_paybills,
+        'search': search,
+        'date_from': date_from,
+        'date_to': date_to,
     }
 
     log_audit(request.user, 'view', 'Payment', 'Viewed paybill tracker')
     return render(request, 'payments/paybill_tracker.html', context)
+
+
+@login_required
+def paybill_tracker_pdf(request):
+    """PDF report of the paybill transactions table, same filters as the on-screen tracker."""
+    from utils.report_kit import build_pdf_response, fmt_money, kpi_table, styled_table
+
+    transactions, _all, paybill_filter, search, date_from, date_to = (
+        _filtered_paybill_transactions(request)
+    )
+    total_received = transactions.aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00')
+    transactions = transactions[:500]
+
+    def body(elements, styles):
+        from reportlab.lib.units import inch
+        from reportlab.platypus import Spacer
+
+        elements.append(kpi_table([
+            ('Transactions', str(len(transactions))),
+            ('Total Received', fmt_money(total_received)),
+        ], col_widths=[2.6 * inch, 2.6 * inch]))
+        elements.append(Spacer(1, 10))
+
+        headers = ['Date', 'Trans ID', 'Amount', 'Payer', 'Phone', 'Paybill', 'Account Ref']
+        table_data = [headers]
+        for txn in transactions:
+            payer = ' '.join(filter(None, [txn.first_name, txn.middle_name, txn.last_name])) or '—'
+            table_data.append([
+                txn.trans_time.strftime('%d %b %Y, %H:%M') if txn.trans_time else '—',
+                txn.trans_id,
+                fmt_money(txn.trans_amount),
+                payer,
+                txn.msisdn or '—',
+                txn.business_short_code or '—',
+                txn.bill_ref_number or '—',
+            ])
+        elements.append(styled_table(table_data, align_right_from=2))
+
+    meta_bits = []
+    if paybill_filter:
+        meta_bits.append(f'Paybill: {paybill_filter}')
+    if search:
+        meta_bits.append(f'Search: "{search}"')
+    if date_from or date_to:
+        meta_bits.append(f'{date_from or "the beginning"} to {date_to or "today"}')
+    subtitle = ' — '.join(meta_bits) if meta_bits else f'{len(transactions)} transaction(s)'
+
+    log_audit(request.user, 'export', 'Payment', 'Downloaded paybill tracker PDF')
+
+    return build_pdf_response(
+        'paybill-transactions.pdf', 'Paybill Transactions',
+        subtitle=subtitle, build_body=body, landscape_mode=True,
+    )
 
 
 def _backfill_paybill_transactions():

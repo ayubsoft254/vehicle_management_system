@@ -58,6 +58,7 @@ urlpatterns = [
     path('tracker/<int:client_vehicle_pk>/', views.payment_tracker, name='payment_tracker'),
     path('analytics/', views.payment_analytics, name='payment_analytics'),
     path('paybill/', views.paybill_tracker, name='paybill_tracker'),
+    path('paybill/export/pdf/', views.paybill_tracker_pdf, name='paybill_tracker_pdf'),
     path('paybill/refresh-balance/', views.refresh_paybill_balance, name='refresh_paybill_balance'),
     path('paybill/register-c2b/', views.register_paybill_c2b, name='register_paybill_c2b'),
     path('defaulters/', views.defaulters_report_view, name='defaulters_report'),
