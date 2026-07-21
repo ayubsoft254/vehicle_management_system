@@ -40,6 +40,7 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
@@ -53,6 +54,14 @@
                             <a href="{% url 'payments:account_detail' txn.account.pk %}" class="hover:text-primary-600">{{ txn.account.name }}</a>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ txn.get_transaction_type_display }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if txn.related_vehicle %}
+                            <div class="text-sm text-gray-900">{{ txn.related_vehicle.registration_number|default:'—' }}</div>
+                            <div class="text-xs text-gray-400 font-mono">{{ txn.related_vehicle.vin|default:'' }}</div>
+                            {% else %}
+                            <span class="text-sm text-gray-400">—</span>
+                            {% endif %}
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ txn.date|date:'M d, Y' }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold {% if txn.direction == 'out' %}text-red-600{% else %}text-green-600{% endif %}">
                             {% if txn.direction == 'out' %}-{% endif %}KES {{ txn.amount|floatformat:2 }}
@@ -72,7 +81,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">Nothing pending.</td></tr>
+                    <tr><td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">Nothing pending.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
