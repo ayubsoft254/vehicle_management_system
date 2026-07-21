@@ -969,6 +969,7 @@ def _compute_expense_report_context(request):
     date_to_str = request.GET.get('date_to', '')
     category_id = request.GET.get('category', '')
     status = request.GET.get('status', '')
+    search = request.GET.get('search', '').strip()
 
     try:
         date_from = datetime.fromisoformat(date_from_str).date() if date_from_str else today.replace(day=1)
@@ -986,6 +987,13 @@ def _compute_expense_report_context(request):
         expenses = expenses.filter(category_id=category_id)
     if status:
         expenses = expenses.filter(status=status)
+    if search:
+        expenses = expenses.filter(
+            Q(title__icontains=search) |
+            Q(description__icontains=search) |
+            Q(vendor_name__icontains=search) |
+            Q(invoice_number__icontains=search)
+        )
     expenses = expenses.order_by('-expense_date', '-created_at')
 
     ZERO = Decimal('0.00')
@@ -1031,6 +1039,7 @@ def _compute_expense_report_context(request):
         'date_to_str': date_to.isoformat(),
         'category_id': category_id,
         'status': status,
+        'search': search,
         'categories': ExpenseCategory.objects.filter(is_active=True).order_by('name'),
         'status_choices': Expense.STATUS_CHOICES,
         'total_amount': total_amount,
@@ -1092,9 +1101,13 @@ def expense_report_pdf(request):
             ])
         elements.append(styled_table(rows, col_widths=[0.8 * inch, 1.6 * inch, 1.1 * inch, 0.95 * inch, 0.95 * inch, 1.05 * inch], align_right_from=3))
 
+    subtitle = f"{ctx['date_from']} to {ctx['date_to']}"
+    if ctx['search']:
+        subtitle += f' — search: "{ctx["search"]}"'
+
     return build_pdf_response(
         'expense_report.pdf', 'Expense Report',
-        subtitle=f"{ctx['date_from']} to {ctx['date_to']}", build_body=body,
+        subtitle=subtitle, build_body=body,
     )
 
 
