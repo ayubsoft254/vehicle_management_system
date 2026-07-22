@@ -69,7 +69,6 @@ def handle_new_auction(auction):
             action='CREATE',
             model_name='Auction',
             object_id=auction.id,
-            object_repr=str(auction),
             changes={
                 'auction_number': auction.auction_number,
                 'title': auction.title,
@@ -96,7 +95,6 @@ def handle_auction_update(auction):
             action='UPDATE',
             model_name='Auction',
             object_id=auction.id,
-            object_repr=str(auction),
             changes={
                 'previous_status': previous_status,
                 'new_status': auction.status,
@@ -268,7 +266,6 @@ def auction_post_delete(sender, instance, **kwargs):
             action='DELETE',
             model_name='Auction',
             object_id=instance.id,
-            object_repr=str(instance),
             changes={
                 'auction_number': instance.auction_number,
                 'vehicle': str(instance.vehicle),
@@ -362,7 +359,6 @@ def handle_new_bid(bid):
         action='CREATE',
         model_name='Bid',
         object_id=bid.id,
-        object_repr=str(bid),
         changes={
             'auction': str(auction),
             'bid_amount': str(bid.bid_amount),
