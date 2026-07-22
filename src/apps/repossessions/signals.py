@@ -6,6 +6,7 @@ Handles automated actions when repossession events occur
 from django.db.models.signals import post_save, pre_save, post_delete
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
+from django.urls import reverse
 from django.utils import timezone
 
 from .models import Repossession, RepossessionDocument, RepossessionNote
@@ -74,10 +75,10 @@ def handle_new_repossession(repossession):
         Notification.objects.create(
             user=repossession.assigned_to,
             title='New Repossession Assignment',
-            message=f'You have been assigned to repossession case #{repossession.case_number} for vehicle {repossession.vehicle}',
+            message=f'You have been assigned to repossession case #{repossession.repossession_number} for vehicle {repossession.vehicle}',
             notification_type='repossession',
             related_object_type='repossession',
-            related_object_id=repossession.id,
+            action_url=reverse('repossessions:repossession_detail', args=[repossession.pk]),
             priority='high'
         )
     
@@ -91,22 +92,21 @@ def handle_new_repossession(repossession):
         Notification.objects.create(
             user=admin,
             title='New Repossession Initiated',
-            message=f'Repossession case #{repossession.case_number} has been initiated for vehicle {repossession.vehicle}',
+            message=f'Repossession case #{repossession.repossession_number} has been initiated for vehicle {repossession.vehicle}',
             notification_type='repossession',
             related_object_type='repossession',
-            related_object_id=repossession.id,
+            action_url=reverse('repossessions:repossession_detail', args=[repossession.pk]),
             priority='medium'
         )
     
     # Create audit log
     AuditLog.objects.create(
-        user=repossession.initiated_by,
+        user=repossession.created_by,
         action='CREATE',
         model_name='Repossession',
         object_id=repossession.id,
-        object_repr=str(repossession),
         changes={
-            'case_number': repossession.case_number,
+            'repossession_number': repossession.repossession_number,
             'vehicle': str(repossession.vehicle),
             'client': str(repossession.client),
             'reason': repossession.reason,
@@ -132,7 +132,6 @@ def handle_repossession_update(repossession):
             action='UPDATE',
             model_name='Repossession',
             object_id=repossession.id,
-            object_repr=str(repossession),
             changes={
                 'previous_status': previous_status,
                 'new_status': repossession.status,
@@ -175,10 +174,10 @@ def handle_status_change(repossession, previous_status):
         Notification.objects.create(
             user=repossession.assigned_to,
             title=f'Repossession Status Updated: {repossession.get_status_display()}',
-            message=f'Case #{repossession.case_number}: {status_messages.get(repossession.status, "Status updated")}',
+            message=f'Case #{repossession.repossession_number}: {status_messages.get(repossession.status, "Status updated")}',
             notification_type='repossession',
             related_object_type='repossession',
-            related_object_id=repossession.id,
+            action_url=reverse('repossessions:repossession_detail', args=[repossession.pk]),
             priority='high' if repossession.status in ['vehicle_recovered', 'completed'] else 'medium'
         )
     
@@ -192,7 +191,7 @@ def handle_status_change(repossession, previous_status):
                 message=f'The repossession case for your vehicle has been {repossession.get_status_display().lower()}',
                 notification_type='repossession',
                 related_object_type='repossession',
-                related_object_id=repossession.id,
+                action_url=reverse('repossessions:repossession_detail', args=[repossession.pk]),
                 priority='high'
             )
     
@@ -203,10 +202,10 @@ def handle_status_change(repossession, previous_status):
             Notification.objects.create(
                 user=admin,
                 title=f'Repossession {repossession.get_status_display()}',
-                message=f'Case #{repossession.case_number} for {repossession.vehicle} is now {repossession.get_status_display().lower()}',
+                message=f'Case #{repossession.repossession_number} for {repossession.vehicle} is now {repossession.get_status_display().lower()}',
                 notification_type='repossession',
                 related_object_type='repossession',
-                related_object_id=repossession.id,
+                action_url=reverse('repossessions:repossession_detail', args=[repossession.pk]),
                 priority='high'
             )
 
@@ -231,9 +230,8 @@ def repossession_post_delete(sender, instance, **kwargs):
             action='DELETE',
             model_name='Repossession',
             object_id=instance.id,
-            object_repr=str(instance),
             changes={
-                'case_number': instance.case_number,
+                'repossession_number': instance.repossession_number,
                 'vehicle': str(instance.vehicle),
                 'status': instance.status,
                 'deleted_at': str(timezone.now())
@@ -259,10 +257,10 @@ def repossession_document_post_save(sender, instance, created, **kwargs):
             Notification.objects.create(
                 user=instance.repossession.assigned_to,
                 title='New Document Added',
-                message=f'A new {instance.document_type} document has been added to case #{instance.repossession.case_number}',
+                message=f'A new {instance.document_type} document has been added to case #{instance.repossession.repossession_number}',
                 notification_type='document',
                 related_object_type='repossession',
-                related_object_id=instance.repossession.id,
+                action_url=reverse('repossessions:repossession_detail', args=[instance.repossession.pk]),
                 priority='medium'
             )
         
@@ -273,7 +271,6 @@ def repossession_document_post_save(sender, instance, created, **kwargs):
                 action='CREATE',
                 model_name='RepossessionDocument',
                 object_id=instance.id,
-                object_repr=str(instance),
                 changes={
                     'repossession': str(instance.repossession),
                     'document_type': instance.document_type,
@@ -298,10 +295,10 @@ def repossession_note_post_save(sender, instance, created, **kwargs):
             Notification.objects.create(
                 user=instance.repossession.assigned_to,
                 title='Important Note Added',
-                message=f'An important note has been added to case #{instance.repossession.case_number}',
+                message=f'An important note has been added to case #{instance.repossession.repossession_number}',
                 notification_type='note',
                 related_object_type='repossession',
-                related_object_id=instance.repossession.id,
+                action_url=reverse('repossessions:repossession_detail', args=[instance.repossession.pk]),
                 priority='high'
             )
         
@@ -315,10 +312,10 @@ def repossession_note_post_save(sender, instance, created, **kwargs):
             Notification.objects.create(
                 user=admin,
                 title='Important Repossession Note',
-                message=f'Important note added to case #{instance.repossession.case_number} by {instance.created_by.get_full_name()}',
+                message=f'Important note added to case #{instance.repossession.repossession_number} by {instance.created_by.get_full_name()}',
                 notification_type='note',
                 related_object_type='repossession',
-                related_object_id=instance.repossession.id,
+                action_url=reverse('repossessions:repossession_detail', args=[instance.repossession.pk]),
                 priority='medium'
             )
 
@@ -333,16 +330,16 @@ def send_repossession_reminder(repossession):
     Can be called from scheduled tasks
     """
     if repossession.assigned_to and repossession.status in ['assigned', 'in_progress']:
-        days_pending = (timezone.now().date() - repossession.initiated_at.date()).days
+        days_pending = (timezone.now().date() - repossession.initiated_date).days
         
         if days_pending > 7:  # More than 7 days pending
             Notification.objects.create(
                 user=repossession.assigned_to,
                 title='Repossession Case Reminder',
-                message=f'Case #{repossession.case_number} has been pending for {days_pending} days. Please update the status.',
+                message=f'Case #{repossession.repossession_number} has been pending for {days_pending} days. Please update the status.',
                 notification_type='reminder',
                 related_object_type='repossession',
-                related_object_id=repossession.id,
+                action_url=reverse('repossessions:repossession_detail', args=[repossession.pk]),
                 priority='high'
             )
 
@@ -355,10 +352,10 @@ def check_overdue_repossessions():
     from datetime import timedelta
     
     overdue_threshold = timezone.now() - timedelta(days=14)
-    
+
     overdue_repossessions = Repossession.objects.filter(
         status__in=['assigned', 'in_progress', 'vehicle_located'],
-        initiated_at__lt=overdue_threshold
+        initiated_date__lt=overdue_threshold.date()
     )
     
     for repossession in overdue_repossessions:
@@ -367,10 +364,10 @@ def check_overdue_repossessions():
             Notification.objects.create(
                 user=repossession.assigned_to,
                 title='URGENT: Overdue Repossession Case',
-                message=f'Case #{repossession.case_number} is overdue. Immediate action required.',
+                message=f'Case #{repossession.repossession_number} is overdue. Immediate action required.',
                 notification_type='alert',
                 related_object_type='repossession',
-                related_object_id=repossession.id,
+                action_url=reverse('repossessions:repossession_detail', args=[repossession.pk]),
                 priority='urgent'
             )
         
@@ -380,9 +377,9 @@ def check_overdue_repossessions():
             Notification.objects.create(
                 user=admin,
                 title='Overdue Repossession Alert',
-                message=f'Case #{repossession.case_number} assigned to {repossession.assigned_to.get_full_name() if repossession.assigned_to else "N/A"} is overdue',
+                message=f'Case #{repossession.repossession_number} assigned to {repossession.assigned_to.get_full_name() if repossession.assigned_to else "N/A"} is overdue',
                 notification_type='alert',
                 related_object_type='repossession',
-                related_object_id=repossession.id,
+                action_url=reverse('repossessions:repossession_detail', args=[repossession.pk]),
                 priority='urgent'
             )
