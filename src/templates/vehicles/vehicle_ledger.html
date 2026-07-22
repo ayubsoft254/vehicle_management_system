@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Vehicle Ledger — Cash vs HPP{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; }
+        }
+    </style>
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4 no-print">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <i class="fas fa-car-side text-indigo-600"></i>
+                Vehicle Ledger
+            </h1>
+            <p class="text-gray-500 text-sm mt-1">Every completed vehicle sale, categorized Cash (paid in full) or HPP (payment plan), with actual profit/loss.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            {% url 'vehicles:vehicle_ledger_export' 'pdf' as export_pdf_url_base %}
+            {% url 'vehicles:vehicle_ledger_export' 'excel' as export_excel_url_base %}
+            {% url 'vehicles:vehicle_ledger_export' 'csv' as export_csv_url_base %}
+            {% with export_pdf_url=export_pdf_url_base|add:'?'|add:filter_qs export_excel_url=export_excel_url_base|add:'?'|add:filter_qs export_csv_url=export_csv_url_base|add:'?'|add:filter_qs %}
+            {% include 'reports/partials/_export_bar.html' %}
+            <a href="{{ export_pdf_url }}"
+                class="inline-flex items-center gap-2 px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-md transition">
+                <i class="fas fa-print text-slate-400"></i>Print
+            </a>
+            {% endwith %}
+        </div>
+    </div>
+
+    <!-- Search + Date range + Category filter -->
+    <form method="get" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 no-print">
+        <div class="flex flex-wrap items-end gap-3">
+            <div class="flex-1 min-w-[220px]">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Search</label>
+                <input type="text" name="search" value="{{ search|default:'' }}" placeholder="Registration number or chassis (VIN)..."
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Category</label>
+                <select name="category" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <option value="" {% if not category %}selected{% endif %}>All</option>
+                    <option value="cash" {% if category == 'cash' %}selected{% endif %}>Cash only</option>
+                    <option value="hpp" {% if category == 'hpp' %}selected{% endif %}>HPP only</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">From</label>
+                <input type="date" name="date_from" value="{{ date_from|default:'' }}"
+                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">To</label>
+                <input type="date" name="date_to" value="{{ date_to|default:'' }}"
+                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            </div>
+            <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg">
+                <i class="fas fa-filter mr-1"></i>Filter
+            </button>
+            {% if date_from or date_to or search or category %}
+            <a href="{% url 'vehicles:vehicle_ledger' %}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">Reset</a>
+            {% endif %}
+        </div>
+        {% if date_from or date_to %}
+        <p class="text-xs text-gray-500 mt-2">
+            Showing sales from <span class="font-medium">{{ date_from|default:"the beginning" }}</span>
+            to <span class="font-medium">{{ date_to|default:"today" }}</span>.
+        </p>
+        {% else %}
+        <p class="text-xs text-gray-500 mt-2">Showing all-time sales.</p>
+        {% endif %}
+    </form>
+
+    <!-- Cash vs HPP split (always reflects date/search filters, not the category filter) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <a href="?{% if date_from %}date_from={{ date_from }}&{% endif %}{% if date_to %}date_to={{ date_to }}&{% endif %}{% if search %}search={{ search }}&{% endif %}category=cash"
+           class="block rounded-xl border {% if category == 'cash' %}border-blue-400 ring-2 ring-blue-200{% else %}border-blue-100{% endif %} bg-blue-50 shadow-sm p-5 hover:shadow-md transition">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-blue-700 uppercase tracking-wide flex items-center gap-1">
+                        <i class="fas fa-money-bill-wave"></i> Cash Sales
+                    </p>
+                    <p class="text-2xl font-bold text-blue-900 mt-1">{{ cash_count }} vehicle{{ cash_count|pluralize }}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-blue-600">Revenue</p>
+                    <p class="text-lg font-bold text-blue-800">KES {{ cash_revenue|floatformat:0|intcomma }}</p>
+                    <p class="text-xs {% if cash_profit >= 0 %}text-emerald-700{% else %}text-red-600{% endif %} font-semibold mt-1">
+                        {% if cash_profit >= 0 %}+{% endif %}KES {{ cash_profit|floatformat:0|intcomma }} {% if cash_profit >= 0 %}profit{% else %}loss{% endif %}
+                    </p>
+                </div>
+            </div>
+        </a>
+        <a href="?{% if date_from %}date_from={{ date_from }}&{% endif %}{% if date_to %}date_to={{ date_to }}&{% endif %}{% if search %}search={{ search }}&{% endif %}category=hpp"
+           class="block rounded-xl border {% if category == 'hpp' %}border-amber-400 ring-2 ring-amber-200{% else %}border-amber-100{% endif %} bg-amber-50 shadow-sm p-5 hover:shadow-md transition">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-amber-700 uppercase tracking-wide flex items-center gap-1">
+                        <i class="fas fa-file-signature"></i> HPP Sales
+                    </p>
+                    <p class="text-2xl font-bold text-amber-900 mt-1">{{ hpp_count }} vehicle{{ hpp_count|pluralize }}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-amber-600">Revenue</p>
+                    <p class="text-lg font-bold text-amber-800">KES {{ hpp_revenue|floatformat:0|intcomma }}</p>
+                    <p class="text-xs {% if hpp_profit >= 0 %}text-emerald-700{% else %}text-red-600{% endif %} font-semibold mt-1">
+                        {% if hpp_profit >= 0 %}+{% endif %}KES {{ hpp_profit|floatformat:0|intcomma }} {% if hpp_profit >= 0 %}profit{% else %}loss{% endif %}
+                    </p>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% if category %}
+    <div class="mb-6 -mt-2 no-print">
+        <a href="{% url 'vehicles:vehicle_ledger' %}?{% if date_from %}date_from={{ date_from }}&{% endif %}{% if date_to %}date_to={{ date_to }}&{% endif %}{% if search %}search={{ search }}{% endif %}"
+           class="text-xs text-gray-500 hover:text-gray-700 underline">Clear category filter (showing {{ category|upper }} only)</a>
+    </div>
+    {% endif %}
+
+    <!-- KPI Summary (reflects the currently selected category filter) -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Vehicles Sold</p>
+            <p class="text-xl font-bold text-gray-800 mt-1">{{ sale_count }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Revenue</p>
+            <p class="text-xl font-bold text-blue-700 mt-1">KES {{ total_revenue|floatformat:0|intcomma }}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Cost</p>
+            <p class="text-xl font-bold text-gray-700 mt-1">KES {{ total_cost|floatformat:0|intcomma }}</p>
+        </div>
+        <div class="bg-white rounded-xl border {% if is_profit_overall %}border-emerald-100{% else %}border-red-100{% endif %} shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">{% if is_profit_overall %}Net Profit{% else %}Net Loss{% endif %}</p>
+            <p class="text-xl font-bold {% if is_profit_overall %}text-emerald-700{% else %}text-red-700{% endif %} mt-1">
+                KES {{ total_profit|floatformat:0|intcomma }}
+            </p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Profitable / Loss</p>
+            <p class="text-xl font-bold mt-1">
+                <span class="text-emerald-700">{{ profitable_count }}</span>
+                <span class="text-gray-300 mx-1">/</span>
+                <span class="text-red-700">{{ loss_count }}</span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Vehicle Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100">
+            <h2 class="text-base font-semibold text-gray-800">
+                <i class="fas fa-list-alt text-indigo-500 mr-2"></i>Vehicles
+            </h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Sale Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Vehicle</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Client</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Category</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Revenue</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Total Cost</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Profit / (Loss)</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Result</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for row in rows %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ row.sale_date|date:"M d, Y" }}</td>
+                        <td class="px-4 py-3">
+                            <a href="{% url 'vehicles:detail' row.vehicle.pk %}" class="font-medium text-primary-600 hover:text-primary-800">
+                                {{ row.vehicle.full_name }}
+                            </a>
+                            <p class="text-xs text-gray-400 font-mono">
+                                {% if row.vehicle.registration_number %}Reg: {{ row.vehicle.registration_number }}{% endif %}
+                                {% if row.vehicle.registration_number and row.vehicle.vin %} &middot; {% endif %}
+                                {% if row.vehicle.vin %}Chassis: {{ row.vehicle.vin }}{% endif %}
+                            </p>
+                        </td>
+                        <td class="px-4 py-3">
+                            <a href="{% url 'clients:client_detail' row.client.pk %}" class="text-gray-700 hover:text-primary-600">
+                                {{ row.client.get_full_name }}
+                            </a>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            {% if row.category == 'cash' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800" title="{{ row.payment_type_display }}">
+                                <i class="fas fa-money-bill-wave mr-1"></i>Cash
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800" title="{{ row.payment_type_display }}">
+                                <i class="fas fa-file-signature mr-1"></i>HPP
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right text-gray-700">KES {{ row.revenue|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right text-gray-700">KES {{ row.total_cost|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right font-semibold {% if row.is_profit %}text-emerald-700{% else %}text-red-600{% endif %}">
+                            {% if row.is_profit %}KES {{ row.profit|floatformat:0|intcomma }}{% else %}(KES {{ row.profit|floatformat:0|intcomma|cut:"-" }}){% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            {% if row.profit > 0 %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                <i class="fas fa-arrow-up mr-1"></i>Profit
+                            </span>
+                            {% elif row.profit < 0 %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                <i class="fas fa-arrow-down mr-1"></i>Loss
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                <i class="fas fa-equals mr-1"></i>Break-even
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-16 text-center text-gray-400">
+                            <i class="fas fa-car-side text-4xl mb-3 block"></i>
+                            No vehicle sales found for the selected filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if rows %}
+                <tfoot class="bg-gray-50 border-t-2 border-gray-200">
+                    <tr class="font-semibold text-sm">
+                        <td colspan="4" class="px-4 py-3 text-gray-700">Totals</td>
+                        <td class="px-4 py-3 text-right text-gray-800">KES {{ total_revenue|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right text-gray-800">KES {{ total_cost|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right {% if is_profit_overall %}text-emerald-700{% else %}text-red-700{% endif %}">
+                            KES {{ total_profit|floatformat:0|intcomma }}
+                        </td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
