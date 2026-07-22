@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
                     reverse_sql="ALTER TABLE payments_payment DROP COLUMN IF EXISTS reversed_at",
                 ),
                 migrations.RunSQL(
-                    sql="ALTER TABLE payments_payment ADD COLUMN IF NOT EXISTS reversed_by_id integer NULL REFERENCES auth_user(id) DEFERRABLE INITIALLY DEFERRED",
+                    sql="ALTER TABLE payments_payment ADD COLUMN IF NOT EXISTS reversed_by_id integer NULL REFERENCES users(id) DEFERRABLE INITIALLY DEFERRED",
                     reverse_sql="ALTER TABLE payments_payment DROP COLUMN IF EXISTS reversed_by_id",
                 ),
                 migrations.RunSQL(
