@@ -53,6 +53,9 @@ make --version
 nginx -v
 certbot --version
 
+
+sudo chown -R 1000:1000 src/static_collected src/media
+
 sudo ln -s /etc/nginx/sites-available/vms /etc/nginx/sites-enabled/
 
 sudo rm /etc/nginx/sites-enabled/default
