@@ -39,7 +39,6 @@ def handle_new_report(report):
             action='CREATE',
             model_name='Report',
             object_id=report.id,
-            object_repr=str(report),
             changes={
                 'name': report.name,
                 'report_type': report.report_type,
@@ -64,7 +63,6 @@ def handle_report_update(report):
             action='UPDATE',
             model_name='Report',
             object_id=report.id,
-            object_repr=str(report),
             changes={
                 'updated_at': str(timezone.now())
             }
@@ -100,7 +98,6 @@ def report_post_delete(sender, instance, **kwargs):
             action='DELETE',
             model_name='Report',
             object_id=instance.id,
-            object_repr=str(instance),
             changes={
                 'name': instance.name,
                 'deleted_at': str(timezone.now())
@@ -136,7 +133,7 @@ def handle_new_execution(execution):
             notification_type='info',
             priority='low',
             related_object_type='report_execution',
-            related_object_id=execution.id
+            action_url=f'/reports/execution/{execution.id}/',
         )
 
 
@@ -167,9 +164,8 @@ def handle_execution_completed(execution):
             action_text='Download Report',
             action_url=f'/reports/execution/{execution.id}/download/',
             related_object_type='report_execution',
-            related_object_id=execution.id
         )
-    
+
     # Notify report creator if different from triggered user
     if execution.report.created_by and execution.report.created_by != execution.triggered_by:
         from apps.notifications.utils import create_notification
@@ -181,7 +177,7 @@ def handle_execution_completed(execution):
             notification_type='info',
             priority='low',
             related_object_type='report_execution',
-            related_object_id=execution.id
+            action_url=f'/reports/execution/{execution.id}/',
         )
 
 
@@ -201,7 +197,6 @@ def handle_execution_failed(execution):
             action_text='View Details',
             action_url=f'/reports/execution/{execution.id}/',
             related_object_type='report_execution',
-            related_object_id=execution.id
         )
     
     # Notify admins for scheduled report failures
@@ -222,7 +217,6 @@ def handle_execution_failed(execution):
                 action_text='View Details',
                 action_url=f'/reports/execution/{execution.id}/',
                 related_object_type='report_execution',
-                related_object_id=execution.id
             )
 
 
@@ -254,7 +248,6 @@ def template_post_save(sender, instance, created, **kwargs):
                 action='CREATE',
                 model_name='ReportTemplate',
                 object_id=instance.id,
-                object_repr=str(instance),
                 changes={
                     'name': instance.name,
                     'report_type': instance.report_type,
@@ -273,7 +266,6 @@ def template_post_delete(sender, instance, **kwargs):
             action='DELETE',
             model_name='ReportTemplate',
             object_id=instance.id,
-            object_repr=str(instance),
             changes={
                 'name': instance.name,
                 'deleted_at': str(timezone.now())
@@ -302,7 +294,6 @@ def saved_report_post_save(sender, instance, created, **kwargs):
             action_text='View Report',
             action_url=f'/reports/{instance.report.id}/',
             related_object_type='report',
-            related_object_id=instance.report.id
         )
 
 
@@ -342,5 +333,4 @@ def notify_report_recipients(report, execution):
                 action_text='Download Report',
                 action_url=f'/reports/execution/{execution.id}/download/',
                 related_object_type='report_execution',
-                related_object_id=execution.id
             )
