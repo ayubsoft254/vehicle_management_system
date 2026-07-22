@@ -1,30 +1,64 @@
 sudo apt update
+sudo apt upgrade -y
+sudo apt autoremove -y
 
 sudo apt install -y \
     git \
     make \
     curl \
-    htop \
-    jq \
-    tree \
+    wget \
     unzip \
+    tree \
+    jq \
+    htop \
+    vim \
+    nano \
+    tmux \
+    rsync \
     net-tools \
     dnsutils \
     lsof \
     ca-certificates \
+    software-properties-common \
+    apt-transport-https \
+    gnupg \
+    nginx \
+    certbot \
+    python3-certbot-nginx \
     docker.io \
     docker-compose-v2
 
 
 
 sudo systemctl enable --now docker
+sudo systemctl enable --now nginx
+
+sudo systemctl status docker
+sudo systemctl status nginx
 
 sudo usermod -aG docker $USER
-
 newgrp docker
+
+sudo apt install -y ufw
+
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+sudo ufw status verbose
 
 docker --version
 docker compose version
-make --version
 git --version
-curl --version
+make --version
+nginx -v
+certbot --version
+
+sudo ln -s /etc/nginx/sites-available/vms /etc/nginx/sites-enabled/
+
+sudo rm /etc/nginx/sites-enabled/default
+
+sudo systemctl reload nginx
+
+sudo certbot --nginx -d example.com -d www.example.com
+
+sudo certbot renew --dry-run
