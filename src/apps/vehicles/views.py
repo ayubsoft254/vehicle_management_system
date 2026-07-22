@@ -3273,3 +3273,160 @@ def sales_ledger_export(request, fmt):
         fmt, 'sales_ledger', 'Sales Ledger', headers, export_data,
         currency_cols={6, 7, 8}, subtitle=subtitle,
     )
+
+
+# ==================== VEHICLE LEDGER (CASH vs HPP) ====================
+# Tracks every completed sale as either "Cash" (ClientVehicle.payment_type
+# == 'full' - paid in full, no payment plan) or "HPP" (payment_type ==
+# 'installment' or 'flexible' - a hire-purchase/instalment payment plan is
+# in place). This is a sale-type category, distinct from Payment.payment_method
+# (cash/mpesa/bank_transfer/etc.), which records how one individual payment
+# was made - an HPP sale's monthly instalments can themselves be paid by
+# mpesa, bank transfer or cash without changing its Cash/HPP category here.
+
+def _vehicle_ledger_queryset(date_from, date_to, search='', category=''):
+    sales = ClientVehicle.objects.filter(vehicle__status=VehicleStatus.SOLD).select_related(
+        'client', 'vehicle', 'broker'
+    ).prefetch_related(
+        'vehicle__extra_costs',
+        'vehicle__insurance_policies',
+        'vehicle__expenses__category',
+        'vehicle__repossessions__expenses',
+        'vehicle__repossessions__additional_cost_items',
+    ).order_by('-purchase_date', '-created_at')
+
+    if date_from:
+        sales = sales.filter(purchase_date__gte=date_from)
+    if date_to:
+        sales = sales.filter(purchase_date__lte=date_to)
+    if search:
+        sales = sales.filter(
+            Q(vehicle__registration_number__icontains=search) |
+            Q(vehicle__vin__icontains=search)
+        )
+    if category == 'cash':
+        sales = sales.filter(payment_type='full')
+    elif category == 'hpp':
+        sales = sales.filter(payment_type__in=['installment', 'flexible'])
+    return sales
+
+
+def _vehicle_ledger_rows(date_from, date_to, search='', category=''):
+    from .utils import compute_sale_profit
+
+    rows = []
+    for cv in _vehicle_ledger_queryset(date_from, date_to, search, category):
+        result = compute_sale_profit(cv)
+        is_cash = cv.payment_type == 'full'
+        rows.append({
+            'client_vehicle': cv,
+            'vehicle': cv.vehicle,
+            'client': cv.client,
+            'sale_date': cv.purchase_date,
+            'category': 'cash' if is_cash else 'hpp',
+            'category_label': 'Cash' if is_cash else 'HPP',
+            'payment_type_display': cv.get_payment_type_display(),
+            **result,
+        })
+    return rows
+
+
+@login_required
+@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
+def vehicle_ledger(request):
+    """Every completed vehicle sale, categorized Cash vs HPP, with actual profit/loss."""
+    import urllib.parse
+    from utils.ledger import parse_date_range
+    from .utils import bulk_sale_totals
+
+    date_from, date_to = parse_date_range(request)
+    search = request.GET.get('search', '').strip()
+    category = request.GET.get('category', '').strip().lower()
+    if category not in ('cash', 'hpp'):
+        category = ''
+
+    rows = _vehicle_ledger_rows(date_from, date_to, search, category)
+
+    total_revenue, total_cost = bulk_sale_totals(_vehicle_ledger_queryset(date_from, date_to, search, category))
+    total_profit = total_revenue - total_cost
+    profitable_count = sum(1 for r in rows if r['profit'] > 0)
+    loss_count = sum(1 for r in rows if r['profit'] < 0)
+
+    # The Cash/HPP split cards always reflect the date/search filters only
+    # (not the category filter) so they stay meaningful even when the table
+    # below is narrowed to just one side.
+    cash_qs = _vehicle_ledger_queryset(date_from, date_to, search, 'cash')
+    cash_revenue, cash_cost = bulk_sale_totals(cash_qs)
+    hpp_qs = _vehicle_ledger_queryset(date_from, date_to, search, 'hpp')
+    hpp_revenue, hpp_cost = bulk_sale_totals(hpp_qs)
+
+    qs_params = {}
+    if date_from:
+        qs_params['date_from'] = date_from.isoformat()
+    if date_to:
+        qs_params['date_to'] = date_to.isoformat()
+    if search:
+        qs_params['search'] = search
+    if category:
+        qs_params['category'] = category
+    filter_qs = urllib.parse.urlencode(qs_params)
+
+    context = {
+        'rows': rows,
+        'date_from': date_from,
+        'date_to': date_to,
+        'search': search,
+        'category': category,
+        'filter_qs': filter_qs,
+        'sale_count': len(rows),
+        'total_revenue': total_revenue,
+        'total_cost': total_cost,
+        'total_profit': total_profit,
+        'is_profit_overall': total_profit >= 0,
+        'profitable_count': profitable_count,
+        'loss_count': loss_count,
+        'breakeven_count': len(rows) - profitable_count - loss_count,
+        'cash_count': cash_qs.count(),
+        'cash_revenue': cash_revenue,
+        'cash_cost': cash_cost,
+        'cash_profit': cash_revenue - cash_cost,
+        'hpp_count': hpp_qs.count(),
+        'hpp_revenue': hpp_revenue,
+        'hpp_cost': hpp_cost,
+        'hpp_profit': hpp_revenue - hpp_cost,
+    }
+    return render(request, 'vehicles/vehicle_ledger.html', context)
+
+
+@login_required
+@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
+def vehicle_ledger_export(request, fmt):
+    """Export the Vehicle Ledger (same filters as the on-screen view) as PDF/Excel/CSV."""
+    from utils.report_kit import export_rows
+    from utils.ledger import parse_date_range
+
+    date_from, date_to = parse_date_range(request)
+    search = request.GET.get('search', '').strip()
+    category = request.GET.get('category', '').strip().lower()
+    if category not in ('cash', 'hpp'):
+        category = ''
+    rows = _vehicle_ledger_rows(date_from, date_to, search, category)
+
+    headers = ['Sale Date', 'Vehicle', 'Reg. No.', 'Chassis No. (VIN)', 'Category', 'Client', 'Revenue', 'Total Cost', 'Profit / (Loss)', 'Result']
+    export_data = [
+        [
+            r['sale_date'], r['vehicle'].full_name, r['vehicle'].registration_number or '', r['vehicle'].vin,
+            r['category_label'], r['client'].get_full_name(), float(r['revenue']), float(r['total_cost']),
+            float(r['profit']), 'Profit' if r['profit'] >= 0 else 'Loss',
+        ]
+        for r in rows
+    ]
+    subtitle = f"{date_from or 'the beginning'} to {date_to or 'today'}"
+    if category:
+        subtitle += f' — {"Cash" if category == "cash" else "HPP"} only'
+    if search:
+        subtitle += f' — search: "{search}"'
+    return export_rows(
+        fmt, 'vehicle_ledger', 'Vehicle Ledger', headers, export_data,
+        currency_cols={6, 7, 8}, subtitle=subtitle,
+    )
