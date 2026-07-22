@@ -3412,7 +3412,7 @@ def vehicle_ledger_export(request, fmt):
         category = ''
     rows = _vehicle_ledger_rows(date_from, date_to, search, category)
 
-    headers = ['Sale Date', 'Vehicle', 'Reg. No.', 'Chassis No. (VIN)', 'Category', 'Client', 'Revenue', 'Total Cost', 'Profit / (Loss)', 'Result']
+    headers = ['Sale Date', 'Vehicle', 'Reg. No.', 'Chassis No. (VIN)', 'Category', 'Client', 'Debit', 'Credit', 'Profit / (Loss)', 'Result']
     export_data = [
         [
             r['sale_date'], r['vehicle'].full_name, r['vehicle'].registration_number or '', r['vehicle'].vin,
