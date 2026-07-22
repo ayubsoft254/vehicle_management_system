@@ -182,12 +182,12 @@ def send_email_notification(notification):
     # Get email address
     email_address = preference.email_address or user.email
     if not email_address:
-        logger.warning(f"No email address for user {user.username}")
+        logger.warning(f"No email address for user {user.get_username()}")
         return False
     
     # Check quiet hours
     if preference.is_quiet_hours() and notification.priority != 'urgent':
-        logger.info(f"Skipping email for user {user.username} - quiet hours")
+        logger.info(f"Skipping email for user {user.get_username()} - quiet hours")
         return False
     
     try:
@@ -315,7 +315,7 @@ def send_sms_notification(notification):
     
     phone_number = preference.phone_number
     if not phone_number:
-        logger.warning(f"No phone number for user {user.username}")
+        logger.warning(f"No phone number for user {user.get_username()}")
         return False
     
     # Only send SMS for high priority
@@ -423,7 +423,7 @@ def send_push_notification(notification):
             notification=notification,
             delivery_method='push',
             status='sent',
-            recipient=user.username,
+            recipient=user.get_username(),
             sent_at=timezone.now()
         )
         
@@ -440,7 +440,7 @@ def send_push_notification(notification):
             notification=notification,
             delivery_method='push',
             status='failed',
-            recipient=user.username,
+            recipient=user.get_username(),
             error_message=str(e)
         )
         
