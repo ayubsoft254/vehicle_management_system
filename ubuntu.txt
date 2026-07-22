@@ -1,0 +1,30 @@
+sudo apt update
+
+sudo apt install -y \
+    git \
+    make \
+    curl \
+    htop \
+    jq \
+    tree \
+    unzip \
+    net-tools \
+    dnsutils \
+    lsof \
+    ca-certificates \
+    docker.io \
+    docker-compose-v2
+
+
+
+sudo systemctl enable --now docker
+
+sudo usermod -aG docker $USER
+
+newgrp docker
+
+docker --version
+docker compose version
+make --version
+git --version
+curl --version
