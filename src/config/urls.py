@@ -101,6 +101,9 @@ urlpatterns = [
     
     # Reports - Business intelligence and reporting
     path('reports/', include('apps.reports.urls')),
+
+    # Assistant - Canned-question chat widget over dashboard data (no LLM)
+    path('assistant/', include('apps.assistant.urls')),
     
     # Documents - Document management and storage
     path('documents/', include('apps.documents.urls')),
