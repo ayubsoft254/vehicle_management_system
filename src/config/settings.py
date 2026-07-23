@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'apps.audit',
     'apps.permissions',
     'apps.dashboard',
+    'apps.assistant',
 ]
 
 MIDDLEWARE = [
