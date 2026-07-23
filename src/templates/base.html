@@ -1384,6 +1384,12 @@
     }());
     </script>
 
+    {% if user.is_authenticated and user.role != 'client' %}
+        {% if user.is_superuser or user|can_access:'dashboard' %}
+            {% include 'assistant/widget.html' %}
+        {% endif %}
+    {% endif %}
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>
