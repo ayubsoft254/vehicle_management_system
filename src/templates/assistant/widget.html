@@ -1,0 +1,175 @@
+<!-- ======================================================================
+     ASSISTANT CHAT WIDGET
+     Canned-question assistant: fuzzy-matches free text against a fixed
+     set of questions (apps/assistant/questions.py) and answers from the
+     same aggregation functions the dashboard uses. No LLM involved.
+     ====================================================================== -->
+<div id="assistant-widget">
+    <button id="assistant-toggle" type="button"
+            class="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary-600 hover:bg-primary-700 text-white shadow-lg flex items-center justify-center transition-transform duration-200 hover:scale-105"
+            aria-label="Ask the assistant">
+        <i id="assistant-toggle-icon" class="fas fa-comment-dots text-xl"></i>
+    </button>
+
+    <div id="assistant-panel"
+         class="hidden fixed bottom-24 right-6 z-50 w-[22rem] max-w-[calc(100vw-2rem)] h-[28rem] max-h-[calc(100vh-8rem)] bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 bg-primary-600 text-white flex-shrink-0">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-robot"></i>
+                <span class="font-semibold text-sm">Ask VMS</span>
+            </div>
+            <button id="assistant-close" type="button" class="text-white/80 hover:text-white" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div id="assistant-messages" class="flex-1 overflow-y-auto px-3 py-3 space-y-2 bg-gray-50 text-sm"></div>
+
+        <div id="assistant-suggestions" class="px-3 pb-2 flex flex-wrap gap-1.5 flex-shrink-0"></div>
+
+        <form id="assistant-form" class="flex-shrink-0 border-t border-gray-200 p-2 flex items-center gap-2">
+            <input id="assistant-input" type="text" autocomplete="off"
+                   placeholder="Ask about vehicles, payments, expenses..."
+                   class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            <button type="submit"
+                    class="w-9 h-9 flex items-center justify-center bg-primary-600 hover:bg-primary-700 text-white rounded-lg flex-shrink-0"
+                    aria-label="Send">
+                <i class="fas fa-paper-plane text-sm"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    var ASK_URL = '{% url "assistant:ask" %}';
+    var SUGGESTIONS_URL = '{% url "assistant:suggestions" %}';
+    var CSRF_TOKEN = '{{ csrf_token }}';
+
+    var toggle = document.getElementById('assistant-toggle');
+    var toggleIcon = document.getElementById('assistant-toggle-icon');
+    var panel = document.getElementById('assistant-panel');
+    var closeBtn = document.getElementById('assistant-close');
+    var messagesBox = document.getElementById('assistant-messages');
+    var suggestionsBox = document.getElementById('assistant-suggestions');
+    var form = document.getElementById('assistant-form');
+    var input = document.getElementById('assistant-input');
+
+    var loadedGreeting = false;
+
+    function addMessage(text, who) {
+        var row = document.createElement('div');
+        row.className = who === 'user' ? 'flex justify-end' : 'flex justify-start';
+
+        var bubble = document.createElement('div');
+        bubble.className = who === 'user'
+            ? 'max-w-[85%] bg-primary-600 text-white rounded-lg rounded-br-sm px-3 py-2'
+            : 'max-w-[85%] bg-white border border-gray-200 text-gray-800 rounded-lg rounded-bl-sm px-3 py-2';
+        bubble.textContent = text;
+
+        row.appendChild(bubble);
+        messagesBox.appendChild(row);
+        messagesBox.scrollTop = messagesBox.scrollHeight;
+    }
+
+    function addTyping() {
+        var row = document.createElement('div');
+        row.className = 'flex justify-start';
+        row.id = 'assistant-typing';
+        var bubble = document.createElement('div');
+        bubble.className = 'bg-white border border-gray-200 text-gray-400 rounded-lg rounded-bl-sm px-3 py-2 text-xs';
+        bubble.textContent = 'Thinking...';
+        row.appendChild(bubble);
+        messagesBox.appendChild(row);
+        messagesBox.scrollTop = messagesBox.scrollHeight;
+    }
+
+    function removeTyping() {
+        var el = document.getElementById('assistant-typing');
+        if (el) el.remove();
+    }
+
+    function renderSuggestions(list) {
+        suggestionsBox.innerHTML = '';
+        (list || []).forEach(function (s) {
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'text-xs bg-primary-50 text-primary-700 border border-primary-100 rounded-full px-3 py-1 hover:bg-primary-100 transition-colors';
+            chip.textContent = s.prompt;
+            chip.addEventListener('click', function () {
+                askQuestion(s.prompt);
+            });
+            suggestionsBox.appendChild(chip);
+        });
+    }
+
+    function askQuestion(text) {
+        text = (text || '').trim();
+        if (!text) return;
+
+        addMessage(text, 'user');
+        input.value = '';
+        suggestionsBox.innerHTML = '';
+        addTyping();
+
+        fetch(ASK_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN,
+            },
+            body: JSON.stringify({ question: text }),
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                removeTyping();
+                addMessage(data.answer || "Sorry, something went wrong.", 'assistant');
+                if (data.suggestions && data.suggestions.length) {
+                    renderSuggestions(data.suggestions);
+                }
+            })
+            .catch(function () {
+                removeTyping();
+                addMessage("Couldn't reach the server — try again in a moment.", 'assistant');
+            });
+    }
+
+    function openPanel() {
+        panel.classList.remove('hidden');
+        toggleIcon.classList.remove('fa-comment-dots');
+        toggleIcon.classList.add('fa-times');
+        input.focus();
+
+        if (!loadedGreeting) {
+            loadedGreeting = true;
+            addMessage("Hi! Ask me about vehicles, clients, payments, expenses, sales, or overdue accounts.", 'assistant');
+            fetch(SUGGESTIONS_URL)
+                .then(function (r) { return r.json(); })
+                .then(function (data) { renderSuggestions((data.suggestions || []).slice(0, 4)); })
+                .catch(function () {});
+        }
+    }
+
+    function closePanel() {
+        panel.classList.add('hidden');
+        toggleIcon.classList.remove('fa-times');
+        toggleIcon.classList.add('fa-comment-dots');
+    }
+
+    toggle.addEventListener('click', function () {
+        if (panel.classList.contains('hidden')) {
+            openPanel();
+        } else {
+            closePanel();
+        }
+    });
+    closeBtn.addEventListener('click', closePanel);
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        askQuestion(input.value);
+    });
+}());
+</script>
