@@ -10,11 +10,14 @@ matched (see matching.py) against the `keywords` below.
 import re
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Callable, List, Tuple
+from decimal import Decimal
+from typing import Callable, List, Optional, Tuple
 
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.dashboard.utils import get_dashboard_overview_data, get_financial_summary
+from .text_utils import content_tokens
 
 
 @dataclass(frozen=True)
@@ -190,6 +193,208 @@ def _handle_daily_summary(text: str) -> str:
     )
 
 
+def _handle_payroll_summary(text: str) -> str:
+    from apps.payroll.utils import get_payroll_dashboard_stats
+    s = get_payroll_dashboard_stats()
+    parts = [
+        f"{s['active_employees']} active employee(s) ({s['total_employees']} total).",
+        f"{s['pending_leaves']} pending leave request(s), {s['pending_loans']} pending loan(s), "
+        f"{s['pending_commissions']} pending commission(s).",
+    ]
+    current = s.get('current_payroll')
+    if current:
+        parts.append(
+            f"This month's payroll ({current['status']}): {current['employees']} employee(s), "
+            f"net {_money(current['total_net'])}."
+        )
+    else:
+        parts.append("No payroll run exists for this month yet.")
+    return " ".join(parts)
+
+
+def _handle_repossessions_summary(text: str) -> str:
+    from apps.repossessions.utils import get_repossession_dashboard_stats
+    s = get_repossession_dashboard_stats()
+    return (
+        f"{s['total_active']} active repossession case(s) — {s['pending_approval']} pending approval, "
+        f"{s['in_recovery']} in recovery, {s['vehicles_recovered']} vehicle(s) recovered. "
+        f"{_money(s['total_outstanding'])} outstanding, {_money(s['total_recovery_costs'])} spent on recovery. "
+        f"{s['overdue_notices']} notice(s) overdue."
+    )
+
+
+def _handle_recent_activity(text: str) -> str:
+    from apps.audit.utils import get_recent_activity
+    logs = list(get_recent_activity(days=7)[:5])
+    if not logs:
+        return "No recorded system activity in the last 7 days."
+    lines = []
+    for log in logs:
+        actor = log.user.get_full_name() if log.user else 'System'
+        action = log.get_action_display() if hasattr(log, 'get_action_display') else log.action
+        lines.append(f"{actor} {action.lower()} — {log.description}")
+    return "Recent activity: " + "; ".join(lines) + "."
+
+
+def _handle_documents_summary(text: str) -> str:
+    from apps.documents.models import Document
+    total = Document.objects.count()
+    active = Document.objects.filter(is_active=True).count()
+    recent = Document.objects.filter(uploaded_at__gte=timezone.now() - timedelta(days=7)).count()
+    return f"{total} document(s) on file ({active} active), {recent} uploaded in the last 7 days."
+
+
+def _handle_reports_summary(text: str) -> str:
+    from apps.reports.models import Report
+    total = Report.objects.count()
+    active = Report.objects.filter(is_active=True).count()
+    return f"{active} active report definition(s) out of {total} total."
+
+
+# ============================================================================
+# ENTITY LOOKUPS (vehicle by plate/VIN, client by name)
+#
+# These answer questions about ONE specific record rather than an
+# aggregate, so they carry a free-form identifier (a plate number, a
+# person's name) that will never appear in a fixed keyword list. The
+# fuzzy matcher in matching.py penalizes exactly that kind of unmatched
+# extra content, so these are detected separately in try_entity_lookup()
+# and checked before the fuzzy matcher runs at all - see views.ask().
+# ============================================================================
+
+_CLIENT_LOOKUP_EXTRA_STOPWORDS = frozenset({
+    'client', 'clients', 'customer', 'customers', 'owe', 'owes', 'owed',
+    'balance', 'payment', 'payments', 'history', 'status', 'about',
+})
+_DEBT_TRIGGER_WORDS = ('owe', 'owes', 'owed', 'outstanding', 'balance', 'client', 'customer')
+
+
+def _find_vehicle(text: str):
+    """Best-effort lookup by registration number or VIN, tolerant of
+    stray spaces/punctuation and surrounding words ("what's up with KAA
+    123B" still finds KAA123B)."""
+    from apps.vehicles.models import Vehicle
+
+    compact_query = re.sub(r'[^A-Za-z0-9]', '', text).upper()
+    if len(compact_query) < 4 or not any(c.isdigit() for c in compact_query):
+        return None  # cheap bail-out: every real plate/VIN here has a digit
+
+    vin_fallback = None
+    for vehicle in Vehicle.objects.all().only(
+        'id', 'registration_number', 'vin', 'make', 'model', 'year', 'status'
+    ):
+        reg_compact = re.sub(r'[^A-Za-z0-9]', '', vehicle.registration_number or '').upper()
+        if reg_compact and len(reg_compact) >= 4 and reg_compact in compact_query:
+            return vehicle
+        if vin_fallback is None:
+            vin_compact = re.sub(r'[^A-Za-z0-9]', '', vehicle.vin or '').upper()
+            if vin_compact and len(vin_compact) >= 6 and vin_compact in compact_query:
+                vin_fallback = vehicle
+    return vin_fallback
+
+
+def _describe_vehicle(vehicle) -> str:
+    parts = [
+        f"{vehicle.full_name} ({vehicle.registration_number or vehicle.vin}) "
+        f"is {vehicle.get_status_display()}."
+    ]
+    sale = vehicle.client_purchases.select_related('client').order_by('-purchase_date').first()
+    if sale:
+        paid_note = " (paid off)" if sale.is_paid_off else f", balance {_money(sale.balance)}"
+        parts.append(f"Sold to {sale.client.get_full_name()} for {_money(sale.purchase_price)}{paid_note}.")
+    return " ".join(parts)
+
+
+def _extract_name_query(text: str) -> str:
+    tokens = content_tokens(text, _CLIENT_LOOKUP_EXTRA_STOPWORDS)
+    return ' '.join(sorted(tokens))
+
+
+def _find_client(text: str):
+    from apps.clients.models import Client
+
+    query = _extract_name_query(text)
+    parts = [p for p in query.split() if len(p) >= 2]
+    if not parts:
+        return None
+
+    name_filter = Q()
+    for part in parts:
+        name_filter |= Q(first_name__icontains=part) | Q(last_name__icontains=part)
+
+    candidates = list(Client.objects.filter(name_filter).distinct()[:25])
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return candidates[0]
+
+    # Prefer a candidate whose full name contains every extracted token -
+    # disambiguates when multiple clients share a first or last name.
+    for candidate in candidates:
+        full_name = f"{candidate.first_name} {candidate.last_name}".lower()
+        if all(part in full_name for part in parts):
+            return candidate
+    return candidates[0]
+
+
+def _describe_client(client) -> str:
+    purchases = client.vehicles.select_related('vehicle').order_by('-purchase_date')
+    contact = client.phone_primary or 'no phone on file'
+    if not purchases.exists():
+        return f"{client.get_full_name()} ({contact}) has no vehicle purchases on record."
+
+    lines = []
+    total_owed = Decimal('0.00')
+    for cv in purchases[:3]:
+        if cv.is_paid_off:
+            lines.append(f"{cv.vehicle.full_name} — paid off")
+        else:
+            lines.append(f"{cv.vehicle.full_name} — owes {_money(cv.balance)}")
+            total_owed += cv.balance or Decimal('0.00')
+
+    summary = f"{client.get_full_name()} ({contact}): " + "; ".join(lines) + "."
+    if total_owed > 0:
+        summary += f" Total outstanding: {_money(total_owed)}."
+    return summary
+
+
+def _handle_vehicle_lookup(text: str) -> str:
+    vehicle = _find_vehicle(text)
+    if not vehicle:
+        return "I couldn't find a vehicle matching that plate or VIN. Try the exact registration, e.g. 'KAA123B'."
+    return _describe_vehicle(vehicle)
+
+
+def _handle_client_lookup(text: str) -> str:
+    client = _find_client(text)
+    if not client:
+        return "I couldn't find a client matching that name. Try their full name, e.g. 'John Kamau'."
+    return _describe_client(client)
+
+
+def try_entity_lookup(text: str) -> Optional[Tuple[str, str]]:
+    """
+    Best-effort direct entity lookup, checked before the general fuzzy
+    matcher (see views.ask()). Returns (question_id, answer) or None.
+
+    A recognizable plate/VIN is checked unconditionally - it's a strong,
+    unambiguous signal on its own. A client-name lookup is gated behind a
+    debt/identity trigger word so an unrelated two-word phrase doesn't
+    get misread as somebody's name.
+    """
+    vehicle = _find_vehicle(text)
+    if vehicle:
+        return 'vehicle_lookup', _describe_vehicle(vehicle)
+
+    lowered = text.lower()
+    if any(word in lowered for word in _DEBT_TRIGGER_WORDS):
+        client = _find_client(text)
+        if client:
+            return 'client_lookup', _describe_client(client)
+
+    return None
+
+
 # ============================================================================
 # REGISTRY
 # ============================================================================
@@ -290,6 +495,48 @@ QUESTIONS: List[Question] = [
         prompt="Give me today's summary.",
         keywords=("today's summary", "daily report", "daily summary", "how's today looking", "end of day report"),
         handler=_handle_daily_summary,
+    ),
+    Question(
+        id='payroll_summary',
+        prompt="How's payroll looking this month?",
+        keywords=("payroll", "payroll summary", "how's payroll looking", "pending leave requests", "pending loans", "employee count", "payroll status"),
+        handler=_handle_payroll_summary,
+    ),
+    Question(
+        id='repossessions_summary',
+        prompt="What's the status of repossessions?",
+        keywords=("repossessions", "repossession status", "active repossessions", "vehicles being recovered", "repossession cases"),
+        handler=_handle_repossessions_summary,
+    ),
+    Question(
+        id='recent_activity',
+        prompt="What's happened recently in the system?",
+        keywords=("recent activity", "audit log", "what happened recently", "system activity", "recent changes"),
+        handler=_handle_recent_activity,
+    ),
+    Question(
+        id='documents_summary',
+        prompt="How many documents do we have on file?",
+        keywords=("documents on file", "how many documents", "document count", "recently uploaded documents"),
+        handler=_handle_documents_summary,
+    ),
+    Question(
+        id='reports_summary',
+        prompt="How many reports do we have set up?",
+        keywords=("reports set up", "active reports", "how many reports", "report definitions"),
+        handler=_handle_reports_summary,
+    ),
+    Question(
+        id='vehicle_lookup',
+        prompt="Tell me about vehicle KAA123B",
+        keywords=("vehicle status", "tell me about vehicle", "look up vehicle", "vehicle details", "check registration"),
+        handler=_handle_vehicle_lookup,
+    ),
+    Question(
+        id='client_lookup',
+        prompt="What does John Kamau owe?",
+        keywords=("what does client owe", "client balance", "payment history for client", "how much does client owe"),
+        handler=_handle_client_lookup,
     ),
 ]
 
