@@ -2678,7 +2678,12 @@ def client_ledger_export(request, fmt):
         [c.get_full_name(), c.phone_primary or '', c.vehicle_count, float(c.total_billed), float(c.total_paid), float(c.outstanding)]
         for c in clients
     ]
-    return export_rows(fmt, 'client_ledger', 'Client Ledger', headers, rows, currency_cols={4, 5, 6})
+    totals_row = [
+        'GRAND TOTAL', '', sum(r[2] for r in rows),
+        sum(r[3] for r in rows), sum(r[4] for r in rows), sum(r[5] for r in rows),
+    ]
+    return export_rows(fmt, 'client_ledger', 'Client Ledger', headers, rows,
+                       currency_cols={4, 5, 6}, totals_row=totals_row)
 
 
 def _statement_filters(request):
