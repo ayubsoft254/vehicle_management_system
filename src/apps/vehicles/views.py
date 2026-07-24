@@ -2206,6 +2206,174 @@ def vehicle_reports_pdf(request):
     )
 
 
+# ==================== STOCK REPORT ====================
+
+# In stock = on the yard and sellable; out of stock = gone to a buyer.
+# Repossessed / maintenance vehicles are neither, and are surfaced
+# separately so every vehicle is still accounted for.
+IN_STOCK_STATUSES = (VehicleStatus.AVAILABLE, VehicleStatus.RESERVED)
+OUT_OF_STOCK_STATUSES = (VehicleStatus.SOLD, VehicleStatus.AUCTIONED)
+
+
+def _build_stock_report_context(request):
+    """Shared queryset/summary builder for the stock report page and its exports."""
+    query = (request.GET.get('q') or '').strip()
+    stock_filter = request.GET.get('stock', 'all')
+    if stock_filter not in ('all', 'in', 'out'):
+        stock_filter = 'all'
+
+    vehicles = Vehicle.objects.order_by('make', 'model', 'year')
+    if query:
+        vehicles = vehicles.filter(
+            Q(vin__icontains=query) |
+            Q(registration_number__icontains=query) |
+            Q(make__icontains=query) |
+            Q(model__icontains=query)
+        )
+
+    in_stock = list(vehicles.filter(status__in=IN_STOCK_STATUSES))
+    out_of_stock = list(vehicles.filter(status__in=OUT_OF_STOCK_STATUSES))
+    unclassified_count = vehicles.exclude(
+        status__in=IN_STOCK_STATUSES + OUT_OF_STOCK_STATUSES
+    ).count()
+
+    def count_by_status(items, status):
+        return sum(1 for v in items if v.status == status)
+
+    return {
+        'query': query,
+        'stock_filter': stock_filter,
+        'in_stock': in_stock,
+        'out_of_stock': out_of_stock,
+        'in_stock_count': len(in_stock),
+        'out_of_stock_count': len(out_of_stock),
+        'available_count': count_by_status(in_stock, VehicleStatus.AVAILABLE),
+        'reserved_count': count_by_status(in_stock, VehicleStatus.RESERVED),
+        'sold_count': count_by_status(out_of_stock, VehicleStatus.SOLD),
+        'auctioned_count': count_by_status(out_of_stock, VehicleStatus.AUCTIONED),
+        'unclassified_count': unclassified_count,
+    }
+
+
+def _stock_report_rows(vehicles, stock_label, include_date_sold=False):
+    """Table rows for exports — chassis (VIN) and plate number lead every row."""
+    rows = []
+    for v in vehicles:
+        row = [
+            v.vin or '—',
+            v.registration_number or '—',
+            f"{v.make} {v.model}",
+            str(v.year),
+            v.color or '—',
+            v.get_status_display(),
+            stock_label,
+            v.get_location_display() if v.location else '—',
+            v.date_added.strftime('%d %b %Y') if v.date_added else '—',
+        ]
+        if include_date_sold:
+            row.append(v.date_sold.strftime('%d %b %Y') if v.date_sold else '—')
+        rows.append(row)
+    return rows
+
+
+@login_required
+def stock_report(request):
+    """In-stock vs out-of-stock inventory keyed on chassis and plate number."""
+    from django.urls import reverse
+    import urllib.parse
+
+    context = _build_stock_report_context(request)
+
+    qs_params = {}
+    if context['query']:
+        qs_params['q'] = context['query']
+    if context['stock_filter'] != 'all':
+        qs_params['stock'] = context['stock_filter']
+    filter_qs = urllib.parse.urlencode(qs_params)
+    suffix = ('?' + filter_qs) if filter_qs else ''
+    context['export_pdf_url'] = reverse('vehicles:stock_report_export', args=['pdf']) + suffix
+    context['export_excel_url'] = reverse('vehicles:stock_report_export', args=['excel']) + suffix
+    context['export_csv_url'] = reverse('vehicles:stock_report_export', args=['csv']) + suffix
+    context['report_subtitle'] = (
+        f"{context['in_stock_count']} in stock · {context['out_of_stock_count']} out of stock "
+        f"as at {timezone.now().strftime('%d %B %Y')}"
+    )
+    return render(request, 'vehicles/stock_report.html', context)
+
+
+@login_required
+def stock_report_export(request, fmt):
+    """Download the stock report as PDF, Excel or CSV."""
+    from utils.report_kit import build_pdf_response, export_rows, kpi_table, styled_table
+    from reportlab.lib.units import inch
+    from reportlab.platypus import Paragraph, Spacer
+
+    if fmt not in ('pdf', 'excel', 'csv'):
+        raise Http404
+
+    ctx = _build_stock_report_context(request)
+    show_in = ctx['stock_filter'] in ('all', 'in')
+    show_out = ctx['stock_filter'] in ('all', 'out')
+
+    headers = ['Chassis No', 'Plate No', 'Vehicle', 'Year', 'Color',
+               'Status', 'Stock', 'Location', 'Date Added', 'Date Sold']
+
+    if fmt in ('excel', 'csv'):
+        rows = []
+        if show_in:
+            rows += [r + ['—'] for r in _stock_report_rows(ctx['in_stock'], 'In Stock')]
+        if show_out:
+            rows += _stock_report_rows(ctx['out_of_stock'], 'Out of Stock', include_date_sold=True)
+        return export_rows(fmt, 'stock_report', 'Stock Report', headers, rows)
+
+    def body(elements, styles):
+        elements.append(kpi_table([
+            ('In Stock (Available + Reserved)', str(ctx['in_stock_count'])),
+            ('Available', str(ctx['available_count'])),
+            ('Reserved', str(ctx['reserved_count'])),
+            ('Out of Stock (Sold + Auctioned)', str(ctx['out_of_stock_count'])),
+            ('Sold', str(ctx['sold_count'])),
+            ('Auctioned', str(ctx['auctioned_count'])),
+        ], col_widths=[3 * inch, 2 * inch]))
+        elements.append(Spacer(1, 12))
+
+        col_widths = [1.9 * inch, 1.0 * inch, 1.6 * inch, 0.5 * inch, 0.8 * inch,
+                      0.9 * inch, 1.0 * inch, 1.0 * inch, 1.0 * inch]
+
+        if show_in:
+            elements.append(Paragraph(
+                f"IN STOCK — {ctx['in_stock_count']} VEHICLE(S)", styles['ReportSectionHeading']))
+            table_data = [headers[:6] + headers[7:9]]
+            for row in _stock_report_rows(ctx['in_stock'], 'In Stock'):
+                table_data.append(row[:6] + row[7:9])
+            elements.append(styled_table(table_data, col_widths=col_widths[:8]))
+            elements.append(Spacer(1, 12))
+
+        if show_out:
+            elements.append(Paragraph(
+                f"OUT OF STOCK — {ctx['out_of_stock_count']} VEHICLE(S)", styles['ReportSectionHeading']))
+            table_data = [headers[:6] + headers[7:8] + headers[9:]]
+            for row in _stock_report_rows(ctx['out_of_stock'], 'Out of Stock', include_date_sold=True):
+                table_data.append(row[:6] + row[7:8] + row[9:])
+            elements.append(styled_table(table_data, col_widths=col_widths[:7] + [1.0 * inch]))
+
+        if ctx['unclassified_count']:
+            elements.append(Spacer(1, 10))
+            elements.append(Paragraph(
+                f"Note: {ctx['unclassified_count']} vehicle(s) under maintenance or repossession "
+                "are excluded from the in/out-of-stock classification.",
+                styles['ReportCompanyMeta']))
+
+    subtitle = f"{ctx['in_stock_count']} in stock · {ctx['out_of_stock_count']} out of stock"
+    if ctx['query']:
+        subtitle += f" · filtered by \"{ctx['query']}\""
+
+    return build_pdf_response(
+        'stock_report.pdf', 'Vehicle Stock Report',
+        subtitle=subtitle, build_body=body, landscape_mode=True,
+    )
+
+
 # ==================== BROKER LEDGER VIEWS ====================
 
 @login_required
