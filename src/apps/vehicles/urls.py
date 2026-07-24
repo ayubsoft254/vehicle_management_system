@@ -44,6 +44,8 @@ urlpatterns = [
     path('stats/', views.vehicle_stats_view, name='stats'),
     path('reports/', views.vehicle_reports, name='vehicle_reports'),
     path('reports/pdf/', views.vehicle_reports_pdf, name='vehicle_reports_pdf'),
+    path('stock-report/', views.stock_report, name='stock_report'),
+    path('stock-report/export/<str:fmt>/', views.stock_report_export, name='stock_report_export'),
 
     # Tracker Agent Ledger
     path('tracker-agents/', views.tracker_agent_ledger_list, name='tracker_agent_ledger_list'),
