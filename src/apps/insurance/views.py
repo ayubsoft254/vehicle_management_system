@@ -1522,7 +1522,12 @@ def agent_ledger_export(request, fmt):
         [a.name, a.phone or '', a.email or '', float(a.total_selling_price), float(a.total_payments_made), float(a.total_owed)]
         for a in agents
     ]
-    return export_rows(fmt, 'insurance_agent_ledger', 'Insurance Agent Ledger', headers, rows, currency_cols={4, 5, 6})
+    totals_row = [
+        'GRAND TOTAL', '', '',
+        sum(r[3] for r in rows), sum(r[4] for r in rows), sum(r[5] for r in rows),
+    ]
+    return export_rows(fmt, 'insurance_agent_ledger', 'Insurance Agent Ledger', headers, rows,
+                       currency_cols={4, 5, 6}, totals_row=totals_row)
 
 
 def _insurance_agent_statement(agent, date_from, date_to):
