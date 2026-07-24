@@ -6,37 +6,18 @@ standard library (difflib) - no LLM, no external dependencies.
 """
 
 import difflib
-import re
 from typing import List, Optional, Tuple
 
 from .questions import Question
+from .text_utils import STOPWORDS, normalize
 
 MATCH_THRESHOLD = 0.4
 SUGGESTION_THRESHOLD = 0.12
 TOKEN_FUZZ_THRESHOLD = 0.82
 
-# Words that carry no distinguishing signal across this app's questions -
-# nearly every phrasing here is "how many/much <topic> do/did we/clients
-# have/owe", so left in, those filler words dominate the token overlap and
-# bury the one word (vehicles vs clients, expenses vs revenue) that
-# actually identifies the question.
-_STOPWORDS = {
-    'a', 'an', 'the', 'is', 'are', 'do', 'does', 'did', 'have', 'has', 'had',
-    'how', 'many', 'much', 'what', 'whats', 's', 'we', 'us', 'our', 'i',
-    'me', 'my', 'you', 'your', 'give', 'show', 'tell', 'please', 'want',
-    'know', 'of', 'in', 'on', 'to', 'for', 'this', 'that', 'it',
-}
-
-
-def _normalize(text: str) -> str:
-    text = text.lower().strip()
-    text = re.sub(r'[^\w\s]', ' ', text)
-    text = re.sub(r'\s+', ' ', text)
-    return text
-
 
 def _content_tokens(tokens: set) -> set:
-    filtered = tokens - _STOPWORDS
+    filtered = tokens - STOPWORDS
     return filtered or tokens  # an all-stopword phrase still needs something to compare
 
 
@@ -53,6 +34,12 @@ def _phrase_score(text_tokens: set, phrase_tokens: set) -> float:
     tolerance. Both token sets have stopwords stripped first so the
     generic scaffolding words common to every question here don't drown
     out the one content word that actually identifies the intent.
+
+    This deliberately penalizes text tokens the phrase doesn't account
+    for - fine for the fixed-template questions in this registry, but
+    wrong for open-ended identifiers (plate numbers, client names). Those
+    are handled separately in questions.try_entity_lookup(), which runs
+    before this matcher.
     """
     if not phrase_tokens or not text_tokens:
         return 0.0
@@ -68,7 +55,7 @@ def _score(norm_text: str, question: Question) -> float:
     text_tokens = _content_tokens(set(norm_text.split()))
     best = 0.0
     for phrase in question.keywords:
-        phrase_tokens = _content_tokens(set(_normalize(phrase).split()))
+        phrase_tokens = _content_tokens(set(normalize(phrase).split()))
         best = max(best, _phrase_score(text_tokens, phrase_tokens))
     return best
 
@@ -81,7 +68,7 @@ def match(text: str, questions: List[Question]) -> Tuple[Optional[Question], Lis
     question clears MATCH_THRESHOLD, `suggestions` holds up to 3 closest
     candidates above SUGGESTION_THRESHOLD for a "did you mean" fallback.
     """
-    norm_text = _normalize(text)
+    norm_text = normalize(text)
     if not norm_text:
         return None, [], 0.0
 
