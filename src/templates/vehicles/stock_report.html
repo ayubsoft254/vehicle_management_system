@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Stock Report{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-6xl">
+
+    {% with report_kicker="Inventory" report_title="Stock Report" %}
+    {% include 'reports/partials/_report_header.html' %}
+    {% endwith %}
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg border border-slate-200 p-4 mb-6">
+        <form method="get" class="flex flex-wrap items-end gap-3">
+            <div class="flex-1 min-w-[14rem]">
+                <label class="block text-xs font-medium text-slate-600 mb-1">Search</label>
+                <input type="text" name="q" value="{{ query }}"
+                    placeholder="Chassis no, plate no, make or model"
+                    class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Show</label>
+                <select name="stock" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                    <option value="all" {% if stock_filter == 'all' %}selected{% endif %}>In &amp; out of stock</option>
+                    <option value="in" {% if stock_filter == 'in' %}selected{% endif %}>In stock only</option>
+                    <option value="out" {% if stock_filter == 'out' %}selected{% endif %}>Out of stock only</option>
+                </select>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg">
+                <i class="fas fa-filter mr-1"></i>Filter
+            </button>
+            {% if query or stock_filter != 'all' %}
+            <a href="{% url 'vehicles:stock_report' %}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">Reset</a>
+            {% endif %}
+        </form>
+        <p class="text-xs text-slate-400 mt-2">In stock = available or reserved vehicles. Out of stock = sold or auctioned vehicles.</p>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">In Stock</p>
+            <p class="text-2xl font-bold mt-1 text-emerald-700">{{ in_stock_count }}</p>
+            <p class="text-xs text-slate-400 mt-0.5">{{ available_count }} available · {{ reserved_count }} reserved</p>
+        </div>
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Out of Stock</p>
+            <p class="text-2xl font-bold mt-1 text-slate-800">{{ out_of_stock_count }}</p>
+            <p class="text-xs text-slate-400 mt-0.5">{{ sold_count }} sold · {{ auctioned_count }} auctioned</p>
+        </div>
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Available</p>
+            <p class="text-2xl font-bold mt-1 text-green-600">{{ available_count }}</p>
+            <p class="text-xs text-slate-400 mt-0.5">Ready for sale</p>
+        </div>
+        <div class="bg-white rounded-lg border border-slate-200 p-4">
+            <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Reserved</p>
+            <p class="text-2xl font-bold mt-1 text-amber-600">{{ reserved_count }}</p>
+            <p class="text-xs text-slate-400 mt-0.5">Held for a client</p>
+        </div>
+    </div>
+
+    {% if unclassified_count %}
+    <div class="bg-blue-50 border border-blue-200 rounded-md p-3 mb-6 text-blue-800 text-sm">
+        <i class="fas fa-info-circle mr-1"></i>
+        {{ unclassified_count }} vehicle{{ unclassified_count|pluralize }} under maintenance or repossession
+        {{ unclassified_count|pluralize:"is,are" }} not counted as in or out of stock.
+    </div>
+    {% endif %}
+
+    {% if stock_filter != 'out' %}
+    <!-- In Stock -->
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden mb-6">
+        <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-700">
+                <i class="fas fa-warehouse text-emerald-500 mr-2"></i>In Stock ({{ in_stock_count }})
+            </h2>
+            <span class="text-xs text-slate-400">Available &amp; reserved vehicles</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                        <th class="px-4 py-2.5 text-left">Chassis No</th>
+                        <th class="px-4 py-2.5 text-left">Plate No</th>
+                        <th class="px-4 py-2.5 text-left">Vehicle</th>
+                        <th class="px-4 py-2.5 text-left">Year</th>
+                        <th class="px-4 py-2.5 text-left">Color</th>
+                        <th class="px-4 py-2.5 text-left">Status</th>
+                        <th class="px-4 py-2.5 text-left">Location</th>
+                        <th class="px-4 py-2.5 text-left">Date Added</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for v in in_stock %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2.5 font-mono font-semibold text-slate-800">
+                            <a href="{% url 'vehicles:detail' v.pk %}" class="hover:text-blue-600">{{ v.vin }}</a>
+                        </td>
+                        <td class="px-4 py-2.5 font-mono font-semibold text-slate-800">{{ v.registration_number|default:"—" }}</td>
+                        <td class="px-4 py-2.5 text-slate-600">{{ v.make }} {{ v.model }}</td>
+                        <td class="px-4 py-2.5 text-slate-600">{{ v.year }}</td>
+                        <td class="px-4 py-2.5 text-slate-600">{{ v.color|default:"—" }}</td>
+                        <td class="px-4 py-2.5">
+                            {% if v.status == 'available' %}
+                            <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">Available</span>
+                            {% else %}
+                            <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-800">Reserved</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 text-slate-600">{% if v.location %}{{ v.get_location_display }}{% else %}—{% endif %}</td>
+                        <td class="px-4 py-2.5 text-slate-600">{{ v.date_added|date:"d M Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="px-4 py-6 text-center text-slate-400">No vehicles in stock{% if query %} matching "{{ query }}"{% endif %}.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if stock_filter != 'in' %}
+    <!-- Out of Stock -->
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden mb-6">
+        <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-700">
+                <i class="fas fa-box-open text-slate-400 mr-2"></i>Out of Stock ({{ out_of_stock_count }})
+            </h2>
+            <span class="text-xs text-slate-400">Sold &amp; auctioned vehicles</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                        <th class="px-4 py-2.5 text-left">Chassis No</th>
+                        <th class="px-4 py-2.5 text-left">Plate No</th>
+                        <th class="px-4 py-2.5 text-left">Vehicle</th>
+                        <th class="px-4 py-2.5 text-left">Year</th>
+                        <th class="px-4 py-2.5 text-left">Color</th>
+                        <th class="px-4 py-2.5 text-left">Status</th>
+                        <th class="px-4 py-2.5 text-left">Location</th>
+                        <th class="px-4 py-2.5 text-left">Date Sold</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for v in out_of_stock %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-2.5 font-mono font-semibold text-slate-800">
+                            <a href="{% url 'vehicles:detail' v.pk %}" class="hover:text-blue-600">{{ v.vin }}</a>
+                        </td>
+                        <td class="px-4 py-2.5 font-mono font-semibold text-slate-800">{{ v.registration_number|default:"—" }}</td>
+                        <td class="px-4 py-2.5 text-slate-600">{{ v.make }} {{ v.model }}</td>
+                        <td class="px-4 py-2.5 text-slate-600">{{ v.year }}</td>
+                        <td class="px-4 py-2.5 text-slate-600">{{ v.color|default:"—" }}</td>
+                        <td class="px-4 py-2.5">
+                            {% if v.status == 'sold' %}
+                            <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">Sold</span>
+                            {% else %}
+                            <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-800">Auctioned</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 text-slate-600">{% if v.location %}{{ v.get_location_display }}{% else %}—{% endif %}</td>
+                        <td class="px-4 py-2.5 text-slate-600">{% if v.date_sold %}{{ v.date_sold|date:"d M Y" }}{% else %}—{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="px-4 py-6 text-center text-slate-400">No sold or auctioned vehicles{% if query %} matching "{{ query }}"{% endif %}.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
