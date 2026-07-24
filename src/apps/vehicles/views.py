@@ -2676,7 +2676,12 @@ def party_ledger_export(request, kind, fmt):
         ]
         for p in parties
     ]
-    return export_rows(fmt, f'{kind}_ledger', config['title'], headers, rows, currency_cols={4, 5, 6})
+    totals_row = [
+        'GRAND TOTAL', '', '',
+        sum(r[3] for r in rows), sum(r[4] for r in rows), sum(r[5] for r in rows),
+    ]
+    return export_rows(fmt, f'{kind}_ledger', config['title'], headers, rows,
+                       currency_cols={4, 5, 6}, totals_row=totals_row)
 
 
 # ==================== BUSINESS LOANS (MONEY LOANED OUT) ====================
@@ -2805,7 +2810,12 @@ def business_loan_export(request, fmt):
         ]
         for loan in loans
     ]
-    return export_rows(fmt, 'business_loans', 'Business Loans', headers, rows, currency_cols={3, 4, 5})
+    totals_row = [
+        'GRAND TOTAL', '',
+        sum(r[2] for r in rows), sum(r[3] for r in rows), sum(r[4] for r in rows), '',
+    ]
+    return export_rows(fmt, 'business_loans', 'Business Loans', headers, rows,
+                       currency_cols={3, 4, 5}, totals_row=totals_row)
 
 
 @login_required
@@ -3317,7 +3327,12 @@ def main_ledger_export(request, fmt):
     ctx = _compute_main_ledger_context(request)
     headers, rows = _main_ledger_export_rows(ctx)
     subtitle = f"{ctx['date_from']} to {ctx['date_to']}"
-    return export_rows(fmt, 'main_ledger', 'Main Ledger', headers, rows, currency_cols={6, 7, 8}, subtitle=subtitle)
+    totals_row = [
+        'GRAND TOTAL', '', '', '', '',
+        float(ctx['total_in']), float(ctx['total_out']), float(ctx['net']),
+    ]
+    return export_rows(fmt, 'main_ledger', 'Main Ledger', headers, rows,
+                       currency_cols={6, 7, 8}, subtitle=subtitle, totals_row=totals_row)
 
 
 # ==================== SALES LEDGER ====================
@@ -3420,6 +3435,7 @@ def sales_ledger_export(request, fmt):
     """Export the Sales Ledger (same date filters as the on-screen view) as PDF/Excel/CSV."""
     from utils.report_kit import export_rows
     from utils.ledger import parse_date_range
+    from .utils import bulk_sale_totals
 
     date_from, date_to = parse_date_range(request)
     search = request.GET.get('search', '').strip()
@@ -3437,9 +3453,18 @@ def sales_ledger_export(request, fmt):
     subtitle = f"{date_from or 'the beginning'} to {date_to or 'today'}"
     if search:
         subtitle += f' — search: "{search}"'
+    # Totals mirror the on-screen view: bulk_sale_totals(), not row sums,
+    # so a repossessed-and-resold vehicle's shared cost isn't double-counted.
+    total_revenue, total_cost = bulk_sale_totals(_sales_ledger_queryset(date_from, date_to, search))
+    total_profit = total_revenue - total_cost
+    totals_row = [
+        'GRAND TOTAL', '', '', '', '',
+        float(total_revenue), float(total_cost), float(total_profit),
+        'Profit' if total_profit >= 0 else 'Loss',
+    ]
     return export_rows(
         fmt, 'sales_ledger', 'Sales Ledger', headers, export_data,
-        currency_cols={6, 7, 8}, subtitle=subtitle,
+        currency_cols={6, 7, 8}, subtitle=subtitle, totals_row=totals_row,
     )
 
 
@@ -3572,6 +3597,7 @@ def vehicle_ledger_export(request, fmt):
     """Export the Vehicle Ledger (same filters as the on-screen view) as PDF/Excel/CSV."""
     from utils.report_kit import export_rows
     from utils.ledger import parse_date_range
+    from .utils import bulk_sale_totals
 
     date_from, date_to = parse_date_range(request)
     search = request.GET.get('search', '').strip()
@@ -3594,7 +3620,15 @@ def vehicle_ledger_export(request, fmt):
         subtitle += f' — {"Cash" if category == "cash" else "HPP"} only'
     if search:
         subtitle += f' — search: "{search}"'
+    total_revenue, total_cost = bulk_sale_totals(
+        _vehicle_ledger_queryset(date_from, date_to, search, category))
+    total_profit = total_revenue - total_cost
+    totals_row = [
+        'GRAND TOTAL', '', '', '', '', '',
+        float(total_revenue), float(total_cost), float(total_profit),
+        'Profit' if total_profit >= 0 else 'Loss',
+    ]
     return export_rows(
         fmt, 'vehicle_ledger', 'Vehicle Ledger', headers, export_data,
-        currency_cols={6, 7, 8}, subtitle=subtitle,
+        currency_cols={7, 8, 9}, subtitle=subtitle, totals_row=totals_row,
     )
