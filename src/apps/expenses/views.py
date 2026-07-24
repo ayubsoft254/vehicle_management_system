@@ -1070,7 +1070,8 @@ def expense_report(request):
 
 @login_required
 def expense_report_pdf(request):
-    from utils.report_kit import build_pdf_response, styled_table, kpi_table, fmt_money
+    from reportlab.lib.pagesizes import A4
+    from utils.report_kit import build_pdf_response, styled_table, kpi_table, fitted_table, fmt_money
     ctx = _compute_expense_report_context(request)
 
     def body(elements, styles):
@@ -1090,16 +1091,25 @@ def expense_report_pdf(request):
         elements.append(styled_table(cat_rows, col_widths=[3 * inch, 1.5 * inch, 1.5 * inch], align_right_from=1))
         elements.append(Spacer(1, 14))
         elements.append(Paragraph('Expense Detail', styles['ReportSectionHeading']))
-        rows = [['Date', 'Title', 'Category', 'Debit', 'Credit', 'Balance']]
+        detail_headers = ['Date', 'Title', 'Category', 'Debit', 'Credit', 'Balance']
+        detail_rows = []
         for e in ctx['expenses']:
             is_credit = e.transaction_type == 'CREDIT'
-            rows.append([
+            detail_rows.append([
                 e.expense_date.strftime('%Y-%m-%d'), e.title, e.category.name,
                 fmt_money(e.total_amount) if not is_credit else '',
                 fmt_money(e.total_amount) if is_credit else '',
                 fmt_money(e.running_balance),
             ])
-        elements.append(styled_table(rows, col_widths=[0.8 * inch, 1.6 * inch, 1.1 * inch, 0.95 * inch, 0.95 * inch, 1.05 * inch], align_right_from=3))
+        totals_row = [
+            '', 'GRAND TOTAL', '',
+            fmt_money(ctx['total_debits']), fmt_money(ctx['total_credits']),
+            fmt_money(ctx['net_balance']),
+        ]
+        elements.append(fitted_table(
+            detail_headers, detail_rows, A4[0] - 1.5 * inch,
+            currency_cols={4, 5, 6}, totals_row=totals_row,
+        ))
 
     subtitle = f"{ctx['date_from']} to {ctx['date_to']}"
     if ctx['search']:
@@ -1125,7 +1135,12 @@ def expense_report_excel(request):
         ]
         for e in ctx['expenses']
     ]
-    return build_excel_response('expense_report.xlsx', 'Expenses', headers, rows, currency_cols={6, 7, 8})
+    totals_row = [
+        'GRAND TOTAL', '', '', '', '',
+        float(ctx['total_debits']), float(ctx['total_credits']), float(ctx['net_balance']),
+    ]
+    return build_excel_response('expense_report.xlsx', 'Expenses', headers, rows,
+                                currency_cols={6, 7, 8}, totals_row=totals_row)
 
 
 @login_required
@@ -1142,7 +1157,11 @@ def expense_report_csv(request):
         ]
         for e in ctx['expenses']
     ]
-    return build_csv_response('expense_report.csv', headers, rows)
+    totals_row = [
+        'GRAND TOTAL', '', '', '', '',
+        ctx['total_debits'], ctx['total_credits'], ctx['net_balance'],
+    ]
+    return build_csv_response('expense_report.csv', headers, rows, totals_row=totals_row)
 
 
 # ============================================================================
