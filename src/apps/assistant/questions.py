@@ -85,6 +85,101 @@ def _handle_overstayed_vehicles(text: str) -> str:
     return f"{count} vehicle(s) have been in inventory over 6 months: {names}{extra}."
 
 
+def _handle_stock_report(text: str) -> str:
+    from apps.vehicles.models import Vehicle
+    from apps.vehicles.views import IN_STOCK_STATUSES, OUT_OF_STOCK_STATUSES
+    from utils.constants import VehicleStatus
+
+    counts = {
+        status: Vehicle.objects.filter(status=status).count()
+        for status in IN_STOCK_STATUSES + OUT_OF_STOCK_STATUSES
+    }
+    in_stock = sum(counts[s] for s in IN_STOCK_STATUSES)
+    out_of_stock = sum(counts[s] for s in OUT_OF_STOCK_STATUSES)
+    return (
+        f"{in_stock} vehicle(s) in stock ({counts[VehicleStatus.AVAILABLE]} available, "
+        f"{counts[VehicleStatus.RESERVED]} reserved) and {out_of_stock} out of stock "
+        f"({counts[VehicleStatus.SOLD]} sold, {counts[VehicleStatus.AUCTIONED]} auctioned). "
+        "Open Reports → Stock Report (or /vehicles/stock-report/) to view the full list "
+        "by chassis and plate number and download it as PDF, Excel or CSV."
+    )
+
+
+def _format_stock_lines(vehicles) -> str:
+    return "; ".join(
+        f"{v.full_name} — plate {v.registration_number or 'none'}, chassis {v.vin}"
+        for v in vehicles
+    )
+
+
+def _handle_in_stock_list(text: str) -> str:
+    from apps.vehicles.models import Vehicle
+    from apps.vehicles.views import IN_STOCK_STATUSES
+
+    queryset = Vehicle.objects.filter(status__in=IN_STOCK_STATUSES).order_by('-date_added')
+    total = queryset.count()
+    if not total:
+        return "No vehicles are currently in stock (available or reserved)."
+    extra = f", and {total - 5} more" if total > 5 else ""
+    return (
+        f"{total} vehicle(s) in stock: {_format_stock_lines(queryset[:5])}{extra}. "
+        "The full downloadable list is at /vehicles/stock-report/."
+    )
+
+
+def _handle_out_of_stock_list(text: str) -> str:
+    from apps.vehicles.models import Vehicle
+    from apps.vehicles.views import OUT_OF_STOCK_STATUSES
+
+    queryset = Vehicle.objects.filter(status__in=OUT_OF_STOCK_STATUSES).order_by(
+        '-date_sold', '-last_updated'
+    )
+    total = queryset.count()
+    if not total:
+        return "No vehicles have been sold or auctioned yet."
+    extra = f", and {total - 5} more" if total > 5 else ""
+    return (
+        f"{total} vehicle(s) out of stock (sold or auctioned), most recent first: "
+        f"{_format_stock_lines(queryset[:5])}{extra}. "
+        "The full downloadable list is at /vehicles/stock-report/."
+    )
+
+
+def _handle_vehicles_by_location(text: str) -> str:
+    from collections import Counter as _Counter
+    from apps.vehicles.models import Vehicle
+    from apps.vehicles.views import IN_STOCK_STATUSES
+    from utils.constants import VehicleLocation
+
+    # Older rows store free-text labels ("Main Yard") rather than the
+    # coded choices, so fall back to the stripped raw value as the label.
+    labels = dict(VehicleLocation.CHOICES)
+    counter = _Counter()
+    locations = Vehicle.objects.filter(status__in=IN_STOCK_STATUSES).values_list('location', flat=True)
+    for value in locations:
+        label = labels.get(value, (value or '').strip()) or 'Unassigned'
+        counter[label] += 1
+    if not counter:
+        return "No in-stock vehicles to break down by location."
+    breakdown = [f"{label}: {count}" for label, count in counter.most_common()]
+    return "In-stock vehicles by location — " + ", ".join(breakdown) + "."
+
+
+def _handle_asked_keywords(text: str) -> str:
+    from .models import AssistantQuery
+
+    top = AssistantQuery.top_keywords(days=30, limit=8)
+    if not top:
+        return "No assistant questions have been tracked yet."
+    unmatched = AssistantQuery.objects.filter(matched=False).count()
+    total = AssistantQuery.objects.count()
+    keywords = ", ".join(f"{word} ({count})" for word, count in top)
+    return (
+        f"Top keywords asked in the last 30 days: {keywords}. "
+        f"{unmatched} of {total} question(s) went unanswered — the full log is in the admin under Assistant Queries."
+    )
+
+
 def _handle_client_counts(text: str) -> str:
     c = get_dashboard_overview_data()['clients']
     return f"{c['total']} clients total, {c['active']} active, {c['new_today']} registered today."
@@ -413,6 +508,36 @@ QUESTIONS: List[Question] = [
         handler=_handle_overstayed_vehicles,
     ),
     Question(
+        id='stock_report',
+        prompt="What's in stock right now?",
+        keywords=("stock report", "what is in stock", "what is in stock right now", "stock status", "stock levels", "stock summary", "in stock and out of stock", "download stock report"),
+        handler=_handle_stock_report,
+    ),
+    Question(
+        id='in_stock_list',
+        prompt="Which vehicles are in stock?",
+        keywords=("which vehicles are in stock", "list vehicles in stock", "available and reserved vehicles", "cars on the yard", "what can we sell"),
+        handler=_handle_in_stock_list,
+    ),
+    Question(
+        id='out_of_stock_list',
+        prompt="Which vehicles are out of stock?",
+        keywords=("which vehicles are out of stock", "vehicles out of stock", "sold and auctioned vehicles", "list sold vehicles", "recently sold cars"),
+        handler=_handle_out_of_stock_list,
+    ),
+    Question(
+        id='vehicles_by_location',
+        prompt="Where are our vehicles located?",
+        keywords=("vehicles by location", "how many vehicles in the showroom", "where are the vehicles", "vehicles in the yard", "vehicle locations"),
+        handler=_handle_vehicles_by_location,
+    ),
+    Question(
+        id='asked_keywords',
+        prompt="What are people asking the assistant?",
+        keywords=("what are people asking", "top keywords", "tracked keywords", "assistant usage", "unanswered questions", "keyword tracking"),
+        handler=_handle_asked_keywords,
+    ),
+    Question(
         id='client_counts',
         prompt="How many clients do we have?",
         keywords=("how many clients", "client count", "active clients", "new clients today", "total customers"),
@@ -542,5 +667,5 @@ QUESTIONS: List[Question] = [
 
 DEFAULT_SUGGESTIONS = [
     q for q in QUESTIONS
-    if q.id in ('vehicle_counts', 'outstanding_balance', 'monthly_revenue', 'defaulters')
+    if q.id in ('vehicle_counts', 'stock_report', 'outstanding_balance', 'monthly_revenue', 'defaulters')
 ]
