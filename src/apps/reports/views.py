@@ -489,6 +489,7 @@ def report_dashboard(request):
             'items': [
                 {'title': 'Client Ledger', 'description': 'What every client owes and has paid across their purchases.', 'icon': 'fa-users', 'url': link('clients:client_ledger_list')},
                 {'title': 'Vehicle Inventory', 'description': 'Stock, status and valuation across the fleet.', 'icon': 'fa-car', 'url': link('vehicles:vehicle_reports')},
+                {'title': 'Stock Report', 'description': 'In-stock vs out-of-stock vehicles by chassis and plate number.', 'icon': 'fa-boxes', 'url': link('vehicles:stock_report')},
             ],
         },
         {
