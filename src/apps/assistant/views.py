@@ -16,7 +16,9 @@ from django.views.decorators.http import require_POST
 from apps.permissions.templatetags.permission_tags import can_access
 
 from .matching import match
+from .models import AssistantQuery
 from .questions import QUESTIONS, DEFAULT_SUGGESTIONS, try_entity_lookup
+from .text_utils import content_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,22 @@ MAX_QUESTION_LENGTH = 300
 
 def _can_use_assistant(user) -> bool:
     return user.is_superuser or can_access(user, 'dashboard')
+
+
+def _track_query(user, text, matched, question_id='', score=0.0):
+    """Log the question and its content keywords. Best-effort only —
+    tracking must never break answering."""
+    try:
+        AssistantQuery.objects.create(
+            user=user if getattr(user, 'is_authenticated', False) else None,
+            text=text[:MAX_QUESTION_LENGTH],
+            keywords=' '.join(sorted(content_tokens(text)))[:300],
+            matched=matched,
+            question_id=(question_id or '')[:50],
+            score=score,
+        )
+    except Exception:
+        logger.exception("Assistant keyword tracking failed")
 
 
 @login_required
@@ -54,17 +72,21 @@ def ask(request):
 
     if lookup is not None:
         question_id, answer = lookup
+        _track_query(request.user, text, matched=True, question_id=question_id, score=1.0)
         return JsonResponse({'matched': True, 'question_id': question_id, 'answer': answer})
 
     question, suggestions, score = match(text, QUESTIONS)
 
     if question is None:
+        _track_query(request.user, text, matched=False, score=score)
         options = suggestions or DEFAULT_SUGGESTIONS
         return JsonResponse({
             'matched': False,
             'answer': "I'm not sure about that one. Try one of these:",
             'suggestions': [{'id': q.id, 'prompt': q.prompt} for q in options],
         })
+
+    _track_query(request.user, text, matched=True, question_id=question.id, score=score)
 
     try:
         answer = question.handler(text)
