@@ -16,7 +16,7 @@ from django.views.decorators.http import require_POST
 from apps.permissions.templatetags.permission_tags import can_access
 
 from .matching import match
-from .questions import QUESTIONS, DEFAULT_SUGGESTIONS
+from .questions import QUESTIONS, DEFAULT_SUGGESTIONS, try_entity_lookup
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,20 @@ def ask(request):
     text = str(payload.get('question', '')).strip()[:MAX_QUESTION_LENGTH]
     if not text:
         return JsonResponse({'error': 'Ask me something first.'}, status=400)
+
+    # A recognizable plate/VIN or client name is a strong, unambiguous
+    # signal on its own - check for it before the fuzzy matcher, which
+    # would otherwise penalize that free-form identifier as unmatched
+    # noise (see try_entity_lookup's docstring).
+    try:
+        lookup = try_entity_lookup(text)
+    except Exception:
+        logger.exception("Assistant entity lookup failed")
+        lookup = None
+
+    if lookup is not None:
+        question_id, answer = lookup
+        return JsonResponse({'matched': True, 'question_id': question_id, 'answer': answer})
 
     question, suggestions, score = match(text, QUESTIONS)
 
