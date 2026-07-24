@@ -3446,7 +3446,9 @@ def defaulters_report_export(request, fmt):
         ]
         for d in ctx['defaulters']
     ]
-    return export_rows(fmt, 'defaulters_report', 'Defaulters Report', headers, rows, currency_cols={6})
+    totals_row = ['GRAND TOTAL', '', '', '', '', '', sum(r[6] for r in rows), '']
+    return export_rows(fmt, 'defaulters_report', 'Defaulters Report', headers, rows,
+                       currency_cols={7}, totals_row=totals_row)
 
 
 @login_required
