@@ -314,10 +314,14 @@ MPESA_C2B_CONFIRMATION_URL = config('MPESA_C2B_CONFIRMATION_URL', default='https
 MPESA_C2B_VALIDATION_URL = config('MPESA_C2B_VALIDATION_URL', default='https://hozacars.com/validation')
 MPESA_STK_CALLBACK_URL = config('MPESA_STK_CALLBACK_URL', default='https://hozacars.com/payments/mpesa-callback/')
 
-# Secondary paybill (4162495) — separate Safaricom account, C2B tracking only
+# Secondary paybill (4162495) — separate Safaricom account, now with full
+# STK push + balance-check support (was C2B tracking only until this was added)
 MPESA_SHORTCODE_2 = config('MPESA_SHORTCODE_2', default='')
 MPESA_CONSUMER_KEY_2 = config('MPESA_CONSUMER_KEY_2', default='')
 MPESA_CONSUMER_SECRET_2 = config('MPESA_CONSUMER_SECRET_2', default='')
+MPESA_PASSKEY_2 = config('MPESA_PASSKEY_2', default='')
+MPESA_INITIATOR_NAME_2 = config('MPESA_INITIATOR_NAME_2', default='')
+MPESA_SECURITY_CREDENTIAL_2 = config('MPESA_SECURITY_CREDENTIAL_2', default='')
 
 # ============================================================================== 
 # DOCUSEAL E-SIGNATURE CONFIGURATION
