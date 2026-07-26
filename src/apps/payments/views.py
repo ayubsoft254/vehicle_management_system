@@ -2664,27 +2664,20 @@ def paybill_tracker(request):
         trans_time__month=this_month.month,
     ).aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00')
 
-    # Per-paybill breakdown — configured shortcodes plus any others that have
-    # actually received transactions (never hardcode: the .env shortcodes are
-    # the source of truth for which paybills exist).
+    # Per-paybill breakdown — only the shortcodes configured in .env are
+    # shown; transactions from other shortcodes still exist in the table but
+    # don't get a card of their own.
     configured_paybills = [
-        code for code in [
-            str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip(),
-            str(getattr(settings, 'MPESA_SHORTCODE_2', '') or '').strip(),
-        ] if code
+        code for code in dict.fromkeys(
+            str(getattr(settings, key, '') or '').strip()
+            for key in ('MPESA_SHORTCODE', 'MPESA_SHORTCODE_2')
+        ) if code
     ]
-    seen_paybills = list(
-        all_transactions.exclude(business_short_code='')
-        .values_list('business_short_code', flat=True)
-        .distinct()
-    )
-    known_paybills = [code for code in dict.fromkeys(configured_paybills + seen_paybills) if code]
     paybill_stats = []
-    for code in known_paybills:
+    for code in configured_paybills:
         qs = all_transactions.filter(business_short_code=code)
         paybill_stats.append({
             'code': code,
-            'is_configured': code in configured_paybills,
             'count': qs.count(),
             'total': qs.aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00'),
             'month': qs.filter(
