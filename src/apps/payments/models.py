@@ -997,6 +997,10 @@ class MpesaSTKRequest(models.Model):
     payment_type = models.CharField(max_length=40, blank=True, default='')
     phone_number = models.CharField(max_length=20, blank=True, default='')
     amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    business_short_code = models.CharField(
+        max_length=20, blank=True, default='',
+        help_text='Which paybill this STK push was sent from (MPESA_SHORTCODE or _2)'
+    )
 
     merchant_request_id = models.CharField(max_length=120, blank=True, default='', db_index=True)
     checkout_request_id = models.CharField(max_length=120, blank=True, default='', db_index=True)
@@ -1114,6 +1118,10 @@ class PaybillBalanceSnapshot(models.Model):
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     available_balance = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True)
+    business_short_code = models.CharField(
+        max_length=20, blank=True, default='',
+        help_text='Which paybill this balance snapshot is for (MPESA_SHORTCODE or _2)'
+    )
 
     request_reference = models.CharField(max_length=120, blank=True, default='', db_index=True)
     conversation_id = models.CharField(max_length=120, blank=True, default='')
@@ -1132,6 +1140,7 @@ class PaybillBalanceSnapshot(models.Model):
         indexes = [
             models.Index(fields=['status']),
             models.Index(fields=['created_at']),
+            models.Index(fields=['business_short_code']),
         ]
 
     def __str__(self):
