@@ -208,6 +208,17 @@
                                 <input type="text" id="stk-amount" placeholder="Auto-filled from payment amount"
                                     style="width:100%;padding:0.5rem 0.75rem;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.875rem;">
                             </div>
+                            {% if configured_paybills|length > 1 %}
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Paybill</label>
+                                <select id="stk-paybill"
+                                    style="padding:0.5rem 0.75rem;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.875rem;">
+                                    {% for code in configured_paybills %}
+                                    <option value="{{ code }}">{{ code }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% endif %}
                             <div>
                                 <button type="button" id="stk-push-btn" onclick="initiateStkPush()"
                                     class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition duration-150 flex items-center gap-2 whitespace-nowrap">
@@ -409,13 +420,16 @@ function initiateStkPush() {
         '<i class="fas fa-spinner fa-spin mr-1"></i> Sending STK Push to ' + phone + '&hellip;'
     );
 
+    const paybillSelect = document.getElementById('stk-paybill');
+    const shortcode = paybillSelect ? paybillSelect.value : '';
+
     fetch(STK_INITIATE_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': CSRF_TOKEN,
         },
-        body: JSON.stringify({ phone_number: phone, amount: parseFloat(amount) }),
+        body: JSON.stringify({ phone_number: phone, amount: parseFloat(amount), shortcode: shortcode }),
     })
     .then(r => {
         if (!r.ok) {
