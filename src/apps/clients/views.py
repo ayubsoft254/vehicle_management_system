@@ -2504,6 +2504,14 @@ def record_payment(request, client_vehicle_pk):
     )
     grand_total_balance = client_vehicle.balance + ins_balance + tracker_balance
 
+    from django.conf import settings as django_settings
+    configured_paybills = [
+        code for code in dict.fromkeys(
+            str(getattr(django_settings, key, '') or '').strip()
+            for key in ('MPESA_SHORTCODE', 'MPESA_SHORTCODE_2')
+        ) if code
+    ]
+
     context = {
         'form': form,
         'client_vehicle': client_vehicle,
@@ -2512,6 +2520,7 @@ def record_payment(request, client_vehicle_pk):
         'ins_balance': ins_balance,
         'tracker_balance': tracker_balance,
         'grand_total_balance': grand_total_balance,
+        'configured_paybills': configured_paybills,
     }
 
     return render(request, 'clients/payment_form.html', context)
