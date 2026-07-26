@@ -134,49 +134,77 @@
         </div>
     </div>
 
-    <!-- ✅ FIXED: Balance Request Status with better display -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
-        <div class="flex items-center justify-between mb-2">
-            <h2 class="text-lg font-semibold text-gray-900">Balance Request Status</h2>
-            {% if latest_snapshot %}
-            <span class="px-2 py-1 text-xs rounded-full
-                         {% if latest_snapshot.status == 'success' %}bg-green-100 text-green-800
-                         {% elif latest_snapshot.status == 'pending' %}bg-yellow-100 text-yellow-800
-                         {% elif latest_snapshot.status == 'timeout' %}bg-orange-100 text-orange-800
-                         {% else %}bg-red-100 text-red-800{% endif %}">
-                {{ latest_snapshot.get_status_display }}
-            </span>
+    <!-- Balance Request Status — one card per configured paybill -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {% for bs in balance_snapshots %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    Balance — Paybill <span class="font-mono">{{ bs.code }}</span>
+                </h2>
+                <div class="flex items-center gap-2">
+                    {% if bs.latest_snapshot %}
+                    <span class="px-2 py-1 text-xs rounded-full
+                                 {% if bs.latest_snapshot.status == 'success' %}bg-green-100 text-green-800
+                                 {% elif bs.latest_snapshot.status == 'pending' %}bg-yellow-100 text-yellow-800
+                                 {% elif bs.latest_snapshot.status == 'timeout' %}bg-orange-100 text-orange-800
+                                 {% else %}bg-red-100 text-red-800{% endif %}">
+                        {{ bs.latest_snapshot.get_status_display }}
+                    </span>
+                    {% endif %}
+                    <form method="post" action="{% url 'payments:refresh_paybill_balance' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="shortcode" value="{{ bs.code }}">
+                        <button type="submit"
+                                class="inline-flex items-center px-3 py-1 text-xs bg-primary-50 hover:bg-primary-100 text-primary-700 font-medium rounded-full border border-primary-200 transition duration-150"
+                                {% if not bs.configured %}disabled title="Missing: {{ bs.missing_vars|join:', ' }}"{% endif %}>
+                            <i class="fas fa-sync mr-1"></i> Refresh
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {% if not bs.configured %}
+            <p class="text-xs text-red-600 mb-2">
+                <i class="fas fa-exclamation-circle mr-1"></i>
+                Balance checks not fully configured — missing: <span class="font-mono">{{ bs.missing_vars|join:", " }}</span>
+            </p>
+            {% endif %}
+
+            {% if bs.latest_snapshot %}
+            <div class="flex flex-wrap items-center gap-4 text-sm">
+                <div>
+                    <span class="text-gray-500">Requested:</span>
+                    <span class="text-gray-700">{{ bs.latest_snapshot.created_at|date:"Y-m-d H:i:s" }}</span>
+                </div>
+                {% if bs.latest_snapshot.available_balance is not None %}
+                <div>
+                    <span class="text-gray-500">Balance:</span>
+                    <span class="font-bold text-green-700">KES {{ bs.latest_snapshot.available_balance|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                {% if bs.latest_snapshot.result_desc %}
+                <div>
+                    <span class="text-gray-500">Message:</span>
+                    <span class="text-gray-700">{{ bs.latest_snapshot.result_desc }}</span>
+                </div>
+                {% endif %}
+                {% if bs.latest_snapshot.conversation_id %}
+                <div>
+                    <span class="text-gray-500">Conversation ID:</span>
+                    <span class="text-gray-600 font-mono text-xs">{{ bs.latest_snapshot.conversation_id|truncatechars:20 }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500">No balance request has been made yet.</p>
             {% endif %}
         </div>
-        
-        {% if latest_snapshot %}
-        <div class="flex flex-wrap items-center gap-4 text-sm">
-            <div>
-                <span class="text-gray-500">Requested:</span>
-                <span class="text-gray-700">{{ latest_snapshot.created_at|date:"Y-m-d H:i:s" }}</span>
-            </div>
-            {% if latest_snapshot.available_balance is not None %}
-            <div>
-                <span class="text-gray-500">Balance:</span>
-                <span class="font-bold text-green-700">KES {{ latest_snapshot.available_balance|floatformat:2 }}</span>
-            </div>
-            {% endif %}
-            {% if latest_snapshot.result_desc %}
-            <div>
-                <span class="text-gray-500">Message:</span>
-                <span class="text-gray-700">{{ latest_snapshot.result_desc }}</span>
-            </div>
-            {% endif %}
-            {% if latest_snapshot.conversation_id %}
-            <div>
-                <span class="text-gray-500">Conversation ID:</span>
-                <span class="text-gray-600 font-mono text-xs">{{ latest_snapshot.conversation_id|truncatechars:20 }}</span>
-            </div>
-            {% endif %}
+        {% empty %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 md:col-span-2">
+            <p class="text-sm text-gray-500">No paybill shortcodes configured — set MPESA_SHORTCODE in .env.</p>
         </div>
-        {% else %}
-        <p class="text-sm text-gray-500">No balance request has been made yet. Click "Refresh Balance" to fetch.</p>
-        {% endif %}
+        {% endfor %}
     </div>
 
     <!-- ✅ NEW: Debug section - shows raw data (remove in production) -->
