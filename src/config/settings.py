@@ -15,23 +15,24 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-produc
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-# ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
-
-ALLOWED_HOSTS = [    
-    'https://taifaassist.xyz',
-    'http://localhost:3333',
-    'http://127.0.0.1:3333',
-    'https://hozacars.com',
-    'https://www.hozacars.com']  # Update this in production to specific domains
+# Only these hosts can reach the app — Django rejects any other Host header
+# with a 400. Ports are ignored during host validation, so localhost:3333,
+# localhost:8000 etc. all match 'localhost'.
+ALLOWED_HOSTS = [
+    'taifaassist.xyz',
+    'localhost',
+    '127.0.0.1',
+    'hozacars.com',
+    'www.hozacars.com',
+]
 
 # CSRF Trusted Origins for cross-origin requests
 CSRF_TRUSTED_ORIGINS = [
-    'https://vms.ayubsoft-inc.systems',
     'https://taifaassist.xyz',
     'http://localhost:3333',
     'http://127.0.0.1:3333',
     'https://hozacars.com',
-    'https://www.hozacars.com'
+    'https://www.hozacars.com',
 ]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
