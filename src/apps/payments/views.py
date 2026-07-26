@@ -153,21 +153,22 @@ def _safe_decimal(value):
         return None
 
 
-def _request_paybill_balance():
+def _request_paybill_balance(shortcode=''):
     """Initiate an asynchronous paybill balance request and store a pending snapshot."""
     try:
-        result = request_account_balance()
+        result = request_account_balance(shortcode)
         if result.get('ok'):
             response_payload = result.get('response', {})
             PaybillBalanceSnapshot.objects.create(
                 status=PaybillBalanceSnapshot.STATUS_PENDING,
+                business_short_code=result.get('shortcode', '') or shortcode,
                 request_reference=result.get('request_reference', ''),
                 conversation_id=response_payload.get('ConversationID', ''),
                 originator_conversation_id=response_payload.get('OriginatorConversationID', ''),
                 result_desc=response_payload.get('ResponseDescription', ''),
                 raw_payload=response_payload,
             )
-            logger.info('Paybill balance request initiated from tracker view.')
+            logger.info('Paybill balance request initiated from tracker view (shortcode=%s).', shortcode or 'primary')
             return True
         logger.warning('Paybill balance request failed: %s', result.get('error'))
     except Exception as exc:
@@ -194,9 +195,11 @@ def _find_pending_balance_snapshot(conversation_id, originator_id):
     return pending.order_by('-created_at').first()
 
 
-def _should_request_paybill_balance_on_load():
-    """Return True when a tracker page load should issue a new balance request."""
-    latest_snapshot = PaybillBalanceSnapshot.objects.order_by('-created_at').first()
+def _should_request_paybill_balance_on_load(shortcode=''):
+    """Return True when a tracker page load should issue a new balance request for this paybill."""
+    latest_snapshot = PaybillBalanceSnapshot.objects.filter(
+        business_short_code=shortcode
+    ).order_by('-created_at').first()
     if not latest_snapshot:
         return True
 
@@ -2643,27 +2646,6 @@ def paybill_tracker(request):
     # gets a synthetic one so it immediately appears in the tracker.
     _backfill_paybill_transactions()
 
-    # Refresh the paybill balance only when needed on page load.
-    if _should_request_paybill_balance_on_load():
-        _request_paybill_balance()
-
-    transactions, all_transactions, paybill_filter, search, date_from, date_to = (
-        _filtered_paybill_transactions(request)
-    )
-
-    latest_snapshot = PaybillBalanceSnapshot.objects.first()
-    latest_successful_snapshot = PaybillBalanceSnapshot.objects.filter(
-        status=PaybillBalanceSnapshot.STATUS_SUCCESS
-    ).first()
-
-    this_month = timezone.now()
-
-    total_received = transactions.aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00')
-    month_received = transactions.filter(
-        trans_time__year=this_month.year,
-        trans_time__month=this_month.month,
-    ).aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00')
-
     # Per-paybill breakdown — only the shortcodes configured in .env are
     # shown; transactions from other shortcodes still exist in the table but
     # don't get a card of their own.
@@ -2673,7 +2655,26 @@ def paybill_tracker(request):
             for key in ('MPESA_SHORTCODE', 'MPESA_SHORTCODE_2')
         ) if code
     ]
+
+    # Refresh each configured paybill's balance only when needed on page load.
+    for code in configured_paybills:
+        if _should_request_paybill_balance_on_load(code):
+            _request_paybill_balance(code)
+
+    transactions, all_transactions, paybill_filter, search, date_from, date_to = (
+        _filtered_paybill_transactions(request)
+    )
+
+    this_month = timezone.now()
+
+    total_received = transactions.aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00')
+    month_received = transactions.filter(
+        trans_time__year=this_month.year,
+        trans_time__month=this_month.month,
+    ).aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00')
+
     paybill_stats = []
+    balance_snapshots = []
     for code in configured_paybills:
         qs = all_transactions.filter(business_short_code=code)
         paybill_stats.append({
@@ -2685,6 +2686,23 @@ def paybill_tracker(request):
                 trans_time__month=this_month.month,
             ).aggregate(total=Sum('trans_amount'))['total'] or Decimal('0.00'),
         })
+        code_snapshots = PaybillBalanceSnapshot.objects.filter(business_short_code=code)
+        balance_snapshots.append({
+            'code': code,
+            'is_secondary': code == str(getattr(settings, 'MPESA_SHORTCODE_2', '') or '').strip(),
+            'configured': mpesa_is_configured(code),
+            'missing_vars': get_missing_mpesa_vars(code),
+            'latest_snapshot': code_snapshots.first(),
+            'latest_successful_snapshot': code_snapshots.filter(
+                status=PaybillBalanceSnapshot.STATUS_SUCCESS
+            ).first(),
+        })
+
+    # Kept for any code/template still reading the old single-paybill keys —
+    # aliases to the primary paybill's own snapshot.
+    primary_snapshots = next(iter(balance_snapshots), None)
+    latest_snapshot = primary_snapshots['latest_snapshot'] if primary_snapshots else None
+    latest_successful_snapshot = primary_snapshots['latest_successful_snapshot'] if primary_snapshots else None
 
     context = {
         'transactions': transactions[:100],
@@ -2693,6 +2711,7 @@ def paybill_tracker(request):
         'month_received': month_received,
         'latest_snapshot': latest_snapshot,
         'latest_successful_snapshot': latest_successful_snapshot,
+        'balance_snapshots': balance_snapshots,
         'daraja_configured': mpesa_is_configured(),
         'missing_mpesa_vars': get_missing_mpesa_vars(),
         'paybill_stats': paybill_stats,
@@ -2808,9 +2827,31 @@ def _backfill_paybill_transactions():
 @login_required
 @require_POST
 def refresh_paybill_balance(request):
-    """Initiate an asynchronous Daraja account balance request."""
-    if _request_paybill_balance():
+    """
+    Initiate an asynchronous Daraja account balance request. Pass `shortcode`
+    in the POST body to refresh just one paybill; omit it to refresh every
+    shortcode configured in .env (MPESA_SHORTCODE and MPESA_SHORTCODE_2).
+    """
+    requested_code = (request.POST.get('shortcode') or '').strip()
+    if requested_code:
+        codes_to_refresh = [requested_code]
+    else:
+        codes_to_refresh = [
+            code for code in dict.fromkeys(
+                str(getattr(settings, key, '') or '').strip()
+                for key in ('MPESA_SHORTCODE', 'MPESA_SHORTCODE_2')
+            ) if code
+        ]
+
+    ok_count = sum(1 for code in codes_to_refresh if _request_paybill_balance(code))
+
+    if codes_to_refresh and ok_count == len(codes_to_refresh):
         messages.success(request, 'Balance request sent to Daraja. Awaiting callback result.')
+    elif ok_count > 0:
+        messages.warning(
+            request,
+            f'Balance request sent for {ok_count}/{len(codes_to_refresh)} paybill(s). Check server logs for the rest.'
+        )
     else:
         messages.error(request, 'Unable to request paybill balance. Check server logs for details.')
 
@@ -3709,7 +3750,9 @@ def payment_reconciliation_create(request, payment_pk):
 def staff_stk_initiate(request, client_vehicle_pk):
     """
     Initiate an M-Pesa STK Push for a staff-recorded payment.
-    POST body (JSON): { phone_number, amount }
+    POST body (JSON): { phone_number, amount, shortcode? }
+    `shortcode` is optional — defaults to the primary paybill (MPESA_SHORTCODE);
+    pass MPESA_SHORTCODE_2's value to send the prompt from the secondary paybill.
     Returns JSON: { ok, checkout_request_id, error }
     """
     client_vehicle = get_object_or_404(ClientVehicle, pk=client_vehicle_pk)
@@ -3721,6 +3764,7 @@ def staff_stk_initiate(request, client_vehicle_pk):
 
     phone_raw = (body.get('phone_number') or '').strip()
     amount_raw = body.get('amount')
+    shortcode = (body.get('shortcode') or '').strip()
 
     # Normalise phone
     try:
@@ -3752,6 +3796,7 @@ def staff_stk_initiate(request, client_vehicle_pk):
         amount=amount,
         account_reference=account_reference,
         transaction_desc=transaction_desc,
+        shortcode=shortcode,
     )
 
     if not result.get('ok'):
@@ -3767,6 +3812,7 @@ def staff_stk_initiate(request, client_vehicle_pk):
         payment_type='installment',
         phone_number=phone,
         amount=amount,
+        business_short_code=result.get('shortcode', '') or shortcode,
         merchant_request_id=merchant_request_id,
         checkout_request_id=checkout_request_id,
         response_code=response_data.get('ResponseCode', ''),
