@@ -207,45 +207,47 @@
         {% endfor %}
     </div>
 
-    <!-- ✅ NEW: Debug section - shows raw data (remove in production) -->
-    {% if latest_snapshot %}
+    <!-- Debug section — raw balance-snapshot data, one block per paybill (remove in production) -->
+    {% for bs in balance_snapshots %}
+    {% if bs.latest_snapshot %}
     <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-6">
         <details>
             <summary class="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
-                🔍 Debug Info (Click to expand)
+                🔍 Debug Info — Paybill {{ bs.code }} (Click to expand)
             </summary>
             <div class="mt-3 text-xs space-y-2">
                 <div>
-                    <strong>Snapshot ID:</strong> {{ latest_snapshot.id }}
+                    <strong>Snapshot ID:</strong> {{ bs.latest_snapshot.id }}
                 </div>
                 <div>
-                    <strong>Status:</strong> {{ latest_snapshot.status }}
+                    <strong>Status:</strong> {{ bs.latest_snapshot.status }}
                 </div>
                 <div>
-                    <strong>Available Balance:</strong> {{ latest_snapshot.available_balance|default:"None" }}
+                    <strong>Available Balance:</strong> {{ bs.latest_snapshot.available_balance|default:"None" }}
                 </div>
                 <div>
-                    <strong>Result Code:</strong> {{ latest_snapshot.result_code|default:"None" }}
+                    <strong>Result Code:</strong> {{ bs.latest_snapshot.result_code|default:"None" }}
                 </div>
                 <div>
-                    <strong>Result Description:</strong> {{ latest_snapshot.result_desc|default:"None" }}
+                    <strong>Result Description:</strong> {{ bs.latest_snapshot.result_desc|default:"None" }}
                 </div>
                 <div>
-                    <strong>Conversation ID:</strong> {{ latest_snapshot.conversation_id|default:"None" }}
+                    <strong>Conversation ID:</strong> {{ bs.latest_snapshot.conversation_id|default:"None" }}
                 </div>
                 <div>
-                    <strong>Created At:</strong> {{ latest_snapshot.created_at|date:"Y-m-d H:i:s" }}
+                    <strong>Created At:</strong> {{ bs.latest_snapshot.created_at|date:"Y-m-d H:i:s" }}
                 </div>
-                {% if latest_snapshot.raw_payload %}
+                {% if bs.latest_snapshot.raw_payload %}
                 <div>
                     <strong>Raw Payload:</strong>
-                    <pre class="mt-1 p-2 bg-white border border-gray-200 rounded overflow-auto max-h-40">{{ latest_snapshot.raw_payload|pprint }}</pre>
+                    <pre class="mt-1 p-2 bg-white border border-gray-200 rounded overflow-auto max-h-40">{{ bs.latest_snapshot.raw_payload|pprint }}</pre>
                 </div>
                 {% endif %}
             </div>
         </details>
     </div>
     {% endif %}
+    {% endfor %}
 
     <!-- Transaction Table -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
