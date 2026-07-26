@@ -18,7 +18,13 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 # Only these hosts can reach the app — Django rejects any other Host header
 # with a 400. Ports are ignored during host validation, so localhost:3333,
 # localhost:8000 etc. all match 'localhost'.
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    'taifaassist.xyz',
+    'localhost',
+    '127.0.0.1',
+    'hozacars.com',
+    'www.hozacars.com',
+]
 
 # CSRF Trusted Origins for cross-origin requests
 CSRF_TRUSTED_ORIGINS = [
