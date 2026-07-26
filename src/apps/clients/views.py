@@ -213,6 +213,83 @@ def tracker_management(request):
     return render(request, 'clients/tracker_management.html', context)
 
 
+def _record_addon_payment(
+    *, request, client_vehicle, amount, note,
+    single_method='cash', single_reference='', single_location='',
+    split_rows=None,
+):
+    """
+    Record a real Payment (+ PaymentSplit rows when split across methods) for
+    money received against an insurance/tracker add-on at vehicle assignment
+    time, mirroring how the main vehicle deposit is recorded. Without this,
+    add-on payments — including ones split across the Hoza/KE accounts —
+    were only ever stored as JSON on the policy/tracker record and never
+    reached the Payment ledger, so they were invisible to the payment list,
+    receipts, and account/Hoza-KE breakdowns.
+    """
+    valid_splits = []
+    for row in (split_rows or []):
+        method = (row.get('method') or '').strip()
+        if not method:
+            continue
+        try:
+            amt = Decimal(str(row.get('amount', '')).strip().replace(',', ''))
+        except Exception:
+            continue
+        if amt <= 0:
+            continue
+        valid_splits.append((
+            method, amt,
+            (row.get('reference') or '').strip() or None,
+            (row.get('location') or '').strip() or None,
+        ))
+
+    payment_date = client_vehicle.purchase_date or timezone.now().date()
+
+    if len(valid_splits) > 1:
+        payment = Payment.objects.create(
+            client_vehicle=client_vehicle,
+            amount=amount,
+            payment_date=payment_date,
+            payment_method='mixed',
+            notes=note,
+            recorded_by=request.user,
+        )
+        for method, amt, ref, loc in valid_splits:
+            PaymentSplit.objects.create(
+                payment=payment,
+                payment_method=method,
+                amount=amt,
+                transaction_reference=ref,
+                payment_location=loc,
+            )
+        return payment
+
+    if len(valid_splits) == 1:
+        method, amt, ref, loc = valid_splits[0]
+        return Payment.objects.create(
+            client_vehicle=client_vehicle,
+            amount=amount,
+            payment_date=payment_date,
+            payment_method=method,
+            transaction_reference=ref,
+            payment_location=loc,
+            notes=note,
+            recorded_by=request.user,
+        )
+
+    return Payment.objects.create(
+        client_vehicle=client_vehicle,
+        amount=amount,
+        payment_date=payment_date,
+        payment_method=(single_method or 'cash').strip() or 'cash',
+        transaction_reference=(single_reference or '').strip() or None,
+        payment_location=(single_location or '').strip() or None,
+        notes=note,
+        recorded_by=request.user,
+    )
+
+
 def _upsert_insurance_policy(*, request, client, vehicle, client_vehicle, insurance_data, existing_policy=None, deposit_deduction_amount=None):
     """Create or update the insurance policy linked to a client vehicle assignment."""
     insurance_agent_pk = insurance_data.get('insurance_agent_id')
@@ -871,56 +948,14 @@ def assign_vehicle(request, client_pk):
                 client.status = 'active'
                 client.save()
 
-                flexible_installments = []
-                if client_vehicle.payment_type == 'flexible':
-                    try:
-                        flexible_installments = json.loads(request.POST.get('flexible_installments_json', '[]'))
-                    except json.JSONDecodeError:
-                        flexible_installments = []
-                
-                # Create Installment Plan based on payment type
-                # Only create plan if payment_type is 'installment' or 'flexible' (not 'full')
-                if client_vehicle.balance > 0 and client_vehicle.payment_type in ['installment', 'flexible']:
-                    installment_count = client_vehicle.installment_months or 1
-                    plan_start_date = timezone.now().date()
-                    monthly_amount = client_vehicle.monthly_installment
-
-                    if client_vehicle.payment_type == 'flexible' and flexible_installments:
-                        installment_count = len(flexible_installments)
-                        first_due_date = str(flexible_installments[0].get('due_date', '')).strip()
-                        if first_due_date:
-                            plan_start_date = datetime.strptime(first_due_date, '%Y-%m-%d').date()
-                        monthly_amount = (client_vehicle.balance / Decimal(str(installment_count))).quantize(Decimal('0.01'))
-
-                    plan = InstallmentPlan.objects.create(
-                        client_vehicle=client_vehicle,
-                        total_amount=client_vehicle.purchase_price,
-                        deposit=client_vehicle.deposit_paid,
-                        monthly_installment=monthly_amount,
-                        number_of_installments=installment_count,
-                        start_date=plan_start_date,
-                        is_active=True,
-                        created_by=request.user
-                    )
-
-                    # For flexible mode, replace auto-generated schedule with custom dates/amounts.
-                    if client_vehicle.payment_type == 'flexible' and flexible_installments:
-                        from apps.payments.models import PaymentSchedule
-
-                        plan.payment_schedules.all().delete()
-                        for idx, installment in enumerate(flexible_installments, start=1):
-                            due_date = datetime.strptime(str(installment.get('due_date')).strip(), '%Y-%m-%d').date()
-                            amount_due = Decimal(str(installment.get('amount')).strip())
-                            PaymentSchedule.objects.create(
-                                installment_plan=plan,
-                                installment_number=idx,
-                                due_date=due_date,
-                                amount_due=amount_due
-                            )
-                
                 # --- Handle Insurance ---
+                # Run before the installment plan is created below: creating a
+                # Payment tied to client_vehicle triggers a post_save signal that
+                # applies its amount against the vehicle's pending installment
+                # schedule. If the plan already existed, an insurance/tracker
+                # payment would be wrongly consumed as a vehicle installment.
                 try:
-                    _upsert_insurance_policy(
+                    insurance_policy = _upsert_insurance_policy(
                         request=request,
                         client=client,
                         vehicle=vehicle,
@@ -928,9 +963,33 @@ def assign_vehicle(request, client_pk):
                         insurance_data=request.POST,
                         deposit_deduction_amount=insurance_deposit_deduction,
                     )
+                    if (
+                        insurance_policy
+                        and insurance_payment_type != 'deduct_from_deposit'
+                        and insurance_policy.insurance_total_paid > 0
+                    ):
+                        ins_split_rows = [
+                            {'method': m, 'amount': a, 'reference': r, 'location': loc}
+                            for m, a, r, loc in zip(
+                                request.POST.getlist('insurance_deposit_split_method[]'),
+                                request.POST.getlist('insurance_deposit_split_amount[]'),
+                                request.POST.getlist('insurance_deposit_split_reference[]'),
+                                request.POST.getlist('insurance_deposit_split_location[]'),
+                            )
+                        ]
+                        _record_addon_payment(
+                            request=request,
+                            client_vehicle=client_vehicle,
+                            amount=insurance_policy.insurance_total_paid,
+                            note=f'Insurance premium — {insurance_policy.policy_number}',
+                            single_method=request.POST.get('insurance_deposit_payment_method', 'cash'),
+                            single_reference=request.POST.get('insurance_deposit_transaction_reference', ''),
+                            single_location=request.POST.get('insurance_deposit_payment_location', ''),
+                            split_rows=ins_split_rows,
+                        )
                 except Exception as e:
                     messages.warning(request, f'Vehicle assigned but insurance could not be saved: {e}')
-                
+
                 # --- Handle Multiple Trackers ---
                 for i, name in enumerate(tracker_names):
                     if name.strip():
@@ -1026,9 +1085,75 @@ def assign_vehicle(request, client_pk):
                                     selling_price=vt.selling_price,
                                     installation_date=install_date,
                                 )
+
+                            if payment_type != 'deduct_from_deposit' and tracker_total_paid > 0:
+                                trk_splits_raw = tracker_deposit_splits_jsons[i] if i < len(tracker_deposit_splits_jsons) else '[]'
+                                try:
+                                    trk_splits = _json.loads(trk_splits_raw or '[]')
+                                except Exception:
+                                    trk_splits = []
+                                _record_addon_payment(
+                                    request=request,
+                                    client_vehicle=client_vehicle,
+                                    amount=tracker_total_paid,
+                                    note=f'Tracker premium — {name.strip()}',
+                                    single_method=(tracker_deposit_payment_methods[i] if i < len(tracker_deposit_payment_methods) else 'cash'),
+                                    single_reference=(tracker_deposit_transaction_references[i] if i < len(tracker_deposit_transaction_references) else ''),
+                                    single_location=(tracker_deposit_payment_locations[i] if i < len(tracker_deposit_payment_locations) else ''),
+                                    split_rows=trk_splits,
+                                )
                         except Exception as e:
                             messages.warning(request, f'Tracker "{name}" could not be saved: {e}')
-                
+
+                # Create Installment Plan based on payment type (vehicle-side
+                # only) now that insurance/tracker payments — which must NOT
+                # be applied against this schedule — are already recorded.
+                # Only create plan if payment_type is 'installment' or 'flexible' (not 'full')
+                flexible_installments = []
+                if client_vehicle.payment_type == 'flexible':
+                    try:
+                        flexible_installments = json.loads(request.POST.get('flexible_installments_json', '[]'))
+                    except json.JSONDecodeError:
+                        flexible_installments = []
+
+                if client_vehicle.balance > 0 and client_vehicle.payment_type in ['installment', 'flexible']:
+                    installment_count = client_vehicle.installment_months or 1
+                    plan_start_date = timezone.now().date()
+                    monthly_amount = client_vehicle.monthly_installment
+
+                    if client_vehicle.payment_type == 'flexible' and flexible_installments:
+                        installment_count = len(flexible_installments)
+                        first_due_date = str(flexible_installments[0].get('due_date', '')).strip()
+                        if first_due_date:
+                            plan_start_date = datetime.strptime(first_due_date, '%Y-%m-%d').date()
+                        monthly_amount = (client_vehicle.balance / Decimal(str(installment_count))).quantize(Decimal('0.01'))
+
+                    plan = InstallmentPlan.objects.create(
+                        client_vehicle=client_vehicle,
+                        total_amount=client_vehicle.purchase_price,
+                        deposit=client_vehicle.deposit_paid,
+                        monthly_installment=monthly_amount,
+                        number_of_installments=installment_count,
+                        start_date=plan_start_date,
+                        is_active=True,
+                        created_by=request.user
+                    )
+
+                    # For flexible mode, replace auto-generated schedule with custom dates/amounts.
+                    if client_vehicle.payment_type == 'flexible' and flexible_installments:
+                        from apps.payments.models import PaymentSchedule
+
+                        plan.payment_schedules.all().delete()
+                        for idx, installment in enumerate(flexible_installments, start=1):
+                            due_date = datetime.strptime(str(installment.get('due_date')).strip(), '%Y-%m-%d').date()
+                            amount_due = Decimal(str(installment.get('amount')).strip())
+                            PaymentSchedule.objects.create(
+                                installment_plan=plan,
+                                installment_number=idx,
+                                due_date=due_date,
+                                amount_due=amount_due
+                            )
+
                 log_audit(
                     request.user, 'create', 'ClientVehicle',
                     f'Assigned vehicle {vehicle} to client {client.get_full_name()} '
