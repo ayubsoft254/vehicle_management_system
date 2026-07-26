@@ -12,12 +12,14 @@ watermark car graphic, and footer band all in one) — not hand-drawn
 shapes. It's embedded directly via reportlab's onFirstPage/onLaterPages
 canvas hooks so it repeats identically on every page.
 
-The source image is a 1055x1491px raster laid out for an A4 page at
-~127.5px/inch. Measured landmarks used below:
-  - header content (logo block + contact rows + orange rule) ends at
-    roughly y=245px from the top.
-  - footer content (orange/navy rule + trust-badge icon row) starts at
-    roughly y=1385px, i.e. ~106px from the bottom.
+The source image is a 1700x2200px raster rendered at 200dpi from the
+company's letterhead PDF (`static/HOZA LETTER HEAD.1.pdf`, a US-Letter
+page — the slight aspect difference vs A4 is absorbed by the full-page
+stretch). Measured landmarks used below:
+  - header content (logo block + contact rows + navy rule) ends at
+    roughly y=335px from the top.
+  - footer content (navy/orange rule + trust-badge icon row) starts at
+    roughly y=2077px, i.e. ~123px from the bottom.
 """
 import os
 from functools import lru_cache
@@ -35,13 +37,13 @@ LETTERHEAD_IMAGE_PATH = os.path.join(settings.BASE_DIR, 'static', 'img', 'letter
 
 # Fraction of the source image's height occupied by the footer band
 # (measured from the top of the orange/navy rule down to the bottom edge).
-_FOOTER_CROP_TOP_FRAC = 1380 / 1491
+_FOOTER_CROP_TOP_FRAC = 2065 / 2200
 
 # Reserve this much space at the top/bottom of every page for the letterhead.
 # Callers should set topMargin/bottomMargin at least this large (they add a
 # further +0.1in buffer on top) so body content never overlaps the artwork.
-HEADER_RESERVED_HEIGHT = 1.9 * inch
-FOOTER_RESERVED_HEIGHT = 0.95 * inch
+HEADER_RESERVED_HEIGHT = 1.8 * inch
+FOOTER_RESERVED_HEIGHT = 0.75 * inch
 
 
 @lru_cache(maxsize=1)
@@ -67,11 +69,14 @@ def _footer_band_reader():
     return ImageReader(buf), cropped.size
 
 
-def _draw_page_number(canvas, doc):
+def _draw_page_number(canvas, doc, band_top):
+    """Drawn just above the footer band — the badge captions inside the
+    artwork run to the bottom page edge, so there's no clear space within
+    the band itself."""
     left = 0.75 * inch
     canvas.setFont('Helvetica', 7)
     canvas.setFillColor(MUTED_TEXT)
-    canvas.drawString(left, 0.12 * inch, f"{settings.COMPANY_NAME} — Page {doc.page}")
+    canvas.drawString(left, band_top + 3, f"{settings.COMPANY_NAME} — Page {doc.page}")
 
 
 def draw_letterhead(canvas, doc):
@@ -84,7 +89,7 @@ def draw_letterhead(canvas, doc):
         _full_letterhead_reader(), 0, 0, width=page_width, height=page_height,
         preserveAspectRatio=False, mask='auto',
     )
-    _draw_page_number(canvas, doc)
+    _draw_page_number(canvas, doc, page_height * (1 - _FOOTER_CROP_TOP_FRAC))
     canvas.restoreState()
 
 
@@ -100,5 +105,5 @@ def draw_letterhead_footer(canvas, doc):
         reader, 0, 0, width=page_width, height=band_height,
         preserveAspectRatio=False, mask='auto',
     )
-    _draw_page_number(canvas, doc)
+    _draw_page_number(canvas, doc, band_height)
     canvas.restoreState()
