@@ -232,9 +232,9 @@ MPESA_PASSKEY=your-daraja-passkey
 MPESA_INITIATOR_NAME=your-api-initiator-name
 MPESA_SECURITY_CREDENTIAL=your-encrypted-security-credential
 MPESA_RESULT_URL_BASE=https://your-public-domain
-MPESA_C2B_CONFIRMATION_URL=https://taifaassist.xyz/confirmation
-MPESA_C2B_VALIDATION_URL=https://taifaassist.xyz/validation
-MPESA_STK_CALLBACK_URL=https://taifaassist.xyz/mpesa-callback
+MPESA_C2B_CONFIRMATION_URL=
+MPESA_C2B_VALIDATION_URL=
+MPESA_STK_CALLBACK_URL=https://
 
 # DocuSeal e-signatures
 DOCUSEAL_BASE_URL=http://localhost:3000
