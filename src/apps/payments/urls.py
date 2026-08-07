@@ -87,7 +87,24 @@ urlpatterns = [
     path('mpesa-callback', views.stk_push_callback),
     path('paybill/callbacks/balance-result', views.paybill_balance_result_callback),
     path('paybill/callbacks/balance-timeout', views.paybill_balance_timeout_callback),
-    
+
+    # Secondary paybill (paybill2 / MPESA_SHORTCODE_2) callback URLs — same
+    # views as above, since they identify the paybill from BusinessShortCode
+    # in the payload rather than the URL. Kept as separate paths because the
+    # secondary paybill is registered with Safaricom under its own domain
+    # (see MPESA_*_URL_2 in .env). Both slash forms accepted for the same
+    # reason as above.
+    path('paybill2/callbacks/validation/', views.paybill_validation_callback, name='paybill_validation_callback_2'),
+    path('paybill2/callbacks/confirmation/', views.paybill_confirmation_callback, name='paybill_confirmation_callback_2'),
+    path('mpesa-callback2/', views.stk_push_callback, name='stk_push_callback_2'),
+    path('paybill2/callbacks/balance-result/', views.paybill_balance_result_callback, name='paybill_balance_result_callback_2'),
+    path('paybill2/callbacks/balance-timeout/', views.paybill_balance_timeout_callback, name='paybill_balance_timeout_callback_2'),
+    path('paybill2/callbacks/validation', views.paybill_validation_callback),
+    path('paybill2/callbacks/confirmation', views.paybill_confirmation_callback),
+    path('mpesa-callback2', views.stk_push_callback),
+    path('paybill2/callbacks/balance-result', views.paybill_balance_result_callback),
+    path('paybill2/callbacks/balance-timeout', views.paybill_balance_timeout_callback),
+
     # API endpoints
     path('api/stats/', views.payment_stats_api, name='payment_stats_api'),
     path('api/chart-data/', views.payment_chart_data_api, name='payment_chart_data_api'),
