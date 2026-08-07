@@ -323,6 +323,15 @@ MPESA_PASSKEY_2 = config('MPESA_PASSKEY_2', default='')
 MPESA_INITIATOR_NAME_2 = config('MPESA_INITIATOR_NAME_2', default='')
 MPESA_SECURITY_CREDENTIAL_2 = config('MPESA_SECURITY_CREDENTIAL_2', default='')
 
+# Secondary paybill's own callback URLs — without these, daraja.py falls back
+# to the primary paybill's MPESA_*_URL, registering the wrong domain with
+# Safaricom for this shortcode.
+MPESA_C2B_CONFIRMATION_URL_2 = config('MPESA_C2B_CONFIRMATION_URL_2', default='')
+MPESA_C2B_VALIDATION_URL_2 = config('MPESA_C2B_VALIDATION_URL_2', default='')
+MPESA_STK_CALLBACK_URL_2 = config('MPESA_STK_CALLBACK_URL_2', default='')
+MPESA_BALANCE_RESULT_URL_2 = config('MPESA_BALANCE_RESULT_URL_2', default='')
+MPESA_BALANCE_TIMEOUT_URL_2 = config('MPESA_BALANCE_TIMEOUT_URL_2', default='')
+
 # ============================================================================== 
 # DOCUSEAL E-SIGNATURE CONFIGURATION
 # ==============================================================================
