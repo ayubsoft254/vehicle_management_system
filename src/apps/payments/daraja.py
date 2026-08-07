@@ -152,20 +152,42 @@ def _with_callback_secret(url: str) -> str:
     return f'{url}{separator}callback_secret={quote(secret, safe="")}'
 
 
-def _get_callback_url_from_settings(settings_key: str, default_url_name: str) -> str:
+def _resolve_url_settings_key(base_key: str, shortcode: str = '') -> str:
+    """
+    Pick which settings key holds the callback URL override for a paybill:
+    the secondary paybill's own '<base_key>_2' when shortcode matches
+    MPESA_SHORTCODE_2, otherwise the primary '<base_key>' — mirrors
+    _resolve_paybill_credentials so paybill 2 registers its own domain with
+    Safaricom instead of silently reusing the primary paybill's URLs.
+    """
+    shortcode = _clean(shortcode)
+    secondary_shortcode = _clean(getattr(settings, 'MPESA_SHORTCODE_2', ''))
+    if shortcode and secondary_shortcode and shortcode == secondary_shortcode:
+        return f'{base_key}_2'
+    return base_key
+
+
+def _get_callback_url_from_settings(settings_key: str, default_url_name: str, shortcode: str = '') -> str:
     """
     ✅ NEW: Get callback URL from settings or construct from URL name.
     This allows you to override individual callback URLs in .env.
     """
     # First check if URL is explicitly set in settings
-    configured = _clean(getattr(settings, settings_key, ''))
+    resolved_key = _resolve_url_settings_key(settings_key, shortcode)
+    configured = _clean(getattr(settings, resolved_key, ''))
     if configured:
         if configured.startswith('http://'):
-            raise DarajaError(f'{settings_key} must use https://.')
+            raise DarajaError(f'{resolved_key} must use https://.')
         return _with_callback_secret(_ensure_trailing_slash(configured))
 
-    # Fall back to constructing from URL name
-    return _with_callback_secret(_absolute_callback_url(default_url_name))
+    # Fall back to constructing from URL name — use the paybill2 route
+    # (e.g. 'stk_push_callback_2') when resolving for the secondary paybill,
+    # so an unconfigured override still points at that paybill's own path
+    # instead of silently reusing the primary paybill's.
+    resolved_url_name = default_url_name
+    if resolved_key != settings_key:
+        resolved_url_name = f'{default_url_name}_2'
+    return _with_callback_secret(_absolute_callback_url(resolved_url_name))
 
 
 def get_access_token() -> str:
@@ -201,9 +223,9 @@ def _normalize_phone_number(phone_number: str) -> str:
     return digits
 
 
-def _get_stk_callback_url() -> str:
+def _get_stk_callback_url(shortcode: str = '') -> str:
     """Get STK callback URL from settings or construct it."""
-    return _get_callback_url_from_settings('MPESA_STK_CALLBACK_URL', 'payments:stk_push_callback')
+    return _get_callback_url_from_settings('MPESA_STK_CALLBACK_URL', 'payments:stk_push_callback', shortcode)
 
 
 def initiate_stk_push(
@@ -245,7 +267,7 @@ def initiate_stk_push(
         passkey = creds['passkey']
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         password = b64encode(f'{shortcode_value}{passkey}{timestamp}'.encode('utf-8')).decode('utf-8')
-        callback_url = _get_stk_callback_url()
+        callback_url = _get_stk_callback_url(shortcode_value)
 
         payload = {
             'BusinessShortCode': shortcode_value,
@@ -348,11 +370,13 @@ def request_account_balance(shortcode: str = '') -> dict:
         # ✅ FIX: Use the new helper to get balance callback URLs
         result_url = _get_callback_url_from_settings(
             'MPESA_BALANCE_RESULT_URL',
-            'payments:paybill_balance_result_callback'
+            'payments:paybill_balance_result_callback',
+            creds['shortcode'],
         )
         timeout_url = _get_callback_url_from_settings(
             'MPESA_BALANCE_TIMEOUT_URL',
-            'payments:paybill_balance_timeout_callback'
+            'payments:paybill_balance_timeout_callback',
+            creds['shortcode'],
         )
 
         # ✅ DEBUG: Log the URLs being used
@@ -459,12 +483,14 @@ def register_c2b_urls(shortcode: str, consumer_key: str = '', consumer_secret: s
         
         # ✅ FIX: Use the new helper for C2B URLs
         confirmation_url = _get_callback_url_from_settings(
-            'MPESA_C2B_CONFIRMATION_URL', 
-            'payments:paybill_confirmation_callback'
+            'MPESA_C2B_CONFIRMATION_URL',
+            'payments:paybill_confirmation_callback',
+            shortcode,
         )
         validation_url = _get_callback_url_from_settings(
-            'MPESA_C2B_VALIDATION_URL', 
-            'payments:paybill_validation_callback'
+            'MPESA_C2B_VALIDATION_URL',
+            'payments:paybill_validation_callback',
+            shortcode,
         )
 
         payload = {
