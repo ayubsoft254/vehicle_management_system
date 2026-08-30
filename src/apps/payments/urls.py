@@ -61,6 +61,7 @@ urlpatterns = [
     path('paybill/export/pdf/', views.paybill_tracker_pdf, name='paybill_tracker_pdf'),
     path('paybill/refresh-balance/', views.refresh_paybill_balance, name='refresh_paybill_balance'),
     path('paybill/register-c2b/', views.register_paybill_c2b, name='register_paybill_c2b'),
+    path('paybill/update-security-credential/', views.update_mpesa_security_credential, name='update_mpesa_security_credential'),
     path('defaulters/', views.defaulters_report_view, name='defaulters_report'),
     path('defaulters/export/<str:fmt>/', views.defaulters_report_export, name='defaulters_report_export'),
     path('export/csv/', views.export_payments_csv, name='export_payments_csv'),
