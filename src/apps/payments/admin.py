@@ -74,6 +74,7 @@ class PaymentAdmin(admin.ModelAdmin):
         'client_vehicle__client__last_name',
         'client_vehicle__client__id_number',
         'client_vehicle__vehicle__registration_number',
+        'client_vehicle__vehicle__vin',
         'client_vehicle__vehicle__make',
         'client_vehicle__vehicle__model'
     ]
@@ -304,6 +305,7 @@ class InstallmentPlanAdmin(admin.ModelAdmin):
         'client_vehicle__client__last_name',
         'client_vehicle__client__id_number',
         'client_vehicle__vehicle__registration_number',
+        'client_vehicle__vehicle__vin',
         'client_vehicle__vehicle__make',
         'client_vehicle__vehicle__model'
     ]
@@ -563,7 +565,8 @@ class PaymentScheduleAdmin(admin.ModelAdmin):
     search_fields = [
         'installment_plan__client_vehicle__client__first_name',
         'installment_plan__client_vehicle__client__last_name',
-        'installment_plan__client_vehicle__vehicle__registration_number'
+        'installment_plan__client_vehicle__vehicle__registration_number',
+        'installment_plan__client_vehicle__vehicle__vin',
     ]
     
     readonly_fields = [
