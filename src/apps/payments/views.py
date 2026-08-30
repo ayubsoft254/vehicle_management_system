@@ -256,7 +256,7 @@ def _extract_account_balance(raw_value):
             if match:
                 try:
                     balance = Decimal(match.group(1).replace(',', ''))
-                    logger.info(f"✅ Found Utility Account balance: {balance}")
+                    logger.info(f" Found Utility Account balance: {balance}")
                     return balance
                 except (ValueError, InvalidOperation):
                     pass
@@ -268,7 +268,7 @@ def _extract_account_balance(raw_value):
             if match:
                 try:
                     balance = Decimal(match.group(1).replace(',', ''))
-                    logger.info(f"✅ Found Working Account balance: {balance}")
+                    logger.info(f" Found Working Account balance: {balance}")
                     return balance
                 except (ValueError, InvalidOperation):
                     pass
@@ -280,7 +280,7 @@ def _extract_account_balance(raw_value):
             try:
                 balance = Decimal(match.replace(',', ''))
                 if balance > 0:
-                    logger.info(f"✅ Found balance via fallback: {balance}")
+                    logger.info(f" Found balance via fallback: {balance}")
                     return balance
             except (ValueError, InvalidOperation):
                 continue
@@ -292,7 +292,7 @@ def _extract_account_balance(raw_value):
                 try:
                     balance = Decimal(match.replace(',', ''))
                     if balance > 0:
-                        logger.info(f"✅ Found balance via final fallback: {balance}")
+                        logger.info(f" Found balance via final fallback: {balance}")
                         return balance
                 except (ValueError, InvalidOperation):
                     continue
@@ -3106,7 +3106,7 @@ def paybill_confirmation_callback(request):
             raw_payload=payload,
             is_linked_to_payment=False,
         )
-        logger.info(f"✅ C2B PaybillTransaction {trans_id} stored — signal will handle Payment creation")
+        logger.info(f" C2B PaybillTransaction {trans_id} stored — signal will handle Payment creation")
     except Exception as e:
         logger.error(f"Error storing C2B transaction {trans_id}: {e}", exc_info=True)
         # Return 200 anyway — returning ResultCode 1 causes M-Pesa to retry
@@ -3133,7 +3133,7 @@ def stk_push_callback(request):
         logger.error(f"Invalid JSON in STK callback: {e}")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Invalid JSON'}, status=400)
     
-    # ✅ Validate callback secret
+    #  Validate callback secret
     if not _callback_secret_is_valid(request):
         logger.warning("Unauthorized STK callback attempt - invalid secret")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
@@ -3147,13 +3147,13 @@ def stk_push_callback(request):
     
     logger.info(f"STK Details: CheckoutID={checkout_request_id}, ResultCode={result_code}, ResultDesc={result_desc}")
     
-    # ✅ Parse metadata
+    #  Parse metadata
     metadata = callback.get('CallbackMetadata', {}).get('Item', [])
     parsed_metadata = _parse_stk_metadata(metadata)
     
     logger.info(f"Parsed Metadata: {parsed_metadata}")
     
-    # ✅ Find the STK request
+    #  Find the STK request
     stk_request = MpesaSTKRequest.objects.filter(
         checkout_request_id=checkout_request_id
     ).order_by('-created_at').first()
@@ -3181,7 +3181,7 @@ def stk_push_callback(request):
             raw_callback_payload=payload,
         )
     
-    # ✅ Determine status
+    #  Determine status
     status = MpesaSTKRequest.STATUS_FAILED
     if result_code == 0:
         status = MpesaSTKRequest.STATUS_SUCCESS
@@ -3190,7 +3190,7 @@ def stk_push_callback(request):
     elif result_code == 1037:
         status = MpesaSTKRequest.STATUS_TIMEOUT
     
-    # ✅ Update STK request
+    #  Update STK request
     stk_request.status = status
     stk_request.result_code = result_code
     stk_request.result_desc = result_desc
@@ -3205,7 +3205,7 @@ def stk_push_callback(request):
     if parsed_metadata['transaction_date']:
         stk_request.transaction_date = parsed_metadata['transaction_date']
     
-    # ✅ Process successful payment
+    #  Process successful payment
     if result_code == 0 and not stk_request.payment_id:
         account_reference = stk_request.account_reference
         client_vehicle = stk_request.client_vehicle or _find_client_vehicle_for_reference(account_reference)
@@ -3234,7 +3234,7 @@ def stk_push_callback(request):
                         'is_linked_to_payment': False,
                     },
                 )
-                logger.info(f"✅ STK PaybillTransaction {paybill_trans_id} stored")
+                logger.info(f" STK PaybillTransaction {paybill_trans_id} stored")
             except Exception as e:
                 logger.error(f"Error storing STK PaybillTransaction {paybill_trans_id}: {e}", exc_info=True)
 
@@ -3264,12 +3264,12 @@ def stk_push_callback(request):
                         ),
                     )
                     stk_request.payment = created_payment
-                    logger.info(f"✅ STK Payment created: {created_payment.receipt_number}")
+                    logger.info(f" STK Payment created: {created_payment.receipt_number}")
             except Exception as e:
                 logger.error(f"Error creating STK payment: {e}", exc_info=True)
 
     stk_request.save()
-    logger.info(f"✅ STK Callback processed: {checkout_request_id}")
+    logger.info(f" STK Callback processed: {checkout_request_id}")
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 
@@ -3292,7 +3292,7 @@ def paybill_balance_result_callback(request):
         logger.error(f"Invalid JSON in balance callback: {e}")
         return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'}, status=200)
     
-    # ✅ Validate callback secret
+    #  Validate callback secret
     if not _callback_secret_is_valid(request):
         logger.warning("Unauthorized balance callback attempt - invalid secret")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized'}, status=403)
@@ -3303,7 +3303,7 @@ def paybill_balance_result_callback(request):
     
     logger.info(f"Result Code: {result_code}, Result Desc: {result_desc}")
     
-    # ✅ Extract balance using improved function
+    #  Extract balance using improved function
     balance = None
     parameters = result.get('ResultParameters', {}).get('ResultParameter', [])
     
@@ -3316,7 +3316,7 @@ def paybill_balance_result_callback(request):
             if key in {'accountbalance', 'availablebalance', 'balance'}:
                 balance = _extract_account_balance(value)
                 if balance is not None:
-                    logger.info(f"✅ EXTRACTED BALANCE: {balance}")
+                    logger.info(f" EXTRACTED BALANCE: {balance}")
                     break
     
     # If no balance found, log warning
@@ -3356,7 +3356,7 @@ def paybill_balance_result_callback(request):
             raw_payload=payload,
         )
 
-    logger.info(f"✅ Balance snapshot resolved: ID={snapshot.id}, Balance={balance}, Status={status}")
+    logger.info(f" Balance snapshot resolved: ID={snapshot.id}, Balance={balance}, Status={status}")
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'}, status=200)
 
 
@@ -3379,7 +3379,7 @@ def paybill_balance_timeout_callback(request):
         payload = {'raw': request.body.decode('utf-8', errors='ignore')}
         logger.warning(f"Invalid JSON in timeout callback: {payload}")
     
-    # ✅ Validate callback secret
+    #  Validate callback secret
     if not _callback_secret_is_valid(request):
         logger.warning("Unauthorized timeout callback attempt - invalid secret")
         return JsonResponse({'ResultCode': 1, 'ResultDesc': 'Unauthorized callback'}, status=403)
@@ -3406,7 +3406,7 @@ def paybill_balance_timeout_callback(request):
             raw_payload=payload if isinstance(payload, dict) else {'payload': str(payload)},
         )
 
-    logger.info("✅ Balance timeout recorded")
+    logger.info(" Balance timeout recorded")
     return JsonResponse({'ResultCode': 0, 'ResultDesc': 'Accepted'})
 
 

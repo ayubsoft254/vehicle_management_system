@@ -164,7 +164,7 @@ def _safe_update_payment_schedules(payment):
 @receiver(post_save, sender=Payment)
 def update_client_vehicle_after_payment(sender, instance, created, **kwargs):
     """
-    ✅ SAFE: Update ClientVehicle balance and status after payment is recorded
+     SAFE: Update ClientVehicle balance and status after payment is recorded
     Wrapped in try/except to prevent breaking the main transaction
     """
     try:
@@ -184,7 +184,7 @@ def update_client_vehicle_after_payment(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Payment)
 def update_payment_schedules_after_payment(sender, instance, created, **kwargs):
     """
-    ✅ SAFE: Update payment schedules when a payment is recorded
+     SAFE: Update payment schedules when a payment is recorded
     Wrapped in try/except to prevent breaking the main transaction
     """
     try:
@@ -198,7 +198,7 @@ def update_payment_schedules_after_payment(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Payment)
 def update_paybill_transaction_status(sender, instance, created, **kwargs):
     """
-    ✅ SAFE: Update paybill transaction status when payment is created
+     SAFE: Update paybill transaction status when payment is created
     """
     try:
         if instance.transaction_reference:
@@ -217,7 +217,7 @@ def update_paybill_transaction_status(sender, instance, created, **kwargs):
 @receiver(post_delete, sender=Payment)
 def revert_payment_on_delete(sender, instance, **kwargs):
     """
-    ✅ SAFE: Revert balance changes when a payment is deleted
+     SAFE: Revert balance changes when a payment is deleted
     """
     try:
         if instance.client_vehicle:
@@ -352,7 +352,7 @@ def process_paybill_transaction(sender, instance, created, **kwargs):
             instance.save(update_fields=['is_linked_to_payment'])
 
             logger.info(
-                f"✅ Payment {payment.receipt_number} created from PaybillTransaction {instance.trans_id}"
+                f" Payment {payment.receipt_number} created from PaybillTransaction {instance.trans_id}"
             )
     except Exception as e:
         logger.error(f"Error processing paybill transaction {getattr(instance, 'id', '?')}: {e}")
@@ -363,7 +363,7 @@ def process_paybill_transaction(sender, instance, created, **kwargs):
 @receiver(post_save, sender=InstallmentPlan)
 def generate_schedules_on_plan_creation(sender, instance, created, **kwargs):
     """
-    ✅ SAFE: Generate schedules when plan is created
+     SAFE: Generate schedules when plan is created
     """
     try:
         if created:
@@ -375,7 +375,7 @@ def generate_schedules_on_plan_creation(sender, instance, created, **kwargs):
 @receiver(post_save, sender=InstallmentPlan)
 def check_plan_completion(sender, instance, created, **kwargs):
     """
-    ✅ SAFE: Check if plan should be marked as completed
+     SAFE: Check if plan should be marked as completed
     """
     try:
         if not created:
@@ -398,7 +398,7 @@ def check_plan_completion(sender, instance, created, **kwargs):
 @receiver(pre_save, sender=InstallmentPlan)
 def calculate_end_date(sender, instance, **kwargs):
     """
-    ✅ SAFE: Calculate end date if not provided
+     SAFE: Calculate end date if not provided
     """
     try:
         if instance.start_date and not instance.end_date:
@@ -415,7 +415,7 @@ def calculate_end_date(sender, instance, **kwargs):
 @receiver(post_save, sender=PaymentSchedule)
 def update_client_status_on_schedule_change(sender, instance, created, **kwargs):
     """
-    ✅ SAFE: Update client status based on payment history
+     SAFE: Update client status based on payment history
     """
     try:
         if not instance.installment_plan or not instance.installment_plan.client_vehicle:
@@ -443,7 +443,7 @@ def update_client_status_on_schedule_change(sender, instance, created, **kwargs)
 @receiver(post_save, sender=PaymentSchedule)
 def create_reminder_on_due_date(sender, instance, created, **kwargs):
     """
-    ✅ SAFE: Create reminder when schedule is approaching due date
+     SAFE: Create reminder when schedule is approaching due date
     """
     try:
         if not instance.is_paid:
@@ -479,7 +479,7 @@ def create_reminder_on_due_date(sender, instance, created, **kwargs):
 @receiver(post_save, sender=PaymentSchedule)
 def auto_update_client_status_on_payment(sender, instance, **kwargs):
     """
-    ✅ SAFE: Auto-update client status based on payment history
+     SAFE: Auto-update client status based on payment history
     """
     try:
         if not instance.installment_plan or not instance.installment_plan.client_vehicle:
@@ -528,7 +528,7 @@ def auto_update_client_status_on_payment(sender, instance, **kwargs):
 @receiver(post_save, sender=PaymentReminder)
 def process_reminder_sending(sender, instance, created, **kwargs):
     """
-    ✅ SAFE: Process reminder sending
+     SAFE: Process reminder sending
     """
     try:
         if created and instance.status == 'pending':
@@ -547,7 +547,7 @@ def process_reminder_sending(sender, instance, created, **kwargs):
 @receiver(pre_save, sender=Payment)
 def validate_payment_before_save(sender, instance, **kwargs):
     """
-    ✅ SAFE: Validate payment before saving
+     SAFE: Validate payment before saving
     """
     try:
         if instance.amount and instance.amount <= 0:
@@ -560,7 +560,7 @@ def validate_payment_before_save(sender, instance, **kwargs):
 @receiver(pre_save, sender=PaymentSchedule)
 def validate_schedule_before_save(sender, instance, **kwargs):
     """
-    ✅ SAFE: Validate payment schedule before saving
+     SAFE: Validate payment schedule before saving
     """
     try:
         if instance.amount_due and instance.amount_due <= 0:
@@ -577,7 +577,7 @@ def validate_schedule_before_save(sender, instance, **kwargs):
 @receiver(post_save, sender=Payment)
 def log_payment_activity(sender, instance, created, **kwargs):
     """
-    ✅ SAFE: Log payment activity for audit trail
+     SAFE: Log payment activity for audit trail
     """
     try:
         if created:
@@ -596,7 +596,7 @@ def log_payment_activity(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Payment)
 def update_statistics_cache(sender, instance, created, **kwargs):
     """
-    ✅ SAFE: Update cached statistics
+     SAFE: Update cached statistics
     """
     try:
         if created:

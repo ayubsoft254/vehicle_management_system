@@ -68,7 +68,18 @@ class UserAdmin(BaseUserAdmin):
     )
     
     readonly_fields = ['created_at', 'updated_at', 'last_login']
-    
+
+    def get_inline_instances(self, request, obj=None):
+        """
+        Hide the profile inline on the add form. UserProfile doesn't exist yet
+        for a new user, and the post_save signal creates one as soon as the
+        user is saved - showing the inline here caused it to insert a second
+        UserProfile for the same user, tripping the user_id unique constraint.
+        """
+        if obj is None:
+            return []
+        return super().get_inline_instances(request, obj)
+
     def full_name(self, obj):
         """Display full name"""
         return obj.get_full_name()
