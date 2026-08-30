@@ -28,6 +28,12 @@
                     Register Callbacks
                 </button>
             </form>
+            <button type="button"
+                    onclick="document.getElementById('security-credential-modal').classList.remove('hidden')"
+                    class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                <i class="fas fa-key mr-2"></i>
+                Update Security Credential
+            </button>
             <a href="{% url 'payments:payment_list' %}"
                class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
                 <i class="fas fa-arrow-left mr-2"></i>
@@ -346,6 +352,46 @@
                 </tbody>
             </table>
         </div>
+    </div>
+</div>
+
+<div id="security-credential-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900"><i class="fas fa-key mr-2 text-indigo-600"></i>Update M-Pesa Security Credential</h3>
+        </div>
+        <form method="post" action="{% url 'payments:update_mpesa_security_credential' %}">
+            {% csrf_token %}
+            <div class="p-6 space-y-4">
+                {% if configured_paybills|length > 1 %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Paybill</label>
+                    <select name="paybill" class="form-input w-full">
+                        <option value="1">Paybill 1 — {{ configured_paybills.0 }}</option>
+                        <option value="2">Paybill 2 — {{ configured_paybills.1 }}</option>
+                    </select>
+                </div>
+                {% else %}
+                <input type="hidden" name="paybill" value="1">
+                {% endif %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">New Security Credential</label>
+                    <textarea name="security_credential" rows="4" required
+                              class="form-input w-full font-mono text-xs"
+                              placeholder="Paste the new base64 security credential here (single line only)"></textarea>
+                </div>
+                <p class="text-xs text-gray-500">
+                    This writes directly to the server's .env file and applies immediately to this
+                    process. If the app runs multiple worker processes, a restart is still needed for
+                    all of them to pick it up.
+                </p>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 flex justify-end gap-3 rounded-b-lg">
+                <button type="button" onclick="document.getElementById('security-credential-modal').classList.add('hidden')"
+                        class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium">Save</button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
