@@ -17,7 +17,10 @@ import csv
 import json
 from decimal import Decimal
 
-from .models import Client, ClientVehicle, ClientDocument, VehicleTracker
+from .models import (
+    Client, ClientVehicle, ClientDocument, VehicleTracker,
+    VehicleReturn, ClientVehicleSecondaryBroker,
+)
 from apps.vehicles.models import TrackerAgent, TrackerRecord
 from apps.payments.models import Payment, PaymentSplit, InstallmentPlan
 from .utils import build_client_ledger
@@ -934,6 +937,12 @@ def assign_vehicle(request, client_pk):
                 # Update vehicle status
                 vehicle = client_vehicle.vehicle
 
+                # Snapshot the price the vehicle had immediately before this sale, so a
+                # future "Return Vehicle" action can restore it. Captured once, here only —
+                # never touched again by client_vehicle_update.
+                client_vehicle.vehicle_price_before_sale = vehicle.selling_price
+                client_vehicle.save(update_fields=['vehicle_price_before_sale'])
+
                 # Keep vehicle selling price in sync with website/final pricing decisions.
                 # Website display price takes precedence as baseline when present.
                 if vehicle.website_price is not None and vehicle.website_price > Decimal('0.00'):
@@ -947,6 +956,47 @@ def assign_vehicle(request, client_pk):
                 # Update client status
                 client.status = 'active'
                 client.save()
+
+                # --- Secondary / referral brokers (in addition to the primary broker above) ---
+                def parse_secondary_brokers(raw_json):
+                    try:
+                        rows = json.loads(raw_json or '[]')
+                    except Exception:
+                        rows = []
+                    parsed = []
+                    if not isinstance(rows, list):
+                        return parsed
+                    for row in rows:
+                        if not isinstance(row, dict):
+                            continue
+                        broker_id = row.get('broker_id')
+                        amount = parse_money(row.get('commission_amount', '0'))
+                        if not broker_id or amount <= 0:
+                            continue
+                        pct_raw = row.get('commission_percentage')
+                        try:
+                            pct = Decimal(str(pct_raw)) if pct_raw not in (None, '') else None
+                        except Exception:
+                            pct = None
+                        parsed.append({
+                            'broker_id': broker_id,
+                            'commission_amount': amount.quantize(Decimal('0.01')),
+                            'commission_percentage': pct,
+                        })
+                    return parsed
+
+                from apps.vehicles.models import Broker as _SecondaryBrokerModel
+                for row in parse_secondary_brokers(request.POST.get('secondary_brokers_json', '[]')):
+                    try:
+                        secondary_broker_obj = _SecondaryBrokerModel.objects.get(pk=row['broker_id'])
+                    except (_SecondaryBrokerModel.DoesNotExist, ValueError, TypeError):
+                        continue
+                    ClientVehicleSecondaryBroker.objects.create(
+                        client_vehicle=client_vehicle,
+                        broker=secondary_broker_obj,
+                        commission_amount=row['commission_amount'],
+                        commission_percentage=row['commission_percentage'],
+                    )
 
                 # --- Handle Insurance ---
                 # Run before the installment plan is created below: creating a
@@ -1475,6 +1525,14 @@ def client_vehicle_detail(request, pk):
     ).order_by('-completion_date').first()
     is_repossessed = repossession is not None
 
+    # Check if this sale was returned
+    try:
+        vehicle_return = client_vehicle.vehicle_return
+        is_returned = True
+    except VehicleReturn.DoesNotExist:
+        vehicle_return = None
+        is_returned = False
+
     # Retroactively clean up payment schedules and deactivate plan/record for
     # repos completed before the auto-cleanup code existed
     if is_repossessed:
@@ -1542,6 +1600,8 @@ def client_vehicle_detail(request, pk):
         'grand_progress': grand_progress,
         'is_repossessed': is_repossessed,
         'repossession': repossession,
+        'is_returned': is_returned,
+        'vehicle_return': vehicle_return,
     }
     
     log_audit(
@@ -1721,6 +1781,51 @@ def client_vehicle_update(request, pk):
 
             updated_client_vehicle.save()
             client_vehicle = updated_client_vehicle
+
+            # --- Secondary / referral brokers: fully replaced on every edit,
+            # matching how extra_costs_json/deposit_deductions_json already
+            # work on this model. Note: a secondary row's commission_status
+            # ('paid') is lost on re-edit since rows are recreated from scratch.
+            def parse_secondary_brokers(raw_json):
+                try:
+                    rows = json.loads(raw_json or '[]')
+                except Exception:
+                    rows = []
+                parsed = []
+                if not isinstance(rows, list):
+                    return parsed
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+                    broker_id = row.get('broker_id')
+                    amount = parse_money(row.get('commission_amount', '0'))
+                    if not broker_id or amount <= 0:
+                        continue
+                    pct_raw = row.get('commission_percentage')
+                    try:
+                        pct = Decimal(str(pct_raw)) if pct_raw not in (None, '') else None
+                    except Exception:
+                        pct = None
+                    parsed.append({
+                        'broker_id': broker_id,
+                        'commission_amount': amount.quantize(Decimal('0.01')),
+                        'commission_percentage': pct,
+                    })
+                return parsed
+
+            from apps.vehicles.models import Broker as _SecondaryBrokerModel
+            client_vehicle.secondary_brokers.all().delete()
+            for row in parse_secondary_brokers(request.POST.get('secondary_brokers_json', '[]')):
+                try:
+                    secondary_broker_obj = _SecondaryBrokerModel.objects.get(pk=row['broker_id'])
+                except (_SecondaryBrokerModel.DoesNotExist, ValueError, TypeError):
+                    continue
+                ClientVehicleSecondaryBroker.objects.create(
+                    client_vehicle=client_vehicle,
+                    broker=secondary_broker_obj,
+                    commission_amount=row['commission_amount'],
+                    commission_percentage=row['commission_percentage'],
+                )
 
             flexible_installments = []
             if updated_client_vehicle.payment_type == 'flexible':
@@ -2068,11 +2173,137 @@ def client_vehicle_update(request, pk):
             {'id': b.pk, 'name': b.name, 'id_number': b.id_number, 'phone': b.phone}
             for b in brokers
         ]),
+        'initial_secondary_brokers_json': json.dumps([
+            {
+                'broker_id': sb.broker_id,
+                'commission_amount': str(sb.commission_amount),
+                'commission_percentage': str(sb.commission_percentage) if sb.commission_percentage is not None else '',
+            }
+            for sb in client_vehicle.secondary_brokers.select_related('broker').all()
+        ]),
         'default_paybill': _paybill_selection,
         'default_custom_paybill': _custom_paybill_value,
     }
 
     return render(request, 'clients/assign_vehicle.html', context)
+
+
+@login_required
+def return_vehicle(request, pk):
+    """
+    Reverse a client-vehicle sale: restore the vehicle to available stock at
+    its pre-sale price, write off the client's total_paid via an auto-created
+    Expense, and mark the sale record Returned (kept, not deleted).
+    """
+    from apps.repossessions.models import Repossession
+    from apps.expenses.models import Expense, ExpenseCategory
+
+    client_vehicle = get_object_or_404(
+        ClientVehicle.objects.select_related('client', 'vehicle'), pk=pk
+    )
+
+    if request.method != 'POST':
+        return redirect('clients:client_vehicle_detail', pk=pk)
+
+    # --- Guards ---
+    if VehicleReturn.objects.filter(client_vehicle=client_vehicle).exists():
+        messages.error(request, 'This vehicle purchase has already been returned.')
+        return redirect('clients:client_vehicle_detail', pk=pk)
+
+    is_repossessed = Repossession.objects.filter(
+        client=client_vehicle.client,
+        vehicle=client_vehicle.vehicle,
+        status='COMPLETED',
+    ).exists()
+    if is_repossessed:
+        messages.error(request, 'This vehicle was repossessed; it cannot be processed as a Return.')
+        return redirect('clients:client_vehicle_detail', pk=pk)
+
+    if not client_vehicle.is_active:
+        messages.error(request, 'This vehicle purchase record is not active.')
+        return redirect('clients:client_vehicle_detail', pk=pk)
+
+    reason = request.POST.get('reason', '').strip()
+
+    with transaction.atomic():
+        vehicle = client_vehicle.vehicle
+        restored_price = client_vehicle.vehicle_price_before_sale
+        if restored_price is None:
+            # Sale predates the snapshot field — best available fallback.
+            restored_price = vehicle.purchase_price
+        amount_to_refund = (client_vehicle.total_paid or Decimal('0.00')).quantize(Decimal('0.01'))
+
+        # 1. Vehicle back to available stock at restored price
+        vehicle.selling_price = restored_price
+        vehicle.status = 'available'
+        vehicle.is_active = True
+        vehicle.save(update_fields=['selling_price', 'status', 'is_active'])
+
+        # 2. Deactivate the sale record (kept for history, not deleted).
+        # Note: ClientVehicle.unique_together = ['client', 'vehicle'] means the
+        # same client can't be re-assigned this same vehicle again later
+        # without a form-level collision — out of scope for this feature.
+        client_vehicle.is_active = False
+        client_vehicle.save(update_fields=['is_active'])
+
+        # 3. Auto-create the refund/write-off Expense (skip if nothing was paid —
+        # Expense.amount requires > 0).
+        refund_expense = None
+        if amount_to_refund > 0:
+            category, _ = ExpenseCategory.objects.get_or_create(
+                code='VEHICLE_RETURN',
+                defaults={
+                    'name': 'Vehicle Return Refund',
+                    'requires_receipt': False,
+                    'requires_approval': False,
+                    'description': (
+                        'System-generated refund/write-off entries created when a '
+                        'client-vehicle sale is reversed via Return Vehicle.'
+                    ),
+                },
+            )
+            refund_expense = Expense.objects.create(
+                title=f'Vehicle return refund — {vehicle.full_name} / {client_vehicle.client.get_full_name()}',
+                description=reason or f'Refund/write-off for returned vehicle purchase #{client_vehicle.pk}.',
+                category=category,
+                amount=amount_to_refund,
+                transaction_type='CREDIT',
+                expense_date=timezone.now().date(),
+                payment_method='OTHER',
+                submitted_by=request.user,
+                related_vehicle=vehicle,
+                related_client=client_vehicle.client,
+                status='APPROVED',
+                approved_by=request.user,
+                approved_at=timezone.now(),
+                is_reimbursable=False,
+                notes=f'Auto-created on vehicle return for ClientVehicle #{client_vehicle.pk}.',
+            )
+
+        # 4. Return record for history/audit
+        VehicleReturn.objects.create(
+            client_vehicle=client_vehicle,
+            return_date=timezone.now().date(),
+            restored_price=restored_price,
+            amount_refunded=amount_to_refund,
+            refund_expense=refund_expense,
+            processed_by=request.user,
+            reason=reason,
+        )
+
+    log_audit(
+        request.user, 'update', 'ClientVehicle',
+        f'Returned vehicle purchase #{client_vehicle.pk} for {client_vehicle.client.get_full_name()} — '
+        f'{vehicle.full_name}; restored price KES {restored_price:,.2f}, '
+        f'refunded/written off KES {amount_to_refund:,.2f}.'
+    )
+
+    messages.success(
+        request,
+        f'Vehicle returned to available stock at KES {restored_price:,.2f}. '
+        f'KES {amount_to_refund:,.2f} written off.'
+    )
+    return redirect('clients:client_vehicle_detail', pk=pk)
 
 
 @login_required
