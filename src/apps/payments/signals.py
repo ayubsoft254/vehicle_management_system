@@ -245,7 +245,7 @@ def _normalize_reg(value):
 
 
 def _find_vehicle_by_bill_ref(bill_ref_number):
-    """Find an active ClientVehicle from a bill reference / account reference."""
+    """Find an active ClientVehicle from a bill reference / account reference, with VIN fallback."""
     if not bill_ref_number:
         return None
 
@@ -253,7 +253,7 @@ def _find_vehicle_by_bill_ref(bill_ref_number):
     if not normalized:
         return None
 
-    # Exact case-insensitive match first
+    # Exact case-insensitive match first (plate)
     cv = ClientVehicle.objects.select_related('vehicle', 'client').filter(
         is_active=True,
         vehicle__registration_number__iexact=bill_ref_number.strip(),
@@ -261,13 +261,29 @@ def _find_vehicle_by_bill_ref(bill_ref_number):
     if cv:
         return cv
 
-    # Normalized match (ignore spaces/dashes)
+    # Normalized match (ignore spaces/dashes) on plate
     for cv in ClientVehicle.objects.select_related('vehicle', 'client').filter(
         is_active=True,
         vehicle__registration_number__isnull=False,
     ).iterator():
         if _normalize_reg(cv.vehicle.registration_number) == normalized:
             return cv
+
+    # Fallback: VIN/chassis number match for unplated vehicles
+    cv = ClientVehicle.objects.select_related('vehicle', 'client').filter(
+        is_active=True,
+        vehicle__vin__iexact=bill_ref_number.strip(),
+    ).first()
+    if cv:
+        return cv
+
+    for cv in ClientVehicle.objects.select_related('vehicle', 'client').filter(
+        is_active=True,
+        vehicle__vin__isnull=False,
+    ).iterator():
+        if _normalize_reg(cv.vehicle.vin) == normalized:
+            return cv
+
     return None
 
 
