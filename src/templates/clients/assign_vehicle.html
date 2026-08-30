@@ -829,8 +829,12 @@
                                 <span id="calc-extra-costs" class="font-medium">KES 0.00</span>
                             </div>
                             <div class="flex justify-between">
-                                <span>+ Commission:</span>
+                                <span>+ Commission (primary broker):</span>
                                 <span id="calc-commission" class="font-medium">KES 0.00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>+ Commission (secondary brokers):</span>
+                                <span id="calc-secondary-commission" class="font-medium">KES 0.00</span>
                             </div>
                             <div class="border-t border-purple-300 pt-2 mt-2 flex justify-between">
                                 <span class="font-semibold text-purple-900">= Total Cost:</span>
@@ -2076,6 +2080,13 @@ function getSecondaryBrokerRows() {
     return Array.from(document.querySelectorAll('#secondary-brokers-container .secondary-broker-row'));
 }
 
+function calculateSecondaryBrokerCommissionsTotal() {
+    return getSecondaryBrokerRows().reduce((sum, row) => {
+        const amount = parseFloat(row.querySelector('input[name="secondary_broker_commission[]"]')?.value || 0) || 0;
+        return sum + amount;
+    }, 0);
+}
+
 function syncSecondaryBrokersPayload() {
     const payloadInput = document.getElementById('id_secondary_brokers_json');
     const rows = getSecondaryBrokerRows().map((row) => {
@@ -2085,6 +2096,7 @@ function syncSecondaryBrokersPayload() {
         return { broker_id: brokerId, commission_amount: Number(amount).toFixed(2), commission_percentage: pct };
     }).filter((item) => item.broker_id && parseFloat(item.commission_amount) > 0);
     if (payloadInput) payloadInput.value = JSON.stringify(rows);
+    updateProfitLoss();
 }
 
 function addSecondaryBrokerRow(brokerId = '', amount = '', pct = '') {
@@ -2140,13 +2152,15 @@ function updateCalculationBreakdown() {
     const dealerCost = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
     const extraCosts = calculateExtraCostsTotal();
     const commission = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
-    const totalCost = dealerCost + extraCosts + commission;
+    const secondaryCommission = calculateSecondaryBrokerCommissionsTotal();
+    const totalCost = dealerCost + extraCosts + commission + secondaryCommission;
     const finalSelling = getFinalSellingValue(selectedVehicleBasePrice + extraCosts);
     const netProfit = finalSelling - totalCost;
 
     document.getElementById('calc-vehicle-price').textContent = fmt(dealerCost);
     document.getElementById('calc-extra-costs').textContent = fmt(extraCosts);
     document.getElementById('calc-commission').textContent = fmt(commission);
+    document.getElementById('calc-secondary-commission').textContent = fmt(secondaryCommission);
     document.getElementById('calc-client-purchase').textContent = fmt(totalCost);
     document.getElementById('calc-final-selling').textContent = fmt(finalSelling);
     document.getElementById('calc-total').textContent = fmt(netProfit);
@@ -2170,7 +2184,8 @@ function updateProfitLoss() {
 
     updateCalculationBreakdown();
 
-    const commissionCost = parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0;
+    const commissionCost = (parseFloat(document.getElementById('{{ form.commission_amount.id_for_label }}')?.value || 0) || 0)
+        + calculateSecondaryBrokerCommissionsTotal();
     const totalCostForPL = totalVehicleCost + commissionCost;
     const netProfit = finalSellingPrice - totalCostForPL;
 
