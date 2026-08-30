@@ -32,7 +32,7 @@ def _can_view_vehicle_prices(user):
     """Only administrators should see vehicle pricing data across the app."""
     if not getattr(user, 'is_authenticated', False):
         return False
-    return bool(user.is_superuser or user.is_staff or getattr(user, 'role', None) == UserRole.ADMIN)
+    return bool(user.is_superuser or getattr(user, 'role', None) == UserRole.ADMIN)
 
 
 def _extract_extra_cost_entries(post_data):
@@ -1306,7 +1306,7 @@ def vehicle_purchase_price_assignment_view(request):
 # ==================== TRACKER AGENT LEDGER VIEWS ====================
 
 @login_required
-@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
+@role_required('admin')
 def tracker_agent_ledger_list(request):
     """List all tracker agents with totals and outstanding balances."""
     from django.db.models import Q, Sum, Value, DecimalField
@@ -1726,7 +1726,7 @@ def record_clearing_agent_payment(request, agent_pk):
 # ==================== JAPAN SUPPLIER LEDGER VIEWS ====================
 
 @login_required
-@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
+@role_required('admin')
 def japan_supplier_ledger_list(request):
     """List all Japan suppliers with totals and outstanding balances."""
     from django.db.models import Q, Sum, Value, DecimalField
@@ -1811,6 +1811,7 @@ def _japan_supplier_statement(supplier, date_from, date_to, vehicle_search=''):
 
 
 @login_required
+@role_required('admin')
 def japan_supplier_ledger_detail(request, pk):
     """Show all purchase records for a supplier and payment history."""
     from utils.ledger import parse_date_range
@@ -1838,6 +1839,7 @@ def japan_supplier_ledger_detail(request, pk):
 
 
 @login_required
+@role_required('admin')
 def japan_supplier_ledger_pdf(request, pk):
     """Printable PDF statement for a single Japan supplier."""
     from utils.ledger import parse_date_range
@@ -2971,7 +2973,7 @@ def business_loan_write_off(request, pk):
 
 
 @login_required
-@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
+@role_required('admin')
 def main_ledger_view(request):
     """Combined main ledger aggregating all financial activity."""
     from apps.payments.models import Payment
@@ -3407,7 +3409,7 @@ def _main_ledger_export_rows(ctx):
 
 
 @login_required
-@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
+@role_required('admin')
 def main_ledger_export(request, fmt):
     """Export the Main Ledger (filtered the same way as the on-screen view) as PDF/Excel/CSV."""
     from utils.report_kit import export_rows
@@ -3468,7 +3470,7 @@ def _sales_ledger_rows(date_from, date_to, search=''):
 
 
 @login_required
-@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
+@role_required('admin')
 def sales_ledger(request):
     """Every completed vehicle sale with revenue, total cost and actual profit/loss."""
     import urllib.parse
@@ -3517,7 +3519,7 @@ def sales_ledger(request):
 
 
 @login_required
-@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
+@role_required('admin')
 def sales_ledger_export(request, fmt):
     """Export the Sales Ledger (same date filters as the on-screen view) as PDF/Excel/CSV."""
     from utils.report_kit import export_rows
@@ -3612,7 +3614,7 @@ def _vehicle_ledger_rows(date_from, date_to, search='', category=''):
 
 
 @login_required
-@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
+@role_required('admin')
 def vehicle_ledger(request):
     """Every completed vehicle sale, categorized Cash vs HPP, with actual profit/loss."""
     import urllib.parse
@@ -3679,7 +3681,7 @@ def vehicle_ledger(request):
 
 
 @login_required
-@role_required('admin', 'manager', 'sales', 'accountant', 'auctioneer')
+@role_required('admin')
 def vehicle_ledger_export(request, fmt):
     """Export the Vehicle Ledger (same filters as the on-screen view) as PDF/Excel/CSV."""
     from utils.report_kit import export_rows

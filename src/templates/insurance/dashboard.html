@@ -211,10 +211,12 @@
                 <i class="fas fa-building text-blue-600 text-2xl mr-3"></i>
                 <span class="text-sm font-medium text-gray-800">View Providers</span>
             </a>
+            {% if user.is_superuser or user.role == 'admin' %}
             <a href="{% url 'insurance:insurance_reports' %}" class="flex items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition">
                 <i class="fas fa-chart-bar text-purple-600 text-2xl mr-3"></i>
                 <span class="text-sm font-medium text-gray-800">View Reports</span>
             </a>
+            {% endif %}
             <a href="{% url 'insurance:generate_quote' %}" class="flex items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition">
                 <i class="fas fa-calculator text-green-600 text-2xl mr-3"></i>
                 <span class="text-sm font-medium text-gray-800">Generate Quote</span>

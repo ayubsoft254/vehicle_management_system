@@ -735,8 +735,8 @@
         </div>
         <input type="hidden" name="secondary_brokers_json" id="id_secondary_brokers_json" value="{{ initial_secondary_brokers_json|default:'[]' }}">
 
-        <!-- Profit / Loss Summary Panel -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden" id="profit-loss-panel">
+        <!-- Profit / Loss Summary Panel (admin only — kept in the DOM but visually hidden for other roles so the cost/profit calculation script still runs) -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden{% if not user.is_superuser %}{% if user.role != 'admin' %} hidden{% endif %}{% endif %}" id="profit-loss-panel">
             <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
                 <h2 class="text-lg font-semibold text-white"><i class="fas fa-chart-line mr-2"></i>Deal Summary — Cost & Profit</h2>
             </div>
@@ -780,18 +780,20 @@
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="{{ form.purchase_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Vehicle Cost (KES) <span class="text-red-500">*</span></label>
-                        <div class="relative">
-                            {{ form.purchase_price }}
-                            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                <i class="fas fa-lock text-gray-400"></i>
+                        <div{% if not user.is_superuser %}{% if user.role != 'admin' %} class="hidden"{% endif %}{% endif %}>
+                            <label for="{{ form.purchase_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Vehicle Cost (KES) <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                {{ form.purchase_price }}
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-lock text-gray-400"></i>
+                                </div>
                             </div>
+                            {% if form.purchase_price.errors %}<p class="mt-1 text-sm text-red-600">{{ form.purchase_price.errors.0 }}</p>{% endif %}
+                            <p class="mt-2 text-xs text-gray-600">
+                                <i class="fas fa-info-circle mr-1 text-purple-600"></i>
+                                Updated automatically when you modify vehicle selection, insurance, trackers, extra costs, or commission amounts.
+                            </p>
                         </div>
-                        {% if form.purchase_price.errors %}<p class="mt-1 text-sm text-red-600">{{ form.purchase_price.errors.0 }}</p>{% endif %}
-                        <p class="mt-2 text-xs text-gray-600">
-                            <i class="fas fa-info-circle mr-1 text-purple-600"></i>
-                            Updated automatically when you modify vehicle selection, insurance, trackers, extra costs, or commission amounts.
-                        </p>
 
                         <div class="mt-4">
                             <label for="{{ form.final_selling_price.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">Final Selling Price (KES) <span class="text-red-500">*</span></label>
@@ -817,7 +819,7 @@
                             <p class="mt-2 text-xs text-gray-600">These costs are added to the vehicle cost and included in the total deal cost.</p>
                         </div>
                     </div>
-                    <div class="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                    <div class="bg-purple-50 rounded-lg p-4 border border-purple-200{% if not user.is_superuser %}{% if user.role != 'admin' %} hidden{% endif %}{% endif %}">
                         <h3 class="text-sm font-semibold text-purple-900 mb-3"><i class="fas fa-list mr-2"></i>Calculation Breakdown</h3>
                         <div class="space-y-2 text-xs text-gray-700">
                             <div class="flex justify-between">

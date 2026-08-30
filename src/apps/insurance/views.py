@@ -1410,6 +1410,7 @@ def _compute_insurance_report_context(request):
 
 
 @login_required
+@role_required('admin')
 def insurance_reports(request):
     context = _compute_insurance_report_context(request)
     log_audit(request.user, 'view', 'Insurance', 'Viewed insurance reports')
@@ -1417,6 +1418,7 @@ def insurance_reports(request):
 
 
 @login_required
+@role_required('admin')
 def insurance_reports_pdf(request):
     from utils.report_kit import build_pdf_response, styled_table, kpi_table, fmt_money
     ctx = _compute_insurance_report_context(request)
@@ -1444,6 +1446,7 @@ def insurance_reports_pdf(request):
 
 
 @login_required
+@role_required('admin')
 def insurance_reports_excel(request):
     from utils.report_kit import build_excel_response
     ctx = _compute_insurance_report_context(request)
@@ -1459,6 +1462,7 @@ def insurance_reports_excel(request):
 
 
 @login_required
+@role_required('admin')
 def insurance_reports_csv(request):
     from utils.report_kit import build_csv_response
     ctx = _compute_insurance_report_context(request)

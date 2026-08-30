@@ -198,6 +198,7 @@
                     </div>
                 </div>
 
+                {% if user.is_superuser or user.role == 'admin' %}
                 <a href="{% url 'vehicles:sales_ledger' %}" class="block bg-white border {% if overview_data.profit.is_profitable %}border-green-100 hover:border-green-200{% else %}border-red-100 hover:border-red-200{% endif %} rounded-xl shadow-sm p-6 hover:shadow-md transition duration-200">
                     <div class="flex items-start justify-between">
                         <div>
@@ -210,6 +211,7 @@
                         </span>
                     </div>
                 </a>
+                {% endif %}
             </div>
             {% endif %}
 

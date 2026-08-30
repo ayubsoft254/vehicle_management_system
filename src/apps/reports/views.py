@@ -27,6 +27,7 @@ from .models import (
     ReportWidget,
     SavedReport
 )
+from utils.decorators import role_required
 from .forms import (
     ReportForm,
     ReportFilterForm,
@@ -475,12 +476,14 @@ def report_dashboard(request):
         except Exception:
             return '#'
 
+    is_admin = bool(request.user.is_superuser or getattr(request.user, 'role', None) == 'admin')
+
     report_sections = [
         {
             'heading': 'Financial',
             'items': [
-                {'title': 'Financial Overview', 'description': 'Sales, collections, commissions and payouts across the business.', 'icon': 'fa-chart-line', 'url': link('reports:financial_reports')},
-                {'title': 'Main Ledger', 'description': 'Every money-in / money-out transaction across all sub-ledgers.', 'icon': 'fa-book-open', 'url': link('vehicles:main_ledger')},
+                {'title': 'Financial Overview', 'description': 'Sales, collections, commissions and payouts across the business.', 'icon': 'fa-chart-line', 'url': link('reports:financial_reports'), 'admin_only': True},
+                {'title': 'Main Ledger', 'description': 'Every money-in / money-out transaction across all sub-ledgers.', 'icon': 'fa-book-open', 'url': link('vehicles:main_ledger'), 'admin_only': True},
                 {'title': 'Defaulters Report', 'description': 'Clients with overdue balances, ranked by days overdue.', 'icon': 'fa-exclamation-triangle', 'url': link('payments:defaulters_report')},
             ],
         },
@@ -496,9 +499,9 @@ def report_dashboard(request):
             'heading': 'Business Partner Ledgers',
             'items': [
                 {'title': 'Broker Ledger', 'description': 'Commission earned and paid out per broker.', 'icon': 'fa-user-tie', 'url': link('vehicles:broker_ledger_list')},
-                {'title': 'Tracker Agent Ledger', 'description': 'Amounts owed and paid to tracker installation agents.', 'icon': 'fa-satellite-dish', 'url': link('vehicles:tracker_agent_ledger_list')},
+                {'title': 'Tracker Agent Ledger', 'description': 'Amounts owed and paid to tracker installation agents.', 'icon': 'fa-satellite-dish', 'url': link('vehicles:tracker_agent_ledger_list'), 'admin_only': True},
                 {'title': 'Clearing Agent Ledger', 'description': 'Amounts owed and paid to clearing agents.', 'icon': 'fa-ship', 'url': link('vehicles:clearing_agent_ledger_list')},
-                {'title': 'Japan Supplier Ledger', 'description': 'Purchases and payments to Japan suppliers.', 'icon': 'fa-store', 'url': link('vehicles:japan_supplier_ledger_list')},
+                {'title': 'Japan Supplier Ledger', 'description': 'Purchases and payments to Japan suppliers.', 'icon': 'fa-store', 'url': link('vehicles:japan_supplier_ledger_list'), 'admin_only': True},
                 {'title': 'Insurance Agent Ledger', 'description': 'Amounts owed and paid to insurance agents.', 'icon': 'fa-handshake', 'url': link('insurance:agent_ledger_list')},
                 {'title': 'Business Loans', 'description': 'Money loaned out by the business and repayment status.', 'icon': 'fa-hand-holding-usd', 'url': link('vehicles:business_loan_list')},
             ],
@@ -513,7 +516,7 @@ def report_dashboard(request):
         {
             'heading': 'Insurance',
             'items': [
-                {'title': 'Insurance Analytics', 'description': 'Policy volume, premiums and claims overview.', 'icon': 'fa-shield-alt', 'url': link('insurance:insurance_reports')},
+                {'title': 'Insurance Analytics', 'description': 'Policy volume, premiums and claims overview.', 'icon': 'fa-shield-alt', 'url': link('insurance:insurance_reports'), 'admin_only': True},
             ],
         },
         {
@@ -531,6 +534,11 @@ def report_dashboard(request):
             ],
         },
     ]
+
+    if not is_admin:
+        for section in report_sections:
+            section['items'] = [item for item in section['items'] if not item.get('admin_only')]
+        report_sections = [section for section in report_sections if section['items']]
 
     context = {
         'report_sections': report_sections,
@@ -870,6 +878,7 @@ def _build_financial_overview_context(date_from=None, date_to=None):
 
 
 @login_required
+@role_required('admin')
 def financial_reports(request):
     """Cross-app financial overview: sales, collections, commissions and payouts."""
     from django.urls import reverse
@@ -878,7 +887,7 @@ def financial_reports(request):
 
     date_from, date_to = parse_date_range(request)
     context = _build_financial_overview_context(date_from, date_to)
-    context['can_see_prices'] = request.user.is_staff
+    context['can_see_prices'] = True
     if date_from or date_to:
         context['report_subtitle'] = f"Sales from {date_from or 'the beginning'} to {date_to or 'today'}"
     else:
@@ -897,6 +906,7 @@ def financial_reports(request):
 
 
 @login_required
+@role_required('admin')
 def financial_reports_pdf(request):
     from utils.report_kit import build_pdf_response, styled_table, kpi_table, fmt_money
     from utils.ledger import parse_date_range
@@ -949,6 +959,7 @@ def financial_reports_pdf(request):
 
 
 @login_required
+@role_required('admin')
 def financial_reports_excel(request):
     from utils.report_kit import build_excel_response
     from utils.ledger import parse_date_range
@@ -964,6 +975,7 @@ def financial_reports_excel(request):
 
 
 @login_required
+@role_required('admin')
 def financial_reports_csv(request):
     from utils.report_kit import build_csv_response
     from utils.ledger import parse_date_range
