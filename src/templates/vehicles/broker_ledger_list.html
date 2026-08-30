@@ -17,12 +17,29 @@
             {% url 'vehicles:party_ledger_export' 'broker' 'excel' as export_excel_url %}
             {% url 'vehicles:party_ledger_export' 'broker' 'csv' as export_csv_url %}
             {% include 'reports/partials/_export_bar.html' %}
+            {% if show_inactive %}
+            <a href="{% url 'vehicles:broker_ledger_list' %}"
+               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Active Brokers
+            </a>
+            {% elif inactive_count %}
+            <a href="?show_inactive=1"
+               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
+                <i class="fas fa-eye-slash mr-2"></i>Show Inactive Brokers ({{ inactive_count }})
+            </a>
+            {% endif %}
             <button onclick="document.getElementById('addBrokerModal').classList.remove('hidden')"
                     class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition">
                 <i class="fas fa-plus mr-2"></i>Add Broker
             </button>
         </div>
     </div>
+
+    {% if show_inactive %}
+    <div class="mb-5 px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-600">
+        <i class="fas fa-eye-slash mr-2"></i>Showing deactivated brokers only. Their sales and commission history is preserved.
+    </div>
+    {% endif %}
 
     {% if messages %}
     <div class="mb-5">
@@ -112,10 +129,26 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 text-center">
-                            <a href="{% url 'vehicles:broker_ledger_detail' broker.pk %}"
-                               class="inline-flex items-center px-3 py-1 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-lg text-xs font-medium transition">
-                                <i class="fas fa-list-alt mr-1"></i>View
-                            </a>
+                            <div class="flex items-center justify-center gap-2">
+                                <a href="{% url 'vehicles:broker_ledger_detail' broker.pk %}"
+                                   class="inline-flex items-center px-3 py-1 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-lg text-xs font-medium transition">
+                                    <i class="fas fa-list-alt mr-1"></i>View
+                                </a>
+                                {% if show_inactive %}
+                                <form method="post" action="{% url 'vehicles:broker_reactivate' broker.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="inline-flex items-center px-3 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-xs font-medium transition">
+                                        <i class="fas fa-undo mr-1"></i>Reactivate
+                                    </button>
+                                </form>
+                                {% else %}
+                                <a href="{% url 'vehicles:broker_delete' broker.pk %}"
+                                   class="inline-flex items-center px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs font-medium transition">
+                                    <i class="fas fa-trash-alt mr-1"></i>Delete
+                                </a>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
