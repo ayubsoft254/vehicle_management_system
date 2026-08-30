@@ -310,7 +310,7 @@ def _normalize_account_reference(value):
 
 
 def _find_client_vehicle_for_reference(account_reference):
-    """Find a ClientVehicle by account reference (car registration)."""
+    """Find a ClientVehicle by account reference (car registration, falling back to VIN)."""
     if not account_reference:
         return None
 
@@ -318,7 +318,7 @@ def _find_client_vehicle_for_reference(account_reference):
     if not normalized:
         return None
 
-    # Direct match
+    # Direct match on plate
     direct_match = ClientVehicle.objects.select_related('vehicle', 'client').filter(
         is_active=True,
         vehicle__registration_number__iexact=str(account_reference).strip(),
@@ -326,13 +326,29 @@ def _find_client_vehicle_for_reference(account_reference):
     if direct_match:
         return direct_match
 
-    # Normalized match
+    # Normalized match on plate
     for item in ClientVehicle.objects.select_related('vehicle', 'client').filter(
         is_active=True,
         vehicle__registration_number__isnull=False,
     ):
         if _normalize_account_reference(item.vehicle.registration_number) == normalized:
             return item
+
+    # Fallback: match on VIN/chassis number for unplated vehicles
+    direct_vin_match = ClientVehicle.objects.select_related('vehicle', 'client').filter(
+        is_active=True,
+        vehicle__vin__iexact=str(account_reference).strip(),
+    ).first()
+    if direct_vin_match:
+        return direct_vin_match
+
+    for item in ClientVehicle.objects.select_related('vehicle', 'client').filter(
+        is_active=True,
+        vehicle__vin__isnull=False,
+    ):
+        if _normalize_account_reference(item.vehicle.vin) == normalized:
+            return item
+
     return None
 
 
@@ -1737,7 +1753,7 @@ def payment_receipt_pdf(request, pk):
 
         elements.append(Paragraph('VEHICLE DETAILS', heading))
         elements.append(field_grid([
-            ('Reg No', vehicle.registration_number or '—'),
+            ('Reg No', vehicle.registration_number or vehicle.vin or '—'),
             ('Chassis No', vehicle.vin),
             ('Make / Model', f'{vehicle.make} {vehicle.model}'),
             ('Year', vehicle.year),
@@ -2915,6 +2931,87 @@ def register_paybill_c2b(request):
     return redirect('payments:paybill_tracker')
 
 
+@login_required
+@require_POST
+def update_mpesa_security_credential(request):
+    """
+    Update MPESA_SECURITY_CREDENTIAL (or _2) in the .env file and live in the
+    current process's settings, without disturbing any other line in .env.
+    """
+    from pathlib import Path
+
+    paybill = request.POST.get('paybill', '1').strip()
+    new_value = request.POST.get('security_credential', '')
+
+    if paybill == '2':
+        env_key = 'MPESA_SECURITY_CREDENTIAL_2'
+        shortcode_label = getattr(settings, 'MPESA_SHORTCODE_2', '') or 'Paybill 2'
+    else:
+        env_key = 'MPESA_SECURITY_CREDENTIAL'
+        shortcode_label = getattr(settings, 'MPESA_SHORTCODE', '') or 'Paybill 1'
+
+    # Reject embedded newlines — a security credential is a single base64
+    # blob and must never span multiple lines in .env.
+    if '\n' in new_value or '\r' in new_value:
+        messages.error(request, 'Security credential must not contain line breaks. Paste it as a single line.')
+        return redirect('payments:paybill_tracker')
+
+    new_value = new_value.strip()
+    if not new_value:
+        messages.error(request, 'Security credential cannot be empty.')
+        return redirect('payments:paybill_tracker')
+
+    env_path = Path(settings.BASE_DIR) / '.env'
+    if not env_path.exists():
+        messages.error(
+            request,
+            f'.env file not found at {env_path}. This action only edits an existing .env — '
+            'it will not create one from scratch. Contact an administrator to set this up on the server.'
+        )
+        return redirect('payments:paybill_tracker')
+
+    try:
+        lines = env_path.read_text(encoding='utf-8').splitlines()
+    except Exception as e:
+        messages.error(request, f'Could not read .env file: {e}')
+        return redirect('payments:paybill_tracker')
+
+    updated = False
+    new_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith(f'{env_key}=') or stripped.startswith(f'{env_key} ='):
+            new_lines.append(f'{env_key}={new_value}')
+            updated = True
+        else:
+            new_lines.append(line)
+    if not updated:
+        new_lines.append(f'{env_key}={new_value}')
+
+    try:
+        env_path.write_text('\n'.join(new_lines) + '\n', encoding='utf-8')
+    except Exception as e:
+        messages.error(request, f'Could not write .env file: {e}')
+        return redirect('payments:paybill_tracker')
+
+    # Apply immediately to this process — other worker processes in a
+    # multi-worker production deployment will still need a restart to pick
+    # this up, since they each hold their own in-memory settings.
+    setattr(settings, env_key, new_value)
+
+    log_audit(
+        request.user, 'update', 'MpesaConfig',
+        f'Updated {env_key} for {shortcode_label} in .env (value not logged).'
+    )
+
+    messages.success(
+        request,
+        f'Security credential for {shortcode_label} updated and applied to this process immediately. '
+        'If the app runs multiple worker processes, restart the app to apply it everywhere.'
+    )
+    return redirect('payments:paybill_tracker')
+
+
 # ==================== MPESA CALLBACK VIEWS ====================
 
 @log_incoming_callback('paybill_validation_callback')
@@ -3786,7 +3883,8 @@ def staff_stk_initiate(request, client_vehicle_pk):
     except Exception:
         return JsonResponse({'ok': False, 'error': 'Invalid amount.'}, status=400)
 
-    account_reference = client_vehicle.vehicle.registration_number or f'VEH{client_vehicle.pk}'
+    from .utils import vehicle_payment_reference
+    account_reference = vehicle_payment_reference(client_vehicle.vehicle) or f'VEH{client_vehicle.pk}'
     transaction_desc = (
         f'Payment for {account_reference} by {client_vehicle.client.get_full_name()}'
     )[:100]
