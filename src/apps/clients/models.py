@@ -651,6 +651,20 @@ class ClientVehicle(models.Model):
         help_text='Paybill number to print on the sales agreement'
     )
 
+    vehicle_price_before_sale = models.DecimalField(
+        'Vehicle Price Before Sale',
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=(
+            'Snapshot of Vehicle.selling_price immediately before this sale overwrote it. '
+            'Set once at assignment time; used to restore the vehicle price if returned. '
+            'Null for sales made before this field existed — Return Vehicle falls back to '
+            'Vehicle.purchase_price in that case.'
+        )
+    )
+
     # Metadata
     created_by = models.ForeignKey(
         'authentication.User',
@@ -718,6 +732,134 @@ class ClientVehicle(models.Model):
                 from django.utils import timezone
                 self.date_paid_off = timezone.now().date()
         self.save()
+
+
+class VehicleReturn(models.Model):
+    """
+    Records a client-vehicle sale being reversed: the vehicle goes back to
+    available stock and the client's total_paid is written off via an
+    auto-created Expense. The originating ClientVehicle row is kept (not
+    deleted) for history — see ClientVehicle.is_active.
+    """
+
+    client_vehicle = models.OneToOneField(
+        ClientVehicle,
+        on_delete=models.CASCADE,
+        related_name='vehicle_return',
+        help_text='The sale record this return reverses.'
+    )
+
+    return_date = models.DateField('Return Date', default=timezone.now)
+
+    restored_price = models.DecimalField(
+        'Restored Vehicle Price',
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text='Price the vehicle was restored to (pre-sale selling_price, or purchase_price fallback).'
+    )
+
+    amount_refunded = models.DecimalField(
+        'Amount Refunded / Written Off',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text="Snapshot of the client's total_paid at the moment of return."
+    )
+
+    refund_expense = models.ForeignKey(
+        'expenses.Expense',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='vehicle_returns',
+        help_text='Auto-created CREDIT expense that writes off amount_refunded (null if amount was 0).'
+    )
+
+    processed_by = models.ForeignKey(
+        'authentication.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='vehicle_returns_processed'
+    )
+
+    reason = models.TextField('Reason / Notes', blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'client_vehicle_returns'
+        verbose_name = 'Vehicle Return'
+        verbose_name_plural = 'Vehicle Returns'
+        ordering = ['-return_date', '-created_at']
+
+    def __str__(self):
+        return f"Return — {self.client_vehicle} on {self.return_date}"
+
+
+class ClientVehicleSecondaryBroker(models.Model):
+    """
+    A secondary/referral broker attached to a sale in addition to the single
+    primary broker on ClientVehicle.broker. Each earns their own commission,
+    tracked separately but rolled into Broker.total_commission/total_owed so
+    the broker ledger reflects all commission liability regardless of role.
+    """
+
+    COMMISSION_STATUS_CHOICES = [
+        ('unpaid', 'Unpaid'),
+        ('paid', 'Paid'),
+    ]
+
+    client_vehicle = models.ForeignKey(
+        ClientVehicle,
+        on_delete=models.CASCADE,
+        related_name='secondary_brokers'
+    )
+
+    broker = models.ForeignKey(
+        'vehicles.Broker',
+        on_delete=models.CASCADE,
+        related_name='secondary_sales'
+    )
+
+    commission_amount = models.DecimalField(
+        'Commission Amount',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+
+    commission_percentage = models.DecimalField(
+        'Commission Percentage',
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+
+    commission_status = models.CharField(
+        'Commission Status',
+        max_length=10,
+        choices=COMMISSION_STATUS_CHOICES,
+        default='unpaid',
+        help_text='Independent of the primary broker commission_status on this sale.'
+    )
+
+    notes = models.CharField(max_length=255, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'client_vehicle_secondary_brokers'
+        verbose_name = 'Secondary Broker'
+        verbose_name_plural = 'Secondary Brokers'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.broker.name} — secondary on {self.client_vehicle}"
 
 
 class ClientDocument(models.Model):
