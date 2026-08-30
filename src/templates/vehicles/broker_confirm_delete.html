@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% load static humanize %}
+
+{% block title %}Delete Broker - {{ broker.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-2xl">
+
+    <!-- Breadcrumb -->
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'vehicles:broker_ledger_list' %}" class="text-gray-700 hover:text-primary-600 inline-flex items-center">
+                    <i class="fas fa-user-tie mr-2"></i>
+                    Broker Ledger
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <a href="{% url 'vehicles:broker_ledger_detail' broker.pk %}" class="text-gray-700 hover:text-primary-600">
+                        {{ broker.name }}
+                    </a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">Delete</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Warning Card -->
+    <div class="bg-white rounded-lg shadow-sm border border-red-200 overflow-hidden">
+        <div class="bg-red-50 px-6 py-4 border-b border-red-200">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-3xl text-red-600"></i>
+                </div>
+                <div class="ml-4">
+                    <h2 class="text-xl font-bold text-red-900">Confirm Broker Deletion</h2>
+                    <p class="mt-1 text-sm text-red-700">This action will deactivate the broker</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <!-- Broker Information -->
+            <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">{{ broker.name }}</h3>
+                {% if broker.id_number %}
+                <p class="text-sm text-gray-600"><i class="fas fa-id-card mr-1"></i> ID: {{ broker.id_number }}</p>
+                {% endif %}
+                {% if broker.phone %}
+                <p class="text-sm text-gray-600"><i class="fas fa-phone mr-1"></i> {{ broker.phone }}</p>
+                {% endif %}
+                <div class="mt-3 grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <p class="text-gray-500">Total Sales</p>
+                        <p class="font-semibold text-gray-800">{{ broker.total_sales }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500">Outstanding Commission</p>
+                        <p class="font-semibold {% if broker.total_owed > 0 %}text-red-600{% else %}text-gray-800{% endif %}">
+                            KES {{ broker.total_owed|floatformat:0|intcomma }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {% if broker.total_owed > 0 %}
+            <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-circle text-red-400"></i>
+                    </div>
+                    <div class="ml-3 text-sm text-red-700">
+                        <p class="font-medium">This broker still has KES {{ broker.total_owed|floatformat:2|intcomma }} in unpaid commission.</p>
+                        <p class="mt-1">Deactivating won't erase that balance — it will still show if you reactivate the broker later.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Warning Message -->
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle text-yellow-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800">Important Information</h3>
+                        <div class="mt-2 text-sm text-yellow-700">
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>This broker will be removed from the active broker ledger and any "Select Broker" lists</li>
+                                <li>Their sales, commission and voucher payment history will be preserved</li>
+                                <li>You can reactivate this broker at any time from "Show inactive brokers"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Confirmation Form -->
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="mb-6">
+                    <p class="text-gray-700 font-medium mb-2">Are you sure you want to deactivate this broker?</p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center justify-end space-x-4">
+                    <a href="{% url 'vehicles:broker_ledger_detail' broker.pk %}"
+                       class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
+                        <i class="fas fa-times mr-2"></i> Cancel
+                    </a>
+                    <button type="submit"
+                            class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
+                        <i class="fas fa-trash-alt mr-2"></i> Yes, Deactivate Broker
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
