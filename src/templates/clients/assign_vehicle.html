@@ -720,6 +720,21 @@
             </div>
         </div>
 
+        <!-- Secondary / Referral Brokers -->
+        <div id="secondary-brokers-section" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900"><i class="fas fa-user-friends mr-2"></i>Secondary / Referral Brokers</h2>
+                <button type="button" class="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 text-sm font-medium rounded-lg" onclick="addSecondaryBrokerRow()">
+                    <i class="fas fa-plus mr-1"></i>Add Broker
+                </button>
+            </div>
+            <div class="p-6">
+                <p class="text-xs text-gray-500 mb-3">Optional additional brokers on this sale, each with their own commission. Does not replace the primary broker above.</p>
+                <div id="secondary-brokers-container" class="space-y-2"></div>
+            </div>
+        </div>
+        <input type="hidden" name="secondary_brokers_json" id="id_secondary_brokers_json" value="{{ initial_secondary_brokers_json|default:'[]' }}">
+
         <!-- Profit / Loss Summary Panel -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden" id="profit-loss-panel">
             <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
@@ -2057,6 +2072,69 @@ function hydrateExtraCostsFromHidden() {
     });
 }
 
+function getSecondaryBrokerRows() {
+    return Array.from(document.querySelectorAll('#secondary-brokers-container .secondary-broker-row'));
+}
+
+function syncSecondaryBrokersPayload() {
+    const payloadInput = document.getElementById('id_secondary_brokers_json');
+    const rows = getSecondaryBrokerRows().map((row) => {
+        const brokerId = row.querySelector('select[name="secondary_broker_id[]"]')?.value || '';
+        const amount = parseFloat(row.querySelector('input[name="secondary_broker_commission[]"]')?.value || 0) || 0;
+        const pct = row.querySelector('input[name="secondary_broker_pct[]"]')?.value || '';
+        return { broker_id: brokerId, commission_amount: Number(amount).toFixed(2), commission_percentage: pct };
+    }).filter((item) => item.broker_id && parseFloat(item.commission_amount) > 0);
+    if (payloadInput) payloadInput.value = JSON.stringify(rows);
+}
+
+function addSecondaryBrokerRow(brokerId = '', amount = '', pct = '') {
+    const container = document.getElementById('secondary-brokers-container');
+    if (!container) return;
+    const brokerLedgerData = {{ broker_ledger_data|safe }};
+    const options = brokerLedgerData.map(b =>
+        `<option value="${b.id}" ${String(b.id) === String(brokerId) ? 'selected' : ''}>${b.name}</option>`
+    ).join('');
+
+    const row = document.createElement('div');
+    row.className = 'secondary-broker-row grid grid-cols-1 md:grid-cols-12 gap-2 p-2 bg-purple-50 border border-purple-100 rounded-lg';
+    row.innerHTML = `
+        <div class="md:col-span-6">
+            <select name="secondary_broker_id[]" class="form-input">
+                <option value="">Select broker…</option>
+                ${options}
+            </select>
+        </div>
+        <div class="md:col-span-3">
+            <input type="number" name="secondary_broker_commission[]" class="form-input" min="0" step="0.01" placeholder="Commission (KES)" value="${amount}">
+        </div>
+        <div class="md:col-span-2">
+            <input type="number" name="secondary_broker_pct[]" class="form-input" min="0" step="0.01" placeholder="% (optional)" value="${pct}">
+        </div>
+        <div class="md:col-span-1 flex items-center justify-end">
+            <button type="button" class="w-10 h-10 rounded-md border border-red-200 text-red-600 hover:bg-red-50 remove-secondary-broker" title="Remove">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    row.querySelectorAll('select, input').forEach((el) => el.addEventListener('change', syncSecondaryBrokersPayload));
+    row.querySelectorAll('input').forEach((el) => el.addEventListener('input', syncSecondaryBrokersPayload));
+    row.querySelector('.remove-secondary-broker')?.addEventListener('click', () => { row.remove(); syncSecondaryBrokersPayload(); });
+    container.appendChild(row);
+    syncSecondaryBrokersPayload();
+}
+
+function hydrateSecondaryBrokersFromHidden() {
+    const payloadInput = document.getElementById('id_secondary_brokers_json');
+    const container = document.getElementById('secondary-brokers-container');
+    if (!container) return;
+    container.innerHTML = '';
+    let rows = [];
+    try { rows = JSON.parse(payloadInput?.value || '[]'); } catch (e) { rows = []; }
+    if (Array.isArray(rows)) {
+        rows.forEach(r => addSecondaryBrokerRow(r.broker_id, r.commission_amount, r.commission_percentage));
+    }
+}
+
 function updateCalculationBreakdown() {
     const vehicleId = document.getElementById('{{ form.vehicle.id_for_label }}')?.value;
     const dealerCost = vehicleId ? (vehicleCostPrices[vehicleId] || 0) : 0;
@@ -2282,7 +2360,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     hydrateExtraCostsFromHidden();
     document.getElementById('add-extra-cost-btn')?.addEventListener('click', () => addExtraCostRow());
-    
+    hydrateSecondaryBrokersFromHidden();
+
     // Initialize profit/loss and calculation breakdown
     updateProfitLoss();
     updateCalculationBreakdown();
@@ -2517,6 +2596,9 @@ function calculateTrackerInstallment(elem) { /* no-op */ }
 document.addEventListener('draft-restored', function () {
     // Rebuild extra cost rows from restored JSON
     hydrateExtraCostsFromHidden();
+
+    // Rebuild secondary broker rows from restored JSON
+    hydrateSecondaryBrokersFromHidden();
 
     // Re-read payment type and show the correct section
     updatePaymentFields();
