@@ -2391,7 +2391,9 @@ def broker_ledger_list(request):
 
     from apps.clients.models import ClientVehicleSecondaryBroker
 
-    brokers = Broker.objects.filter(is_active=True).order_by('name')
+    show_inactive = request.GET.get('show_inactive') == '1'
+    brokers = Broker.objects.filter(is_active=not show_inactive).order_by('name')
+    inactive_count = Broker.objects.filter(is_active=False).count()
     totals = ClientVehicle.objects.filter(broker__isnull=False).aggregate(
         grand_commission=Coalesce(Sum('commission_amount'), Value(0, output_field=DecimalField())),
         grand_owed=Coalesce(
@@ -2420,8 +2422,50 @@ def broker_ledger_list(request):
         'grand_owed': totals['grand_owed'] + secondary_totals['grand_owed'],
         'grand_paid': totals['grand_paid'] + secondary_totals['grand_paid'],
         'form': form,
+        'show_inactive': show_inactive,
+        'inactive_count': inactive_count,
     }
     return render(request, 'vehicles/broker_ledger_list.html', context)
+
+
+@login_required
+@module_permission_required('vehicles', AccessLevel.FULL_ACCESS)
+def broker_delete(request, pk):
+    """Delete a broker (soft delete by marking as inactive), matching the
+    same pattern used for clients — history (sales, commissions, vouchers)
+    is preserved, the broker just no longer appears in the active ledger."""
+    broker = get_object_or_404(Broker, pk=pk)
+
+    if request.method == 'POST':
+        broker_name = broker.name
+        broker.is_active = False
+        broker.save(update_fields=['is_active'])
+
+        AuditLog.log_delete(user=request.user, obj=broker, ip_address=request.META.get('REMOTE_ADDR'))
+        messages.success(request, f'Broker "{broker_name}" has been deactivated.')
+        return redirect('vehicles:broker_ledger_list')
+
+    return render(request, 'vehicles/broker_confirm_delete.html', {'broker': broker})
+
+
+@login_required
+@module_permission_required('vehicles', AccessLevel.FULL_ACCESS)
+def broker_reactivate(request, pk):
+    """Reactivate a previously deactivated broker."""
+    broker = get_object_or_404(Broker, pk=pk)
+
+    if request.method == 'POST':
+        broker.is_active = True
+        broker.save(update_fields=['is_active'])
+
+        AuditLog.log_update(
+            user=request.user, obj=broker,
+            changes={'is_active': {'old': 'False', 'new': 'True'}},
+            ip_address=request.META.get('REMOTE_ADDR'),
+        )
+        messages.success(request, f'Broker "{broker.name}" has been reactivated.')
+
+    return redirect('vehicles:broker_ledger_list')
 
 
 def _broker_statement(broker, date_from, date_to):
