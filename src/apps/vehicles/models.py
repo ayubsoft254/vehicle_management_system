@@ -1115,18 +1115,22 @@ class Broker(models.Model):
 
     @property
     def total_sales(self):
-        return self.sales.count()
+        from apps.clients.models import ClientVehicleSecondaryBroker
+        return self.sales.count() + ClientVehicleSecondaryBroker.objects.filter(broker=self).count()
 
     @property
     def total_commission(self):
-        return (
-            self.sales.aggregate(total=models.Sum('commission_amount'))['total']
-            or Decimal('0.00')
-        )
+        """Total commission earned, as primary broker plus as secondary/referral broker."""
+        from apps.clients.models import ClientVehicleSecondaryBroker
+        primary = self.sales.aggregate(total=models.Sum('commission_amount'))['total'] or Decimal('0.00')
+        secondary = ClientVehicleSecondaryBroker.objects.filter(broker=self).aggregate(
+            total=models.Sum('commission_amount')
+        )['total'] or Decimal('0.00')
+        return primary + secondary
 
     @property
     def total_owed(self):
-        """Remaining balance: total commission minus all payments made."""
+        """Remaining balance: total commission (primary + secondary) minus all payments made."""
         return max(Decimal('0.00'), self.total_commission - self.total_payments_made)
 
     @property
