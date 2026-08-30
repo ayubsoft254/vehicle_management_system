@@ -2389,6 +2389,8 @@ def broker_ledger_list(request):
     else:
         form = BrokerForm()
 
+    from apps.clients.models import ClientVehicleSecondaryBroker
+
     brokers = Broker.objects.filter(is_active=True).order_by('name')
     totals = ClientVehicle.objects.filter(broker__isnull=False).aggregate(
         grand_commission=Coalesce(Sum('commission_amount'), Value(0, output_field=DecimalField())),
@@ -2401,11 +2403,22 @@ def broker_ledger_list(request):
             Value(0, output_field=DecimalField()),
         ),
     )
+    secondary_totals = ClientVehicleSecondaryBroker.objects.aggregate(
+        grand_commission=Coalesce(Sum('commission_amount'), Value(0, output_field=DecimalField())),
+        grand_owed=Coalesce(
+            Sum('commission_amount', filter=Q(commission_status='unpaid')),
+            Value(0, output_field=DecimalField()),
+        ),
+        grand_paid=Coalesce(
+            Sum('commission_amount', filter=Q(commission_status='paid')),
+            Value(0, output_field=DecimalField()),
+        ),
+    )
     context = {
         'brokers': brokers,
-        'grand_commission': totals['grand_commission'],
-        'grand_owed': totals['grand_owed'],
-        'grand_paid': totals['grand_paid'],
+        'grand_commission': totals['grand_commission'] + secondary_totals['grand_commission'],
+        'grand_owed': totals['grand_owed'] + secondary_totals['grand_owed'],
+        'grand_paid': totals['grand_paid'] + secondary_totals['grand_paid'],
         'form': form,
     }
     return render(request, 'vehicles/broker_ledger_list.html', context)
@@ -2414,8 +2427,12 @@ def broker_ledger_list(request):
 def _broker_statement(broker, date_from, date_to):
     """Shared by the on-screen detail view and its PDF export so they never disagree."""
     from utils.ledger import make_entry, build_statement
+    from apps.clients.models import ClientVehicleSecondaryBroker
 
     sales = broker.sales.select_related('vehicle', 'client').order_by('-purchase_date')
+    secondary_rows = ClientVehicleSecondaryBroker.objects.filter(broker=broker).select_related(
+        'client_vehicle__vehicle', 'client_vehicle__client'
+    ).order_by('-client_vehicle__purchase_date')
     payments = broker.payments.select_related('recorded_by').order_by('-payment_date')
 
     entries = [
@@ -2429,6 +2446,18 @@ def _broker_statement(broker, date_from, date_to):
             sort_key=s.created_at,
         )
         for s in sales if s.commission_amount and s.commission_amount > 0
+    ] + [
+        make_entry(
+            sb.client_vehicle.purchase_date,
+            f'Commission earned (secondary) — sale to {sb.client_vehicle.client.get_full_name()}',
+            credit=sb.commission_amount,
+            reference=f'CV-{sb.client_vehicle.pk}-SEC-{sb.pk}',
+            related=str(sb.client_vehicle.vehicle),
+            status=sb.get_commission_status_display(),
+            notes='Secondary broker',
+            sort_key=sb.created_at,
+        )
+        for sb in secondary_rows if sb.commission_amount and sb.commission_amount > 0
     ] + [
         make_entry(
             p.payment_date,
@@ -2456,13 +2485,27 @@ def broker_ledger_detail(request, pk):
     """Show all sales for a broker and allow marking commissions paid."""
     from utils.ledger import parse_date_range
 
+    from apps.clients.models import ClientVehicleSecondaryBroker
+
     date_from, date_to = parse_date_range(request)
     broker = get_object_or_404(Broker, pk=pk)
     sales, payments, statement_rows, statement_summary = _broker_statement(broker, date_from, date_to)
+    secondary_sales = ClientVehicleSecondaryBroker.objects.filter(broker=broker).select_related(
+        'client_vehicle__vehicle', 'client_vehicle__client'
+    )
+    primary_commission_total = sales.aggregate(
+        total=Coalesce(Sum('commission_amount'), Value(0, output_field=DecimalField()))
+    )['total']
+    secondary_commission_total = secondary_sales.aggregate(
+        total=Coalesce(Sum('commission_amount'), Value(0, output_field=DecimalField()))
+    )['total']
 
     context = {
         'broker': broker,
         'sales': sales,
+        'secondary_sales': secondary_sales,
+        'primary_commission_total': primary_commission_total,
+        'secondary_commission_total': secondary_commission_total,
         'payments': payments,
         'statement_rows': statement_rows,
         'statement_summary': statement_summary,
