@@ -3006,8 +3006,10 @@ def update_mpesa_security_credential(request):
 
     messages.success(
         request,
-        f'Security credential for {shortcode_label} updated and applied to this process immediately. '
-        'If the app runs multiple worker processes, restart the app to apply it everywhere.'
+        f'Security credential for {shortcode_label} updated in .env and applied to this process immediately. '
+        'Other gunicorn workers and the Celery containers still hold the old value in memory — a plain '
+        '"docker-compose restart" will NOT pick up the change (it keeps the environment the container '
+        'started with). Run "docker-compose up -d" to recreate the containers and apply it everywhere.'
     )
     return redirect('payments:paybill_tracker')
 

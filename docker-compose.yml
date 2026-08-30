@@ -71,6 +71,12 @@ services:
       - ./src/static_collected:/app/static_collected
       - ./src/media:/app/media
       - logs_volume:/app/logs
+      # env_file below only seeds this container's process env at startup —
+      # it never puts the file itself inside the container. The "Update M-Pesa
+      # Security Credential" admin action writes to BASE_DIR/.env (= /app/.env
+      # in here), so without this bind mount that write always fails with
+      # "'.env' file not found", since /app/.env never otherwise exists.
+      - ./.env:/app/.env
     ports:
       - "3333:3333"
     env_file:
