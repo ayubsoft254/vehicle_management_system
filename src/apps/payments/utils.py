@@ -59,6 +59,35 @@ def calculate_monthly_installment(total_amount, deposit, months, interest_rate=0
     }
 
 
+# ==================== VEHICLE REFERENCE UTILITIES ====================
+
+def vehicle_payment_reference(vehicle):
+    """
+    The reference string that identifies this vehicle for payment-matching
+    purposes: registration/plate first (most common case), falling back to
+    the VIN/chassis number for newly-imported cars that don't have a plate
+    yet, then a generic VEH<pk> fallback if even the VIN is unusable.
+    """
+    if not vehicle:
+        return ''
+    if vehicle.registration_number:
+        return vehicle.registration_number
+    if vehicle.vin:
+        return vehicle.vin
+    return f'VEH{vehicle.pk}' if vehicle.pk else ''
+
+
+def vehicle_reference_label(vehicle):
+    """Human-readable label for display: 'Reg: KAA123A' or 'Chassis: JT...' when unplated."""
+    if not vehicle:
+        return '—'
+    if vehicle.registration_number:
+        return f'Reg: {vehicle.registration_number}'
+    if vehicle.vin:
+        return f'Chassis: {vehicle.vin}'
+    return '—'
+
+
 def calculate_amortization_schedule(principal, annual_rate, months):
     """
     Calculate loan amortization schedule with compound interest
@@ -318,7 +347,7 @@ def generate_payment_receipt_pdf(payment):
     vehicle = payment.client_vehicle.vehicle
     vehicle_data = [
         ['Vehicle:', f"{vehicle.make} {vehicle.model} {vehicle.year}"],
-        ['Registration:', vehicle.registration_number],
+        ['Registration:', vehicle.registration_number or vehicle.vin or 'N/A'],
     ]
     
     vehicle_table = Table(vehicle_data, colWidths=[2*inch, 3*inch])
@@ -428,7 +457,7 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
     vehicle_info = [
         ['Make & Model:', f"{vehicle.make} {vehicle.model}"],
         ['Year:', str(vehicle.year)],
-        ['Registration:', vehicle.registration_number],
+        ['Registration:', vehicle.registration_number or 'Not yet registered'],
         ['VIN/Chassis:', vehicle.vin or 'N/A'],
         ['Color:', vehicle.color or 'N/A'],
     ]
@@ -534,7 +563,7 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
     
     info_text = f"""
     <b>Client:</b> {client.get_full_name()} (ID: {client.id_number})<br/>
-    <b>Vehicle:</b> {vehicle.make} {vehicle.model} ({vehicle.registration_number})<br/>
+    <b>Vehicle:</b> {vehicle.make} {vehicle.model} ({vehicle.registration_number or vehicle.vin or 'N/A'})<br/>
     <b>Generated:</b> {timezone.now().strftime('%d %B %Y')}
     """
     elements.append(Paragraph(info_text, styles['Normal']))
@@ -655,7 +684,7 @@ def generate_client_statement_pdf(client, rows, summary):
             row['date'].strftime('%d/%m/%Y') if row['date'] else '',
             row['reference'] or '',
             row['type_label'],
-            row['related_vehicle'].registration_number if row['related_vehicle'] else '',
+            (row['related_vehicle'].registration_number or row['related_vehicle'].vin) if row['related_vehicle'] else '',
             format_currency(row['debit']) if row['debit'] else '',
             format_currency(row['credit']) if row['credit'] else '',
             format_currency(row['running_balance']),
@@ -733,7 +762,7 @@ def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decima
     vehicle = client_vehicle.vehicle
     vehicle_data = [
         ['Description', 'Amount'],
-        [f"{vehicle.make} {vehicle.model} {vehicle.year}\nReg: {vehicle.registration_number}", 
+        [f"{vehicle.make} {vehicle.model} {vehicle.year}\n{vehicle_reference_label(vehicle)}",
             format_currency(convert_from_kes(client_vehicle.purchase_price, fx_rate), currency)]
     ]
     
