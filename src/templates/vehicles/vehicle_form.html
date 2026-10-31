@@ -135,6 +135,14 @@
                         {% if form.color.errors %}<p class="mt-1 text-xs text-red-600">{{ form.color.errors.0 }}</p>{% endif %}
                     </div>
 
+                    <div>
+                        <label for="{{ form.body_type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Body Type
+                        </label>
+                        {{ form.body_type }}
+                        {% if form.body_type.errors %}<p class="mt-1 text-xs text-red-600">{{ form.body_type.errors.0 }}</p>{% endif %}
+                    </div>
+
                 </div>
             </div>
 
@@ -168,14 +176,6 @@
                         </label>
                         {{ form.transmission }}
                         {% if form.transmission.errors %}<p class="mt-1 text-xs text-red-600">{{ form.transmission.errors.0 }}</p>{% endif %}
-                    </div>
-
-                    <div>
-                        <label for="{{ form.body_type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Body Type
-                        </label>
-                        {{ form.body_type }}
-                        {% if form.body_type.errors %}<p class="mt-1 text-xs text-red-600">{{ form.body_type.errors.0 }}</p>{% endif %}
                     </div>
 
                     <div>

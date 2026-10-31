@@ -2074,9 +2074,7 @@ def vehicle_reports(request):
     ]
 
     # ── Body type breakdown ──────────────────────────────────────────────────
-    body_choices = [('sedan', 'Sedan'), ('suv', 'SUV'), ('hatchback', 'Hatchback'),
-                    ('pickup', 'Pickup Truck'), ('van', 'Van'), ('coupe', 'Coupe'),
-                    ('wagon', 'Station Wagon'), ('other', 'Other')]
+    body_choices = Vehicle.BODY_TYPE_CHOICES
     by_body = [
         {'label': label, 'count': vehicles.filter(body_type=val).count()}
         for val, label in body_choices if vehicles.filter(body_type=val).exists()
@@ -2184,9 +2182,7 @@ def vehicle_reports_pdf(request):
     fuel_choices = [('petrol', 'Petrol'), ('diesel', 'Diesel'), ('electric', 'Electric'),
                     ('hybrid', 'Hybrid'), ('other', 'Other')]
     by_fuel = [{'label': label, 'count': vehicles.filter(fuel_type=val).count()} for val, label in fuel_choices]
-    body_choices = [('sedan', 'Sedan'), ('suv', 'SUV'), ('hatchback', 'Hatchback'),
-                    ('pickup', 'Pickup Truck'), ('van', 'Van'), ('coupe', 'Coupe'),
-                    ('wagon', 'Station Wagon'), ('other', 'Other')]
+    body_choices = Vehicle.BODY_TYPE_CHOICES
     by_body = [
         {'label': label, 'count': vehicles.filter(body_type=val).count()}
         for val, label in body_choices if vehicles.filter(body_type=val).exists()

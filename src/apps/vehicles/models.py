@@ -134,19 +134,34 @@ class Vehicle(models.Model):
         help_text='Engine capacity (e.g., 1.5L, 2000cc)'
     )
     
+    # Single source for body types — forms and reports read this list.
+    BODY_TYPE_CHOICES = [
+        ('sedan', 'Sedan'),
+        ('suv', 'SUV'),
+        ('hatchback', 'Hatchback'),
+        ('coupe', 'Coupe'),
+        ('convertible', 'Convertible'),
+        ('wagon', 'Station Wagon'),
+        ('pickup', 'Pickup Truck'),
+        ('double_cab', 'Double Cab Pickup'),
+        ('van', 'Van'),
+        ('minibus', 'Minibus / Matatu'),
+        ('bus', 'Bus'),
+        ('long_chassis', 'Long Chassis'),
+        ('short_chassis', 'Short Chassis'),
+        ('light_truck', 'Light Truck / Canter'),
+        ('truck', 'Truck / Lorry'),
+        ('tipper', 'Tipper'),
+        ('prime_mover', 'Prime Mover'),
+        ('trailer', 'Trailer'),
+        ('motorcycle', 'Motorcycle'),
+        ('other', 'Other'),
+    ]
+
     body_type = models.CharField(
         'Body Type',
         max_length=50,
-        choices=[
-            ('sedan', 'Sedan'),
-            ('suv', 'SUV'),
-            ('hatchback', 'Hatchback'),
-            ('pickup', 'Pickup Truck'),
-            ('van', 'Van'),
-            ('coupe', 'Coupe'),
-            ('wagon', 'Station Wagon'),
-            ('other', 'Other'),
-        ],
+        choices=BODY_TYPE_CHOICES,
         blank=True
     )
     

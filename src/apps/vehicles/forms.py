@@ -213,6 +213,7 @@ class VehicleForm(forms.ModelForm):
                 del self.fields[field_name].widget.attrs['required']
 
         self.fields['location'].choices = [('', 'Select vehicle location')] + list(VehicleLocation.CHOICES)
+        self.fields['body_type'].choices = [('', 'Select body type')] + Vehicle.BODY_TYPE_CHOICES
 
         # Selling price is derived from total cost on the form and server side.
         self.fields['selling_price'].widget.attrs['readonly'] = 'readonly'
@@ -576,13 +577,7 @@ class VehicleSearchForm(forms.Form):
     body_type = forms.ChoiceField(
         required=False,
         label='Body Type',
-        choices=[('', 'All')] + [
-            ('sedan', 'Sedan'),
-            ('suv', 'SUV'),
-            ('hatchback', 'Hatchback'),
-            ('pickup', 'Pickup Truck'),
-            ('van', 'Van'),
-        ],
+        choices=[('', 'All')] + Vehicle.BODY_TYPE_CHOICES,
         widget=forms.Select(attrs={
             'class': 'px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
         })

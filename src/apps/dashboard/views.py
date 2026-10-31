@@ -102,7 +102,8 @@ def landing_page(request):
     
     # Get filter options
     all_makes = Vehicle.objects.available().values_list('make', flat=True).distinct().order_by('make')
-    all_body_types = Vehicle.objects.available().exclude(body_type='').values_list('body_type', flat=True).distinct()
+    in_stock_body_types = set(Vehicle.objects.available().values_list('body_type', flat=True).order_by().distinct())
+    all_body_types = [(value, label) for value, label in Vehicle.BODY_TYPE_CHOICES if value in in_stock_body_types]
     
     # Featured vehicles (shown at top)
     featured_vehicles = Vehicle.objects.filter(

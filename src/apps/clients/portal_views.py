@@ -586,7 +586,8 @@ def portal_marketplace(request):
     
     # Get unique makes and body types for filters
     makes = Vehicle.objects.available().values_list('make', flat=True).distinct()
-    body_types = Vehicle.objects.available().values_list('body_type', flat=True).distinct()
+    in_stock_body_types = set(Vehicle.objects.available().values_list('body_type', flat=True).order_by().distinct())
+    body_types = [(value, label) for value, label in Vehicle.BODY_TYPE_CHOICES if value in in_stock_body_types]
     
     # Pagination
     paginator = Paginator(vehicles, 12)
