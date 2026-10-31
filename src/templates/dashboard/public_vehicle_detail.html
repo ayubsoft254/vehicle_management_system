@@ -277,7 +277,7 @@
                     <div class="space-y-4 mb-6">
                         <div class="flex justify-between items-center py-3 border-b">
                             <span class="text-gray-600">Price</span>
-                            <span class="font-bold text-primary-600 text-lg js-public-price" data-kes="{{ vehicle.website_price|default:0|unlocalize }}">Negotiable KES {{ vehicle.website_price|default:0|floatformat:0|intcomma }}</span>
+                            <span class="font-bold text-primary-600 text-lg js-public-price" data-prefix="Negotiable" data-kes="{{ vehicle.website_price|default:0|unlocalize }}">Negotiable KES {{ vehicle.website_price|default:0|floatformat:0|intcomma }}</span>
                         </div>
                         <div class="flex justify-between items-center py-3">
                             <span class="text-gray-600">Status</span>
@@ -290,7 +290,7 @@
                     <!-- Currency switcher -->
                     <div class="flex items-center justify-between mb-5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                         <span class="text-sm text-gray-600"><i class="fas fa-exchange-alt mr-1"></i> Currency</span>
-                        <select id="publicDetailCurrency" class="text-sm border-0 bg-transparent focus:ring-0 font-medium text-gray-700">
+                        <select id="publicDetailCurrency" data-multi-currency=".js-public-price" data-currency-decimals="0" data-currency-storage="vms_public_currencies" class="text-sm border-0 bg-transparent focus:ring-0 font-medium text-gray-700">
                             <option value="KES" selected>KES — Kenyan Shilling</option>
                             <option value="USD">USD — US Dollar</option>
                             <option value="EUR">EUR — Euro</option>
@@ -501,49 +501,5 @@
     </script>
 </body>
 
-    <script>
-    (function () {
-        const sel = document.getElementById('publicDetailCurrency');
-        const priceNodes = document.querySelectorAll('.js-public-price');
-        if (!sel || !priceNodes.length) return;
-
-        const rates = { KES: 1, USD: null, EUR: null, TZS: null, UGX: null, JPY: null };
-
-        function fmt(amount, currency) {
-            return currency + ' ' + new Intl.NumberFormat('en-US', {
-                minimumFractionDigits: 0, maximumFractionDigits: 2
-            }).format(amount);
-        }
-
-        function render(currency) {
-            const rate = rates[currency] || 1;
-            priceNodes.forEach(function (node) {
-                const kes = parseFloat(String(node.dataset.kes || '0').replace(/,/g, ''));
-                node.textContent = 'Negotiable ' + fmt(kes * rate, currency);
-            });
-        }
-
-        async function fetchRates() {
-            const res = await fetch('https://open.er-api.com/v6/latest/KES');
-            if (!res.ok) throw new Error('Rate fetch failed');
-            const data = await res.json();
-            rates.USD = data.rates.USD;
-            rates.EUR = data.rates.EUR;
-            rates.TZS = data.rates.TZS;
-            rates.UGX = data.rates.UGX;
-            rates.JPY = data.rates.JPY;
-        }
-
-        sel.addEventListener('change', async function () {
-            const cur = this.value;
-            try {
-                if (cur !== 'KES' && !rates[cur]) await fetchRates();
-                render(cur);
-            } catch (e) {
-                this.value = 'KES';
-                render('KES');
-            }
-        });
-    })();
-    </script>
+    <script src="{% static 'js/multi_currency.js' %}"></script>
 </html>
