@@ -104,7 +104,7 @@ def build_pdf_response(filename, title, subtitle=None, meta_lines=None,
 
     elements.append(Paragraph(title.upper(), styles['ReportTitle']))
     sub_bits = [subtitle] if subtitle else []
-    sub_bits.append(f"Generated {timezone.now().strftime('%d %B %Y, %H:%M')}")
+    sub_bits.append(f"Generated {timezone.localtime().strftime('%d %B %Y, %H:%M')}")
     elements.append(Paragraph(' &middot; '.join(sub_bits), styles['ReportSubtitle']))
 
     if meta_lines:

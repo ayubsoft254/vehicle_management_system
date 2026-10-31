@@ -71,15 +71,9 @@
             <td style="font-family: monospace;">{{ payment.reference_number }}</td>
         </tr>
         {% endif %}
-        {% if payment.notes %}
-        <tr>
-            <td>Notes</td>
-            <td>{{ payment.notes }}</td>
-        </tr>
-        {% endif %}
         <tr>
             <td>Recorded By</td>
-            <td>{% if payment.recorded_by %}{{ payment.recorded_by.get_full_name|default:payment.recorded_by.username }}{% else %}—{% endif %}</td>
+            <td>{% if payment.recorded_by %}{{ payment.recorded_by.get_full_name|default:payment.recorded_by.email }}{% else %}—{% endif %}</td>
         </tr>
         <tr>
             <td>Date Recorded</td>
@@ -89,7 +83,7 @@
 
     {% if payment.notes %}
     <div class="note">
-        <strong>Note:</strong> {{ payment.notes }}
+        <strong>Note:</strong> {{ payment.notes|linebreaksbr }}
     </div>
     {% endif %}
 

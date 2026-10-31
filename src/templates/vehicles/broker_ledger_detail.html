@@ -220,7 +220,7 @@
                         <td class="px-4 py-3 text-sm text-gray-500 font-mono">{{ payment.reference_number|default:"—" }}</td>
                         <td class="px-4 py-3 text-sm text-gray-500">{{ payment.notes|truncatechars:50|default:"—" }}</td>
                         <td class="px-4 py-3 text-sm text-gray-500">
-                            {% if payment.recorded_by %}{{ payment.recorded_by.get_full_name|default:payment.recorded_by.username }}{% else %}—{% endif %}
+                            {% if payment.recorded_by %}{{ payment.recorded_by.get_full_name|default:payment.recorded_by.email }}{% else %}—{% endif %}
                         </td>
                         <td class="px-4 py-3 text-center">
                             <a href="{% url 'vehicles:broker_voucher_print' payment.pk %}" target="_blank"

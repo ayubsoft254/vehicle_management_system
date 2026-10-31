@@ -2645,6 +2645,45 @@ def broker_mark_all_paid(request, broker_pk):
     return JsonResponse({'status': 'ok', 'updated': updated})
 
 
+def _settle_broker_commissions(broker):
+    """
+    Mark the broker's unpaid commissions (primary and secondary, oldest sale
+    first) as paid while cumulative voucher payments cover them. Credit is
+    everything paid so far minus commissions already settled, so several
+    partial vouchers add up to clear a commission no single one covered.
+    Returns the number of commission records settled.
+    """
+    from apps.clients.models import ClientVehicleSecondaryBroker
+
+    secondary = ClientVehicleSecondaryBroker.objects.filter(broker=broker)
+    settled = (
+        (broker.sales.filter(broker_commission_status='paid')
+         .aggregate(total=Sum('commission_amount'))['total'] or Decimal('0.00'))
+        + (secondary.filter(commission_status='paid')
+           .aggregate(total=Sum('commission_amount'))['total'] or Decimal('0.00'))
+    )
+    credit = broker.total_payments_made - settled
+
+    unpaid = [
+        (sale.purchase_date, sale.pk, sale, 'broker_commission_status')
+        for sale in broker.sales.filter(broker_commission_status='unpaid')
+    ] + [
+        (link.client_vehicle.purchase_date, link.client_vehicle_id, link, 'commission_status')
+        for link in secondary.filter(commission_status='unpaid').select_related('client_vehicle')
+    ]
+    unpaid.sort(key=lambda item: (item[0] or datetime.min.date(), item[1]))
+
+    cleared = 0
+    for _, _, record, status_field in unpaid:
+        if credit < record.commission_amount:
+            break
+        credit -= record.commission_amount
+        setattr(record, status_field, 'paid')
+        record.save(update_fields=[status_field])
+        cleared += 1
+    return cleared
+
+
 @login_required
 def record_broker_payment(request, broker_pk):
     """Record a lump-sum payment (voucher) to a broker."""
@@ -2682,21 +2721,7 @@ def record_broker_payment(request, broker_pk):
             recorded_by=request.user,
         )
 
-        # Mark unpaid commission records as paid (oldest first) until exhausted
-        remaining = amount
-        unpaid_sales = broker.sales.filter(
-            broker_commission_status='unpaid'
-        ).order_by('purchase_date', 'id')
-
-        sales_cleared = 0
-        for sale in unpaid_sales:
-            if remaining >= sale.commission_amount:
-                remaining -= sale.commission_amount
-                sale.broker_commission_status = 'paid'
-                sale.save(update_fields=['broker_commission_status'])
-                sales_cleared += 1
-            else:
-                break
+        sales_cleared = _settle_broker_commissions(broker)
 
     msg = f'Payment voucher {payment.voucher_number} (KES {amount:,.2f}) recorded for {broker.name}.'
     if sales_cleared:
@@ -2720,28 +2745,40 @@ def broker_voucher_pdf(request, payment_pk):
     payment = get_object_or_404(BrokerPayment.objects.select_related('broker', 'recorded_by'), pk=payment_pk)
 
     def body(elements, styles):
+        from django.utils.html import escape
         from reportlab.lib.units import inch
         from reportlab.platypus import Paragraph, Spacer
 
+        broker = payment.broker
         pairs = [
             ('Amount Paid', fmt_money(payment.amount)),
-            ('Paid To (Broker)', payment.broker.name),
+            ('Paid To (Broker)', broker.name),
+        ]
+        if broker.id_number:
+            pairs.append(('Broker ID Number', broker.id_number))
+        if broker.phone:
+            pairs.append(('Broker Phone', broker.phone))
+        pairs += [
             ('Payment Date', payment.payment_date.strftime('%d %B %Y')),
             ('Payment Method', payment.get_payment_method_display()),
             ('Reference / Receipt No.', payment.reference_number or '—'),
-            ('Recorded By', payment.recorded_by.get_full_name() if payment.recorded_by else '—'),
-            ('Date Recorded', payment.created_at.strftime('%d %B %Y, %H:%M')),
+            ('Recorded By', (payment.recorded_by.get_full_name() or payment.recorded_by.email)
+                            if payment.recorded_by else '—'),
+            ('Date Recorded', timezone.localtime(payment.created_at).strftime('%d %B %Y, %H:%M')),
         ]
         elements.append(kpi_table(pairs, col_widths=[2.6 * inch, 2.6 * inch]))
         elements.append(Spacer(1, 8))
 
+        # Paragraph text is ReportLab markup, so user-entered text must be escaped
         if payment.notes:
-            elements.append(Paragraph(f'<b>Notes:</b> {payment.notes}', styles['Normal']))
+            notes = escape(payment.notes).replace('\n', '<br/>')
+            elements.append(Paragraph(f'<b>Notes:</b> {notes}', styles['Normal']))
             elements.append(Spacer(1, 8))
 
+        elements.append(Spacer(1, 30))
         elements.append(Paragraph(
             'Authorised By: ______________________  &nbsp;&nbsp;&nbsp;&nbsp;  '
-            f'Received By ({payment.broker.name}): ______________________',
+            f'Received By ({escape(broker.name)}): ______________________',
             styles['Normal'],
         ))
 
