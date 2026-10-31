@@ -19,7 +19,16 @@ from reportlab.platypus import (
 from reportlab.lib import colors
 from django.utils import timezone
 
+from xml.sax.saxutils import escape as _xml_escape
+
 from utils.letterhead import draw_letterhead_footer, FOOTER_RESERVED_HEIGHT
+
+
+def _e(value):
+    """Escape a data value for Paragraph markup ('' for None), so names like
+    'Tom & Sons <Ltd>' print intact instead of being parsed as tags."""
+    return _xml_escape(str(value)) if value not in (None, '') else ''
+
 
 RUNNING_HEADER_RESERVED_HEIGHT = 1.4 * cm
 
@@ -374,19 +383,19 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
 
     vehicle_data = [
         [
-            Paragraph(f'<b>VEHICLE MAKE:</b> {vehicle.make or ""}', normal_small),
-            Paragraph(f'<b>MODEL:</b> {vehicle.model or ""}', normal_small),
-            Paragraph(f'<b>REG NO:</b> {vehicle.registration_number or ""}', normal_small),
+            Paragraph(f'<b>VEHICLE MAKE:</b> {_e(vehicle.make)}', normal_small),
+            Paragraph(f'<b>MODEL:</b> {_e(vehicle.model)}', normal_small),
+            Paragraph(f'<b>REG NO:</b> {_e(vehicle.registration_number) or "Not yet registered"}', normal_small),
         ],
         [
-            Paragraph(f'<b>CHASSIS NO:</b> {vehicle.vin or ""}', normal_small),
-            Paragraph(f'<b>ENGINE NO:</b> {vehicle.engine_number or ""}', normal_small),
-            Paragraph(f'<b>FUEL:</b> {vehicle.fuel_type or ""}', normal_small),
+            Paragraph(f'<b>CHASSIS NO:</b> {_e(vehicle.vin)}', normal_small),
+            Paragraph(f'<b>ENGINE NO:</b> {_e(vehicle.engine_number)}', normal_small),
+            Paragraph(f'<b>FUEL:</b> {_e(vehicle.fuel_type)}', normal_small),
         ],
         [
-            Paragraph(f'<b>ENGINE CC:</b> {vehicle.engine_size or ""}', normal_small),
-            Paragraph(f'<b>COLOUR:</b> {vehicle.color or ""}', normal_small),
-            Paragraph(f'<b>MODEL YEAR:</b> {vehicle.year or ""}', normal_small),
+            Paragraph(f'<b>ENGINE CC:</b> {_e(vehicle.engine_size)}', normal_small),
+            Paragraph(f'<b>COLOUR:</b> {_e(vehicle.color)}', normal_small),
+            Paragraph(f'<b>MODEL YEAR:</b> {_e(vehicle.year)}', normal_small),
         ],
     ]
     vehicle_table = Table(vehicle_data, colWidths=[6.5*cm, 6.5*cm, 5*cm])
@@ -407,23 +416,23 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
 
     client_data = [
         [
-            Paragraph(f'<b>NAME OF THE BUYER:</b> {client.get_full_name()}', normal_small),
+            Paragraph(f'<b>NAME OF THE BUYER:</b> {_e(client.get_full_name())}', normal_small),
             '',
         ],
         [
-            Paragraph(f'<b>CELL PHONE:</b> {client.phone_primary or ""}', normal_small),
-            Paragraph(f'<b>ID NO:</b> {client_id_display}', normal_small),
+            Paragraph(f'<b>CELL PHONE:</b> {_e(client.phone_primary)}', normal_small),
+            Paragraph(f'<b>ID NO:</b> {_e(client_id_display)}', normal_small),
         ],
         [
-            Paragraph(f'<b>PIN NO:</b> {client.kra_pin or ""}', normal_small),
-            Paragraph(f'<b>EMAIL ADDRESS:</b> {client.email or ""}', normal_small),
+            Paragraph(f'<b>PIN NO:</b> {_e(client.kra_pin)}', normal_small),
+            Paragraph(f'<b>EMAIL ADDRESS:</b> {_e(client.email)}', normal_small),
         ],
         [
-            Paragraph(f'<b>P.O BOX:</b> {client.postal_address or ""}  <b>CODE:</b>   <b>TOWN:</b> {client.city or ""}', normal_small),
-            Paragraph(f'<b>PHYSICAL ADDRESS:</b> {client.physical_address or ""}', normal_small),
+            Paragraph(f'<b>P.O BOX:</b> {_e(client.postal_address)}  <b>CODE:</b>   <b>TOWN:</b> {_e(client.city)}', normal_small),
+            Paragraph(f'<b>PHYSICAL ADDRESS:</b> {_e(client.physical_address)}', normal_small),
         ],
         [
-            Paragraph(f'<b>NEXT OF KIN CELL PHONE NO:</b> {client.next_of_kin_phone or ""}', normal_small),
+            Paragraph(f'<b>NEXT OF KIN CELL PHONE NO:</b> {_e(client.next_of_kin_phone)}', normal_small),
             '',
         ],
     ]
@@ -465,7 +474,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         ])
         for item in _deposit_deductions:
             price_data.append([
-                Paragraph(f'<b>LESS — {item["label"]} (Deducted from Deposit):</b> KES {float(item["amount"]):,.2f}', normal_small),
+                Paragraph(f'<b>LESS — {_e(item["label"])} (Deducted from Deposit):</b> KES {float(item["amount"]):,.2f}', normal_small),
                 '',
             ])
         net_label = 'NET AMOUNT CREDITED TO VEHICLE'
@@ -512,8 +521,9 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         elements.append(Spacer(1, 0.2*cm))
 
     # Extra Terms and Conditions note (page 1)
-    elements.append(Paragraph('<b>EXTRA TERMS AND CONDITIONS - NOTE:</b> _' + '_' * 80, normal_small))
-    elements.append(Paragraph('_' * 110, normal_small))
+    # Underscores don't wrap, so the runs are sized to stay inside the margins
+    elements.append(Paragraph('<b>EXTRA TERMS AND CONDITIONS - NOTE:</b> ' + '_' * 68, normal_small))
+    elements.append(Paragraph('_' * 104, normal_small))
     elements.append(Spacer(1, 0.3*cm))
 
     # Page 1 — Buyer / Seller signatures
@@ -527,8 +537,8 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
             _signature_flowable(getattr(agreement_signature, 'seller_signature_data', ''), width=8*cm, height=2*cm),
         ],
         [
-            Paragraph(f'<b>{client.get_full_name()}</b>', normal_small),
-            Paragraph(getattr(agreement_signature, 'seller_name', '') or 'For HOZA INVESTMENT (K) LTD', normal_small),
+            Paragraph(f'<b>{_e(client.get_full_name())}</b>', normal_small),
+            Paragraph(_e(getattr(agreement_signature, 'seller_name', '')) or 'For HOZA INVESTMENT (K) LTD', normal_small),
         ],
     ]
     sig1_table = Table(sig1_data, colWidths=[9.5*cm, 8.5*cm])
@@ -552,9 +562,9 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     # Page 2 mini-header
     elements.append(Paragraph('<b>HOZA INVESTMENT (K) LTD — INSURANCE &amp; TRACKER DETAILS</b>', title_style))
     elements.append(Paragraph(
-        f'<b>Vehicle:</b> {vehicle.make or ""} {vehicle.model or ""}  '
-        f'<b>Reg:</b> {vehicle.registration_number or ""}  '
-        f'<b>Client:</b> {client.get_full_name()}',
+        f'<b>Vehicle:</b> {_e(vehicle.make)} {_e(vehicle.model)}  '
+        f'<b>Reg:</b> {_e(vehicle.registration_number) or "Not yet registered"}  '
+        f'<b>Client:</b> {_e(client.get_full_name())}',
         normal_small
     ))
     elements.append(Spacer(1, 0.3*cm))
@@ -682,7 +692,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
 
             trk_header_text = f'TRACKER {idx}{": " + tracker.tracker_name if tracker.tracker_name else ""}'
             trk_detail_rows = [
-                [Paragraph(f'<b>{trk_header_text}</b>', ParagraphStyle('th', fontName='Helvetica-Bold', fontSize=7.5, textColor=colors.white)), ''],
+                [Paragraph(f'<b>{_e(trk_header_text)}</b>', ParagraphStyle('th', fontName='Helvetica-Bold', fontSize=7.5, textColor=colors.white)), ''],
                 ['Price', f'KES {float(trk_price):,.2f}'],
             ]
 
@@ -773,8 +783,8 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
             _signature_flowable(getattr(agreement_signature, 'seller_signature_data', ''), width=8*cm, height=2*cm),
         ],
         [
-            Paragraph(f'<b>{client.get_full_name()}</b>', normal_small),
-            Paragraph(getattr(agreement_signature, 'seller_name', '') or 'For HOZA INVESTMENT (K) LTD', normal_small),
+            Paragraph(f'<b>{_e(client.get_full_name())}</b>', normal_small),
+            Paragraph(_e(getattr(agreement_signature, 'seller_name', '')) or 'For HOZA INVESTMENT (K) LTD', normal_small),
         ],
     ]
     sig2_table = Table(sig2_data, colWidths=[9.5*cm, 8.5*cm])
@@ -806,8 +816,8 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         # Make + Reg on this page
         sched_header_data = [
             [
-                Paragraph(f'<b>MAKE:</b> {vehicle.make or ""} {vehicle.model or ""}', normal_small),
-                Paragraph(f'<b>REGISTRATION NO:</b> {vehicle.registration_number or ""}', normal_small),
+                Paragraph(f'<b>MAKE:</b> {_e(vehicle.make)} {_e(vehicle.model)}', normal_small),
+                Paragraph(f'<b>REGISTRATION NO:</b> {_e(vehicle.registration_number)}', normal_small),
             ],
         ]
         sched_header_table = Table(sched_header_data, colWidths=[9*cm, 9*cm])
@@ -841,7 +851,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
             payment_details_text = other_payment_details.strip()
         else:
             payment_details_text = '_' * 70
-        elements.append(Paragraph(f'<b>OTHER PAYMENT DETAILS:</b> {payment_details_text}', normal_small))
+        elements.append(Paragraph(f'<b>OTHER PAYMENT DETAILS:</b> {_e(payment_details_text)}', normal_small))
         elements.append(Spacer(1, 0.2*cm))
 
         # Installment table
@@ -929,8 +939,8 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
                 _signature_flowable(getattr(agreement_signature, 'seller_signature_data', '')),
             ],
             [
-                Paragraph(f'{client.get_full_name()}', normal_small),
-                Paragraph(getattr(agreement_signature, 'seller_name', '') or 'For HOZA INVESTMENT (K) LTD', normal_small),
+                Paragraph(f'{_e(client.get_full_name())}', normal_small),
+                Paragraph(_e(getattr(agreement_signature, 'seller_name', '')) or 'For HOZA INVESTMENT (K) LTD', normal_small),
             ],
         ]
         sched_sig_table = Table(sched_sig_data, colWidths=[9*cm, 9*cm])
@@ -1016,7 +1026,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
 
     # Oath / acknowledgment line
     elements.append(Paragraph(
-        f'I <b>{client.get_full_name()}</b> do read these terms and conditions properly and I bind to all terms and agree to follow them to the latter.',
+        f'I <b>{_e(client.get_full_name())}</b> do read these terms and conditions properly and I bind to all terms and agree to follow them to the latter.',
         normal_small
     ))
     elements.append(Spacer(1, 0.4*cm))
@@ -1024,7 +1034,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     # ── Page 3 full signature block ──────────────────────────────────────────
     # Helper values
     id_no_text = (
-        f'<b>ID NO:</b> {client_id_display}'
+        f'<b>ID NO:</b> {_e(client_id_display)}'
         if client_id_display
         else '<b>ID NO:</b> ___________________________'
     )
@@ -1051,7 +1061,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
             Paragraph('', normal_small),
         ],
         [
-            Paragraph(f'<b>{client.get_full_name()}</b>', normal_small),
+            Paragraph(f'<b>{_e(client.get_full_name())}</b>', normal_small),
             Paragraph('', normal_small),
         ],
         # ── Divider row ──────────────────────────────────────────────────────
@@ -1065,8 +1075,8 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
             Paragraph('<b>MOBILE</b>', normal_small),
         ],
         [
-            Paragraph(witness_name_val, normal_small),
-            Paragraph(witness_phone_val, normal_small),
+            Paragraph(_e(witness_name_val), normal_small),
+            Paragraph(_e(witness_phone_val), normal_small),
         ],
         [
             Paragraph('<b>WITNESS Signature</b>', normal_small),
@@ -1084,7 +1094,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         ],
         [
             Paragraph('', normal_small),
-            Paragraph(f'<b>{seller_name_val}</b>', normal_small),
+            Paragraph(f'<b>{_e(seller_name_val)}</b>', normal_small),
         ],
     ]
 
@@ -1170,7 +1180,10 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     elements.append(Spacer(1, 0.15*cm))
     elements.append(Paragraph(f'<b>{paybill}</b>', paybill_value_style))
     elements.append(Spacer(1, 0.15*cm))
-    elements.append(Paragraph('<b>A/C: REG FOR THE CAR</b>', paybill_account_style))
+    # The actual account number the client must quote: the plate, or the
+    # chassis before registration — the two references C2B matching accepts
+    account_ref = vehicle.registration_number or vehicle.vin or 'REG FOR THE CAR'
+    elements.append(Paragraph(f'<b>A/C: {_e(account_ref)}</b>', paybill_account_style))
     elements.append(Spacer(1, 0.25*cm))
     elements.append(Paragraph('<b>NOTE: WE DO NOT ACCEPT THIRD PARTY PAYMENTS.</b>', paybill_note_style))
 
@@ -1186,7 +1199,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     received_sig_data = [
         [
             Paragraph('<b>RECEIVED BY:</b>', normal_style),
-            Paragraph(f'<b>{received_by_name}</b>', normal_style),
+            Paragraph(f'<b>{_e(received_by_name)}</b>', normal_style),
         ],
         [
             Paragraph('<b>SIGNATURE:</b>', normal_style),
@@ -1211,7 +1224,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     elements.append(Spacer(1, 0.1*cm))
     elements.append(Paragraph(
         (
-            f'Assigned By: {assigned_by_name} | '
+            f'Assigned By: {_e(assigned_by_name)} | '
             f'Agreement Generated: {generated_at.strftime("%d-%m-%Y %I:%M %p")}'
         ),
         ParagraphStyle(

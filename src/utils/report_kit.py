@@ -102,8 +102,10 @@ def build_pdf_response(filename, title, subtitle=None, meta_lines=None,
     styles = _report_styles()
     elements = []
 
-    elements.append(Paragraph(title.upper(), styles['ReportTitle']))
-    sub_bits = [subtitle] if subtitle else []
+    # Titles/subtitles carry names and numbers from the data, and Paragraph
+    # text is markup, so escape them or "Tom & Sons <Ltd>" loses "<Ltd>"
+    elements.append(Paragraph(_xml_escape(title.upper()), styles['ReportTitle']))
+    sub_bits = [_xml_escape(subtitle)] if subtitle else []
     sub_bits.append(f"Generated {timezone.localtime().strftime('%d %B %Y, %H:%M')}")
     elements.append(Paragraph(' &middot; '.join(sub_bits), styles['ReportSubtitle']))
 
@@ -124,6 +126,10 @@ def build_pdf_response(filename, title, subtitle=None, meta_lines=None,
 
 def styled_table(data, col_widths=None, align_right_from=None, font_size=8, header=True):
     """A Table flowable using the shared slate header + zebra-striped body."""
+    empty = header and len(data) == 1
+    if empty:
+        # A bare header row reads as a broken report; say there is nothing
+        data = list(data) + [['No records found.'] + [''] * (len(data[0]) - 1)]
     table = Table(data, colWidths=col_widths, repeatRows=1 if header else 0)
     style = [
         ('FONTSIZE', (0, 0), (-1, -1), font_size),
@@ -141,6 +147,12 @@ def styled_table(data, col_widths=None, align_right_from=None, font_size=8, head
         ]
     if align_right_from is not None:
         style.append(('ALIGN', (align_right_from, 0), (-1, -1), 'RIGHT'))
+    if empty:
+        style += [
+            ('SPAN', (0, 1), (-1, 1)),
+            ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
+            ('TEXTCOLOR', (0, 1), (-1, 1), MUTED_TEXT),
+        ]
     table.setStyle(TableStyle(style))
     return table
 
@@ -238,6 +250,9 @@ def fitted_table(headers, rows, usable_width, currency_cols=None, totals_row=Non
     data = [[cell(h, i, header=True) for i, h in enumerate(headers)]]
     for row in rows:
         data.append([cell(v, i) for i, v in enumerate(row)])
+    if not rows:
+        data.append([Paragraph('No records found.', ParagraphStyle(
+            'FitEmpty', parent=base, alignment=TA_CENTER, textColor=MUTED_TEXT))] + [''] * (len(headers) - 1))
     if totals_row:
         data.append([cell(v, i, total=True) for i, v in enumerate(totals_row)])
 
@@ -257,6 +272,8 @@ def fitted_table(headers, rows, usable_width, currency_cols=None, totals_row=Non
         ('BACKGROUND', (0, 0), (-1, 0), ACCENT),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, LIGHT_GREY]),
     ]
+    if not rows:
+        style.append(('SPAN', (0, 1), (-1, 1)))
     if totals_row:
         style += [
             ('BACKGROUND', (0, -1), (-1, -1), BORDER_GREY),

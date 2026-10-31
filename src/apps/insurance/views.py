@@ -821,20 +821,20 @@ def export_policies_csv(request):
     
     writer = csv.writer(response)
     writer.writerow([
-        'Policy Number', 'Vehicle', 'Provider', 'Client',
+        'Policy Number', 'Vehicle', 'Insurance Agent', 'Client',
         'Policy Type', 'Start Date', 'End Date', 'Premium',
         'Sum Insured', 'Status'
     ])
-    
+
     policies = InsurancePolicy.objects.select_related(
-        'vehicle', 'provider', 'client'
+        'vehicle', 'insurance_agent', 'client'
     ).order_by('-start_date')
-    
+
     for policy in policies:
         writer.writerow([
             policy.policy_number,
             str(policy.vehicle),
-            policy.provider.name,
+            policy.insurance_agent.name if policy.insurance_agent else (policy.agent_name or 'N/A'),
             policy.client.get_full_name() if policy.client else 'N/A',
             policy.get_policy_type_display(),
             policy.start_date.strftime('%Y-%m-%d'),

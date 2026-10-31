@@ -2234,10 +2234,11 @@ def vehicle_reports_pdf(request):
                 align_right_from=1,
             ))
 
+    # build_pdf_response already appends the "Generated <date>" stamp
     if date_from or date_to:
         subtitle = f"Added {date_from or 'the beginning'} to {date_to or 'today'}"
     else:
-        subtitle = f'Generated {today.strftime("%d %B %Y")}'
+        subtitle = 'All vehicles'
 
     return build_pdf_response(
         'vehicle-reports.pdf', 'Vehicle Inventory & Financial Report',
@@ -3614,7 +3615,7 @@ def sales_ledger_export(request, fmt):
         ]
         for r in rows
     ]
-    subtitle = f"{date_from or 'the beginning'} to {date_to or 'today'}"
+    subtitle = f"Period: {date_from or 'the beginning'} to {date_to or 'today'}"
     if search:
         subtitle += f' — search: "{search}"'
     # Totals mirror the on-screen view: bulk_sale_totals(), not row sums,
@@ -3779,7 +3780,7 @@ def vehicle_ledger_export(request, fmt):
         ]
         for r in rows
     ]
-    subtitle = f"{date_from or 'the beginning'} to {date_to or 'today'}"
+    subtitle = f"Period: {date_from or 'the beginning'} to {date_to or 'today'}"
     if category:
         subtitle += f' — {"Cash" if category == "cash" else "HPP"} only'
     if search:

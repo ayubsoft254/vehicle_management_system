@@ -1693,6 +1693,7 @@ def payment_receipt_pdf(request, pk):
     from reportlab.lib.units import inch
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+    from xml.sax.saxutils import escape as xml_escape
 
     payment = get_object_or_404(
         Payment.objects.select_related(
@@ -1713,7 +1714,9 @@ def payment_receipt_pdf(request, pk):
         def field_grid(pairs, col_widths):
             rows, row = [], []
             for label, value in pairs:
-                row.append(Paragraph(f'<b>{label}:</b> {value}', compact))
+                # Values are client/vehicle data: escape for Paragraph markup
+                shown = xml_escape(str(value)) if value not in (None, '') else '—'
+                row.append(Paragraph(f'<b>{label}:</b> {shown}', compact))
                 if len(row) == len(col_widths):
                     rows.append(row)
                     row = []
@@ -1733,11 +1736,14 @@ def payment_receipt_pdf(request, pk):
             return table
 
         if payment.is_reversed:
+            # User has no username field (email login), so fall back to email
+            reversed_by = payment.reversed_by
+            reversed_by_name = (reversed_by.get_full_name() or reversed_by.email) if reversed_by else ''
             elements.append(Paragraph(
                 f'<font color="red"><b>VOID — PAYMENT REVERSED</b></font> on '
-                f'{payment.reversed_at.strftime("%d %B %Y, %H:%M") if payment.reversed_at else "—"}'
-                f'{" by " + (payment.reversed_by.get_full_name() or payment.reversed_by.username) if payment.reversed_by else ""}.'
-                f'{" Reason: " + payment.reversal_reason if payment.reversal_reason else ""}',
+                f'{timezone.localtime(payment.reversed_at).strftime("%d %B %Y, %H:%M") if payment.reversed_at else "—"}'
+                f'{" by " + xml_escape(reversed_by_name) if reversed_by_name else ""}.'
+                f'{" Reason: " + xml_escape(payment.reversal_reason) if payment.reversal_reason else ""}',
                 compact,
             ))
             elements.append(Spacer(1, 8))
@@ -1798,13 +1804,13 @@ def payment_receipt_pdf(request, pk):
 
         if payment.notes:
             elements.append(Paragraph('NOTES', heading))
-            elements.append(Paragraph(payment.notes, compact))
+            elements.append(Paragraph(xml_escape(payment.notes).replace('\n', '<br/>'), compact))
             elements.append(Spacer(1, 6))
 
         received_by = payment.recorded_by.get_full_name() if payment.recorded_by else 'System (recorded automatically)'
         elements.append(field_grid([
             ('Received By', received_by),
-            ('Recorded At', payment.created_at.strftime('%d %B %Y, %H:%M')),
+            ('Recorded At', timezone.localtime(payment.created_at).strftime('%d %B %Y, %H:%M')),
         ], col_widths=[3.25 * inch, 3.25 * inch]))
         elements.append(Spacer(1, 6))
         elements.append(Paragraph(

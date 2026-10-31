@@ -2,6 +2,7 @@
 Utility functions for the payments app
 Includes PDF generation, calculations, and helper functions
 """
+from django.conf import settings
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -9,6 +10,7 @@ from decimal import Decimal
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 import io
+from xml.sax.saxutils import escape as xml_escape
 
 # PDF Generation
 from reportlab.lib.pagesizes import letter, A4
@@ -19,7 +21,13 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfgen import canvas
 
-from utils.letterhead import draw_letterhead_footer, FOOTER_RESERVED_HEIGHT
+from utils.letterhead import draw_letterhead, HEADER_RESERVED_HEIGHT, FOOTER_RESERVED_HEIGHT
+
+
+def _esc(value):
+    """Escape a data value for Paragraph markup ('' for None), so names like
+    'Tom & Sons <Ltd>' print intact instead of being parsed as tags."""
+    return xml_escape(str(value)) if value not in (None, '') else ''
 
 
 # ==================== CALCULATION UTILITIES ====================
@@ -281,7 +289,11 @@ def generate_payment_receipt_pdf(payment):
         HttpResponse: PDF response
     """
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch)
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        topMargin=HEADER_RESERVED_HEIGHT + 0.1 * inch,
+        bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch,
+    )
     elements = []
     styles = getSampleStyleSheet()
     
@@ -385,7 +397,7 @@ def generate_payment_receipt_pdf(payment):
     elements.append(Paragraph(footer_text, styles['Normal']))
     
     # Build PDF
-    doc.build(elements, onFirstPage=draw_letterhead_footer, onLaterPages=draw_letterhead_footer)
+    doc.build(elements, onFirstPage=draw_letterhead, onLaterPages=draw_letterhead)
     buffer.seek(0)
     
     # Create response
@@ -406,7 +418,11 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
         HttpResponse: PDF response
     """
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch)
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        topMargin=HEADER_RESERVED_HEIGHT + 0.1 * inch,
+        bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch,
+    )
     elements = []
     styles = getSampleStyleSheet()
     
@@ -424,7 +440,7 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
     elements.append(Spacer(1, 0.3*inch))
     
     # Agreement date
-    date_text = f"Date: {timezone.now().strftime('%d %B %Y')}"
+    date_text = f"Date: {timezone.localdate().strftime('%d %B %Y')}"
     elements.append(Paragraph(date_text, styles['Normal']))
     elements.append(Spacer(1, 0.2*inch))
     
@@ -433,21 +449,21 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
     vehicle = client_vehicle.vehicle
     client_id_display = (client.id_number or '').replace('-', '')
     
-    seller_text = """
+    seller_text = f"""
     <b>SELLER:</b><br/>
-    [Company Name]<br/>
-    [Company Address]<br/>
-    [Company Phone]<br/>
+    {_esc(settings.COMPANY_NAME)}<br/>
+    {_esc(settings.COMPANY_ADDRESS)}<br/>
+    Tel: {_esc(settings.COMPANY_PHONE)}<br/>
     """
     elements.append(Paragraph(seller_text, styles['Normal']))
     elements.append(Spacer(1, 0.2*inch))
-    
+
     buyer_text = f"""
     <b>BUYER:</b><br/>
-    {client.get_full_name()}<br/>
-    ID No: {client_id_display}<br/>
-    Phone: {client.phone_primary}<br/>
-    Address: {client.physical_address}<br/>
+    {_esc(client.get_full_name())}<br/>
+    ID No: {_esc(client_id_display) or '—'}<br/>
+    Phone: {_esc(client.phone_primary) or '—'}<br/>
+    Address: {_esc(client.physical_address) or '—'}<br/>
     """
     elements.append(Paragraph(buyer_text, styles['Normal']))
     elements.append(Spacer(1, 0.3*inch))
@@ -478,8 +494,7 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
         ['Deposit Paid:', format_currency(convert_from_kes(client_vehicle.deposit_paid, fx_rate), currency)],
         ['Balance:', format_currency(convert_from_kes(client_vehicle.balance, fx_rate), currency)],
         ['Monthly Installment:', format_currency(convert_from_kes(client_vehicle.monthly_installment, fx_rate), currency)],
-        ['Number of Months:', str(client_vehicle.installment_months)],
-        ['Interest Rate:', f"{client_vehicle.interest_rate}%"],
+        ['Number of Months:', str(client_vehicle.installment_months or '—')],
     ]
     
     payment_table = Table(payment_info, colWidths=[2*inch, 4*inch])
@@ -520,7 +535,7 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
     elements.append(signature_table)
     
     # Build PDF
-    doc.build(elements, onFirstPage=draw_letterhead_footer, onLaterPages=draw_letterhead_footer)
+    doc.build(elements, onFirstPage=draw_letterhead, onLaterPages=draw_letterhead)
     buffer.seek(0)
     
     response = HttpResponse(buffer, content_type='application/pdf')
@@ -540,7 +555,11 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
         HttpResponse: PDF response
     """
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch)
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        topMargin=HEADER_RESERVED_HEIGHT + 0.1 * inch,
+        bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch,
+    )
     elements = []
     styles = getSampleStyleSheet()
     
@@ -562,9 +581,9 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
     vehicle = client_vehicle.vehicle
     
     info_text = f"""
-    <b>Client:</b> {client.get_full_name()} (ID: {client.id_number})<br/>
-    <b>Vehicle:</b> {vehicle.make} {vehicle.model} ({vehicle.registration_number or vehicle.vin or 'N/A'})<br/>
-    <b>Generated:</b> {timezone.now().strftime('%d %B %Y')}
+    <b>Client:</b> {_esc(client.get_full_name())} (ID: {_esc(client.id_number) or '—'})<br/>
+    <b>Vehicle:</b> {_esc(vehicle.make)} {_esc(vehicle.model)} ({_esc(vehicle.registration_number or vehicle.vin) or 'N/A'})<br/>
+    <b>Generated:</b> {timezone.localtime().strftime('%d %B %Y')}
     """
     elements.append(Paragraph(info_text, styles['Normal']))
     elements.append(Spacer(1, 0.2*inch))
@@ -598,14 +617,17 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
         elements.append(Paragraph("<b>PAYMENT HISTORY:</b>", styles['Heading2']))
         
         payment_data = [['Date', 'Receipt No.', 'Method', 'Amount', 'Balance']]
-        
-        for payment in payments:
+
+        # Balance after each payment, not today's balance repeated on every row
+        running_balance = client_vehicle.purchase_price or Decimal('0.00')
+        for payment in payments.order_by('payment_date', 'created_at'):
+            running_balance -= payment.amount or Decimal('0.00')
             payment_data.append([
                 payment.payment_date.strftime('%d/%m/%Y'),
                 payment.receipt_number,
                 payment.get_payment_method_display(),
                 format_currency(convert_from_kes(payment.amount, fx_rate), currency),
-                format_currency(convert_from_kes(client_vehicle.balance, fx_rate), currency)  # This should ideally be the balance at that time
+                format_currency(convert_from_kes(max(running_balance, Decimal('0.00')), fx_rate), currency),
             ])
         
         payment_table = Table(payment_data, colWidths=[1.2*inch, 1.5*inch, 1.2*inch, 1.2*inch, 1.2*inch])
@@ -623,7 +645,7 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
         elements.append(payment_table)
     
     # Build PDF
-    doc.build(elements, onFirstPage=draw_letterhead_footer, onLaterPages=draw_letterhead_footer)
+    doc.build(elements, onFirstPage=draw_letterhead, onLaterPages=draw_letterhead)
     buffer.seek(0)
     
     response = HttpResponse(buffer, content_type='application/pdf')
@@ -639,7 +661,11 @@ def generate_client_statement_pdf(client, rows, summary):
     matches the on-screen statement and its CSV/Excel exports.
     """
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch)
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        topMargin=HEADER_RESERVED_HEIGHT + 0.1 * inch,
+        bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch,
+    )
     elements = []
     styles = getSampleStyleSheet()
 
@@ -651,9 +677,9 @@ def generate_client_statement_pdf(client, rows, summary):
     elements.append(Spacer(1, 0.2 * inch))
 
     info_text = f"""
-    <b>Client:</b> {client.get_full_name()} (ID: {client.id_number})<br/>
-    <b>Phone:</b> {client.phone_primary}<br/>
-    <b>Generated:</b> {timezone.now().strftime('%d %B %Y')}
+    <b>Client:</b> {_esc(client.get_full_name())} (ID: {_esc(client.id_number) or '—'})<br/>
+    <b>Phone:</b> {_esc(client.phone_primary) or '—'}<br/>
+    <b>Generated:</b> {timezone.localtime().strftime('%d %B %Y')}
     """
     elements.append(Paragraph(info_text, styles['Normal']))
     elements.append(Spacer(1, 0.2 * inch))
@@ -689,6 +715,8 @@ def generate_client_statement_pdf(client, rows, summary):
             format_currency(row['credit']) if row['credit'] else '',
             format_currency(row['running_balance']),
         ])
+    if not rows:
+        ledger_data.append(['No transactions recorded yet.', '', '', '', '', '', ''])
 
     ledger_table = Table(ledger_data, colWidths=[0.8 * inch, 1 * inch, 1 * inch, 1 * inch, 1 * inch, 1 * inch, 1 * inch])
     ledger_table.setStyle(TableStyle([
@@ -701,10 +729,10 @@ def generate_client_statement_pdf(client, rows, summary):
         ('TOPPADDING', (0, 0), (-1, -1), 6),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3f4f6')]),
-    ]))
+    ] + ([('SPAN', (0, 1), (-1, 1)), ('ALIGN', (0, 1), (-1, 1), 'CENTER')] if not rows else [])))
     elements.append(ledger_table)
 
-    doc.build(elements, onFirstPage=draw_letterhead_footer, onLaterPages=draw_letterhead_footer)
+    doc.build(elements, onFirstPage=draw_letterhead, onLaterPages=draw_letterhead)
     buffer.seek(0)
 
     response = HttpResponse(buffer, content_type='application/pdf')
@@ -723,7 +751,11 @@ def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decima
         HttpResponse: PDF response
     """
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch)
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        topMargin=HEADER_RESERVED_HEIGHT + 0.1 * inch,
+        bottomMargin=FOOTER_RESERVED_HEIGHT + 0.1 * inch,
+    )
     elements = []
     styles = getSampleStyleSheet()
     
@@ -741,8 +773,9 @@ def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decima
     elements.append(Spacer(1, 0.2*inch))
     
     # Invoice details
-    invoice_no = f"INV-{timezone.now().strftime('%Y%m%d')}-{client_vehicle.pk}"
-    date_text = f"<b>Invoice No:</b> {invoice_no}<br/><b>Date:</b> {timezone.now().strftime('%d %B %Y')}"
+    today = timezone.localdate()
+    invoice_no = f"INV-{today.strftime('%Y%m%d')}-{client_vehicle.pk}"
+    date_text = f"<b>Invoice No:</b> {invoice_no}<br/><b>Date:</b> {today.strftime('%d %B %Y')}"
     elements.append(Paragraph(date_text, styles['Normal']))
     elements.append(Spacer(1, 0.3*inch))
     
@@ -750,10 +783,10 @@ def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decima
     client = client_vehicle.client
     bill_to = f"""
     <b>BILL TO:</b><br/>
-    {client.get_full_name()}<br/>
-    ID: {client.id_number}<br/>
-    Phone: {client.phone_primary}<br/>
-    {client.physical_address}
+    {_esc(client.get_full_name())}<br/>
+    ID: {_esc(client.id_number) or '—'}<br/>
+    Phone: {_esc(client.phone_primary) or '—'}<br/>
+    {_esc(client.physical_address)}
     """
     elements.append(Paragraph(bill_to, styles['Normal']))
     elements.append(Spacer(1, 0.3*inch))
@@ -784,12 +817,13 @@ def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decima
     totals_data = [
         ['Subtotal:', format_currency(convert_from_kes(client_vehicle.purchase_price, fx_rate), currency)],
         ['Deposit:', f"({format_currency(convert_from_kes(client_vehicle.deposit_paid, fx_rate), currency)})"],
-        ['<b>Balance Due:</b>', f"<b>{format_currency(convert_from_kes(client_vehicle.balance, fx_rate), currency)}</b>"],
+        ['Balance Due:', format_currency(convert_from_kes(client_vehicle.balance, fx_rate), currency)],
     ]
-    
+
     totals_table = Table(totals_data, colWidths=[4*inch, 2*inch])
     totals_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
         ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
         ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
         ('LINEABOVE', (0, -1), (-1, -1), 2, colors.black),
@@ -802,8 +836,7 @@ def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decima
     terms_text = f"""
     <b>PAYMENT TERMS:</b><br/>
     Monthly Installment: {format_currency(convert_from_kes(client_vehicle.monthly_installment, fx_rate), currency)}<br/>
-    Number of Installments: {client_vehicle.installment_months} months<br/>
-    Interest Rate: {client_vehicle.interest_rate}% per annum
+    Number of Installments: {client_vehicle.installment_months or 0} months
     """
     elements.append(Paragraph(terms_text, styles['Normal']))
     elements.append(Spacer(1, 0.3*inch))
@@ -813,7 +846,7 @@ def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decima
     elements.append(Paragraph(footer_text, styles['Italic']))
     
     # Build PDF
-    doc.build(elements, onFirstPage=draw_letterhead_footer, onLaterPages=draw_letterhead_footer)
+    doc.build(elements, onFirstPage=draw_letterhead, onLaterPages=draw_letterhead)
     buffer.seek(0)
     
     response = HttpResponse(buffer, content_type='application/pdf')

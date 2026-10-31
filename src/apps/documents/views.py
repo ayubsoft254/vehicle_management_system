@@ -390,8 +390,13 @@ def download_document(request, pk):
     log_audit(request.user, 'read', 'Document', f'Downloaded document: {document.title}')
     
     try:
-        response = HttpResponse(document.file.read(), content_type='application/octet-stream')
-        response['Content-Disposition'] = f'attachment; filename="{document.file.name}"'
+        # Name the download after the file itself, not its storage path
+        import mimetypes
+        import os
+        filename = os.path.basename(document.file.name)
+        content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+        response = HttpResponse(document.file.read(), content_type=content_type)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
     except Exception as e:
         messages.error(request, 'Error downloading file.')

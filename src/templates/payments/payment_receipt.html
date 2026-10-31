@@ -129,7 +129,7 @@
                 <div class="bg-gray-50 rounded-lg p-4 grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Registration Number</label>
-                        <p class="text-base font-bold text-gray-900">{{ payment.client_vehicle.vehicle.registration_number }}</p>
+                        <p class="text-base font-bold text-gray-900">{{ payment.client_vehicle.vehicle.registration_number|default:"Not yet registered" }}</p>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Make & Model</label>
