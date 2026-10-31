@@ -109,6 +109,7 @@ TEMPLATES = [
                 'django.template.context_processors.media',
                 'django.template.context_processors.static',
                 'apps.dashboard.context_processors.company_info',
+                'apps.payments.context_processors.pending_payment_requests',
             ],
         },
     },

@@ -3172,7 +3172,7 @@ def _compute_main_ledger_context(request):
 
     # --- Base querysets ---
     payments_qs = date_range(
-        Payment.objects.select_related('client_vehicle__client', 'client_vehicle__vehicle'),
+        Payment.objects.filter(is_reversed=False).select_related('client_vehicle__client', 'client_vehicle__vehicle'),
         'payment_date',
     )
     supplier_payments_qs = date_range(

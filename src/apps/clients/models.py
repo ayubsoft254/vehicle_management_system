@@ -353,6 +353,7 @@ class Client(models.Model):
         """Calculate total amount paid by client"""
         from apps.payments.models import Payment
         return Payment.objects.filter(
+            is_reversed=False,
             client=self
         ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
 

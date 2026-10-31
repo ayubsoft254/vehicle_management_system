@@ -1352,6 +1352,7 @@ def client_vehicle_detail(request, pk):
     
     # Get payment history
     payments = Payment.objects.filter(
+        is_reversed=False,
         client_vehicle=client_vehicle
     ).order_by('-payment_date')
     

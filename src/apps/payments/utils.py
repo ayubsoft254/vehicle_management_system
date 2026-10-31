@@ -611,7 +611,7 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
     
     # Payment history
     from .models import Payment
-    payments = Payment.objects.filter(client_vehicle=client_vehicle).order_by('payment_date')
+    payments = Payment.objects.filter(client_vehicle=client_vehicle, is_reversed=False).order_by('payment_date')
     
     if payments.exists():
         elements.append(Paragraph("<b>PAYMENT HISTORY:</b>", styles['Heading2']))
@@ -1011,6 +1011,7 @@ def generate_payment_summary_report(start_date, end_date):
     from django.db.models import Sum, Count, Avg
     
     payments = Payment.objects.filter(
+        is_reversed=False,
         payment_date__gte=start_date,
         payment_date__lte=end_date
     )
@@ -1155,6 +1156,7 @@ def get_collection_efficiency(start_date, end_date):
     
     # Total payments collected
     payments_collected = Payment.objects.filter(
+        is_reversed=False,
         payment_date__gte=start_date,
         payment_date__lte=end_date
     ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
@@ -1286,6 +1288,7 @@ def get_payment_dashboard_data():
     
     # This month statistics
     this_month_payments = Payment.objects.filter(
+        is_reversed=False,
         payment_date__year=this_month.year,
         payment_date__month=this_month.month
     )
@@ -1326,7 +1329,7 @@ def get_payment_dashboard_data():
         ).count(),
         
         # Recent payments (last 5)
-        'recent_payments': Payment.objects.select_related(
+        'recent_payments': Payment.objects.filter(is_reversed=False).select_related(
             'client_vehicle__client',
             'client_vehicle__vehicle'
         ).order_by('-payment_date')[:5],

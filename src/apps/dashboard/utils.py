@@ -469,6 +469,7 @@ def get_financial_summary(date_from=None, date_to=None):
     
     # Revenue
     payments = Payment.objects.filter(
+        is_reversed=False,
         payment_date__gte=date_from,
         payment_date__lte=date_to
     )
@@ -525,6 +526,7 @@ def get_sales_metrics(days=30):
     
     # Revenue from payments
     revenue = Payment.objects.filter(
+        is_reversed=False,
         payment_date__gte=cutoff.date()
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     
@@ -865,6 +867,7 @@ def get_revenue_trend(days=30):
     
     while current <= end_date:
         daily_revenue = Payment.objects.filter(
+            is_reversed=False,
             payment_date=current
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         

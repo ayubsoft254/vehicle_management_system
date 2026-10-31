@@ -63,6 +63,7 @@ def calculate_outstanding_amount(client):
     from apps.payments.models import Payment
     
     overdue = Payment.objects.filter(
+        is_reversed=False,
         client=client,
         status='OVERDUE'
     ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
@@ -113,6 +114,7 @@ def count_missed_payments(client):
     from apps.payments.models import Payment
     
     return Payment.objects.filter(
+        is_reversed=False,
         client=client,
         status='OVERDUE'
     ).count()
@@ -125,6 +127,7 @@ def get_last_payment_date(client):
     from apps.payments.models import Payment
     
     last_payment = Payment.objects.filter(
+        is_reversed=False,
         client=client,
         status='PAID'
     ).order_by('-payment_date').first()

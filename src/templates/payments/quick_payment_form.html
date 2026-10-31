@@ -149,7 +149,7 @@
                             {% endif %}
                             <p class="mt-1 text-xs text-gray-500">
                                 <i class="fas fa-info-circle mr-1"></i>
-                                M-Pesa code, cheque number, bank reference, etc.
+                                M-Pesa code, cheque number, bank reference, etc. Required for every method except cash. A reference can only be recorded once.
                             </p>
                         </div>
 
@@ -165,6 +165,10 @@
                         </div>
                     </div>
 
+                    <div class="mt-6 space-y-3">
+                        {% include 'payments/includes/_manual_payment_notice.html' %}
+                    </div>
+
                     <!-- Form Actions -->
                     <div class="flex items-center justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
                         <a href="{% url 'payments:payment_list' %}" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
@@ -172,7 +176,7 @@
                         </a>
                         <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-sm transition">
                             <i class="fas fa-save mr-2"></i>
-                            Record Payment
+                            {% if needs_approval %}Submit for Approval{% else %}Record Payment{% endif %}
                         </button>
                     </div>
                 </form>

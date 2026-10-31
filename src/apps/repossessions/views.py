@@ -150,7 +150,7 @@ def _calculate_repossession_prefill(purchase, as_of_date=None):
     if outstanding_amount < Decimal('0.00'):
         outstanding_amount = Decimal('0.00')
 
-    last_payment = purchase.payments.order_by('-payment_date', '-created_at').first()
+    last_payment = purchase.payments.filter(is_reversed=False).order_by('-payment_date', '-created_at').first()
     last_payment_date = last_payment.payment_date if last_payment else None
 
     payments_missed = 0

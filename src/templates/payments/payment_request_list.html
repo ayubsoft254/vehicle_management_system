@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Payment Approvals{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <nav class="flex mb-6" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="{% url 'payments:payment_list' %}" class="text-gray-700 hover:text-primary-600 inline-flex items-center">
+                    <i class="fas fa-money-bill-wave mr-2"></i>Payments
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                    <span class="text-gray-500">Payment Approvals</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <span class="bg-yellow-100 rounded-lg p-1.5"><i class="fas fa-clipboard-check text-yellow-600"></i></span>
+            Payment Approvals
+        </h1>
+        <p class="mt-2 text-gray-600">
+            {% if is_approver %}
+            Manually recorded payments and reversals wait here until an administrator approves them. Nothing affects balances or ledgers until approved.
+            {% else %}
+            Your manually recorded payments and reversal requests. They take effect once an administrator approves them.
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Status tabs -->
+    <div class="flex flex-wrap gap-2 mb-4">
+        {% for key, label in status_choices %}
+        <a href="?status={{ key }}"
+           class="px-4 py-2 rounded-lg text-sm font-medium border transition {% if status == key %}bg-primary-600 text-white border-primary-600{% else %}bg-white text-gray-700 border-gray-200 hover:bg-gray-50{% endif %}">
+            {{ label }}
+            <span class="ml-1 px-1.5 py-0.5 rounded-full text-xs {% if status == key %}bg-white/25{% else %}bg-gray-100 text-gray-600{% endif %}">{% for k, n in counts.items %}{% if k == key %}{{ n }}{% endif %}{% endfor %}</span>
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client / Vehicle</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{% if status == 'pending' %}Actions{% else %}Decision{% endif %}</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for req in page_obj %}
+                    <tr class="align-top hover:bg-gray-50">
+                        <td class="px-4 py-4 text-sm">
+                            <div class="font-semibold text-gray-900">#{{ req.pk }}</div>
+                            {% if req.request_type == 'reverse' %}
+                            <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"><i class="fas fa-undo mr-1"></i>Reversal</span>
+                            {% else %}
+                            <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700"><i class="fas fa-plus mr-1"></i>New payment</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-4 text-sm">
+                            <a href="{% url 'clients:client_vehicle_detail' req.client_vehicle.pk %}" class="font-medium text-gray-900 hover:text-primary-600">{{ req.client_vehicle.client.get_full_name }}</a>
+                            <div class="text-xs text-gray-500">{{ req.client_vehicle.vehicle.make }} {{ req.client_vehicle.vehicle.model }} · {{ req.client_vehicle.vehicle.registration_number|default:req.client_vehicle.vehicle.vin }}</div>
+                            <div class="text-xs text-gray-400">Balance: KES {{ req.client_vehicle.balance|floatformat:2|intcomma }}</div>
+                        </td>
+                        <td class="px-4 py-4 text-sm text-gray-700">
+                            {% if req.request_type == 'reverse' %}
+                                {% if req.payment %}
+                                <a href="{% url 'payments:payment_detail' req.payment.pk %}" class="font-mono text-primary-600 hover:underline">{{ req.payment.receipt_number }}</a>
+                                <div class="text-xs text-gray-500">{{ req.payment.get_payment_method_display }} · {{ req.payment.payment_date|date:"d M Y" }}{% if req.payment.transaction_reference %} · <span class="font-mono">{{ req.payment.transaction_reference }}</span>{% endif %}</div>
+                                {% endif %}
+                                <div class="mt-1 text-xs text-red-700"><span class="font-semibold">Reason:</span> {{ req.reason }}</div>
+                            {% else %}
+                                <div>{{ req.payment_date|date:"d M Y" }} · {{ req.get_payment_method_display }}</div>
+                                {% if req.is_split %}
+                                <ul class="mt-1 text-xs text-gray-500 space-y-0.5">
+                                    {% for s in req.split_rows %}
+                                    <li>KES {{ s.amount|floatformat:2|intcomma }} · {{ s.method }}{% if s.reference %} · <span class="font-mono">{{ s.reference }}</span>{% endif %}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% elif req.transaction_reference %}
+                                <div class="text-xs font-mono text-gray-500">{{ req.transaction_reference }}</div>
+                                {% else %}
+                                <div class="text-xs text-gray-400">No reference</div>
+                                {% endif %}
+                                {% if req.notes %}<div class="mt-1 text-xs text-gray-500">{{ req.notes }}</div>{% endif %}
+                                {% if req.possible_duplicate_note %}
+                                <div class="mt-1 px-2 py-1 rounded bg-yellow-50 border border-yellow-200 text-xs text-yellow-800">
+                                    <i class="fas fa-triangle-exclamation mr-1"></i><span class="font-semibold">Possible duplicate</span> — submitter confirmed it is separate: {{ req.possible_duplicate_note }}
+                                </div>
+                                {% endif %}
+                                {% if req.payment %}
+                                <a href="{% url 'payments:payment_detail' req.payment.pk %}" class="mt-1 inline-block text-xs font-mono text-primary-600 hover:underline">{{ req.payment.receipt_number }}</a>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-4 text-sm text-right font-semibold whitespace-nowrap {% if req.request_type == 'reverse' %}text-red-700{% else %}text-gray-900{% endif %}">
+                            {% if req.request_type == 'reverse' %}−{% endif %}KES {{ req.amount|floatformat:2|intcomma }}
+                        </td>
+                        <td class="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
+                            {{ req.requested_by.get_full_name|default:req.requested_by.email }}
+                            <div class="text-xs text-gray-400">{{ req.requested_at|date:"d M Y, H:i" }}</div>
+                        </td>
+                        <td class="px-4 py-4 text-sm">
+                            {% if req.status == 'pending' %}
+                                {% if is_approver %}
+                                <div class="flex flex-col gap-2 min-w-[190px]">
+                                    <form method="post" action="{% url 'payments:payment_request_approve' req.pk %}"
+                                          onsubmit="return confirm('{% if req.request_type == 'reverse' %}Reverse this payment? The balance and ledgers will be recalculated.{% else %}Record this payment against the client balance?{% endif %}');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="w-full px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition">
+                                            <i class="fas fa-check mr-1"></i>Approve
+                                        </button>
+                                    </form>
+                                    <form method="post" action="{% url 'payments:payment_request_reject' req.pk %}" class="flex gap-1">
+                                        {% csrf_token %}
+                                        <input type="text" name="note" placeholder="Reason (optional)"
+                                               class="flex-1 min-w-0 px-2 py-1 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-red-500">
+                                        <button type="submit" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-lg transition">
+                                            Reject
+                                        </button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">Awaiting approval</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="px-2 py-0.5 rounded-full text-xs font-semibold {% if req.status == 'approved' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-700{% endif %}">{{ req.get_status_display }}</span>
+                                <div class="mt-1 text-xs text-gray-500">by {{ req.reviewed_by.get_full_name|default:req.reviewed_by.email }}, {{ req.reviewed_at|date:"d M Y, H:i" }}</div>
+                                {% if req.review_note %}<div class="text-xs text-gray-500">{{ req.review_note }}</div>{% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-400">
+                            <i class="fas fa-clipboard-check text-3xl mb-2 block opacity-40"></i>
+                            No {{ status }} requests.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.has_other_pages %}
+        <div class="px-6 py-3 border-t border-gray-200 flex items-center justify-between text-sm">
+            <span class="text-gray-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            <div class="flex gap-2">
+                {% if page_obj.has_previous %}<a href="?status={{ status }}&page={{ page_obj.previous_page_number }}" class="px-3 py-1 border rounded-lg hover:bg-gray-50">Previous</a>{% endif %}
+                {% if page_obj.has_next %}<a href="?status={{ status }}&page={{ page_obj.next_page_number }}" class="px-3 py-1 border rounded-lg hover:bg-gray-50">Next</a>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

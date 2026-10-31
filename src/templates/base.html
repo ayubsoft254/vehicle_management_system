@@ -226,6 +226,14 @@
                                     <i class="fas fa-credit-card w-4 text-gray-400 group-hover:text-primary-600"></i>
                                     <span class="ml-2">Payments</span>
                                 </a>
+                                <a href="{% url 'payments:payment_request_list' %}"
+                                   class="flex items-center px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors duration-200 group">
+                                    <i class="fas fa-clipboard-check w-4 text-gray-400 group-hover:text-primary-600"></i>
+                                    <span class="ml-2">Payment Approvals</span>
+                                    {% if pending_payment_request_count %}
+                                    <span class="ml-auto px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-500 text-white">{{ pending_payment_request_count }}</span>
+                                    {% endif %}
+                                </a>
                                 {% endif %}
                                 {% if user.is_superuser or user|can_access:'clients' %}
                                 <a href="{% url 'clients:proforma_list' %}"

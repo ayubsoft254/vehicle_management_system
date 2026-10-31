@@ -96,6 +96,7 @@ def portal_dashboard(request):
     
     # Get recent payments
     recent_payments = Payment.objects.filter(
+        is_reversed=False,
         client_vehicle__client=client
     ).order_by('-payment_date')[:5]
     
@@ -183,6 +184,7 @@ def portal_vehicle_detail(request, vehicle_id):
     
     # Get related payments for this vehicle
     payments = Payment.objects.filter(
+        is_reversed=False,
         client_vehicle=vehicle
     ).order_by('-payment_date')
     
@@ -245,6 +247,7 @@ def portal_payments(request):
     
     # Get all payments
     payments = Payment.objects.filter(
+        is_reversed=False,
         client_vehicle__client=client
     ).select_related('client_vehicle__vehicle').order_by('-payment_date')
     
@@ -351,6 +354,7 @@ def portal_installment_plan_detail(request, plan_id):
     
     # Get payments
     payments = Payment.objects.filter(
+        is_reversed=False,
         installment_plan=plan
     ).order_by('-payment_date')
     

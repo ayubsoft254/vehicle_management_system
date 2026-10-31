@@ -282,23 +282,18 @@ class Payment(models.Model):
             self.reversed_at = timezone.now()
             self.reversed_by = user
             self.reversal_reason = reason
+            # The post_save signal recalculates the sale's total_paid/balance
+            # from the remaining non-reversed payments - don't also subtract
+            # the amount here, or it comes off twice.
             self.save(update_fields=['is_reversed', 'reversed_at', 'reversed_by', 'reversal_reason'])
 
-            PaymentSchedule.objects.filter(payment=self).update(
-                payment=None,
-                amount_paid=Decimal('0.00'),
-                is_paid=False,
-                payment_date=None,
-            )
+            rebuild_payment_schedules(self.client_vehicle)
 
-            client_vehicle = self.client_vehicle
-            client_vehicle.total_paid = max(
-                client_vehicle.total_paid - self.amount, Decimal('0.00')
-            )
-            client_vehicle.balance = client_vehicle.purchase_price - client_vehicle.total_paid
-            if client_vehicle.balance > 0:
-                client_vehicle.is_paid_off = False
-            client_vehicle.save(update_fields=['total_paid', 'balance', 'is_paid_off'])
+            # Free this payment's references so the money can be re-recorded
+            # against the correct sale
+            PaymentReferenceClaim.objects.filter(
+                payment_request__payment=self, payment_request__request_type='record'
+            ).update(is_active=False)
 
 
 class AccountWithdrawal(models.Model):
@@ -1689,3 +1684,185 @@ class Reconciliation(models.Model):
         self.approved_by = user
         self.approved_at = timezone.now()
         self.save(update_fields=['status', 'approved_by', 'approved_at'])
+
+# ==================== MANUAL PAYMENT APPROVAL ====================
+
+class PaymentRequest(models.Model):
+    """
+    Every manually entered payment, and every reversal, goes through one of
+    these. Nothing touches balances or ledgers until it is approved: an
+    approved 'record' request creates the Payment, an approved 'reverse'
+    request reverses it. Admins' own requests are approved on submission,
+    so the table is also the audit trail of who entered and approved what.
+    """
+
+    TYPE_RECORD = 'record'
+    TYPE_REVERSE = 'reverse'
+    TYPE_CHOICES = [
+        (TYPE_RECORD, 'Record Payment'),
+        (TYPE_REVERSE, 'Reverse Payment'),
+    ]
+
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending Approval'),
+        (STATUS_APPROVED, 'Approved'),
+        (STATUS_REJECTED, 'Rejected'),
+    ]
+
+    request_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
+
+    client_vehicle = models.ForeignKey(
+        'clients.ClientVehicle', on_delete=models.CASCADE, related_name='payment_requests'
+    )
+    # 'record': the Payment created on approval. 'reverse': the Payment to reverse.
+    payment = models.ForeignKey(
+        Payment, on_delete=models.SET_NULL, null=True, blank=True, related_name='requests'
+    )
+
+    # Proposed payment ('record' requests)
+    amount = models.DecimalField(
+        max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))]
+    )
+    payment_date = models.DateField(null=True, blank=True)
+    payment_method = models.CharField(max_length=20, choices=Payment.PAYMENT_METHOD_CHOICES, blank=True)
+    transaction_reference = models.CharField(max_length=100, blank=True)
+    payment_location = models.CharField(max_length=200, blank=True)
+    notes = models.TextField(blank=True)
+    # Split payments: [{"method", "amount", "reference", "location"}, ...]
+    splits = models.JSONField(default=list, blank=True)
+    # Set when the user confirmed a no-reference payment that matches an
+    # existing one (same sale, amount and date) is genuinely separate
+    possible_duplicate_note = models.TextField(blank=True)
+
+    # Reversal reason ('reverse' requests)
+    reason = models.TextField(blank=True)
+
+    requested_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name='payment_requests_made'
+    )
+    requested_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='payment_requests_reviewed'
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-requested_at']
+        verbose_name = 'Payment Request'
+        verbose_name_plural = 'Payment Requests'
+        indexes = [models.Index(fields=['status', 'request_type'])]
+        constraints = [
+            # One open reversal request per payment
+            models.UniqueConstraint(
+                fields=['payment'],
+                condition=models.Q(request_type='reverse', status='pending'),
+                name='one_pending_reversal_per_payment',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.get_request_type_display()} #{self.pk} — KES {self.amount:,.2f} ({self.get_status_display()})"
+
+    @property
+    def is_split(self):
+        return bool(self.splits)
+
+    def portions(self):
+        """(method, amount, reference, location) for each part of the proposed payment."""
+        if self.splits:
+            return [
+                (s['method'], Decimal(str(s['amount'])), s.get('reference') or '', s.get('location') or '')
+                for s in self.splits
+            ]
+        return [(self.payment_method, self.amount, self.transaction_reference, self.payment_location)]
+
+    def split_rows(self):
+        """Split portions with method labels, for display."""
+        labels = dict(Payment.PAYMENT_METHOD_CHOICES)
+        return [
+            {'method': labels.get(m, m), 'amount': a, 'reference': r}
+            for m, a, r, _loc in self.portions()
+        ] if self.splits else []
+
+
+class PaymentReferenceClaim(models.Model):
+    """
+    Reserves a transaction reference (M-Pesa code, bank ref, cheque no.) for
+    one manual payment. The conditional unique constraint is the database-
+    level guarantee that the same transaction cannot be recorded twice, even
+    by two people submitting at the same moment. A claim is released when
+    its request is rejected or its payment is reversed, so the money can be
+    re-recorded against the correct sale.
+    """
+
+    payment_request = models.ForeignKey(PaymentRequest, on_delete=models.CASCADE, related_name='reference_claims')
+    reference_key = models.CharField(max_length=160)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['reference_key'], condition=models.Q(is_active=True),
+                name='unique_active_payment_reference',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.reference_key} ({'active' if self.is_active else 'released'})"
+
+
+def rebuild_payment_schedules(client_vehicle):
+    """
+    Re-derive the installment schedule allocation from the sale's valid
+    payments, oldest first - used after a reversal, so removing one payment
+    doesn't also wipe amounts other payments put on a shared installment.
+    Mirrors signals._safe_update_payment_schedules: only payments made once
+    the plan existed are allocated (the sale's deposit predates the plan and
+    was never applied to installments), and future-dated ones are skipped.
+    """
+    try:
+        plan = client_vehicle.installment_plan
+    except InstallmentPlan.DoesNotExist:
+        return
+    if not plan:
+        return
+
+    schedules = list(plan.payment_schedules.order_by('installment_number'))
+    for schedule in schedules:
+        schedule.amount_paid = Decimal('0.00')
+        schedule.is_paid = False
+        schedule.payment = None
+        schedule.payment_date = None
+
+    payments = Payment.objects.filter(
+        client_vehicle=client_vehicle,
+        is_reversed=False,
+        created_at__gte=plan.created_at,
+        payment_date__lte=timezone.localdate(),
+    ).order_by('payment_date', 'created_at')
+
+    for payment in payments:
+        remaining = payment.amount
+        for schedule in schedules:
+            if remaining <= 0:
+                break
+            if schedule.is_paid:
+                continue
+            applied = min(remaining, schedule.amount_due - schedule.amount_paid)
+            if applied <= 0:
+                continue
+            schedule.amount_paid += applied
+            schedule.payment = payment
+            schedule.payment_date = payment.payment_date
+            schedule.is_paid = schedule.amount_paid >= schedule.amount_due
+            remaining -= applied
+
+    PaymentSchedule.objects.bulk_update(
+        schedules, ['amount_paid', 'is_paid', 'payment', 'payment_date']
+    )

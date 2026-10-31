@@ -166,7 +166,7 @@
                     {% if form.transaction_reference.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.transaction_reference.errors.0 }}</p>
                     {% endif %}
-                    <p class="mt-1 text-xs text-gray-500">M-Pesa code, cheque number, bank reference, etc.</p>
+                    <p class="mt-1 text-xs text-gray-500">M-Pesa code, cheque number, bank reference, etc. Required for every method except cash. A reference can only be recorded once.</p>
                 </div>
 
                 <!-- Notes -->
@@ -183,6 +183,8 @@
             </div>
         </div>
 
+        {% include 'payments/includes/_manual_payment_notice.html' %}
+
         <!-- Form Actions -->
         <div class="flex items-center justify-end space-x-4">
             <a href="{% url 'clients:client_vehicle_detail' client_vehicle.pk %}"
@@ -191,7 +193,7 @@
             </a>
             <button type="submit"
                     class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 shadow-sm">
-                <i class="fas fa-check mr-2"></i>Record Payment
+                <i class="fas fa-check mr-2"></i>{% if needs_approval %}Submit for Approval{% else %}Record Payment{% endif %}
             </button>
         </div>
     </form>
@@ -310,5 +312,12 @@ function updateSplitSummary() {
 }
 
 document.querySelector('[name="amount"]')?.addEventListener('input', updateSplitSummary);
+
+// A double-click must not submit the same payment twice
+document.getElementById('paymentForm').addEventListener('submit', function () {
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+});
 </script>
 {% endblock %}

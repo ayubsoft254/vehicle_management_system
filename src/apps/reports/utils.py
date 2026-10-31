@@ -168,6 +168,7 @@ def generate_financial_report_data(date_from, date_to):
     from apps.expenses.models import Expense
     
     payments = Payment.objects.filter(
+        is_reversed=False,
         payment_date__gte=date_from,
         payment_date__lte=date_to,
     )
@@ -346,6 +347,7 @@ def generate_client_report_data(date_from, date_to):
     
     # Get payment statistics for clients
     client_payments = Payment.objects.filter(
+        is_reversed=False,
         payment_date__gte=date_from,
         payment_date__lte=date_to,
     ).values('client_vehicle__client').annotate(
@@ -407,6 +409,7 @@ def generate_payment_report_data(date_from, date_to):
     from apps.payments.models import Payment
     
     payments = Payment.objects.filter(
+        is_reversed=False,
         payment_date__gte=date_from,
         payment_date__lte=date_to
     )
@@ -447,6 +450,7 @@ def generate_sales_report_data(date_from, date_to):
     
     # Payments received
     payments = Payment.objects.filter(
+        is_reversed=False,
         payment_date__gte=date_from,
         payment_date__lte=date_to,
     )
@@ -578,7 +582,7 @@ def generate_widget_data(widget):
             queryset = Vehicle.objects.all()
         elif widget.data_source == 'Payment':
             from apps.payments.models import Payment
-            queryset = Payment.objects.all()
+            queryset = Payment.objects.filter(is_reversed=False)
         elif widget.data_source == 'Client':
             from apps.clients.models import Client
             queryset = Client.objects.all()

@@ -25,6 +25,7 @@ import json
 import re
 import logging
 
+from .manual_payments import is_payment_approver
 from .models import (
     Payment,
     PaymentSplit,
@@ -1324,11 +1325,21 @@ def payment_detail(request, pk):
         pk=pk
     )
     
+    from .models import PaymentRequest
+    payment_requests = payment.requests.select_related('requested_by', 'reviewed_by')
+
     context = {
         'payment': payment,
         'client': payment.client_vehicle.client,
         'vehicle': payment.client_vehicle.vehicle,
         'client_vehicle': payment.client_vehicle,
+        'is_payment_approver': is_payment_approver(request.user),
+        'pending_reversal': payment_requests.filter(
+            request_type=PaymentRequest.TYPE_REVERSE, status=PaymentRequest.STATUS_PENDING
+        ).first(),
+        'record_request': payment_requests.filter(
+            request_type=PaymentRequest.TYPE_RECORD, status=PaymentRequest.STATUS_APPROVED
+        ).first(),
         # payment_progress can exceed 100% on an overpaid vehicle — cap only
         # the bar's width so it doesn't overflow its container; the exact
         # percentage is still shown as text next to it.
@@ -1341,30 +1352,185 @@ def payment_detail(request, pk):
 
 
 @login_required
-@module_permission_required('payments', AccessLevel.FULL_ACCESS)
 @require_POST
 def reverse_payment(request, pk):
     """
-    Reverse (void) a payment. The payment record is kept for audit purposes
-    but is excluded from balances, totals, and payment schedule progress.
+    Reverse (void) a payment. The record is kept for audit but excluded from
+    balances, totals, ledgers and schedule progress. Admins reverse
+    immediately; anyone else's reversal waits for an admin's approval.
     """
+    from .manual_payments import submit_reversal_request, is_payment_approver
+
     payment = get_object_or_404(Payment, pk=pk)
     reason = (request.POST.get('reason') or '').strip()
 
     try:
-        payment.reverse_payment(user=request.user, reason=reason)
+        payment_request = submit_reversal_request(request.user, payment, reason)
     except ValueError as e:
         messages.error(request, str(e))
         return redirect('payments:payment_detail', pk=pk)
 
-    log_audit(
-        request.user,
-        'update',
-        'Payment',
-        f'Reversed payment {payment.receipt_number} (KES {payment.amount:,.2f}): {reason}'
-    )
-    messages.success(request, f'Payment {payment.receipt_number} has been reversed.')
+    if is_payment_approver(request.user):
+        log_audit(
+            request.user, 'update', 'Payment',
+            f'Reversed payment {payment.receipt_number} (KES {payment.amount:,.2f}): {reason}'
+        )
+        messages.success(request, f'Payment {payment.receipt_number} has been reversed.')
+    else:
+        log_audit(
+            request.user, 'update', 'Payment',
+            f'Requested reversal of payment {payment.receipt_number} (request #{payment_request.pk}): {reason}'
+        )
+        messages.info(
+            request,
+            f'Reversal of {payment.receipt_number} submitted for admin approval. '
+            'The payment stays on the balance until an admin approves it.'
+        )
     return redirect('payments:payment_detail', pk=pk)
+
+
+@login_required
+def payment_request_list(request):
+    """
+    Manual payments and reversals awaiting (or past) admin approval. Admins
+    see everyone's requests and can approve/reject; others see their own.
+    """
+    from .models import PaymentRequest
+
+    status = request.GET.get('status', PaymentRequest.STATUS_PENDING)
+    requests_qs = PaymentRequest.objects.select_related(
+        'client_vehicle__client', 'client_vehicle__vehicle', 'payment', 'requested_by', 'reviewed_by',
+    )
+    is_approver = is_payment_approver(request.user)
+    if not is_approver:
+        requests_qs = requests_qs.filter(requested_by=request.user)
+    counts = {
+        key: requests_qs.filter(status=key).count()
+        for key, _label in PaymentRequest.STATUS_CHOICES
+    }
+    if status in counts:
+        requests_qs = requests_qs.filter(status=status)
+
+    page_obj = Paginator(requests_qs, 25).get_page(request.GET.get('page'))
+    return render(request, 'payments/payment_request_list.html', {
+        'page_obj': page_obj,
+        'status': status,
+        'counts': counts,
+        'status_choices': PaymentRequest.STATUS_CHOICES,
+        'is_approver': is_approver,
+    })
+
+
+@login_required
+@require_POST
+def payment_request_approve(request, pk):
+    from .manual_payments import approve_payment_request, DuplicatePaymentError
+    from .models import PaymentRequest
+
+    if not is_payment_approver(request.user):
+        messages.error(request, 'Only an administrator can approve payment requests.')
+        return redirect('payments:payment_request_list')
+
+    payment_request = get_object_or_404(PaymentRequest, pk=pk)
+    try:
+        payment = approve_payment_request(payment_request, request.user, note=request.POST.get('note', '').strip())
+    except (ValueError, DuplicatePaymentError) as e:
+        messages.error(request, f'Request #{pk} not approved: {e}')
+        return redirect('payments:payment_request_list')
+
+    if payment_request.request_type == PaymentRequest.TYPE_RECORD:
+        log_audit(request.user, 'update', 'PaymentRequest',
+                  f'Approved payment request #{pk}: recorded {payment.receipt_number} (KES {payment.amount:,.2f})')
+        messages.success(request, f'Request #{pk} approved — payment {payment.receipt_number} recorded.')
+    else:
+        log_audit(request.user, 'update', 'PaymentRequest',
+                  f'Approved reversal request #{pk}: reversed {payment.receipt_number} (KES {payment.amount:,.2f})')
+        messages.success(request, f'Request #{pk} approved — payment {payment.receipt_number} reversed.')
+    return redirect('payments:payment_request_list')
+
+
+@login_required
+@require_POST
+def payment_request_reject(request, pk):
+    from .manual_payments import reject_payment_request
+    from .models import PaymentRequest
+
+    if not is_payment_approver(request.user):
+        messages.error(request, 'Only an administrator can reject payment requests.')
+        return redirect('payments:payment_request_list')
+
+    payment_request = get_object_or_404(PaymentRequest, pk=pk)
+    note = request.POST.get('note', '').strip()
+    try:
+        reject_payment_request(payment_request, request.user, note=note)
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect('payments:payment_request_list')
+
+    log_audit(request.user, 'update', 'PaymentRequest', f'Rejected payment request #{pk}: {note}')
+    messages.success(request, f'Request #{pk} rejected.')
+    return redirect('payments:payment_request_list')
+
+
+def _submit_manual_payment(request, client_vehicle):
+    """
+    Shared POST handling for record_payment and quick_record_payment.
+    Returns (response, possible_duplicate): a redirect on success, else None
+    plus any no-reference duplicate warning the user must confirm.
+    """
+    from .manual_payments import (
+        parse_manual_payment, submit_payment_request, DuplicatePaymentError,
+    )
+
+    data, errors = parse_manual_payment(request.POST, client_vehicle)
+    if errors:
+        for error in errors:
+            messages.error(request, error)
+        return None, ''
+
+    if data['possible_duplicate'] and not request.POST.get('confirm_not_duplicate'):
+        messages.warning(
+            request,
+            f"Possible duplicate: {data['possible_duplicate']} If this really is a separate payment, "
+            'tick "This is a separate payment" and submit again.'
+        )
+        return None, data['possible_duplicate']
+
+    try:
+        payment_request, payment = submit_payment_request(request.user, client_vehicle, data)
+    except DuplicatePaymentError as e:
+        messages.error(request, str(e))
+        return None, ''
+
+    client_name = client_vehicle.client.get_full_name()
+    if payment is None:
+        log_audit(
+            request.user, 'create', 'PaymentRequest',
+            f'Submitted payment request #{payment_request.pk} (KES {payment_request.amount:,.2f}) for {client_name}'
+        )
+        messages.info(
+            request,
+            f'Payment of KES {payment_request.amount:,.2f} submitted for admin approval '
+            f'(request #{payment_request.pk}). It will reflect on the balance once approved.'
+        )
+        return redirect('payments:payment_request_list'), ''
+
+    # Balance, schedules and client status were updated by the Payment
+    # post_save signals - refresh to read those computed values
+    client_vehicle.refresh_from_db()
+    log_audit(
+        request.user, 'create', 'Payment',
+        f'Recorded payment {payment.receipt_number} (KES {payment.amount:,.2f}) for {client_name}'
+    )
+    if client_vehicle.is_paid_off:
+        messages.success(request, f'Payment {payment.receipt_number} recorded! Vehicle fully paid off! 🎉')
+    else:
+        messages.success(
+            request,
+            f'Payment of KES {payment.amount:,.2f} recorded ({payment.receipt_number}). '
+            f'Remaining balance: KES {client_vehicle.balance:,.2f}'
+        )
+    return redirect('payments:payment_detail', pk=payment.pk), ''
 
 
 @login_required
@@ -1374,125 +1540,19 @@ def record_payment(request, client_vehicle_pk):
     Supports single payment method or split across multiple methods
     """
     from .forms import PaymentForm
-    from .models import PaymentSplit
-    
+
     client_vehicle = get_object_or_404(
         ClientVehicle.objects.select_related('client', 'vehicle'),
         pk=client_vehicle_pk
     )
     
+    possible_duplicate = ''
     if request.method == 'POST':
-        # Default form for re-rendering the page on any failure path below —
-        # the split-payment branch doesn't build one of its own.
+        # Bound form keeps the user's entries when the page is re-rendered
         form = PaymentForm(request.POST)
-
-        # Check if this is a split payment
-        split_methods = request.POST.getlist('split_method[]')
-        split_amounts = request.POST.getlist('split_amount[]')
-        split_references = request.POST.getlist('split_reference[]')
-        split_locations = request.POST.getlist('split_location[]')
-
-        # Filter out empty splits
-        valid_splits = [
-            (m, a, r, loc) for m, a, r, loc in zip(split_methods, split_amounts, split_references, split_locations)
-            if m and a
-        ]
-
-        if valid_splits and len(valid_splits) > 1:
-            # Multi-split payment
-            with transaction.atomic():
-                try:
-                    # Calculate total from splits
-                    total_amount = sum(Decimal(a) for _, a, _, _ in valid_splits)
-                    payment_date = parse_date(request.POST.get('payment_date', '')) or timezone.now().date()
-
-                    # Create main payment with MIXED method
-                    payment = Payment.objects.create(
-                        client_vehicle=client_vehicle,
-                        amount=total_amount,
-                        payment_date=payment_date,
-                        payment_method='mixed',
-                        notes=request.POST.get('notes', ''),
-                        recorded_by=request.user,
-                    )
-                    
-                    # Create split records
-                    for method, amount, reference, location in valid_splits:
-                        PaymentSplit.objects.create(
-                            payment=payment,
-                            payment_method=method,
-                            amount=Decimal(amount),
-                            transaction_reference=reference or None,
-                            payment_location=(location or '').strip() or None,
-                        )
-
-                    # Balance, payment schedules, and client status are already
-                    # updated by the Payment post_save signals — refresh to read
-                    # those computed values instead of re-applying them here.
-                    client_vehicle.refresh_from_db()
-
-                    if client_vehicle.is_paid_off:
-                        messages.success(
-                            request,
-                            f'Split payment recorded! Vehicle fully paid off! 🎉'
-                        )
-                    else:
-                        split_summary = ', '.join([
-                            f"{Payment.PAYMENT_METHOD_CHOICES[
-                                [x[0] for x in Payment.PAYMENT_METHOD_CHOICES].index(m)
-                            ][1]} KES {Decimal(a):,.2f}"
-                            for m, a, _, _ in valid_splits
-                        ])
-                        messages.success(
-                            request,
-                            f'Split payment of KES {payment.amount:,.2f} recorded! '
-                            f'({split_summary}) — '
-                            f'Remaining balance: KES {client_vehicle.balance:,.2f}'
-                        )
-
-                    log_audit(
-                        request.user, 'create', 'Payment',
-                        f'Recorded split payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
-                    )
-
-                    return redirect('payments:payment_detail', pk=payment.pk)
-
-                except (ValueError, InvalidOperation) as e:
-                    messages.error(request, f'Invalid split amounts: {str(e)}')
-        else:
-            # Single payment (traditional flow)
-            if form.is_valid():
-                with transaction.atomic():
-                    payment = form.save(commit=False)
-                    payment.client_vehicle = client_vehicle
-                    payment.recorded_by = request.user
-                    payment.save()
-
-                    # Balance, payment schedules, and client status are already
-                    # updated by the Payment post_save signals — refresh to read
-                    # those computed values instead of re-applying them here.
-                    client_vehicle.refresh_from_db()
-
-                    if client_vehicle.is_paid_off:
-                        messages.success(
-                            request,
-                            f'Payment recorded! Vehicle fully paid off! 🎉'
-                        )
-                    else:
-                        messages.success(
-                            request,
-                            f'Payment of KES {payment.amount:,.2f} recorded successfully! '
-                            f'Remaining balance: KES {client_vehicle.balance:,.2f}'
-                        )
-
-                    log_audit(
-                        request.user, 'create', 'Payment',
-                        f'Recorded payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
-                    )
-
-                    return redirect('payments:payment_detail', pk=payment.pk)
-            else:
-                messages.error(request, 'Please correct the errors below.')
+        response, possible_duplicate = _submit_manual_payment(request, client_vehicle)
+        if response:
+            return response
     else:
         form = PaymentForm(initial={'client_vehicle': client_vehicle})
     
@@ -1501,6 +1561,8 @@ def record_payment(request, client_vehicle_pk):
         'client_vehicle': client_vehicle,
         'client': client_vehicle.client,
         'vehicle': client_vehicle.vehicle,
+        'possible_duplicate': possible_duplicate,
+        'needs_approval': not is_payment_approver(request.user),
     }
     
     return render(request, 'payments/payment_form.html', context)
@@ -1514,8 +1576,8 @@ def quick_record_payment(request):
     Supports single payment or split across multiple methods
     """
     from .forms import PaymentForm
-    from .models import PaymentSplit
 
+    possible_duplicate = ''
     if request.method == 'POST':
         # Resolve the selected client vehicle up front — both the split and
         # single-payment flows below need it, and the template re-render on
@@ -1526,104 +1588,15 @@ def quick_record_payment(request):
         except (ClientVehicle.DoesNotExist, ValueError, TypeError):
             client_vehicle = None
 
+        # Bound form keeps the user's entries when the page is re-rendered
         form = PaymentForm(request.POST, client_vehicle=client_vehicle)
-
-        # Check if this is a split payment
-        split_methods = request.POST.getlist('split_method[]')
-        split_amounts = request.POST.getlist('split_amount[]')
-        split_references = request.POST.getlist('split_reference[]')
-        split_locations = request.POST.getlist('split_location[]')
-
-        # Filter out empty splits
-        valid_splits = [
-            (m, a, r, loc) for m, a, r, loc in zip(split_methods, split_amounts, split_references, split_locations)
-            if m and a
-        ]
 
         if not client_vehicle:
             messages.error(request, 'Please select a client vehicle.')
-        elif valid_splits and len(valid_splits) > 1:
-            # Multi-split payment
-            with transaction.atomic():
-                try:
-                    # Calculate total from splits
-                    total_amount = sum(Decimal(a) for _, a, _, _ in valid_splits)
-                    payment_date = parse_date(request.POST.get('payment_date', '')) or timezone.now().date()
-
-                    # Create main payment with MIXED method
-                    payment = Payment.objects.create(
-                        client_vehicle=client_vehicle,
-                        amount=total_amount,
-                        payment_date=payment_date,
-                        payment_method='mixed',
-                        notes=request.POST.get('notes', ''),
-                        recorded_by=request.user,
-                    )
-                    
-                    # Create split records
-                    for method, amount, reference, location in valid_splits:
-                        PaymentSplit.objects.create(
-                            payment=payment,
-                            payment_method=method,
-                            amount=Decimal(amount),
-                            transaction_reference=reference or None,
-                            payment_location=(location or '').strip() or None,
-                        )
-
-                    # Balance, payment schedules, and client status are already
-                    # updated by the Payment post_save signals — refresh to read
-                    # those computed values instead of re-applying them here.
-                    client_vehicle.refresh_from_db()
-
-                    if client_vehicle.is_paid_off:
-                        messages.success(request, f'Split payment recorded! Vehicle fully paid off! 🎉')
-                    else:
-                        messages.success(
-                            request,
-                            f'Split payment of KES {payment.amount:,.2f} recorded! '
-                            f'Remaining balance: KES {client_vehicle.balance:,.2f}'
-                        )
-
-                    log_audit(
-                        request.user, 'create', 'Payment',
-                        f'Recorded split payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
-                    )
-
-                    return redirect('payments:payment_detail', pk=payment.pk)
-
-                except (ValueError, InvalidOperation, ClientVehicle.DoesNotExist) as e:
-                    messages.error(request, f'Error processing split payment: {str(e)}')
         else:
-            # Single payment (traditional flow)
-            if form.is_valid():
-                with transaction.atomic():
-                    payment = form.save(commit=False)
-                    payment.client_vehicle = client_vehicle
-                    payment.recorded_by = request.user
-                    payment.save()
-
-                    # Balance, payment schedules, and client status are already
-                    # updated by the Payment post_save signals — refresh to read
-                    # those computed values instead of re-applying them here.
-                    client_vehicle.refresh_from_db()
-
-                    if client_vehicle.is_paid_off:
-                        messages.success(request, f'Payment recorded! Vehicle fully paid off! 🎉')
-                    else:
-                        messages.success(
-                            request,
-                            f'Payment of KES {payment.amount:,.2f} recorded successfully! '
-                            f'Remaining balance: KES {client_vehicle.balance:,.2f}'
-                        )
-
-                    log_audit(
-                        request.user, 'create', 'Payment',
-                        f'Recorded payment {payment.receipt_number} for {client_vehicle.client.get_full_name()}'
-                    )
-
-                    return redirect('payments:payment_detail', pk=payment.pk)
-            else:
-                messages.error(request, 'Please correct the errors below.')
+            response, possible_duplicate = _submit_manual_payment(request, client_vehicle)
+            if response:
+                return response
     else:
         # Pre-select client_vehicle if passed in GET parameter
         client_vehicle_id = request.GET.get('client_vehicle')
@@ -1653,6 +1626,8 @@ def quick_record_payment(request):
         'client_vehicle_choices': outstanding_client_vehicles,
         'recent_client_vehicles': recent_client_vehicles,
         'is_quick_record': True,
+        'possible_duplicate': possible_duplicate,
+        'needs_approval': not is_payment_approver(request.user),
     }
 
     return render(request, 'payments/quick_payment_form.html', context)
@@ -1908,6 +1883,7 @@ def installment_plan_detail(request, pk):
     
     # Get all payments for this client vehicle
     payments = Payment.objects.filter(
+        is_reversed=False,
         client_vehicle=plan.client_vehicle
     ).order_by('-payment_date')
     
@@ -2346,6 +2322,7 @@ def payment_tracker(request, client_vehicle_pk):
     
     # Get all payments
     payments = Payment.objects.filter(
+        is_reversed=False,
         client_vehicle=client_vehicle
     ).order_by('payment_date')
     
@@ -3476,6 +3453,7 @@ def _compute_defaulters_context(request):
             days_overdue = (today - cv.purchase_date).days
 
         last_payment = Payment.objects.filter(
+            is_reversed=False,
             client_vehicle=cv
         ).order_by('-payment_date', '-created_at').first()
 
@@ -3605,7 +3583,7 @@ def export_payments_csv(request):
     writer.writerow([
         'Receipt Number', 'Client', 'ID Number', 'Vehicle', 
         'Payment Date', 'Amount', 'Currency', 'FX Rate (from KES)',
-        'Payment Method', 'Transaction Reference', 'Balance', 'Recorded By'
+        'Payment Method', 'Transaction Reference', 'Balance', 'Recorded By', 'Status'
     ])
     
     payments = Payment.objects.select_related(
@@ -3638,7 +3616,9 @@ def export_payments_csv(request):
             payment.get_payment_method_display(),
             payment.transaction_reference or '',
             converted_balance,
-            payment.recorded_by.get_full_name() if payment.recorded_by else ''
+            payment.recorded_by.get_full_name() if payment.recorded_by else '',
+            # Reversed payments stay in the export for audit but are marked
+            f'Reversed {payment.reversed_at:%Y-%m-%d}' if payment.is_reversed else 'Active',
         ])
     
     log_audit(
@@ -3665,13 +3645,14 @@ def payment_stats_api(request):
     
     if period == 'month':
         payments = Payment.objects.filter(
+            is_reversed=False,
             payment_date__year=now.year,
             payment_date__month=now.month
         )
     elif period == 'year':
-        payments = Payment.objects.filter(payment_date__year=now.year)
+        payments = Payment.objects.filter(is_reversed=False, payment_date__year=now.year)
     else:
-        payments = Payment.objects.all()
+        payments = Payment.objects.filter(is_reversed=False)
     
     total = payments.aggregate(Sum('amount'))['amount__sum'] or 0
     count = payments.count()
@@ -3710,6 +3691,7 @@ def payment_chart_data_api(request):
     monthly_data = []
     for month in range(1, 13):
         total = Payment.objects.filter(
+            is_reversed=False,
             payment_date__year=now.year,
             payment_date__month=month
         ).aggregate(Sum('amount'))['amount__sum'] or 0

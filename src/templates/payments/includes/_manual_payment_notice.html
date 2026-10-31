@@ -1,0 +1,23 @@
+{% comment %}
+Shared by payment_form.html and quick_payment_form.html: the admin-approval
+notice for non-admins, and the "this is a separate payment" confirmation
+shown when a no-reference payment matches an existing one.
+{% endcomment %}
+{% if possible_duplicate %}
+<div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
+    <p class="text-sm font-bold text-yellow-800"><i class="fas fa-triangle-exclamation mr-1"></i>Possible duplicate payment</p>
+    <p class="mt-1 text-sm text-yellow-800">{{ possible_duplicate }}</p>
+    <label class="mt-3 flex items-start gap-2 cursor-pointer">
+        <input type="checkbox" name="confirm_not_duplicate" value="1" class="mt-0.5 h-4 w-4 text-yellow-600 border-gray-300 rounded">
+        <span class="text-sm text-yellow-900">This is a separate payment, not the same one entered again. Record it anyway{% if needs_approval %} (the approving admin will see this warning){% endif %}.</span>
+    </label>
+</div>
+{% endif %}
+{% if needs_approval %}
+<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+    <i class="fas fa-user-shield text-blue-600 mt-0.5"></i>
+    <p class="text-sm text-blue-800">
+        This payment will be sent to an administrator for approval. It will not affect the client's balance or the ledgers until it is approved.
+    </p>
+</div>
+{% endif %}
