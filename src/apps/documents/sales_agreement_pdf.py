@@ -631,7 +631,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         ins_detail_rows = [
             [Paragraph('<b>INSURANCE</b>', ParagraphStyle('h', fontName='Helvetica-Bold', fontSize=7.5, textColor=colors.white)), ''],
             ['Price', f'KES {float(ins_price):,.2f}'],
-            ['Vehicle Usage', 'Private' if insurance_policy.vehicle_usage == 'private' else 'PSV'],
+            ['Vehicle Usage', insurance_policy.get_vehicle_usage_display() or 'Private'],
         ]
 
         if insurance_policy.payment_type == 'full':

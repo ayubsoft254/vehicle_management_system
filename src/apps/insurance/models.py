@@ -138,6 +138,8 @@ class InsurancePolicy(models.Model):
     VEHICLE_USAGE_CHOICES = [
         ('private', 'Private'),
         ('psv', 'PSV'),
+        ('commercial', 'Commercial'),
+        ('commercial_psv', 'Commercial PSV'),
     ]
     
     STATUS_CHOICES = [
