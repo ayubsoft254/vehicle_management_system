@@ -13,6 +13,7 @@ from .models import Repossession, RepossessionDocument, RepossessionNote
 from apps.vehicles.models import Vehicle
 from apps.notifications.models import Notification
 from apps.audit.models import AuditLog
+from utils.constants import VehicleStatus
 
 User = get_user_model()
 
@@ -145,30 +146,29 @@ def handle_status_change(repossession, previous_status):
     """Handle repossession status changes"""
     
     status_messages = {
-        'initiated': 'Repossession has been initiated',
-        'assigned': 'Agent has been assigned to the case',
-        'in_progress': 'Repossession is in progress',
-        'vehicle_located': 'Vehicle has been located',
-        'vehicle_recovered': 'Vehicle has been recovered',
-        'completed': 'Repossession has been completed',
-        'cancelled': 'Repossession has been cancelled',
-        'failed': 'Repossession attempt failed'
+        'PENDING': 'Repossession is pending',
+        'NOTICE_SENT': 'Notice has been sent to the client',
+        'IN_PROGRESS': 'Repossession is in progress',
+        'VEHICLE_RECOVERED': 'Vehicle has been recovered',
+        'COMPLETED': 'Repossession has been completed',
+        'CANCELLED': 'Repossession has been cancelled',
+        'ON_HOLD': 'Repossession has been put on hold',
     }
-    
-    # Update vehicle status based on repossession status
+
+    # Keep the vehicle status in step with the case. COMPLETED is left to
+    # repossession_complete, which sets the status per resolution type.
     if repossession.vehicle:
         vehicle = repossession.vehicle
-        
-        if repossession.status == 'vehicle_recovered':
-            vehicle.status = 'in_stock'
+        if repossession.status == 'CANCELLED':
+            # The client keeps the vehicle, so it goes back to being sold
+            if vehicle.status == VehicleStatus.REPOSSESSED:
+                vehicle.status = VehicleStatus.SOLD
+                vehicle.save(update_fields=['status'])
+        elif previous_status == 'CANCELLED' and vehicle.status == VehicleStatus.SOLD:
+            # Cancelled case reopened
+            vehicle.status = VehicleStatus.REPOSSESSED
             vehicle.save(update_fields=['status'])
-        elif repossession.status == 'completed':
-            vehicle.status = 'available'
-            vehicle.save(update_fields=['status'])
-        elif repossession.status == 'cancelled':
-            vehicle.status = 'active'  # Return to active status
-            vehicle.save(update_fields=['status'])
-    
+
     # Notify assigned agent
     if repossession.assigned_to:
         Notification.objects.create(
@@ -178,12 +178,13 @@ def handle_status_change(repossession, previous_status):
             notification_type='repossession',
             related_object_type='repossession',
             action_url=reverse('repossessions:repossession_detail', args=[repossession.pk]),
-            priority='high' if repossession.status in ['vehicle_recovered', 'completed'] else 'medium'
+            priority='high' if repossession.status in ['VEHICLE_RECOVERED', 'COMPLETED'] else 'medium'
         )
-    
+
     # Notify client for specific statuses
-    if repossession.status in ['vehicle_recovered', 'completed'] and repossession.client:
-        # Send notification to client (if they have a user account)
+    if repossession.status in ['VEHICLE_RECOVERED', 'COMPLETED'] and repossession.client:
+        # Send notification to client (if they have a user account). No
+        # action_url: the case detail page is staff-only.
         if hasattr(repossession.client, 'user') and repossession.client.user:
             Notification.objects.create(
                 user=repossession.client.user,
@@ -191,12 +192,11 @@ def handle_status_change(repossession, previous_status):
                 message=f'The repossession case for your vehicle has been {repossession.get_status_display().lower()}',
                 notification_type='repossession',
                 related_object_type='repossession',
-                action_url=reverse('repossessions:repossession_detail', args=[repossession.pk]),
                 priority='high'
             )
-    
+
     # Notify management for critical statuses
-    if repossession.status in ['vehicle_recovered', 'completed', 'failed']:
+    if repossession.status in ['VEHICLE_RECOVERED', 'COMPLETED']:
         admin_users = User.objects.filter(is_staff=True, is_active=True)
         for admin in admin_users:
             Notification.objects.create(
@@ -217,11 +217,16 @@ def repossession_post_delete(sender, instance, **kwargs):
     - Revert vehicle status
     - Create audit log
     """
-    # Revert vehicle status
-    if instance.vehicle:
-        vehicle = instance.vehicle
-        vehicle.status = 'active'  # Return to active
-        vehicle.save(update_fields=['status'])
+    # Revert vehicle status: the client still has the vehicle, so it is sold
+    # again, unless another open case still holds it
+    vehicle = instance.vehicle
+    if vehicle and vehicle.status == VehicleStatus.REPOSSESSED:
+        still_open = Repossession.objects.filter(vehicle=vehicle).exclude(
+            status__in=['COMPLETED', 'CANCELLED']
+        ).exists()
+        if not still_open:
+            vehicle.status = VehicleStatus.SOLD
+            vehicle.save(update_fields=['status'])
     
     # Create audit log
     if hasattr(instance, '_deleted_by'):
@@ -329,7 +334,7 @@ def send_repossession_reminder(repossession):
     Send reminder notifications for pending repossessions
     Can be called from scheduled tasks
     """
-    if repossession.assigned_to and repossession.status in ['assigned', 'in_progress']:
+    if repossession.assigned_to and repossession.status in ['PENDING', 'NOTICE_SENT', 'IN_PROGRESS']:
         days_pending = (timezone.now().date() - repossession.initiated_date).days
         
         if days_pending > 7:  # More than 7 days pending
@@ -354,7 +359,7 @@ def check_overdue_repossessions():
     overdue_threshold = timezone.now() - timedelta(days=14)
 
     overdue_repossessions = Repossession.objects.filter(
-        status__in=['assigned', 'in_progress', 'vehicle_located'],
+        status__in=['PENDING', 'NOTICE_SENT', 'IN_PROGRESS'],
         initiated_date__lt=overdue_threshold.date()
     )
     

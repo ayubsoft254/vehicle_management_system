@@ -231,6 +231,11 @@ class RepossessionStatusUpdateForm(forms.Form):
         self.repossession = kwargs.pop('repossession', None)
         super().__init__(*args, **kwargs)
         
+        # COMPLETED goes through the completion form, which settles the sale
+        self.fields['status'].choices = [
+            choice for choice in Repossession.STATUS_CHOICES if choice[0] != 'COMPLETED'
+        ]
+
         if self.repossession:
             self.fields['status'].initial = self.repossession.status
 

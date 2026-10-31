@@ -249,9 +249,16 @@ class Repossession(models.Model):
     def can_cancel(self):
         """Check if repossession can be cancelled."""
         return self.status not in ['COMPLETED', 'CANCELLED']
+
+    @property
+    def is_closed(self):
+        """Completed or cancelled cases no longer drive the vehicle or the sale."""
+        return self.status in ['COMPLETED', 'CANCELLED']
     
     def mark_as_recovered(self, recovery_date=None, location=None):
         """Mark vehicle as recovered."""
+        if self.is_closed:
+            return
         self.status = 'VEHICLE_RECOVERED'
         self.recovery_date = recovery_date or date.today()
         if location:

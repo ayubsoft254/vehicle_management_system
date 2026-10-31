@@ -509,7 +509,8 @@ def client_detail(request, pk):
     from apps.repossessions.models import Repossession as _Repo
     completed_repos = {
         r.vehicle_id: r
-        for r in _Repo.objects.filter(client=client, status='COMPLETED').order_by('-completion_date')
+        for r in _Repo.objects.filter(client=client, status='COMPLETED')
+                              .exclude(resolution_type='RETURNED').order_by('-completion_date')
     }
 
     # Enrich vehicles with payment plan and schedule information
@@ -774,16 +775,13 @@ def assign_vehicle(request, client_pk):
                     if name.strip():
                         tracker_addon += parse_money(tracker_selling_prices[i] if i < len(tracker_selling_prices) else '0')
 
-                # For repossessed vehicles, base price = outstanding amount + all repossession costs
-                _repo_qs = client_vehicle.vehicle.repossessions.prefetch_related('expenses', 'additional_cost_items')
-                _latest_repo = _repo_qs.order_by('-initiated_date').first()
+                # For repossessed vehicles, base price = outstanding amount + repossession
+                # costs of the latest case, matching the price previewed on the form.
+                # Line items are already inside total_cost, and an earlier case's costs
+                # were carried into the later sale's outstanding amount.
+                _latest_repo = client_vehicle.vehicle.repossessions.order_by('-initiated_date').first()
                 if _latest_repo:
-                    _repo_costs = sum(
-                        (r.total_cost + r.get_expense_total() +
-                         (r.additional_cost_items.aggregate(t=Sum('amount'))['t'] or Decimal('0.00')))
-                        for r in _repo_qs
-                    )
-                    base_vehicle_price = _latest_repo.outstanding_amount + _repo_costs
+                    base_vehicle_price = _latest_repo.get_total_amount_due()
                 else:
                     # selling_price (not website_display_price) - defaulting a sale
                     # price must use the internal reference price, not the public
@@ -1518,11 +1516,13 @@ def client_vehicle_detail(request, pk):
 
     # Check if this vehicle was repossessed
     from apps.repossessions.models import Repossession
+    # A case completed as "Returned to Client" gave the vehicle back, so the
+    # sale is live again and must not be treated (or cleaned up) as repossessed
     repossession = Repossession.objects.filter(
         client=client_vehicle.client,
         vehicle=client_vehicle.vehicle,
         status='COMPLETED',
-    ).order_by('-completion_date').first()
+    ).exclude(resolution_type='RETURNED').order_by('-completion_date').first()
     is_repossessed = repossession is not None
 
     # Check if this sale was returned
@@ -2214,7 +2214,7 @@ def return_vehicle(request, pk):
         client=client_vehicle.client,
         vehicle=client_vehicle.vehicle,
         status='COMPLETED',
-    ).exists()
+    ).exclude(resolution_type='RETURNED').exists()
     if is_repossessed:
         messages.error(request, 'This vehicle was repossessed; it cannot be processed as a Return.')
         return redirect('clients:client_vehicle_detail', pk=pk)

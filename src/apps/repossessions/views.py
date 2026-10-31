@@ -445,7 +445,9 @@ def repossession_update(request, pk):
             repossession = form.save()
             additional_cost_entries, _ = _extract_additional_cost_entries(request.POST)
             _sync_additional_cost_items(repossession, additional_cost_entries, request.user)
-            _apply_repossessed_vehicle_pricing(repossession)
+            # A closed case already settled the vehicle's status and price
+            if not repossession.is_closed:
+                _apply_repossessed_vehicle_pricing(repossession)
             messages.success(request, 'Repossession updated successfully.')
             return redirect('repossessions:repossession_detail', pk=repossession.pk)
         messages.error(request, 'Repossession could not be updated. Please correct the highlighted errors and try again.')
@@ -495,16 +497,22 @@ def repossession_delete(request, pk):
 def repossession_update_status(request, pk):
     """Update repossession status."""
     repossession = get_object_or_404(Repossession, pk=pk)
-    
+
+    if repossession.status == 'COMPLETED':
+        messages.error(request, 'This repossession is already completed; its status can no longer be changed.')
+        return redirect('repossessions:repossession_detail', pk=repossession.pk)
+
     if request.method == 'POST':
         form = RepossessionStatusUpdateForm(request.POST, repossession=repossession)
         if form.is_valid():
             old_status = repossession.status
             new_status = form.cleaned_data['status']
             reason = form.cleaned_data.get('reason', '')
-            
+
             # Update status
             repossession.status = new_status
+            if new_status == 'VEHICLE_RECOVERED' and not repossession.recovery_date:
+                repossession.recovery_date = date.today()
             repossession.save()
             
             # Create status history
@@ -533,7 +541,12 @@ def repossession_update_status(request, pk):
 def repossession_complete(request, pk):
     """Complete a repossession."""
     repossession = get_object_or_404(Repossession, pk=pk)
-    
+
+    # Completing re-applies costs to the sale and vehicle, so it may only run once
+    if repossession.is_closed:
+        messages.error(request, f'This repossession is already {repossession.get_status_display().lower()}.')
+        return redirect('repossessions:repossession_detail', pk=repossession.pk)
+
     if request.method == 'POST':
         form = RepossessionCompletionForm(request.POST)
         if form.is_valid():
