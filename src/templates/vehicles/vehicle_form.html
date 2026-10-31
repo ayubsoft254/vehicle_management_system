@@ -221,13 +221,15 @@
                 </div>
 
                 {% if can_view_prices %}
-                <!-- Step 1: Japan Supplier + Supplier Price (USD) -->
+                <!-- Step 1: Japan Supplier + auction details & charges (USD) -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                     <div>
                         <label for="japan_supplier_id" class="block text-sm font-medium text-gray-700 mb-1">
                             Japan Supplier <span class="text-gray-400 font-normal">(optional)</span>
                         </label>
-                        <select name="japan_supplier_id" id="japan_supplier_id" class="form-input" onchange="toggleJapanSupplierPrice()">
+                        <select name="japan_supplier_id" id="japan_supplier_id"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            onchange="toggleJapanSupplierPrice()">
                             <option value="">— No Supplier / Unknown —</option>
                             {% for supplier in japan_suppliers %}
                             <option value="{{ supplier.pk }}" {% if existing_japan_supplier_id == supplier.pk %}selected{% endif %}>{{ supplier.name }}</option>
@@ -235,22 +237,92 @@
                         </select>
                         <p class="text-xs text-gray-400 mt-1">Link the purchase to a supplier for ledger tracking.</p>
                     </div>
-                    <div id="japan-supplier-price-row" class="{% if not existing_japan_supplier_id %}hidden{% endif %}">
-                        <label for="japan_supplier_price_usd" class="block text-sm font-medium text-gray-700 mb-1">
-                            Supplier Price (USD) <span class="text-red-500">*</span>
-                        </label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span class="text-gray-400 text-sm font-medium">$</span>
-                            </div>
-                            <input type="number" name="japan_supplier_price_usd" id="japan_supplier_price_usd"
-                                step="0.01" min="0"
-                                value="{{ existing_japan_supplier_price_usd }}"
-                                placeholder="e.g. 8500"
-                                class="form-input pl-10"
-                                oninput="syncSupplierUsdToTracking()">
+                </div>
+
+                <div id="japan-supplier-price-row" class="border border-gray-200 rounded-xl p-4 mb-5 {% if not existing_japan_supplier_id %}hidden{% endif %}">
+                    <p class="text-sm font-semibold text-gray-700 mb-3">Japan Buyer Details</p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-5">
+                        <div>
+                            <label for="japan_date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <input type="date" name="japan_date" id="japan_date"
+                                value="{{ japan_record_values.date }}"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <p class="text-xs text-gray-400 mt-1">Defaults to the purchase date if left blank.</p>
                         </div>
-                        <p class="text-xs text-gray-400 mt-1">Auto-fills the KES purchase price below using the live rate.</p>
+                        <div>
+                            <label for="japan_auction_name" class="block text-sm font-medium text-gray-700 mb-1">Auction Name</label>
+                            <input type="text" name="japan_auction_name" id="japan_auction_name" maxlength="200"
+                                value="{{ japan_record_values.auction_name }}" placeholder="e.g. USS Tokyo"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label for="japan_bid_number" class="block text-sm font-medium text-gray-700 mb-1">Bid Number</label>
+                            <input type="text" name="japan_bid_number" id="japan_bid_number" maxlength="100"
+                                value="{{ japan_record_values.bid_number }}" placeholder="e.g. 40125"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                    </div>
+
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Charges (USD)</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-5">
+                        {% include 'vehicles/includes/japan_charge_input.html' with field='push_auction_charges' label='Push Auction Charges' value=japan_record_values.push_auction_charges %}
+                        <div>
+                            <label for="japan_auction_tax_percent" class="block text-sm font-medium text-gray-700 mb-1">Tax % <span class="text-gray-400 font-normal">(on push auction)</span></label>
+                            <div class="relative">
+                                <input type="number" name="japan_auction_tax_percent" id="japan_auction_tax_percent"
+                                    step="0.01" min="0" max="100" value="{{ japan_record_values.auction_tax_percent }}" placeholder="e.g. 10"
+                                    class="w-full pl-4 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                    data-japan-tax="japan_push_auction_charges" oninput="recalcJapanSupplierTotal(true)">
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                    <span class="text-gray-400 text-sm font-medium">%</span>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Tax amount: <span data-japan-tax-amount="japan_auction_tax_percent">$0.00</span></p>
+                        </div>
+                        {% include 'vehicles/includes/japan_charge_input.html' with field='recycle_charges' label='Recycle Charges' value=japan_record_values.recycle_charges %}
+                        {% include 'vehicles/includes/japan_charge_input.html' with field='auction_fee_charges' label='Auction Fee Charges' value=japan_record_values.auction_fee_charges %}
+                        <div>
+                            <label for="japan_auction_fee_tax_percent" class="block text-sm font-medium text-gray-700 mb-1">Tax % <span class="text-gray-400 font-normal">(on auction fee)</span></label>
+                            <div class="relative">
+                                <input type="number" name="japan_auction_fee_tax_percent" id="japan_auction_fee_tax_percent"
+                                    step="0.01" min="0" max="100" value="{{ japan_record_values.auction_fee_tax_percent }}" placeholder="e.g. 10"
+                                    class="w-full pl-4 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                    data-japan-tax="japan_auction_fee_charges" oninput="recalcJapanSupplierTotal(true)">
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                    <span class="text-gray-400 text-sm font-medium">%</span>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Tax amount: <span data-japan-tax-amount="japan_auction_fee_tax_percent">$0.00</span></p>
+                        </div>
+                        {% include 'vehicles/includes/japan_charge_input.html' with field='transport_charges' label='Transport Charges' value=japan_record_values.transport_charges %}
+                        {% include 'vehicles/includes/japan_charge_input.html' with field='shipping_charges' label='Shipping Charges' value=japan_record_values.shipping_charges %}
+                        {% include 'vehicles/includes/japan_charge_input.html' with field='inspection_charges' label='Inspection Charges' value=japan_record_values.inspection_charges %}
+                        {% include 'vehicles/includes/japan_charge_input.html' with field='freight_charges' label='Freight Charges' value=japan_record_values.freight_charges %}
+                        {% include 'vehicles/includes/japan_charge_input.html' with field='radiation_charges' label='Radiation Charges' value=japan_record_values.radiation_charges %}
+                        {% include 'vehicles/includes/japan_charge_input.html' with field='repair_charges' label='Repair Charges' value=japan_record_values.repair_charges %}
+                        {% include 'vehicles/includes/japan_charge_input.html' with field='container_charges' label='Container Charges' value=japan_record_values.container_charges %}
+                        {% include 'vehicles/includes/japan_charge_input.html' with field='extra_charges' label='Extra Charges' value=japan_record_values.extra_charges %}
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                        <div class="sm:col-start-3">
+                            <label for="japan_supplier_price_usd" class="block text-sm font-semibold text-gray-800 mb-1">
+                                Total Amount (USD) <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span class="text-gray-400 text-sm font-medium">$</span>
+                                </div>
+                                <input type="number" name="japan_supplier_price_usd" id="japan_supplier_price_usd"
+                                    step="0.01" min="0"
+                                    value="{{ existing_japan_supplier_price_usd }}"
+                                    placeholder="e.g. 8500"
+                                    class="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg font-semibold focus:ring-2 focus:ring-primary-500 focus:border-transparent read-only:bg-gray-50"
+                                    oninput="syncSupplierUsdToTracking()">
+                            </div>
+                            <p id="japanTotalHint" class="text-xs text-gray-400 mt-1">Auto-fills the KES purchase price below using the live rate.</p>
+                        </div>
                     </div>
                 </div>
 
@@ -918,8 +990,40 @@ function syncSupplierUsdToTracking() {
     }
 }
 
+// Sums the itemised Japan buyer charges (plus their tax %) into the total.
+// While any charge is entered the total is locked — the server recomputes it the same way.
+function recalcJapanSupplierTotal(sync) {
+    const totalEl = document.getElementById('japan_supplier_price_usd');
+    if (!totalEl) return;
+    let total = 0;
+    document.querySelectorAll('[data-japan-charge]').forEach(function (el) {
+        total += parseFloat(el.value) || 0;
+    });
+    document.querySelectorAll('[data-japan-tax]').forEach(function (el) {
+        const base = parseFloat((document.getElementById(el.dataset.japanTax) || {}).value) || 0;
+        const tax = Math.round(base * (parseFloat(el.value) || 0)) / 100;
+        total += tax;
+        const out = document.querySelector('[data-japan-tax-amount="' + el.id + '"]');
+        if (out) out.textContent = '$' + tax.toFixed(2);
+    });
+    const hint = document.getElementById('japanTotalHint');
+    if (total > 0) {
+        totalEl.value = total.toFixed(2);
+        totalEl.readOnly = true;
+        if (hint) hint.textContent = 'Calculated from the charges above. Auto-fills the KES purchase price below.';
+    } else {
+        if (totalEl.readOnly) totalEl.value = '';
+        totalEl.readOnly = false;
+        if (hint) hint.textContent = 'Auto-fills the KES purchase price below using the live rate.';
+    }
+    if (sync) syncSupplierUsdToTracking();
+}
+
+document.addEventListener('draft-restored', function () { recalcJapanSupplierTotal(false); });
+
 document.addEventListener('DOMContentLoaded', function () {
     toggleJapanSupplierPrice();
+    recalcJapanSupplierTotal(false);
     // On page load: silently mirror supplier price into the tracking USD field
     // so the KES-equivalent display is correct, but do NOT overwrite an existing KES price.
     const supplierUsd = document.getElementById('japan_supplier_price_usd');

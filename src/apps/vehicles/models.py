@@ -8,7 +8,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from utils.constants import VehicleStatus, VehicleLocation
 from utils.validators import validate_vin, validate_license_plate
 import os
@@ -1263,11 +1263,77 @@ class JapanSupplierRecord(models.Model):
         on_delete=models.PROTECT,
         related_name='supplier_records',
     )
+    # Flat USD charges billed by the supplier, in invoice order.
+    CHARGE_FIELDS = [
+        'push_auction_charges', 'recycle_charges', 'auction_fee_charges',
+        'transport_charges', 'shipping_charges', 'inspection_charges',
+        'freight_charges', 'radiation_charges', 'repair_charges',
+        'container_charges', 'extra_charges',
+    ]
+    # Tax rates: auction tax applies to push auction charges, auction fee tax to the auction fee.
+    TAX_FIELDS = ['auction_tax_percent', 'auction_fee_tax_percent']
+
     purchase_price = models.DecimalField(
-        'Purchase Price (USD)', max_digits=12, decimal_places=2,
+        'Total Amount (USD)', max_digits=12, decimal_places=2,
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     date = models.DateField('Purchase Date')
+    auction_name = models.CharField('Auction Name', max_length=200, blank=True)
+    bid_number = models.CharField('Bid Number', max_length=100, blank=True)
+
+    push_auction_charges = models.DecimalField(
+        'Push Auction Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    auction_tax_percent = models.DecimalField(
+        'Auction Tax (%)', max_digits=5, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    recycle_charges = models.DecimalField(
+        'Recycle Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    auction_fee_charges = models.DecimalField(
+        'Auction Fee Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    auction_fee_tax_percent = models.DecimalField(
+        'Auction Fee Tax (%)', max_digits=5, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    transport_charges = models.DecimalField(
+        'Transport Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    shipping_charges = models.DecimalField(
+        'Shipping Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    inspection_charges = models.DecimalField(
+        'Inspection Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    freight_charges = models.DecimalField(
+        'Freight Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    radiation_charges = models.DecimalField(
+        'Radiation Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    repair_charges = models.DecimalField(
+        'Repair Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    container_charges = models.DecimalField(
+        'Container Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    extra_charges = models.DecimalField(
+        'Extra Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+    )
+
     payment_status = models.CharField(
         'Payment Status', max_length=10,
         choices=PAYMENT_STATUS_CHOICES, default='unpaid',
@@ -1283,6 +1349,39 @@ class JapanSupplierRecord(models.Model):
 
     def __str__(self):
         return f"{self.supplier.name} — {self.vehicle} — KES {self.purchase_price:,.2f}"
+
+    @staticmethod
+    def _tax(base, percent):
+        # Half-up to match the vehicle form's live total
+        return (base * percent / 100).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    @property
+    def auction_tax_amount(self):
+        return self._tax(self.push_auction_charges, self.auction_tax_percent)
+
+    @property
+    def auction_fee_tax_amount(self):
+        return self._tax(self.auction_fee_charges, self.auction_fee_tax_percent)
+
+    @property
+    def charges_total(self):
+        """Sum of all itemised charges plus the computed taxes."""
+        total = sum((getattr(self, f) or Decimal('0.00')) for f in self.CHARGE_FIELDS)
+        return total + self.auction_tax_amount + self.auction_fee_tax_amount
+
+    @property
+    def charge_breakdown(self):
+        """(label, amount) pairs for every non-zero charge, in invoice order."""
+        rows = []
+        for field in self.CHARGE_FIELDS:
+            amount = getattr(self, field)
+            if amount:
+                rows.append((self._meta.get_field(field).verbose_name.replace(' (USD)', ''), amount))
+            if field == 'push_auction_charges' and self.auction_tax_amount:
+                rows.append((f'Auction Tax ({self.auction_tax_percent.normalize():f}%)', self.auction_tax_amount))
+            if field == 'auction_fee_charges' and self.auction_fee_tax_amount:
+                rows.append((f'Auction Fee Tax ({self.auction_fee_tax_percent.normalize():f}%)', self.auction_fee_tax_amount))
+        return rows
 
 
 # ==================== JAPAN SUPPLIER PAYMENT MODEL ====================

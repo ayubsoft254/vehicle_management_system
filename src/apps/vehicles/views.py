@@ -91,6 +91,76 @@ def _sync_vehicle_extra_costs(vehicle, entries, user):
         cost.delete()
 
 
+# Japan supplier breakdown inputs are posted as japan_<field>.
+_JAPAN_RECORD_TEXT_FIELDS = ['auction_name', 'bid_number']
+_JAPAN_RECORD_AMOUNT_FIELDS = JapanSupplierRecord.CHARGE_FIELDS + JapanSupplierRecord.TAX_FIELDS
+_JAPAN_RECORD_FORM_FIELDS = ['date'] + _JAPAN_RECORD_TEXT_FIELDS + _JAPAN_RECORD_AMOUNT_FIELDS
+
+
+def _parse_non_negative_decimal(value):
+    try:
+        amount = Decimal((value or '').strip() or '0')
+    except (InvalidOperation, TypeError):
+        return Decimal('0.00')
+    return max(amount, Decimal('0.00')).quantize(Decimal('0.01'))
+
+
+def _save_japan_supplier_record(post_data, vehicle, fallback_date):
+    """Create/update the vehicle's Japan supplier ledger record from the pricing section.
+
+    When any itemised charge is entered the total is recomputed from them, so the
+    ledger can never disagree with the breakdown; otherwise the typed total is used.
+    """
+    from django.utils.dateparse import parse_date
+
+    supplier_id = post_data.get('japan_supplier_id')
+    if not supplier_id:
+        return
+    try:
+        supplier = JapanSupplier.objects.get(pk=supplier_id)
+    except (JapanSupplier.DoesNotExist, ValueError):
+        return
+
+    record = JapanSupplierRecord.objects.filter(vehicle=vehicle).first() or JapanSupplierRecord(vehicle=vehicle)
+    record.supplier = supplier
+    for field in _JAPAN_RECORD_AMOUNT_FIELDS:
+        setattr(record, field, _parse_non_negative_decimal(post_data.get(f'japan_{field}')))
+    for field in JapanSupplierRecord.TAX_FIELDS:
+        setattr(record, field, min(getattr(record, field), Decimal('100.00')))
+    for field in _JAPAN_RECORD_TEXT_FIELDS:
+        max_length = JapanSupplierRecord._meta.get_field(field).max_length
+        setattr(record, field, (post_data.get(f'japan_{field}') or '').strip()[:max_length])
+    try:
+        record.date = parse_date(post_data.get('japan_date') or '') or fallback_date
+    except ValueError:
+        record.date = fallback_date
+
+    if record.charges_total > 0:
+        record.purchase_price = record.charges_total
+    else:
+        typed_total = (post_data.get('japan_supplier_price_usd') or '').strip()
+        if not typed_total:
+            return
+        record.purchase_price = _parse_non_negative_decimal(typed_total)
+    record.save()
+
+
+def _japan_supplier_form_values(request, record):
+    """Pre-fill values for the breakdown: the POST on a failed submit, else the saved record."""
+    if request.method == 'POST':
+        return {f: request.POST.get(f'japan_{f}', '') for f in _JAPAN_RECORD_FORM_FIELDS}
+    values = {}
+    for field in _JAPAN_RECORD_FORM_FIELDS:
+        value = getattr(record, field, None) if record else None
+        if field == 'date':
+            value = value.isoformat() if value else ''
+        elif isinstance(value, Decimal):
+            # Plain string so the template won't add thousand separators; blank instead of 0.00
+            value = str(value) if value else ''
+        values[field] = value or ''
+    return values
+
+
 def vehicle_list_view(request):
     """List all vehicles with search and filter - Public and authenticated users"""
     can_view_prices = _can_view_vehicle_prices(request.user)
@@ -474,22 +544,7 @@ def vehicle_create_view(request):
                     pass
 
             # Link purchase price (USD) to a Japan supplier ledger record
-            japan_supplier_id = request.POST.get('japan_supplier_id')
-            japan_supplier_price_usd_str = request.POST.get('japan_supplier_price_usd', '').strip()
-            if japan_supplier_id and japan_supplier_price_usd_str:
-                try:
-                    japan_supplier_price_usd = Decimal(japan_supplier_price_usd_str)
-                    japan_supplier = JapanSupplier.objects.get(pk=japan_supplier_id)
-                    JapanSupplierRecord.objects.update_or_create(
-                        vehicle=vehicle,
-                        defaults={
-                            'supplier': japan_supplier,
-                            'purchase_price': japan_supplier_price_usd,
-                            'date': vehicle.date_added.date(),
-                        },
-                    )
-                except (JapanSupplier.DoesNotExist, Exception):
-                    pass
+            _save_japan_supplier_record(request.POST, vehicle, vehicle.date_added.date())
 
             # Log creation
             AuditLog.log_create(
@@ -537,6 +592,7 @@ def vehicle_create_view(request):
         'japan_suppliers': JapanSupplier.objects.filter(is_active=True).order_by('name'),
         'existing_japan_supplier_id': int(_post_supplier_id) if _post_supplier_id else None,
         'existing_japan_supplier_price_usd': request.POST.get('japan_supplier_price_usd', '') if request.method == 'POST' else '',
+        'japan_record_values': _japan_supplier_form_values(request, None),
     }
     return render(request, 'vehicles/vehicle_form.html', context)
 
@@ -594,22 +650,7 @@ def vehicle_update_view(request, pk):
                     pass
 
             # Link purchase price (USD) to a Japan supplier ledger record
-            japan_supplier_id = request.POST.get('japan_supplier_id')
-            japan_supplier_price_usd_str = request.POST.get('japan_supplier_price_usd', '').strip()
-            if japan_supplier_id and japan_supplier_price_usd_str:
-                try:
-                    japan_supplier_price_usd = Decimal(japan_supplier_price_usd_str)
-                    japan_supplier = JapanSupplier.objects.get(pk=japan_supplier_id)
-                    JapanSupplierRecord.objects.update_or_create(
-                        vehicle=vehicle,
-                        defaults={
-                            'supplier': japan_supplier,
-                            'purchase_price': japan_supplier_price_usd,
-                            'date': vehicle.purchase_date or timezone.now().date(),
-                        },
-                    )
-                except (JapanSupplier.DoesNotExist, Exception):
-                    pass
+            _save_japan_supplier_record(request.POST, vehicle, vehicle.purchase_date or timezone.now().date())
 
             # Detect changes
             changes = {}
@@ -667,6 +708,7 @@ def vehicle_update_view(request, pk):
         'japan_suppliers': JapanSupplier.objects.filter(is_active=True).order_by('name'),
         'existing_japan_supplier_id': _existing_japan_supplier_id,
         'existing_japan_supplier_price_usd': _existing_japan_supplier_price_usd,
+        'japan_record_values': _japan_supplier_form_values(request, existing_supplier_record),
     }
     return render(request, 'vehicles/vehicle_form.html', context)
 
