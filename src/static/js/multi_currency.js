@@ -356,9 +356,12 @@
         refresh: function () { pickers.forEach(function (p) { p.render(); }); },
     };
 
+    // This script is included at the end of <body>, so the pickers are already
+    // parsed: start now rather than waiting for DOMContentLoaded, which a slow CDN
+    // script elsewhere on the page can hold back. The second call is a no-op for
+    // pickers already built and catches any that appear later in the document.
+    init();
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
     }
 })();
