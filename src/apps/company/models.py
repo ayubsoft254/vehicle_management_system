@@ -80,6 +80,13 @@ class CompanyProfile(models.Model):
     website = models.CharField(max_length=200, blank=True)
     tax_pin = models.CharField('Tax PIN / TIN', max_length=50, blank=True)
     logo = models.ImageField(upload_to='company/', blank=True)
+    # Social links shown in the website and app footers (left blank = hidden)
+    facebook_url = models.URLField('Facebook page', blank=True)
+    instagram_url = models.URLField('Instagram', blank=True)
+    x_url = models.URLField('X (Twitter)', blank=True)
+    tiktok_url = models.URLField('TikTok', blank=True)
+    linkedin_url = models.URLField('LinkedIn', blank=True)
+    youtube_url = models.URLField('YouTube', blank=True)
 
     # ---- Appearance ----
     primary_color = models.CharField(max_length=7, default=DEFAULT_PRIMARY, validators=[_hex_color])
@@ -179,6 +186,21 @@ class CompanyProfile(models.Model):
             if site.startswith(prefix):
                 site = site[len(prefix):]
         return site.rstrip('/')
+
+    SOCIAL_LINKS = [
+        ('facebook_url', 'fab fa-facebook-f', 'Facebook'),
+        ('instagram_url', 'fab fa-instagram', 'Instagram'),
+        ('x_url', 'fab fa-twitter', 'X'),  # fa-x-twitter needs Font Awesome 6.4.2+; pages load 6.4.0
+        ('tiktok_url', 'fab fa-tiktok', 'TikTok'),
+        ('linkedin_url', 'fab fa-linkedin-in', 'LinkedIn'),
+        ('youtube_url', 'fab fa-youtube', 'YouTube'),
+    ]
+
+    @property
+    def social_links(self):
+        """[(url, icon class, label)] for the links that are filled in."""
+        return [(getattr(self, field), icon, label) for field, icon, label in self.SOCIAL_LINKS
+                if getattr(self, field)]
 
     @property
     def public_name(self):

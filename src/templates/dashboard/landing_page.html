@@ -531,28 +531,26 @@
                 <div>
                     <h3 class="font-bold mb-4">Contact Info</h3>
                     <ul class="space-y-2 text-gray-400">
-                        <li><i class="fas fa-phone mr-2"></i>{{ company_phone }}</li>
+                        {% if company_phone %}<li><i class="fas fa-phone mr-2"></i>{{ company_phone }}</li>{% endif %}
                         {% if brand.whatsapp %}<li><i class="fab fa-whatsapp mr-2"></i>+{{ brand.whatsapp }}</li>{% endif %}
-                        <li><i class="fas fa-envelope mr-2"></i>{{ company_email }}</li>
-                        <li><i class="fas fa-map-marker-alt mr-2"></i>{{ company_address }}</li>
+                        {% if company_email %}<li><i class="fas fa-envelope mr-2"></i>{{ company_email }}</li>{% endif %}
+                        {% if company_address %}<li><i class="fas fa-map-marker-alt mr-2"></i>{{ company_address }}</li>{% endif %}
                     </ul>
                 </div>
                 
                 <div>
                     <h3 class="font-bold mb-4">Follow Us</h3>
                     <div class="flex space-x-4">
-                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-all duration-300 hover:scale-110">
-                            <i class="fab fa-facebook-f"></i>
+                        {% for url, icon, label in brand.social_links %}
+                        <a href="{{ url }}" target="_blank" rel="noopener" aria-label="{{ label }}" class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-all duration-300 hover:scale-110">
+                            <i class="{{ icon }}"></i>
                         </a>
-                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-all duration-300 hover:scale-110">
-                            <i class="fab fa-twitter"></i>
-                        </a>
-                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-all duration-300 hover:scale-110">
-                            <i class="fab fa-instagram"></i>
-                        </a>
-                        <a href="https://wa.me/{{ brand.whatsapp }}" target="_blank" class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-green-600 transition-all duration-300 hover:scale-110">
+                        {% endfor %}
+                        {% if brand.whatsapp %}
+                        <a href="https://wa.me/{{ brand.whatsapp }}" target="_blank" rel="noopener" aria-label="WhatsApp" class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-green-600 transition-all duration-300 hover:scale-110">
                             <i class="fab fa-whatsapp"></i>
                         </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>

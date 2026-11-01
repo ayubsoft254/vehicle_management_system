@@ -555,21 +555,24 @@
                             <p class="text-sm text-gray-500">
                                 &copy; {% now 'Y' %} {{ brand.legal_name }}. All rights reserved.
                             </p>
+                            <p class="mt-1 text-xs text-gray-400 space-x-3">
+                                {% if brand.phone %}<span><i class="fas fa-phone mr-1"></i>{{ brand.phone }}</span>{% endif %}
+                                {% if brand.email %}<span><i class="fas fa-envelope mr-1"></i>{{ brand.email }}</span>{% endif %}
+                                {% if brand.postal_address %}<span><i class="fas fa-map-marker-alt mr-1"></i>{{ brand.postal_address }}</span>{% endif %}
+                            </p>
                         </div>
                         <div class="mt-4 md:mt-0">
                             <div class="flex justify-center md:justify-end space-x-6">
-                                <a href="#" class="text-gray-400 hover:text-gray-500">
-                                    <i class="fab fa-facebook-f"></i>
+                                {% for url, icon, label in brand.social_links %}
+                                <a href="{{ url }}" target="_blank" rel="noopener" aria-label="{{ label }}" class="text-gray-400 hover:text-gray-500">
+                                    <i class="{{ icon }}"></i>
                                 </a>
-                                <a href="#" class="text-gray-400 hover:text-gray-500">
-                                    <i class="fab fa-twitter"></i>
+                                {% endfor %}
+                                {% if brand.whatsapp %}
+                                <a href="https://wa.me/{{ brand.whatsapp }}" target="_blank" rel="noopener" aria-label="WhatsApp" class="text-gray-400 hover:text-gray-500">
+                                    <i class="fab fa-whatsapp"></i>
                                 </a>
-                                <a href="#" class="text-gray-400 hover:text-gray-500">
-                                    <i class="fab fa-instagram"></i>
-                                </a>
-                                <a href="#" class="text-gray-400 hover:text-gray-500">
-                                    <i class="fab fa-linkedin-in"></i>
-                                </a>
+                                {% endif %}
                             </div>
                         </div>
                     </div>

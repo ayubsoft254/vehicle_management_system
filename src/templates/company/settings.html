@@ -58,6 +58,19 @@
                     </div>
                 </div>
             </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-1"><i class="fas fa-share-alt text-primary-600 mr-2"></i>Social media</h2>
+                <p class="text-sm text-gray-500 mb-4">Shown as icons in the website and app footers. Leave a link blank to hide its icon. The phone, WhatsApp, email and address above appear in the footers too.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {% for field in form.social_fields %}
+                    <div>
+                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">{{ field.label }}</label>
+                        {{ field }}
+                        {% for error in field.errors %}<p class="text-xs text-red-600 mt-1">{{ error }}</p>{% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
         </section>
 
         <!-- ============ APPEARANCE ============ -->

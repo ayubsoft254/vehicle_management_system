@@ -370,6 +370,14 @@
                 <a href="{% url 'dashboard:landing' %}" class="text-gray-400 hover:text-white transition-colors">Browse Vehicles</a>
                 <a href="tel:{{ company_phone_primary_tel }}" class="text-gray-400 hover:text-white transition-colors">Contact</a>
             </div>
+            {% if brand.social_links or brand.whatsapp %}
+            <div class="mt-4 flex justify-center gap-4 text-gray-400">
+                {% for url, icon, label in brand.social_links %}
+                <a href="{{ url }}" target="_blank" rel="noopener" aria-label="{{ label }}" class="hover:text-white"><i class="{{ icon }}"></i></a>
+                {% endfor %}
+                {% if brand.whatsapp %}<a href="https://wa.me/{{ brand.whatsapp }}" target="_blank" rel="noopener" aria-label="WhatsApp" class="hover:text-white"><i class="fab fa-whatsapp"></i></a>{% endif %}
+            </div>
+            {% endif %}
         </div>
     </footer>
     

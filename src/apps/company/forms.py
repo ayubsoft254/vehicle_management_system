@@ -7,11 +7,13 @@ from apps.payments.channels import DEFAULT_GROUP_LABELS, GROUP_CODES, group_choi
 from apps.payments.models import Account
 
 from .models import MPESA_FIELDS, CompanyProfile
+from .services import company_base_url
 
 INPUT = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500'
 
 IDENTITY_FIELDS = ['legal_name', 'short_name', 'display_name', 'app_name', 'postal_address', 'physical_address', 'city',
                    'phone', 'whatsapp', 'email', 'website', 'tax_pin', 'logo']
+SOCIAL_FIELDS = ['facebook_url', 'instagram_url', 'x_url', 'tiktok_url', 'linkedin_url', 'youtube_url']
 APPEARANCE_FIELDS = ['primary_color', 'accent_color']
 REGION_FIELDS = ['country', 'currency_code', 'currency_symbol', 'currency_words', 'locale', 'time_zone']
 DOCUMENT_FIELDS = ['letterhead_mode', 'letterhead_header', 'letterhead_footer', 'letterhead_full_page',
@@ -35,7 +37,7 @@ class CompanyProfileForm(forms.ModelForm):
 
     class Meta:
         model = CompanyProfile
-        fields = IDENTITY_FIELDS + APPEARANCE_FIELDS + REGION_FIELDS + DOCUMENT_FIELDS
+        fields = IDENTITY_FIELDS + SOCIAL_FIELDS + APPEARANCE_FIELDS + REGION_FIELDS + DOCUMENT_FIELDS
         widgets = {
             'primary_color': forms.TextInput(attrs={'type': 'color'}),
             'accent_color': forms.TextInput(attrs={'type': 'color'}),
@@ -77,10 +79,13 @@ class CompanyProfileForm(forms.ModelForm):
                 self.fields[f'clear_{key}'] = forms.BooleanField(label='Clear', required=False)
             else:
                 server_value = str(getattr(settings, key, '') or '') if self.instance.mpesa_use_server_settings else ''
+                placeholder = f'Server value: {server_value}' if server_value else ''
+                if key == 'MPESA_RESULT_URL_BASE' and not server_value:
+                    default_base = company_base_url()
+                    placeholder = f'Default: {default_base}' if default_base else 'https://your-address'
                 self.fields[key] = forms.CharField(
                     label=label, required=False, initial=self.instance.get_mpesa(key),
-                    widget=forms.TextInput(attrs={
-                        'placeholder': f'Server value: {server_value}' if server_value else ''}))
+                    widget=forms.TextInput(attrs={'placeholder': placeholder}))
 
         for name, field in self.fields.items():
             widget = field.widget
@@ -115,6 +120,9 @@ class CompanyProfileForm(forms.ModelForm):
 
     def identity_fields(self):
         return self.section([f for f in IDENTITY_FIELDS if f != 'logo'])
+
+    def social_fields(self):
+        return self.section(SOCIAL_FIELDS)
 
     def region_fields(self):
         return self.section([f for f in REGION_FIELDS if f != 'country'])

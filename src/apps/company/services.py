@@ -141,4 +141,19 @@ def mpesa_setting(key, default=''):
     # company must never pick up another company's paybill or callbacks.
     if use_server:
         return getattr(settings, key, default) or default
+    if key == 'MPESA_RESULT_URL_BASE':
+        # On the platform each company receives its callbacks on its own
+        # main web address, so that's the natural default.
+        return company_base_url() or default
     return default
+
+
+def company_base_url():
+    from utils.tenancy import multi_tenant
+    tenant = getattr(connection, 'tenant', None)
+    if not multi_tenant() or tenant is None or getattr(tenant, 'schema_name', 'public') == 'public':
+        return ''
+    domain = tenant.domains.filter(is_primary=True).first() or tenant.domains.first()
+    if domain is None:
+        return ''
+    return f"{getattr(settings, 'PLATFORM_SCHEME', 'https')}://{domain.domain}"
