@@ -30,6 +30,16 @@
     function BASE() {
         return (document.body && document.body.dataset.baseCurrency) || 'KES';
     }
+    // {code: base units per 1 unit} the company fixed in Settings; these win
+    // over live rates. Declared as <body data-fixed-rates='{"USD": 130}'>.
+    var fixedRatesCache = null;
+    function fixedRates() {
+        if (fixedRatesCache === null) {
+            try { fixedRatesCache = JSON.parse((document.body && document.body.dataset.fixedRates) || '{}'); }
+            catch (e) { fixedRatesCache = {}; }
+        }
+        return fixedRatesCache;
+    }
     function ratesUrl() { return 'https://open.er-api.com/v6/latest/' + BASE(); }
     function ratesCacheKey() { return 'vms_live_rates_' + BASE(); }
     var RATES_TTL_MS = 60 * 60 * 1000;
@@ -37,7 +47,9 @@
     var NAMES = {
         KES: 'Kenyan Shilling', USD: 'US Dollar', EUR: 'Euro',
         TZS: 'Tanzanian Shilling', UGX: 'Ugandan Shilling', JPY: 'Japanese Yen',
-        RWF: 'Rwandan Franc',
+        RWF: 'Rwandan Franc', GBP: 'British Pound', CNY: 'Chinese Yuan', AED: 'UAE Dirham',
+        ZAR: 'South African Rand', INR: 'Indian Rupee', BIF: 'Burundian Franc', ETB: 'Ethiopian Birr',
+        SSP: 'South Sudanese Pound', CDF: 'Congolese Franc', SOS: 'Somali Shilling',
     };
 
     var pickers = [];
@@ -288,13 +300,15 @@
             var kesPerUnit = input ? (parseFloat(input.value) || parseFloat(input.defaultValue)) : null;
             return kesPerUnit ? 1 / kesPerUnit : null;
         }
+        var fixed = fixedRates()[code];  // Settings → Region → Other currencies
+        if (fixed) return 1 / fixed;
         return this.liveRates && this.liveRates[code] ? this.liveRates[code] : null;
     };
 
     Picker.prototype.update = function () {
         var self = this;
         var needsLive = !this.rateInputs && !this.liveRates &&
-            this.selected.some(function (code) { return code !== BASE(); });
+            this.selected.some(function (code) { return code !== BASE() && !fixedRates()[code]; });
         if (!needsLive) {
             this.render();
             return;

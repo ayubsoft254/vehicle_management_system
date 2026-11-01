@@ -153,7 +153,7 @@
         }
     </style>
 </head>
-<body class="antialiased bg-gray-50" data-base-currency="{{ brand.currency }}">
+<body class="antialiased bg-gray-50" data-base-currency="{{ brand.currency }}" data-fixed-rates="{{ brand.fixed_rates_json }}">
     
     <!-- WhatsApp Floating Button -->
     <div class="whatsapp-float">
@@ -241,12 +241,7 @@
             <div class="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 shadow-sm">
                 <label for="landingCurrency" class="mr-2 font-medium">Currency</label>
                 <select id="landingCurrency" data-multi-currency=".js-landing-currency" data-currency-decimals="0" data-currency-storage="dashboardSummaryCurrency" class="border-0 bg-transparent focus:ring-0 text-sm">
-                    <option value="{{ brand.currency }}" selected>{{ brand.currency }}</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="TZS">TZS</option>
-                    <option value="UGX">UGX</option>
-                    <option value="JPY">JPY</option>
+                    {% currency_options %}
                 </select>
             </div>
         </div>

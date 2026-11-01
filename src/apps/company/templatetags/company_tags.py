@@ -52,6 +52,21 @@ def payment_method_options(selected='', mixed=False):
 
 
 @register.simple_tag
+def currency_options(long_names=False):
+    """<option>s for a currency picker: the company's base currency
+    (selected) followed by the other currencies from Settings → Region."""
+    from utils.currency import currency_name
+    brand = get_company()
+    codes = [(brand.currency_code, currency_name(brand.currency_code))]
+    codes += [(o['code'], o['name']) for o in brand.currency_options]
+    return format_html_join(
+        '\n', '<option value="{}"{}>{}</option>',
+        ((code, mark_safe(' selected') if i == 0 else '', f'{code} — {name}' if long_names and name != code else code)
+         for i, (code, name) in enumerate(codes)),
+    )
+
+
+@register.simple_tag
 def get_brand():
     """`{% get_brand as brand %}` for templates rendered without a request
     (emails, HTML-to-PDF), where the context processor doesn't run."""

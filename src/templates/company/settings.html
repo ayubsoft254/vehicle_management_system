@@ -134,6 +134,46 @@
                     {% endfor %}
                 </div>
             </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-1"><i class="fas fa-coins text-primary-600 mr-2"></i>Other currencies</h2>
+                <p class="text-sm text-gray-500 mb-4">
+                    Amounts are recorded in <strong id="base-currency-label">{{ profile.currency_code }}</strong>. The currencies below can be picked to <em>view</em> and <em>export</em> amounts
+                    (dashboards, payment lists, reports, the public website) and to record expenses in.
+                    Leave the rate blank to use live exchange rates, or enter a fixed rate to always use it.
+                </p>
+                <input type="hidden" name="other_currencies_present" value="1">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm" id="currency-table">
+                        <thead class="text-left text-xs font-semibold text-gray-500 uppercase">
+                            <tr><th class="py-2 pr-3">Currency</th><th class="py-2 pr-3">Fixed rate (optional)</th><th></th></tr>
+                        </thead>
+                        <tbody id="currency-rows">
+                            {% for option in profile.currency_options %}
+                            <tr class="border-t border-gray-100" data-currency-row>
+                                <td class="py-2 pr-3"><input name="other_currency_code" value="{{ option.code }}" maxlength="3" class="w-20 border border-gray-300 rounded-lg px-2 py-1.5 uppercase font-mono" aria-label="Currency code"> <span class="text-gray-500 ml-1" data-currency-name>{{ option.name }}</span></td>
+                                <td class="py-2 pr-3 whitespace-nowrap">1 <span data-row-code>{{ option.code }}</span> = <input name="other_currency_rate" value="{{ option.rate|default_if_none:'' }}" inputmode="decimal" placeholder="live" class="w-28 border border-gray-300 rounded-lg px-2 py-1.5" aria-label="Fixed rate"> <span data-base-code>{{ profile.currency_code }}</span></td>
+                                <td class="py-2 text-right"><button type="button" class="text-red-600 hover:text-red-700 text-sm" data-remove-currency><i class="fas fa-times mr-1"></i>Remove</button></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 mt-4">
+                    <button type="button" id="add-currency" class="px-3 py-1.5 text-sm rounded-lg border border-primary-300 text-primary-700 hover:bg-primary-50"><i class="fas fa-plus mr-1"></i>Add currency</button>
+                    <span class="text-xs text-gray-400 ml-2">Quick add:</span>
+                    {% for code, name in currency_names %}
+                    <button type="button" class="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-50 font-mono" data-quick-currency="{{ code }}" title="{{ name }}">{{ code }}</button>
+                    {% endfor %}
+                </div>
+                <template id="currency-row-template">
+                    <tr class="border-t border-gray-100" data-currency-row>
+                        <td class="py-2 pr-3"><input name="other_currency_code" maxlength="3" class="w-20 border border-gray-300 rounded-lg px-2 py-1.5 uppercase font-mono" aria-label="Currency code" placeholder="USD"> <span class="text-gray-500 ml-1" data-currency-name></span></td>
+                        <td class="py-2 pr-3 whitespace-nowrap">1 <span data-row-code>…</span> = <input name="other_currency_rate" inputmode="decimal" placeholder="live" class="w-28 border border-gray-300 rounded-lg px-2 py-1.5" aria-label="Fixed rate"> <span data-base-code>{{ profile.currency_code }}</span></td>
+                        <td class="py-2 text-right"><button type="button" class="text-red-600 hover:text-red-700 text-sm" data-remove-currency><i class="fas fa-times mr-1"></i>Remove</button></td>
+                    </tr>
+                </template>
+            </div>
         </section>
 
         <!-- ============ PAYMENTS (M-Pesa + group names) ============ -->
@@ -334,8 +374,42 @@
         if (!preset) return;
         for (const [field, value] of Object.entries(preset)) {
             const el = document.getElementById('id_' + field);
-            if (el) el.value = value;
+            if (el) { el.value = value; el.dispatchEvent(new Event('input')); }
         }
+    });
+
+    // ---- Other currencies table ----
+    const currencyNames = {{ currency_names_json|safe }};
+    const rows = document.getElementById('currency-rows');
+    function wireRow(row) {
+        const codeInput = row.querySelector('[name="other_currency_code"]');
+        const sync = () => {
+            const code = codeInput.value.trim().toUpperCase();
+            row.querySelector('[data-currency-name]').textContent = currencyNames[code] || '';
+            row.querySelector('[data-row-code]').textContent = code || '…';
+        };
+        codeInput.addEventListener('input', sync);
+        row.querySelector('[data-remove-currency]').addEventListener('click', () => row.remove());
+        sync();
+    }
+    function addCurrency(code) {
+        const existing = Array.from(rows.querySelectorAll('[name="other_currency_code"]')).map(i => i.value.trim().toUpperCase());
+        if (code && existing.includes(code)) return;
+        const row = document.getElementById('currency-row-template').content.firstElementChild.cloneNode(true);
+        rows.appendChild(row);
+        if (code) row.querySelector('[name="other_currency_code"]').value = code;
+        wireRow(row);
+        if (!code) row.querySelector('[name="other_currency_code"]').focus();
+    }
+    rows.querySelectorAll('[data-currency-row]').forEach(wireRow);
+    document.getElementById('add-currency').addEventListener('click', () => addCurrency(''));
+    document.querySelectorAll('[data-quick-currency]').forEach(b => b.addEventListener('click', () => addCurrency(b.dataset.quickCurrency)));
+    // Base currency changes are reflected in the "1 X = n BASE" labels
+    const baseInput = document.getElementById('id_currency_code');
+    if (baseInput) baseInput.addEventListener('input', () => {
+        const base = baseInput.value.trim().toUpperCase();
+        document.getElementById('base-currency-label').textContent = base;
+        document.querySelectorAll('[data-base-code]').forEach(el => el.textContent = base);
     });
 
     // ---- Show only the upload fields the chosen letterhead mode uses ----

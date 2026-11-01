@@ -99,6 +99,34 @@ class CompanyProfileForm(forms.ModelForm):
                 continue
             widget.attrs.setdefault('class', INPUT)
 
+    def clean(self):
+        cleaned = super().clean()
+        # "Other currencies" rows arrive as parallel lists; the hidden marker
+        # means the table was on the page, so an empty table really is empty.
+        if self.data.get('other_currencies_present'):
+            from utils.currency import parse_rate
+            base = cleaned.get('currency_code') or self.instance.currency_code
+            rows, seen = [], set()
+            codes = self.data.getlist('other_currency_code')
+            rates = self.data.getlist('other_currency_rate')
+            for code, rate in zip(codes, rates + [''] * (len(codes) - len(rates))):
+                code = (code or '').strip().upper()
+                rate = (rate or '').strip()
+                if not code:
+                    continue
+                if not (len(code) == 3 and code.isalpha() and code.isascii()):
+                    self.add_error(None, f'"{code}" is not a 3-letter currency code (e.g. USD, EUR, UGX).')
+                    continue
+                if code == base or code in seen:
+                    continue
+                if rate and parse_rate(rate) is None:
+                    self.add_error(None, f'The rate for {code} must be a positive number, or blank for live rates.')
+                    continue
+                seen.add(code)
+                rows.append({'code': code, 'rate': rate})
+            cleaned['other_currencies'] = rows
+        return cleaned
+
     def clean_currency_code(self):
         code = (self.cleaned_data.get('currency_code') or '').strip().upper()
         if not (len(code) == 3 and code.isalpha() and code.isascii()):
@@ -142,6 +170,8 @@ class CompanyProfileForm(forms.ModelForm):
 
     def save(self, commit=True):
         profile = super().save(commit=False)
+        if 'other_currencies' in self.cleaned_data:
+            profile.other_currencies = self.cleaned_data['other_currencies']
         if 'mpesa_use_server_settings' in self.fields:
             profile.mpesa_use_server_settings = bool(self.cleaned_data.get('mpesa_use_server_settings'))
         profile.channel_group_labels = {

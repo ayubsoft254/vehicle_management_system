@@ -18,7 +18,7 @@
     
     {% tailwind_config %}
 </head>
-<body class="bg-gray-50" data-base-currency="{{ brand.currency }}">
+<body class="bg-gray-50" data-base-currency="{{ brand.currency }}" data-fixed-rates="{{ brand.fixed_rates_json }}">
     
     <!-- Navigation -->
     <nav class="bg-white shadow-sm sticky top-0 z-50">
@@ -271,12 +271,7 @@
                     <div class="flex items-center justify-between mb-5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                         <span class="text-sm text-gray-600"><i class="fas fa-exchange-alt mr-1"></i> Currency</span>
                         <select id="publicDetailCurrency" data-multi-currency=".js-public-price" data-currency-decimals="0" data-currency-storage="vms_public_currencies" class="text-sm border-0 bg-transparent focus:ring-0 font-medium text-gray-700">
-                            <option value="{{ brand.currency }}" selected>{{ brand.currency }}</option>
-                            <option value="USD">USD — US Dollar</option>
-                            <option value="EUR">EUR — Euro</option>
-                            <option value="TZS">TZS — Tanzanian Shilling</option>
-                            <option value="UGX">UGX — Ugandan Shilling</option>
-                            <option value="JPY">JPY — Japanese Yen</option>
+                            {% currency_options long_names=True %}
                         </select>
                     </div>
 

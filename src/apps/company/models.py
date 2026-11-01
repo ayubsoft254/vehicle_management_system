@@ -47,6 +47,11 @@ MPESA_FIELDS = [
     ('MPESA_BALANCE_TIMEOUT_URL_2', 'Balance timeout URL', False, 'paybill2'),
 ]
 MPESA_KEYS = {key for key, _label, _secret, _group in MPESA_FIELDS}
+
+
+def default_other_currencies():
+    from utils.currency import DEFAULT_OTHER_CURRENCIES
+    return [{'code': code, 'rate': ''} for code in DEFAULT_OTHER_CURRENCIES]
 MPESA_SECRET_KEYS = {key for key, _label, secret, _group in MPESA_FIELDS if secret}
 
 
@@ -101,6 +106,10 @@ class CompanyProfile(models.Model):
     locale = models.CharField(max_length=10, default='en-KE',
                               help_text='Number/date formatting in the browser, e.g. en-KE')
     time_zone = models.CharField(max_length=64, default='Africa/Nairobi')
+    other_currencies = models.JSONField(
+        'Other currencies', default=default_other_currencies, blank=True,
+        help_text='Currencies offered for viewing and exporting amounts: '
+                  '[{"code": "USD", "rate": "130"}] — rate is base-currency units per 1 unit; blank uses live rates')
 
     # ---- Documents ----
     letterhead_mode = models.CharField(max_length=20, choices=LETTERHEAD_CHOICES, default=LETTERHEAD_GENERATED)
@@ -217,6 +226,29 @@ class CompanyProfile(models.Model):
     @property
     def currency(self):
         return self.currency_code
+
+    @property
+    def currency_options(self):
+        """Other currencies (base excluded): [{'code', 'name', 'rate', 'rate_value'}].
+        `rate` is the fixed rate (Decimal) or None for live rates; `rate_value`
+        is the fixed rate or an approximate one, for pre-filling inputs."""
+        from utils.currency import approx_rate, currency_name, parse_rate
+        options, seen = [], {self.currency_code}
+        for item in self.other_currencies or []:
+            code = str(item.get('code', '')).upper()
+            if len(code) != 3 or code in seen:
+                continue
+            seen.add(code)
+            fixed = parse_rate(item.get('rate', ''))
+            options.append({'code': code, 'name': currency_name(code), 'rate': fixed,
+                            'rate_value': fixed or approx_rate(self.currency_code, code)})
+        return options
+
+    @property
+    def fixed_rates_json(self):
+        """{code: base units per 1 unit} for currencies with a fixed rate."""
+        import json
+        return json.dumps({o['code']: float(o['rate']) for o in self.currency_options if o['rate']})
 
     def get_mpesa(self, key):
         """Decrypted stored M-Pesa value ('' when not set)."""

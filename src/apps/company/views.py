@@ -15,6 +15,7 @@ from apps.payments import channels
 from apps.payments.models import Account
 from utils.constants import UserRole
 from utils.countries import COUNTRIES, PREFILL_FIELDS
+from utils.currency import CURRENCY_NAMES
 from utils.decorators import role_required
 
 from .forms import PaymentChannelForm, CompanyProfileForm
@@ -64,6 +65,8 @@ def company_settings(request):
         'active_tab': tab,
         'channel_rows': _channel_rows(),
         'new_channel_form': PaymentChannelForm(prefix='new', initial={'is_active': True, 'category': 'other'}),
+        'currency_names': sorted(CURRENCY_NAMES.items()),
+        'currency_names_json': json.dumps(CURRENCY_NAMES),
         'country_presets_json': json.dumps({
             code: {field: preset[key] for key, field in PREFILL_FIELDS.items()}
             for code, preset in COUNTRIES.items()

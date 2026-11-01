@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load company_tags %}
 {% load humanize %}
 {% load static %}
 {% load l10n %}
@@ -108,12 +109,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-bold text-gray-900">Purchase This Vehicle</h3>
                     <select id="marketplaceDetailCurrency" data-multi-currency=".js-market-detail-currency" data-currency-decimals="2" data-currency-storage="vms_public_currencies" class="px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="{{ brand.currency }}" selected>{{ brand.currency }}</option>
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
-                        <option value="TZS">TZS</option>
-                        <option value="UGX">UGX</option>
-                        <option value="JPY">JPY</option>
+                        {% currency_options %}
                     </select>
                 </div>
                 

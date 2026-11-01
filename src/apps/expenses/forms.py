@@ -18,6 +18,8 @@ from .models import (
 
 User = get_user_model()
 
+# Static list kept for anything importing it; the forms below use the
+# company's own currencies (Settings → Region).
 CURRENCY_CHOICES = [
     ('KES', 'KES — Kenyan Shilling'),
     ('USD', 'USD — US Dollar'),
@@ -30,13 +32,18 @@ CURRENCY_CHOICES = [
 
 
 def _use_company_currency(form):
-    """New expenses default to the company currency (Settings → Region),
-    listed first, rather than the model's historical 'KES' default."""
-    code = currency()
-    choices = list(CURRENCY_CHOICES)
-    if code not in dict(choices):
-        choices.insert(0, (code, code))
-    choices.sort(key=lambda choice: choice[0] != code)
+    """Currencies come from Settings → Region (the company currency first,
+    then its other currencies); new expenses default to the company currency
+    rather than the model's historical 'KES' default."""
+    from apps.company.services import get_company
+    from utils.currency import currency_name
+
+    brand = get_company()
+    codes = [brand.currency_code] + [o['code'] for o in brand.currency_options]
+    if form.instance.pk and form.instance.currency and form.instance.currency not in codes:
+        codes.append(form.instance.currency)  # keep an old expense's currency selectable
+    choices = [(code, f'{code} — {currency_name(code)}' if currency_name(code) != code else code) for code in codes]
+    code = brand.currency_code
     form.fields['currency'].widget.choices = choices
     form.fields['currency'].choices = choices
     if not form.instance.pk and not form.is_bound:

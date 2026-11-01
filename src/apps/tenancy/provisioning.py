@@ -50,6 +50,9 @@ def _seed_profile(company):
     profile.letterhead_mode = CompanyProfile.LETTERHEAD_GENERATED
     profile.mpesa_use_server_settings = False
     profile.channel_group_labels = {'hoza': 'Bank accounts', 'ke': 'Other accounts'}
+    # Viewing/export currencies: dollar, euro and the East African neighbours
+    profile.other_currencies = [{'code': code, 'rate': ''} for code in ('USD', 'EUR', 'KES', 'UGX', 'TZS', 'RWF')
+                                if code != profile.currency_code]
     profile.save()
 
 

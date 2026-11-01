@@ -58,34 +58,21 @@ logger = logging.getLogger(__name__)
 
 
 
-# Fallback KES-per-unit conversion rates, used only when the client doesn't
-# supply a live `currency_rate` (e.g. server-side/API usage). Mirrors the
-# defaults in templates/includes/_currency_switcher.html — approximate, and
-# always overridden by a real rate from the UI selector when available.
-_EXPORT_CURRENCY_FALLBACK_RATES = {
-    'USD': Decimal('0.0077'),   # 1 KES ≈ 0.0077 USD  (1 USD ≈ 130 KES)
-    'EUR': Decimal('0.0070'),   # 1 KES ≈ 0.0070 EUR  (1 EUR ≈ 142 KES)
-    'TZS': Decimal('19.2300'),  # 1 KES ≈ 19.23 TZS   (1 TZS ≈ 0.052 KES)
-    'UGX': Decimal('28.5700'),  # 1 KES ≈ 28.57 UGX   (1 UGX ≈ 0.035 KES)
-    'JPY': Decimal('1.1494'),   # 1 KES ≈ 1.1494 JPY  (1 JPY ≈ 0.87 KES)
-    'RWF': Decimal('10.4000'),  # 1 KES ≈ 10.40 RWF   (1 RWF ≈ 0.096 KES)
-    'KES': Decimal('1.0000'),
-}
-
-
 def _parse_export_currency(request):
-    """Read export currency context from query params with safe defaults.
-    Amounts are stored in the company currency (Settings → Region), so the
-    rate converts from that base."""
-    base = get_company().currency_code
+    """Export currency and rate (foreign units per 1 base unit) from query
+    params. Amounts are stored in the company currency; only currencies the
+    company offers (Settings → Region → Other currencies) are allowed. Rate
+    preference: the live rate the page sends, then the company's fixed rate,
+    then an approximate one (utils/currency.py)."""
+    from utils.currency import approx_rate
+
+    profile = get_company()
+    base = profile.currency_code
+    options = {o['code']: o for o in profile.currency_options}
     currency = (request.GET.get('currency') or base).strip().upper()
-    if currency != base and currency not in _EXPORT_CURRENCY_FALLBACK_RATES:
-        currency = base
+    if currency == base or currency not in options:
+        return base, Decimal('1.00')
 
-    if currency == base:
-        return currency, Decimal('1.00')
-
-    # Prefer client-provided runtime rate from the UI selector/session.
     rate_raw = (request.GET.get('currency_rate') or '').strip()
     if rate_raw:
         try:
@@ -95,12 +82,10 @@ def _parse_export_currency(request):
         except (InvalidOperation, TypeError):
             pass
 
-    # Fallback for server-side usage when a runtime rate was not supplied:
-    # cross rate through the KES table.
-    base_rate = _EXPORT_CURRENCY_FALLBACK_RATES.get(base)
-    if not base_rate:
+    per_unit = options[currency]['rate'] or approx_rate(base, currency)
+    if not per_unit:
         return base, Decimal('1.00')
-    return currency, (_EXPORT_CURRENCY_FALLBACK_RATES[currency] / base_rate).quantize(Decimal('0.000001'))
+    return currency, (Decimal('1') / per_unit).quantize(Decimal('0.000001'))
 
 
 def _convert_kes_amount(amount, fx_rate):
