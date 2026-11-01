@@ -53,7 +53,7 @@
         </div>
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Sales</p>
-            <p class="text-xl font-bold mt-1 text-emerald-700">KES {{ total_sales|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold mt-1 text-emerald-700">{{ brand.currency }} {{ total_sales|floatformat:0|intcomma }}</p>
         </div>
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Bids</p>
@@ -116,7 +116,7 @@
                         </td>
                         <td class="px-5 py-3 text-slate-700">{{ a.vehicle.full_name|default:"—" }}</td>
                         <td class="px-5 py-3 text-slate-600">{{ a.get_status_display }}</td>
-                        <td class="px-5 py-3 text-right font-semibold text-slate-800">KES {{ a.winning_bid_amount|default:0|floatformat:0|intcomma }}</td>
+                        <td class="px-5 py-3 text-right font-semibold text-slate-800">{{ brand.currency }} {{ a.winning_bid_amount|default:0|floatformat:0|intcomma }}</td>
                         <td class="px-5 py-3 text-slate-600">{{ a.winner.get_full_name|default:"—" }}</td>
                     </tr>
                     {% empty %}

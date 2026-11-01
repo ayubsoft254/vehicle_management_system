@@ -2,6 +2,7 @@
 Forms for the payments app
 Handles payment recording, installment plans, and payment schedules
 """
+from apps.company.services import currency, with_currency
 from django import forms
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
@@ -78,8 +79,8 @@ class PaymentForm(forms.ModelForm):
         # Check against remaining balance if client_vehicle is provided
         if self.client_vehicle and amount > self.client_vehicle.balance:
             raise ValidationError(
-                f"Payment amount (KES {amount:,.2f}) exceeds remaining balance "
-                f"(KES {self.client_vehicle.balance:,.2f})"
+                f"Payment amount ({currency()} {amount:,.2f}) exceeds remaining balance "
+                f"({currency()} {self.client_vehicle.balance:,.2f})"
             )
         
         return amount
@@ -526,8 +527,8 @@ class PaymentScheduleForm(forms.ModelForm):
         # Validate amount paid doesn't exceed amount due
         if amount_paid and amount_due and amount_paid > amount_due:
             raise ValidationError(
-                f"Amount paid (KES {amount_paid:,.2f}) cannot exceed "
-                f"amount due (KES {amount_due:,.2f})"
+                f"Amount paid ({currency()} {amount_paid:,.2f}) cannot exceed "
+                f"amount due ({currency()} {amount_due:,.2f})"
             )
         
         # If marked as paid, require payment date
@@ -614,7 +615,7 @@ class InstallmentExtensionForm(forms.Form):
         max_digits=12,
         decimal_places=2,
         initial=Decimal('0.00'),
-        label='Extension Fee (KES)',
+        label=with_currency('Extension Fee (KES)'),
         widget=forms.NumberInput(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
             'placeholder': '0.00',
@@ -649,7 +650,7 @@ class PaymentSearchForm(forms.Form):
     
     payment_method = forms.ChoiceField(
         required=False,
-        choices=[('', 'All Methods')] + Payment.PAYMENT_METHOD_CHOICES,
+        choices=lambda: [('', 'All Methods')] + list(Payment.PAYMENT_METHOD_CHOICES),
         widget=forms.Select(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
         })

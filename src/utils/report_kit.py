@@ -47,8 +47,12 @@ EXCEL_ZEBRA_FILL = 'F1F5F9'
 EXCEL_BORDER_COLOR = 'CBD5E1'
 
 
-def fmt_money(amount, currency='KES'):
+def fmt_money(amount, currency=None):
+    """'KES 1,234.00' — in the company currency unless one is given."""
     amount = amount or 0
+    if currency is None:
+        from apps.company.services import get_company
+        currency = get_company().currency_code
     return f"{currency} {amount:,.2f}"
 
 

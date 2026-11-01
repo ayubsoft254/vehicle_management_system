@@ -3,6 +3,7 @@ Utility functions for the payroll app.
 Handles salary calculations, tax computation, reporting, and payroll processing.
 """
 
+from apps.company.services import currency, get_company
 from django.db.models import Sum, Count, Avg, Q
 from django.utils import timezone
 from datetime import datetime, timedelta, date
@@ -287,11 +288,13 @@ def calculate_employee_payslip(employee, payroll_month):
         'other': Decimal('0.00'),
     }
     
-    # Calculate statutory deductions
-    deduction_breakdown['income_tax'] = calculate_paye_tax(gross_salary)
-    deduction_breakdown['nhif'] = calculate_nhif_contribution(gross_salary)
-    deduction_breakdown['nssf'] = calculate_nssf_contribution(gross_salary)
-    deduction_breakdown['housing_levy'] = calculate_housing_levy(gross_salary)
+    # Statutory deductions are implemented for Kenya only; companies in other
+    # countries record tax/pension/insurance as manual employee deductions.
+    if get_company().payroll_module == 'ke':
+        deduction_breakdown['income_tax'] = calculate_paye_tax(gross_salary)
+        deduction_breakdown['nhif'] = calculate_nhif_contribution(gross_salary)
+        deduction_breakdown['nssf'] = calculate_nssf_contribution(gross_salary)
+        deduction_breakdown['housing_levy'] = calculate_housing_levy(gross_salary)
     
     # Apply custom deductions
     for deduction in deductions:
@@ -633,9 +636,9 @@ Dear {employee.get_full_name()},
 
 Your payslip for {payslip.payroll_run.payroll_month.strftime('%B %Y')} is now available.
 
-Gross Salary: KES {payslip.gross_salary:,.2f}
-Total Deductions: KES {payslip.total_deductions:,.2f}
-Net Salary: KES {payslip.net_salary:,.2f}
+Gross Salary: {currency()} {payslip.gross_salary:,.2f}
+Total Deductions: {currency()} {payslip.total_deductions:,.2f}
+Net Salary: {currency()} {payslip.net_salary:,.2f}
 
 Please log in to the system to view your detailed payslip.
 
@@ -790,7 +793,7 @@ def post_loan_expense(loan):
 
     return Expense.objects.create(
         title=f"Loan disbursement — {employee.get_full_name()}",
-        description=f"Loan of KES {loan.loan_amount:,.2f} disbursed to {employee.get_full_name()} "
+        description=f"Loan of {currency()} {loan.loan_amount:,.2f} disbursed to {employee.get_full_name()} "
                      f"({employee.employee_id}). Purpose: {loan.purpose or 'Not specified'}.",
         category=category,
         amount=loan.loan_amount,

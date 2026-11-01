@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}My Auctions - Vehicle Management System{% endblock %}
+{% block title %}My Auctions - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -93,7 +93,7 @@
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">Deposit Required:</span>
                         <span class="text-sm font-medium text-red-600">
-                            KES {{ registration.auction.deposit_amount|floatformat:0 }}
+                            {{ brand.currency }} {{ registration.auction.deposit_amount|floatformat:0 }}
                         </span>
                     </div>
                     {% endif %}
@@ -104,7 +104,7 @@
                         <div class="flex justify-between items-center">
                             <span class="text-sm text-gray-600">Current Bid:</span>
                             <span class="text-lg font-bold text-primary-600">
-                                KES {{ registration.auction.current_bid|floatformat:0 }}
+                                {{ brand.currency }} {{ registration.auction.current_bid|floatformat:0 }}
                             </span>
                         </div>
                         <div class="flex justify-between items-center mt-2">

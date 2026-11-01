@@ -43,15 +43,15 @@
         </div>
         <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-6">
             <p class="text-sm font-medium text-green-700 uppercase">Gross Pay</p>
-            <p class="text-3xl font-bold text-green-900 mt-2">KES {{ payroll_run.total_gross|floatformat:0 }}</p>
+            <p class="text-3xl font-bold text-green-900 mt-2">{{ brand.currency }} {{ payroll_run.total_gross|floatformat:0 }}</p>
         </div>
         <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow-sm border border-red-200 p-6">
             <p class="text-sm font-medium text-red-700 uppercase">Total Deductions</p>
-            <p class="text-3xl font-bold text-red-900 mt-2">KES {{ payroll_run.total_deductions|floatformat:0 }}</p>
+            <p class="text-3xl font-bold text-red-900 mt-2">{{ brand.currency }} {{ payroll_run.total_deductions|floatformat:0 }}</p>
         </div>
         <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-sm border border-purple-200 p-6">
             <p class="text-sm font-medium text-purple-700 uppercase">Net Pay</p>
-            <p class="text-3xl font-bold text-purple-900 mt-2">KES {{ payroll_run.total_net|floatformat:0 }}</p>
+            <p class="text-3xl font-bold text-purple-900 mt-2">{{ brand.currency }} {{ payroll_run.total_net|floatformat:0 }}</p>
         </div>
     </div>
 
@@ -118,7 +118,7 @@
             <div class="bg-gray-50 rounded-lg p-4">
                 <p class="text-sm font-medium text-gray-700">{{ dept.employee__department|default:"Unassigned" }}</p>
                 <p class="text-xs text-gray-500 mt-1">{{ dept.count }} employee(s)</p>
-                <p class="text-lg font-bold text-primary-600 mt-1">KES {{ dept.total|floatformat:0 }}</p>
+                <p class="text-lg font-bold text-primary-600 mt-1">{{ brand.currency }} {{ dept.total|floatformat:0 }}</p>
             </div>
             {% endfor %}
         </div>
@@ -156,16 +156,16 @@
                             <div class="text-xs text-gray-500">{{ payslip.employee.employee_id }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            KES {{ payslip.basic_salary|floatformat:0 }}
+                            {{ brand.currency }} {{ payslip.basic_salary|floatformat:0 }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                            KES {{ payslip.gross_salary|floatformat:0 }}
+                            {{ brand.currency }} {{ payslip.gross_salary|floatformat:0 }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
-                            KES {{ payslip.total_deductions|floatformat:0 }}
+                            {{ brand.currency }} {{ payslip.total_deductions|floatformat:0 }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-primary-600">
-                            KES {{ payslip.net_salary|floatformat:0 }}
+                            {{ brand.currency }} {{ payslip.net_salary|floatformat:0 }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             {% if payslip.is_paid %}

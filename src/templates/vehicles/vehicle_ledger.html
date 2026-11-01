@@ -92,9 +92,9 @@
                 </div>
                 <div class="text-right">
                     <p class="text-xs text-blue-600">Debit</p>
-                    <p class="text-lg font-bold text-blue-800">KES {{ cash_revenue|floatformat:0|intcomma }}</p>
+                    <p class="text-lg font-bold text-blue-800">{{ brand.currency }} {{ cash_revenue|floatformat:0|intcomma }}</p>
                     <p class="text-xs {% if cash_profit >= 0 %}text-emerald-700{% else %}text-red-600{% endif %} font-semibold mt-1">
-                        {% if cash_profit >= 0 %}+{% endif %}KES {{ cash_profit|floatformat:0|intcomma }} {% if cash_profit >= 0 %}profit{% else %}loss{% endif %}
+                        {% if cash_profit >= 0 %}+{% endif %}{{ brand.currency }} {{ cash_profit|floatformat:0|intcomma }} {% if cash_profit >= 0 %}profit{% else %}loss{% endif %}
                     </p>
                 </div>
             </div>
@@ -110,9 +110,9 @@
                 </div>
                 <div class="text-right">
                     <p class="text-xs text-amber-600">Debit</p>
-                    <p class="text-lg font-bold text-amber-800">KES {{ hpp_revenue|floatformat:0|intcomma }}</p>
+                    <p class="text-lg font-bold text-amber-800">{{ brand.currency }} {{ hpp_revenue|floatformat:0|intcomma }}</p>
                     <p class="text-xs {% if hpp_profit >= 0 %}text-emerald-700{% else %}text-red-600{% endif %} font-semibold mt-1">
-                        {% if hpp_profit >= 0 %}+{% endif %}KES {{ hpp_profit|floatformat:0|intcomma }} {% if hpp_profit >= 0 %}profit{% else %}loss{% endif %}
+                        {% if hpp_profit >= 0 %}+{% endif %}{{ brand.currency }} {{ hpp_profit|floatformat:0|intcomma }} {% if hpp_profit >= 0 %}profit{% else %}loss{% endif %}
                     </p>
                 </div>
             </div>
@@ -133,16 +133,16 @@
         </div>
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Debit</p>
-            <p class="text-xl font-bold text-green-700 mt-1">KES {{ total_revenue|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-green-700 mt-1">{{ brand.currency }} {{ total_revenue|floatformat:0|intcomma }}</p>
         </div>
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Credit</p>
-            <p class="text-xl font-bold text-red-700 mt-1">KES {{ total_cost|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-red-700 mt-1">{{ brand.currency }} {{ total_cost|floatformat:0|intcomma }}</p>
         </div>
         <div class="bg-white rounded-xl border {% if is_profit_overall %}border-emerald-100{% else %}border-red-100{% endif %} shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">{% if is_profit_overall %}Net Profit{% else %}Net Loss{% endif %}</p>
             <p class="text-xl font-bold {% if is_profit_overall %}text-emerald-700{% else %}text-red-700{% endif %} mt-1">
-                KES {{ total_profit|floatformat:0|intcomma }}
+                {{ brand.currency }} {{ total_profit|floatformat:0|intcomma }}
             </p>
         </div>
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
@@ -206,10 +206,10 @@
                             </span>
                             {% endif %}
                         </td>
-                        <td class="px-4 py-3 text-right text-green-700">KES {{ row.revenue|floatformat:0|intcomma }}</td>
-                        <td class="px-4 py-3 text-right text-red-700">KES {{ row.total_cost|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right text-green-700">{{ brand.currency }} {{ row.revenue|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right text-red-700">{{ brand.currency }} {{ row.total_cost|floatformat:0|intcomma }}</td>
                         <td class="px-4 py-3 text-right font-semibold {% if row.is_profit %}text-emerald-700{% else %}text-red-600{% endif %}">
-                            {% if row.is_profit %}KES {{ row.profit|floatformat:0|intcomma }}{% else %}(KES {{ row.profit|floatformat:0|intcomma|cut:"-" }}){% endif %}
+                            {% if row.is_profit %}{{ brand.currency }} {{ row.profit|floatformat:0|intcomma }}{% else %}({{ brand.currency }} {{ row.profit|floatformat:0|intcomma|cut:"-" }}){% endif %}
                         </td>
                         <td class="px-4 py-3 text-center">
                             {% if row.profit > 0 %}
@@ -240,10 +240,10 @@
                 <tfoot class="bg-gray-50 border-t-2 border-gray-200">
                     <tr class="font-semibold text-sm">
                         <td colspan="4" class="px-4 py-3 text-gray-700">Totals</td>
-                        <td class="px-4 py-3 text-right text-green-700">KES {{ total_revenue|floatformat:0|intcomma }}</td>
-                        <td class="px-4 py-3 text-right text-red-700">KES {{ total_cost|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right text-green-700">{{ brand.currency }} {{ total_revenue|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right text-red-700">{{ brand.currency }} {{ total_cost|floatformat:0|intcomma }}</td>
                         <td class="px-4 py-3 text-right {% if is_profit_overall %}text-emerald-700{% else %}text-red-700{% endif %}">
-                            KES {{ total_profit|floatformat:0|intcomma }}
+                            {{ brand.currency }} {{ total_profit|floatformat:0|intcomma }}
                         </td>
                         <td></td>
                     </tr>

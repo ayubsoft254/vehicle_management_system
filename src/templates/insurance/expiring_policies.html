@@ -89,7 +89,7 @@
                                         {{ policy.days_until_expiry }} days
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">KES {{ policy.premium_amount|floatformat:0 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ brand.currency }} {{ policy.premium_amount|floatformat:0 }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                                     {% if policy.reminder_sent %}
                                         <span class="flex items-center text-green-600">

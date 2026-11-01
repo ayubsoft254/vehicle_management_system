@@ -12,6 +12,8 @@ import requests
 from django.conf import settings
 from django.urls import reverse
 
+from apps.company.services import mpesa_setting
+
 from .callback_debug import logged_request
 
 
@@ -25,7 +27,7 @@ def _clean(value) -> str:
 
 
 def get_daraja_base_url() -> str:
-    env = _clean(getattr(settings, 'MPESA_ENV', 'sandbox')).lower() or 'sandbox'
+    env = _clean(mpesa_setting('MPESA_ENV', 'sandbox')).lower() or 'sandbox'
     if env == 'production':
         return 'https://api.safaricom.co.ke/'
     return 'https://sandbox.safaricom.co.ke/'
@@ -41,16 +43,16 @@ def _resolve_paybill_credentials(shortcode: str = '') -> dict:
     credentials across paybills, which Daraja would reject.
     """
     shortcode = _clean(shortcode)
-    secondary_shortcode = _clean(getattr(settings, 'MPESA_SHORTCODE_2', ''))
+    secondary_shortcode = _clean(mpesa_setting('MPESA_SHORTCODE_2', ''))
 
     if shortcode and secondary_shortcode and shortcode == secondary_shortcode:
         return {
             'shortcode': secondary_shortcode,
-            'consumer_key': _clean(getattr(settings, 'MPESA_CONSUMER_KEY_2', '')),
-            'consumer_secret': _clean(getattr(settings, 'MPESA_CONSUMER_SECRET_2', '')),
-            'passkey': _clean(getattr(settings, 'MPESA_PASSKEY_2', '')),
-            'initiator_name': _clean(getattr(settings, 'MPESA_INITIATOR_NAME_2', '')),
-            'security_credential': _clean(getattr(settings, 'MPESA_SECURITY_CREDENTIAL_2', '')),
+            'consumer_key': _clean(mpesa_setting('MPESA_CONSUMER_KEY_2', '')),
+            'consumer_secret': _clean(mpesa_setting('MPESA_CONSUMER_SECRET_2', '')),
+            'passkey': _clean(mpesa_setting('MPESA_PASSKEY_2', '')),
+            'initiator_name': _clean(mpesa_setting('MPESA_INITIATOR_NAME_2', '')),
+            'security_credential': _clean(mpesa_setting('MPESA_SECURITY_CREDENTIAL_2', '')),
             'var_names': {
                 'consumer_key': 'MPESA_CONSUMER_KEY_2',
                 'consumer_secret': 'MPESA_CONSUMER_SECRET_2',
@@ -62,12 +64,12 @@ def _resolve_paybill_credentials(shortcode: str = '') -> dict:
         }
 
     return {
-        'shortcode': _clean(getattr(settings, 'MPESA_SHORTCODE', '')),
-        'consumer_key': _clean(getattr(settings, 'MPESA_CONSUMER_KEY', '')),
-        'consumer_secret': _clean(getattr(settings, 'MPESA_CONSUMER_SECRET', '')),
-        'passkey': _clean(getattr(settings, 'MPESA_PASSKEY', '')),
-        'initiator_name': _clean(getattr(settings, 'MPESA_INITIATOR_NAME', '')),
-        'security_credential': _clean(getattr(settings, 'MPESA_SECURITY_CREDENTIAL', '')),
+        'shortcode': _clean(mpesa_setting('MPESA_SHORTCODE', '')),
+        'consumer_key': _clean(mpesa_setting('MPESA_CONSUMER_KEY', '')),
+        'consumer_secret': _clean(mpesa_setting('MPESA_CONSUMER_SECRET', '')),
+        'passkey': _clean(mpesa_setting('MPESA_PASSKEY', '')),
+        'initiator_name': _clean(mpesa_setting('MPESA_INITIATOR_NAME', '')),
+        'security_credential': _clean(mpesa_setting('MPESA_SECURITY_CREDENTIAL', '')),
         'var_names': {
             'consumer_key': 'MPESA_CONSUMER_KEY',
             'consumer_secret': 'MPESA_CONSUMER_SECRET',
@@ -94,7 +96,7 @@ def get_required_mpesa_vars(shortcode: str = '') -> list[str]:
 def get_missing_mpesa_vars(shortcode: str = '') -> list[str]:
     missing = []
     for var_name in get_required_mpesa_vars(shortcode):
-        value = getattr(settings, var_name, '')
+        value = mpesa_setting(var_name)
         if value is None or str(value).strip() == '':
             missing.append(var_name)
     return missing
@@ -106,7 +108,7 @@ def mpesa_is_configured(shortcode: str = '') -> bool:
 
 def _absolute_callback_url(url_name: str) -> str:
     """Construct absolute callback URL from URL name."""
-    base_url = _clean(getattr(settings, 'MPESA_RESULT_URL_BASE', ''))
+    base_url = _clean(mpesa_setting('MPESA_RESULT_URL_BASE', ''))
     if not base_url:
         raise DarajaError('MPESA_RESULT_URL_BASE is not configured.')
     if base_url.startswith('http://'):
@@ -145,7 +147,7 @@ def _with_callback_secret(url: str) -> str:
     never be satisfied by real Safaricom traffic. Embedding it in the URL
     itself is the only mechanism Daraja actually supports.
     """
-    secret = _clean(getattr(settings, 'MPESA_CALLBACK_SECRET', ''))
+    secret = _clean(mpesa_setting('MPESA_CALLBACK_SECRET', ''))
     if not secret:
         return url
     separator = '&' if '?' in url else '?'
@@ -161,7 +163,7 @@ def _resolve_url_settings_key(base_key: str, shortcode: str = '') -> str:
     Safaricom instead of silently reusing the primary paybill's URLs.
     """
     shortcode = _clean(shortcode)
-    secondary_shortcode = _clean(getattr(settings, 'MPESA_SHORTCODE_2', ''))
+    secondary_shortcode = _clean(mpesa_setting('MPESA_SHORTCODE_2', ''))
     if shortcode and secondary_shortcode and shortcode == secondary_shortcode:
         return f'{base_key}_2'
     return base_key
@@ -174,7 +176,7 @@ def _get_callback_url_from_settings(settings_key: str, default_url_name: str, sh
     """
     # First check if URL is explicitly set in settings
     resolved_key = _resolve_url_settings_key(settings_key, shortcode)
-    configured = _clean(getattr(settings, resolved_key, ''))
+    configured = _clean(mpesa_setting(resolved_key))
     if configured:
         if configured.startswith('http://'):
             raise DarajaError(f'{resolved_key} must use https://.')
@@ -191,8 +193,8 @@ def _get_callback_url_from_settings(settings_key: str, default_url_name: str, sh
 
 
 def get_access_token() -> str:
-    consumer_key = _clean(getattr(settings, 'MPESA_CONSUMER_KEY', ''))
-    consumer_secret = _clean(getattr(settings, 'MPESA_CONSUMER_SECRET', ''))
+    consumer_key = _clean(mpesa_setting('MPESA_CONSUMER_KEY', ''))
+    consumer_secret = _clean(mpesa_setting('MPESA_CONSUMER_SECRET', ''))
     auth = b64encode(f'{consumer_key}:{consumer_secret}'.encode('utf-8')).decode('utf-8')
 
     url = urljoin(get_daraja_base_url(), 'oauth/v1/generate?grant_type=client_credentials')
@@ -212,14 +214,17 @@ def get_access_token() -> str:
 
 
 def _normalize_phone_number(phone_number: str) -> str:
-    """Return phone number in Daraja format: 254XXXXXXXXX (digits only, no + or leading 0)."""
+    """Return phone number in Daraja format: <dial code><number>, digits only
+    (e.g. 254XXXXXXXXX for Kenya), using the company's country (Settings → Region)."""
+    from apps.company.services import get_company
+    dial = get_company().country_preset['dial_code']
     digits = ''.join(ch for ch in str(phone_number or '').strip() if ch.isdigit())
     if digits.startswith('0') and len(digits) == 10:
-        digits = '254' + digits[1:]
-    elif digits.startswith('254') and len(digits) == 12:
+        digits = dial + digits[1:]
+    elif digits.startswith(dial) and len(digits) == len(dial) + 9:
         pass  # already correct
-    elif digits.startswith('7') or digits.startswith('1') and len(digits) == 9:
-        digits = '254' + digits
+    elif len(digits) == 9:
+        digits = dial + digits
     return digits
 
 
@@ -238,7 +243,7 @@ def initiate_stk_push(
 ) -> dict:
     """
     Initiate an STK push request. Defaults to the primary M-Pesa shortcode;
-    pass `shortcode=settings.MPESA_SHORTCODE_2` to send it from the secondary
+    pass `shortcode=mpesa_setting('MPESA_SHORTCODE_2')` to send it from the secondary
     paybill instead — each uses its own consumer key/secret/passkey.
     """
     creds = _resolve_paybill_credentials(shortcode)
@@ -246,7 +251,7 @@ def initiate_stk_push(
     required_vars = [names['consumer_key'], names['consumer_secret'], names['shortcode'], names['passkey']]
     missing = []
     for var_name in required_vars:
-        value = getattr(settings, var_name, '')
+        value = mpesa_setting(var_name)
         if value is None or str(value).strip() == '':
             missing.append(var_name)
 
@@ -274,7 +279,7 @@ def initiate_stk_push(
             'Password': password,
             'Timestamp': timestamp,
             'TransactionType': _clean(
-                getattr(settings, 'MPESA_STK_TRANSACTION_TYPE', 'CustomerPayBillOnline')
+                mpesa_setting('MPESA_STK_TRANSACTION_TYPE', 'CustomerPayBillOnline')
             ) or 'CustomerPayBillOnline',
             'Amount': int(amount_value),
             'PartyA': normalized_phone,
@@ -328,7 +333,7 @@ def initiate_stk_push(
         elif status_code == 401:
             detail = (
                 'Daraja returned 401: Consumer key/secret are invalid or do not match '
-                f'MPESA_ENV={_clean(getattr(settings, "MPESA_ENV", "sandbox"))}. '
+                f'MPESA_ENV={_clean(mpesa_setting('MPESA_ENV', 'sandbox'))}. '
                 'Verify your credentials in the Daraja portal.'
             )
         else:
@@ -350,7 +355,7 @@ def initiate_stk_push(
 
 def request_account_balance(shortcode: str = '') -> dict:
     """Initiate Daraja account balance request for the given paybill
-    (defaults to the primary; pass settings.MPESA_SHORTCODE_2 for the
+    (defaults to the primary; pass mpesa_setting('MPESA_SHORTCODE_2') for the
     secondary one — each uses its own initiator name/security credential).
 
     Daraja returns the final balance via asynchronous callback.
@@ -469,8 +474,8 @@ def register_c2b_urls(shortcode: str, consumer_key: str = '', consumer_secret: s
     if not shortcode:
         return {'ok': False, 'missing_vars': [], 'error': 'Shortcode is required.'}
 
-    key = _clean(consumer_key) or _clean(getattr(settings, 'MPESA_CONSUMER_KEY', ''))
-    secret = _clean(consumer_secret) or _clean(getattr(settings, 'MPESA_CONSUMER_SECRET', ''))
+    key = _clean(consumer_key) or _clean(mpesa_setting('MPESA_CONSUMER_KEY', ''))
+    secret = _clean(consumer_secret) or _clean(mpesa_setting('MPESA_CONSUMER_SECRET', ''))
     if not key or not secret:
         return {
             'ok': False,

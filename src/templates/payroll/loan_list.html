@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Loans - Vehicle Management System{% endblock %}
+{% block title %}Loans - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -22,7 +22,7 @@
     <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <p class="text-xs font-medium text-gray-500 uppercase">Total Loans</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">KES {{ total_loans|floatformat:0 }}</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ brand.currency }} {{ total_loans|floatformat:0 }}</p>
         </div>
         <div class="bg-yellow-50 rounded-lg shadow-sm border border-yellow-200 p-4">
             <p class="text-xs font-medium text-yellow-700 uppercase">Active</p>
@@ -34,7 +34,7 @@
         </div>
         <div class="bg-blue-50 rounded-lg shadow-sm border border-blue-200 p-4">
             <p class="text-xs font-medium text-blue-700 uppercase">Outstanding</p>
-            <p class="text-2xl font-bold text-blue-700 mt-1">KES {{ total_balance|floatformat:0 }}</p>
+            <p class="text-2xl font-bold text-blue-700 mt-1">{{ brand.currency }} {{ total_balance|floatformat:0 }}</p>
         </div>
     </div>
 
@@ -95,16 +95,16 @@
                             <div class="text-xs text-gray-500">{{ loan.employee.employee_id }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-bold text-gray-900">KES {{ loan.loan_amount|floatformat:0 }}</div>
+                            <div class="text-sm font-bold text-gray-900">{{ brand.currency }} {{ loan.loan_amount|floatformat:0 }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {{ loan.interest_rate }}%
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-primary-600">KES {{ loan.monthly_repayment|floatformat:0 }}</div>
+                            <div class="text-sm font-medium text-primary-600">{{ brand.currency }} {{ loan.monthly_repayment|floatformat:0 }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-bold text-red-600">KES {{ loan.balance|floatformat:0 }}</div>
+                            <div class="text-sm font-bold text-red-600">{{ brand.currency }} {{ loan.balance|floatformat:0 }}</div>
                         </td>
                         <td class="px-6 py-4">
                             <div class="w-full bg-gray-200 rounded-full h-2">

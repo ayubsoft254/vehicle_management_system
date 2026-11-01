@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}{% if form.instance.pk %}Edit{% else %}Create{% endif %} Report - Vehicle Management System{% endblock %}
+{% block title %}{% if form.instance.pk %}Edit{% else %}Create{% endif %} Report - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">

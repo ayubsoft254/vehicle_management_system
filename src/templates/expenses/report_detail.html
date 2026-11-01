@@ -50,7 +50,7 @@
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <p class="text-sm font-medium text-gray-600">Total Amount</p>
-            <p class="text-xl font-bold text-primary-600 mt-2">KES {{ report.total_amount|floatformat:2 }}</p>
+            <p class="text-xl font-bold text-primary-600 mt-2">{{ brand.currency }} {{ report.total_amount|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <p class="text-sm font-medium text-gray-600">Period</p>
@@ -124,7 +124,7 @@
                     <tr class="bg-gray-50 font-bold">
                         <td colspan="5" class="px-6 py-4 text-right text-sm text-gray-900">Total:</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-lg text-primary-600">
-                            KES {{ report.total_amount|floatformat:2 }}
+                            {{ brand.currency }} {{ report.total_amount|floatformat:2 }}
                         </td>
                     </tr>
                 </tbody>

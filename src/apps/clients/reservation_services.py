@@ -7,6 +7,7 @@ the `check_reservations` management command (cron) and opportunistically
 whenever the proforma dashboard is opened, so state stays fresh even
 without a scheduler.
 """
+from apps.company.services import currency
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -91,7 +92,7 @@ def process_reservations():
                 f'The reservation of {reservation.vehicle.full_name} for '
                 f'{reservation.client.get_full_name()} (proforma '
                 f'{reservation.proforma.number}) expires on '
-                f'{reservation.expiry_date:%d %b %Y}. Deposit held: KES '
+                f'{reservation.expiry_date:%d %b %Y}. Deposit held: {currency()} '
                 f'{reservation.deposit_amount:,.2f}.'
             ),
             url,

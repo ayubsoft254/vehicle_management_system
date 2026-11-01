@@ -51,7 +51,7 @@
     <table>
         <tr class="amount-row">
             <td>Amount Paid</td>
-            <td>KES {{ payment.amount|floatformat:2 }}</td>
+            <td>{{ brand.currency }} {{ payment.amount|floatformat:2 }}</td>
         </tr>
         <tr>
             <td>Paid To (Broker)</td>

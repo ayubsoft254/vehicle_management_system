@@ -76,11 +76,13 @@ INSTALLED_APPS = [
     'apps.permissions',
     'apps.dashboard',
     'apps.assistant',
+    'apps.company',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # WhiteNoise - should be right after SecurityMiddleware
+    'apps.company.middleware.CompanyMiddleware',  # Fresh company profile + its time zone per request
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -360,6 +362,14 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 # ==============================================================================
 # COMPANY INFORMATION
 # ==============================================================================
+# These only seed the first CompanyProfile (apps/company) — after that the
+# company's identity is edited at Settings → Company & Branding, and the
+# M-Pesa values above act as fallbacks for any left blank there.
+
+# Encrypts secrets stored in the database (M-Pesa keys). Falls back to a key
+# derived from SECRET_KEY; set this in production so rotating SECRET_KEY
+# doesn't make stored secrets unreadable. See utils/crypto.py.
+FIELD_ENCRYPTION_KEY = config('FIELD_ENCRYPTION_KEY', default='')
 
 COMPANY_NAME = config('COMPANY_NAME', default='HOZA INVESTMENT (K) LIMITED')
 COMPANY_ADDRESS = config('COMPANY_ADDRESS', default='P.O BOX 43074-80100 MOMBASA, Kenya')
@@ -561,3 +571,79 @@ INSURANCE_EXPIRY_REMINDER_DAYS = config('INSURANCE_EXPIRY_REMINDER_DAYS', defaul
 
 # Default installment period (months)
 DEFAULT_INSTALLMENT_MONTHS = config('DEFAULT_INSTALLMENT_MONTHS', default=12, cast=int)
+# ==============================================================================
+# MULTI-COMPANY PLATFORM (django-tenants)
+# ==============================================================================
+# Off by default: one company in the "public" schema, exactly as before.
+# On: each company gets its own PostgreSQL schema, chosen by the request's
+# web address; "public" holds only the company list and the platform control
+# panel (served on PLATFORM_DOMAIN). Requires PostgreSQL. See
+# docs/multi-company.md for the switch-over runbook.
+MULTI_TENANT = config('MULTI_TENANT', default=False, cast=bool)
+PLATFORM_DOMAIN = config('PLATFORM_DOMAIN', default='localhost')
+PLATFORM_NAME = config('PLATFORM_NAME', default='Vehicle Platform')
+PLATFORM_SCHEME = config('PLATFORM_SCHEME', default='https')
+
+if MULTI_TENANT:
+    _DJANGO_MODEL_APPS = [
+        'django.contrib.contenttypes',
+        'django.contrib.auth',
+        'django.contrib.sessions',
+        'django.contrib.admin',
+        'django.contrib.sites',
+        'allauth',
+        'allauth.account',
+        'allauth.socialaccount',
+    ]
+    # Tables in "public": the platform, plus its own users/sessions/audit so
+    # platform owners can log in to the control panel.
+    SHARED_APPS = [
+        'django_tenants',
+        'apps.tenancy',
+        *_DJANGO_MODEL_APPS,
+        'django.contrib.messages',
+        'django.contrib.staticfiles',
+        'django.contrib.humanize',
+        'crispy_forms',
+        'crispy_tailwind',
+        'django_celery_beat',
+        'apps.authentication',
+        'apps.audit',
+    ]
+    # Tables in every company schema: all business data and its own users.
+    TENANT_APPS = [
+        *_DJANGO_MODEL_APPS,
+        *[app for app in INSTALLED_APPS if app.startswith('apps.')],
+    ]
+    INSTALLED_APPS = SHARED_APPS + [app for app in TENANT_APPS if app not in SHARED_APPS]
+
+    DATABASES['default']['ENGINE'] = 'django_tenants.postgresql_backend'
+    DATABASE_ROUTERS = ('django_tenants.routers.TenantSyncRouter',)
+    TENANT_MODEL = 'tenancy.Company'
+    TENANT_DOMAIN_MODEL = 'tenancy.Domain'
+    PUBLIC_SCHEMA_URLCONF = 'config.urls_public'
+    # Unknown web addresses get a 404 before any app code runs
+    SHOW_PUBLIC_IF_NO_TENANT_FOUND = False
+
+    MIDDLEWARE = [
+        'django_tenants.middleware.main.TenantMainMiddleware',
+        'apps.tenancy.middleware.CompanyStatusMiddleware',
+        *MIDDLEWARE,
+    ]
+
+    # Company web addresses are data (added in the control panel), and the
+    # tenant middleware above already rejects any host that isn't one.
+    ALLOWED_HOSTS = ['*']
+    CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, f'https://*.{PLATFORM_DOMAIN}']
+
+    # Uploads go to MEDIA_ROOT/<schema>/ and are served from /media/<schema>/
+    STORAGES['default'] = {'BACKEND': 'django_tenants.files.storage.TenantFileSystemStorage'}
+    MULTITENANT_RELATIVE_MEDIA_ROOT = '%s'
+
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'KEY_FUNCTION': 'django_tenants.cache.make_key',
+            'REVERSE_KEY_FUNCTION': 'django_tenants.cache.reverse_key',
+        },
+    }

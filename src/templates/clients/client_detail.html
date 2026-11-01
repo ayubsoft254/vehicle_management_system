@@ -113,7 +113,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-600">Total Spent</p>
-                    <p class="text-2xl font-bold text-gray-900">KES {{ total_spent|floatformat:2 }}</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ brand.currency }} {{ total_spent|floatformat:2 }}</p>
                 </div>
             </div>
         </div>
@@ -125,7 +125,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-600">Amount Paid</p>
-                    <p class="text-2xl font-bold text-gray-900">KES {{ total_paid|floatformat:2 }}</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ brand.currency }} {{ total_paid|floatformat:2 }}</p>
                 </div>
             </div>
         </div>
@@ -137,7 +137,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-600">Balance Due</p>
-                    <p class="text-2xl font-bold text-gray-900">KES {{ total_balance|floatformat:2 }}</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ brand.currency }} {{ total_balance|floatformat:2 }}</p>
                 </div>
             </div>
         </div>
@@ -179,7 +179,7 @@
                             <dd class="mt-1 text-sm text-gray-900">{{ client.id_number }}</dd>
                         </div>
                         <div>
-                            <dt class="text-sm font-medium text-gray-500">KRA PIN</dt>
+                            <dt class="text-sm font-medium text-gray-500">{{ brand.country_preset.tax_id_label }}</dt>
                             <dd class="mt-1 text-sm text-gray-900">{{ client.kra_pin|default:"N/A" }}</dd>
                         </div>
                         <div>
@@ -257,7 +257,7 @@
                         <div>
                             <dt class="text-sm font-medium text-gray-500">Monthly Income</dt>
                             <dd class="mt-1 text-sm text-gray-900">
-                                {% if client.monthly_income %}KES {{ client.monthly_income|floatformat:2 }}{% else %}N/A{% endif %}
+                                {% if client.monthly_income %}{{ brand.currency }} {{ client.monthly_income|floatformat:2 }}{% else %}N/A{% endif %}
                             </dd>
                         </div>
                     </dl>
@@ -328,15 +328,15 @@
                             <div class="px-5 py-4 grid grid-cols-3 gap-4 text-sm">
                                 <div>
                                     <p class="text-xs text-orange-600 font-medium">Purchase Price</p>
-                                    <p class="font-semibold text-orange-900 mt-0.5">KES {{ vehicle_info.client_vehicle.purchase_price|floatformat:2 }}</p>
+                                    <p class="font-semibold text-orange-900 mt-0.5">{{ brand.currency }} {{ vehicle_info.client_vehicle.purchase_price|floatformat:2 }}</p>
                                 </div>
                                 <div>
                                     <p class="text-xs text-orange-600 font-medium">Total Paid</p>
-                                    <p class="font-semibold text-orange-900 mt-0.5">KES {{ vehicle_info.client_vehicle.total_paid|floatformat:2 }}</p>
+                                    <p class="font-semibold text-orange-900 mt-0.5">{{ brand.currency }} {{ vehicle_info.client_vehicle.total_paid|floatformat:2 }}</p>
                                 </div>
                                 <div>
                                     <p class="text-xs text-orange-600 font-medium">Outstanding</p>
-                                    <p class="font-semibold text-orange-900 mt-0.5">KES {{ vehicle_info.repossession.outstanding_amount|floatformat:2 }}</p>
+                                    <p class="font-semibold text-orange-900 mt-0.5">{{ brand.currency }} {{ vehicle_info.repossession.outstanding_amount|floatformat:2 }}</p>
                                 </div>
                             </div>
                             <div class="px-5 pb-4 flex items-center justify-between text-xs text-orange-700">
@@ -384,15 +384,15 @@
                         <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                             <div>
                                 <p class="text-xs text-gray-500">Purchase Price</p>
-                                <p class="text-sm font-semibold text-gray-900">KES {{ vehicle_info.client_vehicle.purchase_price|floatformat:2 }}</p>
+                                <p class="text-sm font-semibold text-gray-900">{{ brand.currency }} {{ vehicle_info.client_vehicle.purchase_price|floatformat:2 }}</p>
                             </div>
                             <div>
                                 <p class="text-xs text-gray-500">Total Paid</p>
-                                <p class="text-sm font-semibold text-green-600">KES {{ vehicle_info.client_vehicle.total_paid|floatformat:2 }}</p>
+                                <p class="text-sm font-semibold text-green-600">{{ brand.currency }} {{ vehicle_info.client_vehicle.total_paid|floatformat:2 }}</p>
                             </div>
                             <div>
                                 <p class="text-xs text-gray-500">Balance</p>
-                                <p class="text-sm font-semibold text-red-600">KES {{ vehicle_info.client_vehicle.balance|floatformat:2 }}</p>
+                                <p class="text-sm font-semibold text-red-600">{{ brand.currency }} {{ vehicle_info.client_vehicle.balance|floatformat:2 }}</p>
                             </div>
                             <div>
                                 <p class="text-xs text-gray-500">Progress</p>
@@ -445,11 +445,11 @@
                             <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                                 <div>
                                     <p class="text-xs text-gray-500">Deposit Paid</p>
-                                    <p class="text-sm font-semibold text-gray-900">KES {{ vehicle_info.installment_plan.deposit_amount|floatformat:2 }}</p>
+                                    <p class="text-sm font-semibold text-gray-900">{{ brand.currency }} {{ vehicle_info.installment_plan.deposit_amount|floatformat:2 }}</p>
                                 </div>
                                 <div>
                                     <p class="text-xs text-gray-500">Remainder</p>
-                                    <p class="text-sm font-semibold text-gray-900">KES {{ vehicle_info.installment_plan.remainder_amount|floatformat:2 }}</p>
+                                    <p class="text-sm font-semibold text-gray-900">{{ brand.currency }} {{ vehicle_info.installment_plan.remainder_amount|floatformat:2 }}</p>
                                 </div>
                                 <div>
                                     <p class="text-xs text-gray-500">Duration</p>
@@ -457,7 +457,7 @@
                                 </div>
                                 <div>
                                     <p class="text-xs text-gray-500">Installment Amount</p>
-                                    <p class="text-sm font-semibold text-gray-900">KES {{ vehicle_info.installment_plan.monthly_amount|floatformat:2 }}</p>
+                                    <p class="text-sm font-semibold text-gray-900">{{ brand.currency }} {{ vehicle_info.installment_plan.monthly_amount|floatformat:2 }}</p>
                                 </div>
                                 {% if vehicle_info.client_vehicle.allow_flexible_payments %}
                                 <div>
@@ -489,9 +489,9 @@
                                             <tr class="{% if sched.is_paid %}bg-green-50{% elif sched.is_overdue %}bg-red-50{% else %}bg-white{% endif %}">
                                                 <td class="px-3 py-2 font-medium text-gray-700">{{ sched.installment_number }}</td>
                                                 <td class="px-3 py-2 text-gray-700">{{ sched.due_date|date:"d M Y" }}</td>
-                                                <td class="px-3 py-2 text-right font-medium text-gray-900">KES {{ sched.amount_due|floatformat:2 }}</td>
-                                                <td class="px-3 py-2 text-right font-medium {% if sched.amount_paid > 0 %}text-green-700{% else %}text-gray-400{% endif %}">KES {{ sched.amount_paid|floatformat:2 }}</td>
-                                                <td class="px-3 py-2 text-right font-medium {% if sched.remaining_amount <= 0 %}text-green-600{% else %}text-red-600{% endif %}">KES {{ sched.remaining_amount|floatformat:2 }}</td>
+                                                <td class="px-3 py-2 text-right font-medium text-gray-900">{{ brand.currency }} {{ sched.amount_due|floatformat:2 }}</td>
+                                                <td class="px-3 py-2 text-right font-medium {% if sched.amount_paid > 0 %}text-green-700{% else %}text-gray-400{% endif %}">{{ brand.currency }} {{ sched.amount_paid|floatformat:2 }}</td>
+                                                <td class="px-3 py-2 text-right font-medium {% if sched.remaining_amount <= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ brand.currency }} {{ sched.remaining_amount|floatformat:2 }}</td>
                                                 <td class="px-3 py-2 text-center">
                                                     {% if sched.is_paid %}
                                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><i class="fas fa-check mr-1"></i>Paid</span>
@@ -507,9 +507,9 @@
                                         <tfoot>
                                             <tr class="bg-gray-100 font-semibold border-t-2 border-gray-300">
                                                 <td class="px-3 py-2 text-gray-700" colspan="2">TOTAL</td>
-                                                <td class="px-3 py-2 text-right text-gray-900">KES {{ vehicle_info.installment_plan.total_amount|floatformat:2 }}</td>
-                                                <td class="px-3 py-2 text-right text-green-700">KES {{ vehicle_info.installment_plan.total_paid|floatformat:2 }}</td>
-                                                <td class="px-3 py-2 text-right text-red-600">KES {{ vehicle_info.installment_plan.remaining_balance|floatformat:2 }}</td>
+                                                <td class="px-3 py-2 text-right text-gray-900">{{ brand.currency }} {{ vehicle_info.installment_plan.total_amount|floatformat:2 }}</td>
+                                                <td class="px-3 py-2 text-right text-green-700">{{ brand.currency }} {{ vehicle_info.installment_plan.total_paid|floatformat:2 }}</td>
+                                                <td class="px-3 py-2 text-right text-red-600">{{ brand.currency }} {{ vehicle_info.installment_plan.remaining_balance|floatformat:2 }}</td>
                                                 <td class="px-3 py-2"></td>
                                             </tr>
                                         </tfoot>
@@ -570,7 +570,7 @@
                                     <div class="text-xs text-gray-400 font-mono">{{ payment.client_vehicle.vehicle.vin|default:'' }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold {% if payment.is_reversed %}text-red-400 line-through{% else %}text-green-600{% endif %}">
-                                    KES {{ payment.amount|floatformat:2 }}
+                                    {{ brand.currency }} {{ payment.amount|floatformat:2 }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ payment.get_payment_method_display }}
@@ -602,15 +602,15 @@
                 <div class="p-6 space-y-4">
                     <div>
                         <p class="text-sm text-gray-500">Credit Limit</p>
-                        <p class="text-2xl font-bold text-gray-900">KES {{ client.credit_limit|floatformat:2 }}</p>
+                        <p class="text-2xl font-bold text-gray-900">{{ brand.currency }} {{ client.credit_limit|floatformat:2 }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Current Debt</p>
-                        <p class="text-xl font-semibold text-red-600">KES {{ client.current_debt|floatformat:2 }}</p>
+                        <p class="text-xl font-semibold text-red-600">{{ brand.currency }} {{ client.current_debt|floatformat:2 }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Available Credit</p>
-                        <p class="text-xl font-semibold text-green-600">KES {{ client.available_credit|floatformat:2 }}</p>
+                        <p class="text-xl font-semibold text-green-600">{{ brand.currency }} {{ client.available_credit|floatformat:2 }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500 mb-2">Credit Utilization</p>

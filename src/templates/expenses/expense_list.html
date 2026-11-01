@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Expenses - Vehicle Management System{% endblock %}
+{% block title %}Expenses - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -59,7 +59,7 @@
                 </div>
                 <div class="ml-4 flex-1">
                     <p class="text-sm font-medium text-gray-600">Total Amount</p>
-                    <p class="text-xl font-bold text-gray-900">KES {{ totals.total_amount|floatformat:2|default:"0.00" }}</p>
+                    <p class="text-xl font-bold text-gray-900">{{ brand.currency }} {{ totals.total_amount|floatformat:2|default:"0.00" }}</p>
                 </div>
             </div>
         </div>

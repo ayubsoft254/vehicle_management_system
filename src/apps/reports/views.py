@@ -2,6 +2,7 @@
 Reports App - Views
 """
 
+from apps.company.services import get_company
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
@@ -53,7 +54,7 @@ def ensure_default_report_template():
             'sorting': {'field': 'date', 'direction': 'desc'},
             'aggregations': ['count', 'sum'],
             'is_active': True,
-            'header_template': 'Vehicle Management System - Executive Report',
+            'header_template': f'{get_company().legal_name} - Executive Report',
             'footer_template': 'Generated automatically by Report Builder',
             'css_styles': '.report-title{font-weight:700;color:#1f2937;} .summary-card{border:1px solid #e5e7eb;}',
         },

@@ -2,7 +2,11 @@
 Clients Models
 Manage customer/client information and vehicle purchases
 """
+from apps.company.services import currency
 from django.db import models
+from django.utils.choices import CallableChoiceIterator
+
+from apps.payments import channels
 from django.core.validators import MinValueValidator
 from django.utils import timezone
 from datetime import timedelta
@@ -1066,20 +1070,7 @@ class VehicleTracker(models.Model):
         ('deduct_from_deposit', 'Deduct from Deposit'),
     ]
 
-    TRACKER_PAYMENT_METHOD_CHOICES = [
-        ('cash', 'Cash'),
-        ('mpesa', 'M-Pesa'),
-        ('bank_transfer', 'Bank Transfer'),
-        ('equity_hoza', 'Equity Hoza'),
-        ('dib_hoza', 'DIB Hoza'),
-        ('coop_hoza', 'COOP Hoza'),
-        ('kcb_ke', 'KCB KE'),
-        ('absa_ke', 'ABSA KE'),
-        ('equity_ke', 'EQUITY KE'),
-        ('cheque', 'Cheque'),
-        ('card', 'Credit/Debit Card'),
-        ('other', 'Other'),
-    ]
+    TRACKER_PAYMENT_METHOD_CHOICES = channels.SINGLE_METHOD_CHOICES
 
     payment_type = models.CharField(
         'Payment Type',
@@ -1364,7 +1355,7 @@ class AgreementSignature(models.Model):
         'Seller Full Name',
         max_length=200,
         blank=True,
-        help_text='Hoza representative signing the agreement',
+        help_text='Company representative signing the agreement',
     )
 
     # Signature image stored as a data-URL (data:image/png;base64,...)
@@ -1558,35 +1549,11 @@ class ProformaInvoice(models.Model):
         ('installment', 'Hire Purchase'),
     ]
 
-    # Company bank accounts a proforma can be issued against — preselected
-    # so the printed invoice always shows a complete, correct account block
-    # rather than free-typed bank details.
-    COMPANY_ACCOUNT_CHOICES = [
-        ('equity', 'Equity Bank — Moi Avenue Branch, Mombasa'),
-        ('dib', 'DIB (Dubai Islamic Bank) — Kilindini Branch, Mombasa'),
-        ('coop', 'Co-operative Bank of Kenya — Nkrumah Road Branch, Mombasa'),
-    ]
-
-    COMPANY_ACCOUNTS = {
-        'equity': {
-            'bank': 'Equity Bank',
-            'branch': 'Moi Avenue Branch, Mombasa',
-            'account_name': 'HOZA INVESTMENT (K) LIMITED',
-            'account_number': '0250279299771',
-        },
-        'dib': {
-            'bank': 'DIB (Dubai Islamic Bank)',
-            'branch': 'Kilindini Branch, Mombasa',
-            'account_name': 'HOZA INVESTMENT K LIMITED',
-            'account_number': '003505100422901',
-        },
-        'coop': {
-            'bank': 'Co-operative Bank of Kenya',
-            'branch': 'Nkrumah Road Branch, Mombasa',
-            'account_name': 'Hoza Investment K Limited',
-            'account_number': '01192447998000',
-        },
-    }
+    # Company bank accounts a proforma can be issued against — the finance
+    # Accounts marked "show on proforma" in Settings, preselected so the
+    # printed invoice always shows a complete, correct account block rather
+    # than free-typed bank details.
+    COMPANY_ACCOUNT_CHOICES = CallableChoiceIterator(channels.proforma_account_choices)
 
     number = models.CharField(
         'Proforma Number',
@@ -1663,7 +1630,7 @@ class ProformaInvoice(models.Model):
     company_account = models.CharField(
         'Company Account',
         max_length=10,
-        choices=COMPANY_ACCOUNT_CHOICES,
+        choices=channels.proforma_account_choices,
         blank=True,
         help_text='Which company bank account to print on the invoice',
     )
@@ -1747,7 +1714,7 @@ class ProformaInvoice(models.Model):
     def get_company_account_details(self):
         """Full bank/branch/account-name/account-number block for whichever
         company account was preselected, or None if none was chosen."""
-        return self.COMPANY_ACCOUNTS.get(self.company_account)
+        return channels.proforma_account_details(self.company_account)
 
     def save(self, *args, **kwargs):
         if not self.number:
@@ -1848,22 +1815,7 @@ class ProformaDeposit(models.Model):
 
     payment_date = models.DateField(default=timezone.now)
 
-    # Mirrors payments.Payment.PAYMENT_METHOD_CHOICES (duplicated to avoid a
-    # circular import between the clients and payments apps).
-    PAYMENT_METHOD_CHOICES = [
-        ('cash', 'Cash'),
-        ('mpesa', 'M-Pesa'),
-        ('bank_transfer', 'Bank Transfer'),
-        ('equity_hoza', 'Equity Hoza'),
-        ('dib_hoza', 'DIB Hoza'),
-        ('coop_hoza', 'COOP Hoza'),
-        ('kcb_ke', 'KCB KE'),
-        ('absa_ke', 'ABSA KE'),
-        ('equity_ke', 'EQUITY KE'),
-        ('cheque', 'Cheque'),
-        ('card', 'Credit/Debit Card'),
-        ('other', 'Other'),
-    ]
+    PAYMENT_METHOD_CHOICES = channels.SINGLE_METHOD_CHOICES
 
     payment_method = models.CharField(
         max_length=20,
@@ -1928,7 +1880,7 @@ class ProformaDeposit(models.Model):
         verbose_name_plural = 'Proforma Deposits'
 
     def __str__(self):
-        return f"Deposit KES {self.amount:,.2f} — {self.proforma.number}"
+        return f"Deposit {currency()} {self.amount:,.2f} — {self.proforma.number}"
 
     def reverse(self, user, reason):
         """Void this deposit and its account ledger entry (audit-preserving)."""

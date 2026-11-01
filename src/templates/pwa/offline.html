@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Offline — Hoza</title>
+    <title>Offline — {{ brand.app_name }}</title>
     <style>
         /* Self-contained: no CDN dependencies so it renders with no network. */
         body {
@@ -30,7 +30,7 @@
         h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
         p { color: #64748b; font-size: 0.925rem; line-height: 1.5; margin: 0 0 1.5rem; }
         button {
-            background: #2563eb;
+            background: {{ theme.primary.600 }};
             color: #fff;
             border: 0;
             border-radius: 8px;
@@ -39,14 +39,14 @@
             font-weight: 600;
             cursor: pointer;
         }
-        button:hover { background: #1d4ed8; }
+        button:hover { background: {{ theme.primary.700 }}; }
     </style>
 </head>
 <body>
     <div class="card">
-        <img class="icon" src="{% static 'pwa/icon-192.png' %}" alt="Hoza">
+        <img class="icon" src="{% static 'pwa/icon-192.png' %}" alt="{{ brand.app_name }}">
         <h1>You're offline</h1>
-        <p>Hoza needs an internet connection. Check your connection and try again.</p>
+        <p>{{ brand.app_name }} needs an internet connection. Check your connection and try again.</p>
         <button onclick="window.location.reload()">Retry</button>
     </div>
 </body>

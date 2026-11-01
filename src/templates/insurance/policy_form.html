@@ -146,7 +146,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label for="id_premium_amount" class="block text-sm font-medium text-gray-700 mb-2">
-                                Premium Amount (KES) <span class="text-red-500">*</span>
+                                Premium Amount ({{ brand.currency }}) <span class="text-red-500">*</span>
                             </label>
                             <input type="number" name="premium_amount" id="id_premium_amount" value="{{ form.premium_amount.value|default:'' }}" required min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="50000.00">
                             {% if form.premium_amount.errors %}
@@ -156,7 +156,7 @@
 
                         <div>
                             <label for="id_sum_insured" class="block text-sm font-medium text-gray-700 mb-2">
-                                Sum Insured (KES) <span class="text-red-500">*</span>
+                                Sum Insured ({{ brand.currency }}) <span class="text-red-500">*</span>
                             </label>
                             <input type="number" name="sum_insured" id="id_sum_insured" value="{{ form.sum_insured.value|default:'' }}" required min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="2000000.00">
                             {% if form.sum_insured.errors %}
@@ -166,7 +166,7 @@
 
                         <div>
                             <label for="id_excess_amount" class="block text-sm font-medium text-gray-700 mb-2">
-                                Excess Amount (KES)
+                                Excess Amount ({{ brand.currency }})
                             </label>
                             <input type="number" name="excess_amount" id="id_excess_amount" value="{{ form.excess_amount.value|default:'0' }}" min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="5000.00">
                         </div>

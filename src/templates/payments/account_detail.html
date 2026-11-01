@@ -84,27 +84,27 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <p class="text-xs font-medium text-gray-600">Opening Balance</p>
-            <p class="text-lg font-bold text-gray-900">KES {{ opening_balance|floatformat:2 }}</p>
+            <p class="text-lg font-bold text-gray-900">{{ brand.currency }} {{ opening_balance|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <p class="text-xs font-medium text-gray-600">Debits</p>
-            <p class="text-lg font-bold text-green-600">KES {{ money_in_total|floatformat:2 }}</p>
+            <p class="text-lg font-bold text-green-600">{{ brand.currency }} {{ money_in_total|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <p class="text-xs font-medium text-gray-600">Credits</p>
-            <p class="text-lg font-bold text-red-600">KES {{ money_out_total|floatformat:2 }}</p>
+            <p class="text-lg font-bold text-red-600">{{ brand.currency }} {{ money_out_total|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <p class="text-xs font-medium text-gray-600">Transfers In</p>
-            <p class="text-lg font-bold text-green-600">KES {{ transfers_in_total|floatformat:2 }}</p>
+            <p class="text-lg font-bold text-green-600">{{ brand.currency }} {{ transfers_in_total|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <p class="text-xs font-medium text-gray-600">Transfers Out</p>
-            <p class="text-lg font-bold text-red-600">KES {{ transfers_out_total|floatformat:2 }}</p>
+            <p class="text-lg font-bold text-red-600">{{ brand.currency }} {{ transfers_out_total|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-primary-200 p-4">
             <p class="text-xs font-medium text-gray-600">Current Balance</p>
-            <p class="text-lg font-bold text-primary-700">KES {{ current_balance|floatformat:2 }}</p>
+            <p class="text-lg font-bold text-primary-700">{{ brand.currency }} {{ current_balance|floatformat:2 }}</p>
         </div>
     </div>
 
@@ -112,7 +112,7 @@
     <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-sm text-yellow-800 flex items-center justify-between flex-wrap gap-2 no-print">
         <div>
             <i class="fas fa-clock mr-2"></i>{{ pending_count }} transaction{{ pending_count|pluralize }} pending approval on this account.
-            Pending balance (if all approved): <span class="font-semibold">KES {{ pending_balance|floatformat:2 }}</span>
+            Pending balance (if all approved): <span class="font-semibold">{{ brand.currency }} {{ pending_balance|floatformat:2 }}</span>
         </div>
         {% if request.user|has_full_access:'payments' %}
         <a href="{% url 'payments:approval_queue' %}" class="text-yellow-900 underline hover:no-underline">Go to Approval Queue</a>
@@ -206,16 +206,16 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-green-600 {% if row.is_reversed and row.display_direction == 'in' %}line-through text-gray-400{% endif %}">
-                            {% if row.is_reversed and row.display_direction == 'in' %}KES {{ row.display_amount|floatformat:2 }}
-                            {% elif row.money_in %}KES {{ row.money_in|floatformat:2 }}
+                            {% if row.is_reversed and row.display_direction == 'in' %}{{ brand.currency }} {{ row.display_amount|floatformat:2 }}
+                            {% elif row.money_in %}{{ brand.currency }} {{ row.money_in|floatformat:2 }}
                             {% else %}—{% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-red-600 {% if row.is_reversed and row.display_direction == 'out' %}line-through text-gray-400{% endif %}">
-                            {% if row.is_reversed and row.display_direction == 'out' %}KES {{ row.display_amount|floatformat:2 }}
-                            {% elif row.money_out %}KES {{ row.money_out|floatformat:2 }}
+                            {% if row.is_reversed and row.display_direction == 'out' %}{{ brand.currency }} {{ row.display_amount|floatformat:2 }}
+                            {% elif row.money_out %}{{ brand.currency }} {{ row.money_out|floatformat:2 }}
                             {% else %}—{% endif %}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">KES {{ row.running_balance|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">{{ brand.currency }} {{ row.running_balance|floatformat:2 }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{% if row.created_by %}{{ row.created_by.get_full_name }}{% else %}System{% endif %}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             {% if row.approval_status == 'approved' %}

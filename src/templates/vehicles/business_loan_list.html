@@ -38,17 +38,17 @@
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Loaned Out</p>
-            <p class="text-xl font-bold text-rose-700 mt-1">KES {{ grand_principal|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-rose-700 mt-1">{{ brand.currency }} {{ grand_principal|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-0.5">Principal disbursed</p>
         </div>
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Repaid</p>
-            <p class="text-xl font-bold text-emerald-700 mt-1">KES {{ grand_repaid|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-emerald-700 mt-1">{{ brand.currency }} {{ grand_repaid|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-0.5">Received back</p>
         </div>
         <div class="bg-white rounded-xl border border-red-100 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Outstanding</p>
-            <p class="text-xl font-bold text-red-700 mt-1">KES {{ grand_outstanding|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-red-700 mt-1">{{ brand.currency }} {{ grand_outstanding|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-0.5">Still owed to the business</p>
         </div>
     </div>
@@ -82,11 +82,11 @@
                             {% if loan.purpose %}<p class="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{{ loan.purpose|truncatechars:50 }}</p>{% endif %}
                         </td>
                         <td class="px-6 py-4 text-gray-600">{{ loan.date_issued }}</td>
-                        <td class="px-6 py-4 text-right text-gray-700">KES {{ loan.principal_amount|floatformat:0|intcomma }}</td>
-                        <td class="px-6 py-4 text-right text-emerald-700 font-medium">KES {{ loan.total_repaid|floatformat:0|intcomma }}</td>
+                        <td class="px-6 py-4 text-right text-gray-700">{{ brand.currency }} {{ loan.principal_amount|floatformat:0|intcomma }}</td>
+                        <td class="px-6 py-4 text-right text-emerald-700 font-medium">{{ brand.currency }} {{ loan.total_repaid|floatformat:0|intcomma }}</td>
                         <td class="px-6 py-4 text-right">
                             {% if loan.balance > 0 %}
-                            <span class="font-semibold text-red-600">KES {{ loan.balance|floatformat:0|intcomma }}</span>
+                            <span class="font-semibold text-red-600">{{ brand.currency }} {{ loan.balance|floatformat:0|intcomma }}</span>
                             {% else %}
                             <span class="text-gray-400 text-xs">—</span>
                             {% endif %}
@@ -177,7 +177,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Principal Amount (KES) <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Principal Amount ({{ brand.currency }}) <span class="text-red-500">*</span></label>
                     <input type="number" name="principal_amount" min="0.01" step="0.01" required placeholder="0.00"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                 </div>

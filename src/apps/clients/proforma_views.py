@@ -14,6 +14,9 @@ Business rules enforced here:
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
+from xml.sax.saxutils import escape as _xml_escape
+
+from apps.company.services import currency, get_company
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -41,7 +44,7 @@ DEFAULT_TERMS_CONDITIONS = (
     '1. This proforma invoice is valid until the expiry date shown above.\n'
     '2. A proforma invoice does not reserve the vehicle. The vehicle remains '
     'on open sale until the required deposit is received and confirmed.\n'
-    '3. Prices are quoted in Kenya Shillings and may be revised if the '
+    '3. Prices are quoted in {currency_words} and may be revised if the '
     'proforma expires before commitment.\n'
     '4. Deposits are only refundable in line with company policy.\n'
     '5. Ownership transfers only after full payment or financier '
@@ -288,7 +291,7 @@ def proforma_list_pdf(request):
 @module_permission_required('clients', AccessLevel.READ_WRITE)
 def proforma_create(request):
     initial = {
-        'terms_conditions': DEFAULT_TERMS_CONDITIONS,
+        'terms_conditions': DEFAULT_TERMS_CONDITIONS.format(currency_words=get_company().currency_words),
         'issue_date': timezone.now().date(),
         'expiry_date': timezone.now().date() + timedelta(days=14),
     }
@@ -619,7 +622,7 @@ def confirm_deposit(request, pk):
                 VehicleStatus.RESERVED, request.user,
                 notes=(
                     f'Reserved for {proforma.client.get_full_name()} — deposit '
-                    f'KES {amount:,.2f} confirmed on proforma {proforma.number}. '
+                    f'{currency()} {amount:,.2f} confirmed on proforma {proforma.number}. '
                     f'Expires {expiry_date:%d %b %Y}.'
                 ),
             )
@@ -628,7 +631,7 @@ def confirm_deposit(request, pk):
             reservation_created = True
 
     _audit(request, 'create',
-           f'Confirmed deposit KES {amount:,.2f} on proforma {proforma.number} '
+           f'Confirmed deposit {currency()} {amount:,.2f} on proforma {proforma.number} '
            f'({dict(ProformaDeposit.PAYMENT_METHOD_CHOICES).get(payment_method, payment_method)}'
            f'{", account: " + account.name if account else ""})',
            object_id=str(proforma.pk),
@@ -640,7 +643,7 @@ def confirm_deposit(request, pk):
             [proforma.prepared_by] + _managers(),
             f'Vehicle reserved: {vehicle.full_name}',
             (
-                f'{proforma.client.get_full_name()} paid a deposit of KES '
+                f'{proforma.client.get_full_name()} paid a deposit of {currency()} '
                 f'{amount:,.2f} on proforma {proforma.number}. The vehicle is '
                 f'now reserved until {proforma.active_reservation.expiry_date:%d %b %Y}.'
             ),
@@ -648,7 +651,7 @@ def confirm_deposit(request, pk):
         )
         messages.success(
             request,
-            f'Deposit of KES {amount:,.2f} confirmed and {vehicle.full_name} '
+            f'Deposit of {currency()} {amount:,.2f} confirmed and {vehicle.full_name} '
             f'is now RESERVED for {proforma.client.get_full_name()}.'
         )
     else:
@@ -656,11 +659,11 @@ def confirm_deposit(request, pk):
         if outstanding > 0:
             messages.success(
                 request,
-                f'Deposit of KES {amount:,.2f} confirmed. KES {outstanding:,.2f} '
+                f'Deposit of {currency()} {amount:,.2f} confirmed. {currency()} {outstanding:,.2f} '
                 f'more is required before the vehicle is reserved.'
             )
         else:
-            messages.success(request, f'Deposit of KES {amount:,.2f} confirmed.')
+            messages.success(request, f'Deposit of {currency()} {amount:,.2f} confirmed.')
 
     return redirect('clients:proforma_detail', pk=pk)
 
@@ -690,7 +693,7 @@ def reverse_deposit(request, pk, deposit_pk):
         return redirect('clients:proforma_detail', pk=pk)
 
     _audit(request, 'update',
-           f'Reversed deposit KES {deposit.amount:,.2f} on proforma '
+           f'Reversed deposit {currency()} {deposit.amount:,.2f} on proforma '
            f'{proforma.number}. Reason: {reason}',
            object_id=str(proforma.pk),
            changes={'deposit': str(deposit.pk), 'reason': reason})
@@ -788,7 +791,7 @@ def reservation_release(request, pk):
     _audit(request, 'update',
            f'Released reserved vehicle {reservation.vehicle.full_name} '
            f'({reservation.proforma.number}). Reason: {reason}. '
-           f'Deposit of KES {reservation.deposit_amount:,.2f} retained pending decision.',
+           f'Deposit of {currency()} {reservation.deposit_amount:,.2f} retained pending decision.',
            object_id=str(reservation.proforma_id),
            changes={'reservation_status': {'old': old_status, 'new': 'released'},
                     'reason': reason})
@@ -915,15 +918,15 @@ def convert_proforma(request, pk):
 
     _audit(request, 'create',
            f'Converted proforma {proforma.number} into sale CV-{client_vehicle.pk}. '
-           f'Deposit of KES {deposit_total:,.2f} transferred (not duplicated). '
-           f'Balance: KES {client_vehicle.balance:,.2f}.',
+           f'Deposit of {currency()} {deposit_total:,.2f} transferred (not duplicated). '
+           f'Balance: {currency()} {client_vehicle.balance:,.2f}.',
            object_id=str(proforma.pk),
            changes={'status': {'old': 'reserved', 'new': 'converted'},
                     'client_vehicle': str(client_vehicle.pk)})
 
     messages.success(
         request,
-        f'Proforma {proforma.number} converted to a sale. Deposit of KES '
+        f'Proforma {proforma.number} converted to a sale. Deposit of {currency()} '
         f'{deposit_total:,.2f} was transferred to the vehicle payment '
         f'allocation. Set up the installment plan and sales agreement below.'
     )
@@ -1036,7 +1039,7 @@ def proforma_pdf(request, pk):
             ('Approval Status', proforma.get_approval_status_display()),
         ], col_widths=[3.25 * inch, 3.25 * inch]))
         elements.append(Spacer(1, 6))
-        elements.append(Paragraph('www.hozacars.com', styles['ReportCompanyMeta']))
+        elements.append(Paragraph(_xml_escape(get_company().website_display), styles['ReportCompanyMeta']))
 
     _audit(request, 'export', f'Downloaded proforma PDF {proforma.number}',
            object_id=str(proforma.pk))
@@ -1144,7 +1147,7 @@ def proforma_deposit_receipt(request, pk, deposit_pk):
             compact,
         ))
         elements.append(Spacer(1, 6))
-        elements.append(Paragraph('www.hozacars.com', styles['ReportCompanyMeta']))
+        elements.append(Paragraph(_xml_escape(get_company().website_display), styles['ReportCompanyMeta']))
 
     _audit(request, 'export', f'Downloaded deposit receipt for proforma {proforma.number}',
            object_id=str(deposit.pk))

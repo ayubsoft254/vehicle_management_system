@@ -3,6 +3,7 @@ Forms for the expenses app.
 Handles expense submission, approval, reports, and category management.
 """
 
+from apps.company.services import currency
 from django import forms
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
@@ -24,7 +25,22 @@ CURRENCY_CHOICES = [
     ('TZS', 'TZS — Tanzanian Shilling'),
     ('UGX', 'UGX — Ugandan Shilling'),
     ('JPY', 'JPY — Japanese Yen'),
+    ('RWF', 'RWF — Rwandan Franc'),
 ]
+
+
+def _use_company_currency(form):
+    """New expenses default to the company currency (Settings → Region),
+    listed first, rather than the model's historical 'KES' default."""
+    code = currency()
+    choices = list(CURRENCY_CHOICES)
+    if code not in dict(choices):
+        choices.insert(0, (code, code))
+    choices.sort(key=lambda choice: choice[0] != code)
+    form.fields['currency'].widget.choices = choices
+    form.fields['currency'].choices = choices
+    if not form.instance.pk and not form.is_bound:
+        form.initial['currency'] = code
 
 
 class ExpenseForm(forms.ModelForm):
@@ -116,6 +132,7 @@ class ExpenseForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        _use_company_currency(self)
         
         # Make optional fields not required
         self.fields['related_vehicle'].required = False
@@ -173,7 +190,7 @@ class ExpenseForm(forms.ModelForm):
             if total > category.budget_limit:
                 raise ValidationError(
                     f'This expense would exceed the category budget limit of '
-                    f'{category.budget_limit} {self.cleaned_data.get("currency", "KES")}'
+                    f'{category.budget_limit} {self.cleaned_data.get("currency") or currency()}'
                 )
         
         return amount
@@ -508,6 +525,7 @@ class RecurringExpenseForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+        _use_company_currency(self)
         
         self.fields['end_date'].required = False
         self.fields['vendor_name'].required = False

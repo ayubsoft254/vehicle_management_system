@@ -2,6 +2,7 @@
 Admin configuration for payments app
 Provides admin interface for managing payments, installment plans, and schedules
 """
+from apps.company.services import currency
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -165,7 +166,7 @@ class PaymentAdmin(admin.ModelAdmin):
         """Display amount formatted with color"""
         return format_html(
             '<span style="color: #28a745; font-weight: bold; font-size: 13px;">'
-            'KES {:,.2f}</span>',
+            '' + currency() + ' {:,.2f}</span>',
             obj.amount
         )
     amount_display.short_description = 'Amount'
@@ -198,7 +199,7 @@ class PaymentAdmin(admin.ModelAdmin):
         color = '#dc3545' if balance > 0 else '#28a745'
         return format_html(
             '<span style="color: {}; font-weight: bold; font-size: 14px;">'
-            'KES {:,.2f}</span>',
+            '' + currency() + ' {:,.2f}</span>',
             color,
             balance
         )
@@ -267,7 +268,7 @@ class AccountWithdrawalAdmin(admin.ModelAdmin):
 
     def amount_display(self, obj):
         return format_html(
-            '<span style="color: #dc3545; font-weight: bold;">KES {:,.2f}</span>',
+            '<span style="color: #dc3545; font-weight: bold;">' + currency() + ' {:,.2f}</span>',
             obj.amount
         )
     amount_display.short_description = 'Amount'
@@ -392,30 +393,30 @@ class InstallmentPlanAdmin(admin.ModelAdmin):
     
     def total_amount_display(self, obj):
         """Display total amount formatted"""
-        return format_html('KES {:,.2f}', obj.total_amount)
+        return format_html(currency() + ' {:,.2f}', obj.total_amount)
     total_amount_display.short_description = 'Total Amount'
     total_amount_display.admin_order_field = 'total_amount'
     
     def monthly_installment_display(self, obj):
         """Display monthly installment formatted"""
-        return format_html('KES {:,.2f}', obj.monthly_installment)
+        return format_html(currency() + ' {:,.2f}', obj.monthly_installment)
     monthly_installment_display.short_description = 'Monthly'
     monthly_installment_display.admin_order_field = 'monthly_installment'
     
     def balance_after_deposit_display(self, obj):
         """Display balance after deposit"""
-        return format_html('KES {:,.2f}', obj.balance_after_deposit)
+        return format_html(currency() + ' {:,.2f}', obj.balance_after_deposit)
     balance_after_deposit_display.short_description = 'Balance After Deposit'
     
     def total_with_interest_display(self, obj):
         """Display total with interest"""
-        return format_html('KES {:,.2f}', obj.total_with_interest)
+        return format_html(currency() + ' {:,.2f}', obj.total_with_interest)
     total_with_interest_display.short_description = 'Total with Interest'
     
     def total_interest_display(self, obj):
         """Display total interest"""
         return format_html(
-            '<span style="color: #ffc107; font-weight: bold;">KES {:,.2f}</span>',
+            '<span style="color: #ffc107; font-weight: bold;">' + currency() + ' {:,.2f}</span>',
             obj.total_interest
         )
     total_interest_display.short_description = 'Total Interest'
@@ -423,7 +424,7 @@ class InstallmentPlanAdmin(admin.ModelAdmin):
     def amount_paid_display(self, obj):
         """Display amount paid"""
         return format_html(
-            '<span style="color: #28a745; font-weight: bold;">KES {:,.2f}</span>',
+            '<span style="color: #28a745; font-weight: bold;">' + currency() + ' {:,.2f}</span>',
             obj.amount_paid
         )
     amount_paid_display.short_description = 'Amount Paid'
@@ -433,7 +434,7 @@ class InstallmentPlanAdmin(admin.ModelAdmin):
         balance = obj.remaining_balance
         color = '#dc3545' if balance > 0 else '#28a745'
         return format_html(
-            '<span style="color: {}; font-weight: bold;">KES {:,.2f}</span>',
+            '<span style="color: {}; font-weight: bold;">' + currency() + ' {:,.2f}</span>',
             color,
             balance
         )
@@ -634,14 +635,14 @@ class PaymentScheduleAdmin(admin.ModelAdmin):
     
     def amount_due_display(self, obj):
         """Display amount due formatted"""
-        return format_html('KES {:,.2f}', obj.amount_due)
+        return format_html(currency() + ' {:,.2f}', obj.amount_due)
     amount_due_display.short_description = 'Amount Due'
     amount_due_display.admin_order_field = 'amount_due'
     
     def amount_paid_display(self, obj):
         """Display amount paid formatted"""
         return format_html(
-            '<span style="color: #28a745; font-weight: bold;">KES {:,.2f}</span>',
+            '<span style="color: #28a745; font-weight: bold;">' + currency() + ' {:,.2f}</span>',
             obj.amount_paid
         )
     amount_paid_display.short_description = 'Amount Paid'
@@ -652,7 +653,7 @@ class PaymentScheduleAdmin(admin.ModelAdmin):
         remaining = obj.remaining_amount
         color = '#dc3545' if remaining > 0 else '#28a745'
         return format_html(
-            '<span style="color: {}; font-weight: bold;">KES {:,.2f}</span>',
+            '<span style="color: {}; font-weight: bold;">' + currency() + ' {:,.2f}</span>',
             color,
             remaining
         )

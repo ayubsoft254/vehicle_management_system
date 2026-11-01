@@ -64,7 +64,7 @@
                     <div>
                         <p class="text-gray-500">Outstanding Commission</p>
                         <p class="font-semibold {% if broker.total_owed > 0 %}text-red-600{% else %}text-gray-800{% endif %}">
-                            KES {{ broker.total_owed|floatformat:0|intcomma }}
+                            {{ brand.currency }} {{ broker.total_owed|floatformat:0|intcomma }}
                         </p>
                     </div>
                 </div>
@@ -77,7 +77,7 @@
                         <i class="fas fa-exclamation-circle text-red-400"></i>
                     </div>
                     <div class="ml-3 text-sm text-red-700">
-                        <p class="font-medium">This broker still has KES {{ broker.total_owed|floatformat:2|intcomma }} in unpaid commission.</p>
+                        <p class="font-medium">This broker still has {{ brand.currency }} {{ broker.total_owed|floatformat:2|intcomma }} in unpaid commission.</p>
                         <p class="mt-1">Deactivating won't erase that balance — it will still show if you reactivate the broker later.</p>
                     </div>
                 </div>

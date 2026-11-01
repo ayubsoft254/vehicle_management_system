@@ -16,7 +16,7 @@ def _column_exists(schema_editor, table_name, column_name):
             """
             SELECT 1
             FROM information_schema.columns
-            WHERE table_name = %s AND column_name = %s
+            WHERE table_schema = current_schema() AND table_name = %s AND column_name = %s
             """,
             [table_name, column_name],
         )

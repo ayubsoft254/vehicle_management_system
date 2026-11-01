@@ -1,6 +1,9 @@
 """
 Vehicles Views
 """
+from xml.sax.saxutils import escape as _xml_escape
+
+from apps.company.services import currency, get_company
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -473,7 +476,7 @@ def vehicle_detail_pdf(request, pk):
                 ('Selling Price', fmt_money(vehicle.website_display_price)),
             ], col_widths=[3.25 * inch, 3.25 * inch]))
         elements.append(Spacer(1, 6))
-        elements.append(Paragraph('www.hozacars.com', styles['ReportCompanyMeta']))
+        elements.append(Paragraph(_xml_escape(get_company().website_display), styles['ReportCompanyMeta']))
 
     try:
         AuditLog.log_read(user=request.user, obj=vehicle, ip_address=request.META.get('REMOTE_ADDR'))
@@ -1692,11 +1695,11 @@ def record_tracker_agent_payment(request, agent_pk):
     if records_cleared:
         messages.success(
             request,
-            f'Payment of KES {amount:,.2f} recorded for {agent.name}. '
+            f'Payment of {currency()} {amount:,.2f} recorded for {agent.name}. '
             f'{records_cleared} tracker record(s) marked as settled.'
         )
     else:
-        messages.success(request, f'Payment of KES {amount:,.2f} recorded for {agent.name}.')
+        messages.success(request, f'Payment of {currency()} {amount:,.2f} recorded for {agent.name}.')
     return redirect('vehicles:tracker_agent_ledger_detail', pk=agent_pk)
 
 
@@ -1757,11 +1760,11 @@ def record_clearing_agent_payment(request, agent_pk):
     if records_cleared:
         messages.success(
             request,
-            f'Payment of KES {amount:,.2f} recorded for {agent.name}. '
+            f'Payment of {currency()} {amount:,.2f} recorded for {agent.name}. '
             f'{records_cleared} clearance record(s) marked as settled.'
         )
     else:
-        messages.success(request, f'Payment of KES {amount:,.2f} recorded for {agent.name}.')
+        messages.success(request, f'Payment of {currency()} {amount:,.2f} recorded for {agent.name}.')
     return redirect('vehicles:clearing_agent_ledger_detail', pk=agent_pk)
 
 
@@ -1982,11 +1985,11 @@ def record_japan_supplier_payment(request, supplier_pk):
     if records_cleared:
         messages.success(
             request,
-            f'Payment of KES {amount:,.2f} recorded for {supplier.name}. '
+            f'Payment of {currency()} {amount:,.2f} recorded for {supplier.name}. '
             f'{records_cleared} vehicle(s) marked as settled.'
         )
     else:
-        messages.success(request, f'Payment of KES {amount:,.2f} recorded for {supplier.name}.')
+        messages.success(request, f'Payment of {currency()} {amount:,.2f} recorded for {supplier.name}.')
     return redirect('vehicles:japan_supplier_ledger_detail', pk=supplier_pk)
 
 
@@ -2724,7 +2727,7 @@ def record_broker_payment(request, broker_pk):
 
         sales_cleared = _settle_broker_commissions(broker)
 
-    msg = f'Payment voucher {payment.voucher_number} (KES {amount:,.2f}) recorded for {broker.name}.'
+    msg = f'Payment voucher {payment.voucher_number} ({currency()} {amount:,.2f}) recorded for {broker.name}.'
     if sales_cleared:
         msg += f' {sales_cleared} commission record(s) marked as settled.'
     messages.success(request, msg)
@@ -2935,7 +2938,7 @@ def business_loan_list(request):
                 notes=notes,
                 recorded_by=request.user,
             )
-            messages.success(request, f'Loan of KES {principal_amount:,.2f} to {borrower_name} recorded.')
+            messages.success(request, f'Loan of {currency()} {principal_amount:,.2f} to {borrower_name} recorded.')
             return redirect('vehicles:business_loan_list')
 
     loans = BusinessLoan.objects.select_related('recorded_by', 'borrower_content_type').all()
@@ -3031,7 +3034,7 @@ def record_loan_repayment(request, loan_pk):
         payment_date=payment_date,
         recorded_by=request.user,
     )
-    messages.success(request, f'Repayment of KES {amount:,.2f} recorded for {loan.borrower_name}.')
+    messages.success(request, f'Repayment of {currency()} {amount:,.2f} recorded for {loan.borrower_name}.')
     return redirect('vehicles:business_loan_detail', pk=loan_pk)
 
 

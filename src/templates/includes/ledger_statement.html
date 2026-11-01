@@ -59,19 +59,19 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 pb-2">
         <div class="bg-gray-50 rounded-lg p-4 text-center">
             <p class="text-xs text-gray-500 mb-1">Opening Balance</p>
-            <p class="text-lg font-bold text-gray-800">KES {{ statement_summary.opening_balance|floatformat:2|intcomma }}</p>
+            <p class="text-lg font-bold text-gray-800">{{ brand.currency }} {{ statement_summary.opening_balance|floatformat:2|intcomma }}</p>
         </div>
         <div class="bg-emerald-50 rounded-lg p-4 text-center">
             <p class="text-xs text-emerald-600 mb-1">Total Debits</p>
-            <p class="text-lg font-bold text-emerald-800">KES {{ statement_summary.total_debits|floatformat:2|intcomma }}</p>
+            <p class="text-lg font-bold text-emerald-800">{{ brand.currency }} {{ statement_summary.total_debits|floatformat:2|intcomma }}</p>
         </div>
         <div class="bg-rose-50 rounded-lg p-4 text-center">
             <p class="text-xs text-rose-600 mb-1">Total Credits</p>
-            <p class="text-lg font-bold text-rose-800">KES {{ statement_summary.total_credits|floatformat:2|intcomma }}</p>
+            <p class="text-lg font-bold text-rose-800">{{ brand.currency }} {{ statement_summary.total_credits|floatformat:2|intcomma }}</p>
         </div>
         <div class="bg-indigo-50 rounded-lg p-4 text-center">
             <p class="text-xs text-indigo-600 mb-1">Closing Balance</p>
-            <p class="text-lg font-bold text-indigo-800">KES {{ statement_summary.closing_balance|floatformat:2|intcomma }}</p>
+            <p class="text-lg font-bold text-indigo-800">{{ brand.currency }} {{ statement_summary.closing_balance|floatformat:2|intcomma }}</p>
         </div>
     </div>
 
@@ -107,12 +107,12 @@
                     <td class="px-4 py-3 text-sm text-gray-600">{{ row.related|default:"—" }}</td>
                     <td class="px-4 py-3 text-sm text-gray-500">{{ row.method|default:"—" }}</td>
                     <td class="px-4 py-3 text-right text-sm font-semibold {% if row.debit %}text-emerald-700{% else %}text-gray-300{% endif %}">
-                        {% if row.debit %}KES {{ row.debit|floatformat:2|intcomma }}{% else %}—{% endif %}
+                        {% if row.debit %}{{ brand.currency }} {{ row.debit|floatformat:2|intcomma }}{% else %}—{% endif %}
                     </td>
                     <td class="px-4 py-3 text-right text-sm font-semibold {% if row.credit %}text-rose-700{% else %}text-gray-300{% endif %}">
-                        {% if row.credit %}KES {{ row.credit|floatformat:2|intcomma }}{% else %}—{% endif %}
+                        {% if row.credit %}{{ brand.currency }} {{ row.credit|floatformat:2|intcomma }}{% else %}—{% endif %}
                     </td>
-                    <td class="px-4 py-3 text-right text-sm font-bold text-gray-800">KES {{ row.running_balance|floatformat:2|intcomma }}</td>
+                    <td class="px-4 py-3 text-right text-sm font-bold text-gray-800">{{ brand.currency }} {{ row.running_balance|floatformat:2|intcomma }}</td>
                     <td class="px-4 py-3 text-sm text-gray-500">
                         {% if row.created_by %}{{ row.created_by.get_full_name|default:row.created_by.username }}{% else %}—{% endif %}
                     </td>
@@ -131,9 +131,9 @@
             <tfoot class="bg-slate-50">
                 <tr>
                     <td colspan="5" class="px-4 py-3 text-sm font-semibold text-gray-700 text-right">Totals</td>
-                    <td class="px-4 py-3 text-right text-sm font-bold text-emerald-700">KES {{ statement_summary.total_debits|floatformat:2|intcomma }}</td>
-                    <td class="px-4 py-3 text-right text-sm font-bold text-rose-700">KES {{ statement_summary.total_credits|floatformat:2|intcomma }}</td>
-                    <td class="px-4 py-3 text-right text-sm font-bold text-indigo-700">KES {{ statement_summary.closing_balance|floatformat:2|intcomma }}</td>
+                    <td class="px-4 py-3 text-right text-sm font-bold text-emerald-700">{{ brand.currency }} {{ statement_summary.total_debits|floatformat:2|intcomma }}</td>
+                    <td class="px-4 py-3 text-right text-sm font-bold text-rose-700">{{ brand.currency }} {{ statement_summary.total_credits|floatformat:2|intcomma }}</td>
+                    <td class="px-4 py-3 text-right text-sm font-bold text-indigo-700">{{ brand.currency }} {{ statement_summary.closing_balance|floatformat:2|intcomma }}</td>
                     <td colspan="2"></td>
                 </tr>
             </tfoot>

@@ -3,6 +3,7 @@ Admin configuration for the repossessions app.
 Provides comprehensive repossession management interface in Django admin.
 """
 
+from apps.company.services import currency
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -231,7 +232,7 @@ class RepossessionAdmin(admin.ModelAdmin):
     
     def total_amount_due_display(self, obj):
         """Display total amount including costs."""
-        return f"KES {obj.get_total_amount_due():,.2f}"
+        return f"{currency()} {obj.get_total_amount_due():,.2f}"
     total_amount_due_display.short_description = 'Total Amount Due'
     
     def save_model(self, request, obj, form, change):

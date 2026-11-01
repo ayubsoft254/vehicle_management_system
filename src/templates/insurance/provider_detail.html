@@ -59,7 +59,7 @@
             </div>
             <div class="bg-gray-50 rounded-lg p-6">
                 <p class="text-gray-600 text-sm mb-1">Total Premium</p>
-                <p class="text-3xl font-bold text-primary-600">KES {{ total_premium|floatformat:0|default:"0" }}</p>
+                <p class="text-3xl font-bold text-primary-600">{{ brand.currency }} {{ total_premium|floatformat:0|default:"0" }}</p>
             </div>
         </div>
     </div>
@@ -173,7 +173,7 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ policy.get_policy_type_display }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ policy.start_date|date:"d M Y" }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ policy.end_date|date:"d M Y" }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">KES {{ policy.premium_amount|floatformat:0 }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ brand.currency }} {{ policy.premium_amount|floatformat:0 }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span class="px-2 py-1 text-xs rounded-full {% if policy.status == 'active' %}bg-green-100 text-green-800{% elif policy.status == 'expired' %}bg-red-100 text-red-800{% else %}bg-gray-100 text-gray-800{% endif %}">
                                                 {{ policy.get_status_display }}

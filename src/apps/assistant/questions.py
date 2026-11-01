@@ -29,7 +29,8 @@ class Question:
 
 
 def _money(value) -> str:
-    return f"KES {float(value or 0):,.2f}"
+    from apps.company.services import get_company
+    return f"{get_company().currency_code} {float(value or 0):,.2f}"
 
 
 def _parse_period(text: str) -> Tuple[object, object, str]:

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Installment Plans - Vehicle Management System{% endblock %}
+{% block title %}Installment Plans - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -63,7 +63,7 @@
                 </div>
                 <div class="ml-4 flex-1">
                     <p class="text-sm font-medium text-gray-600">Total Financed</p>
-                    <p class="text-xl font-bold text-gray-900">KES {{ total_financed|floatformat:2|default:"0.00" }}</p>
+                    <p class="text-xl font-bold text-gray-900">{{ brand.currency }} {{ total_financed|floatformat:2|default:"0.00" }}</p>
                 </div>
             </div>
         </div>
@@ -163,15 +163,15 @@
                         <td class="px-6 py-4">
                             <div class="text-sm text-gray-900">
                                 <div class="font-semibold">{{ plan.duration_months }} months @ {{ plan.interest_rate }}%</div>
-                                <div class="text-xs text-gray-500">Monthly: KES {{ plan.monthly_payment|floatformat:2 }}</div>
+                                <div class="text-xs text-gray-500">Monthly: {{ brand.currency }} {{ plan.monthly_payment|floatformat:2 }}</div>
                                 <div class="text-xs text-gray-500">{{ plan.start_date|date:"M d, Y" }} - {{ plan.end_date|date:"M d, Y" }}</div>
                             </div>
                         </td>
                         <td class="px-6 py-4">
                             <div class="text-sm">
-                                <div class="text-gray-900">Financed: <span class="font-semibold">KES {{ plan.principal_amount|floatformat:2 }}</span></div>
-                                <div class="text-green-600 mt-1">Paid: <span class="font-semibold">KES {{ plan.total_paid|floatformat:2 }}</span></div>
-                                <div class="text-red-600 mt-1">Balance: <span class="font-semibold">KES {{ plan.remaining_balance|floatformat:2 }}</span></div>
+                                <div class="text-gray-900">Financed: <span class="font-semibold">{{ brand.currency }} {{ plan.principal_amount|floatformat:2 }}</span></div>
+                                <div class="text-green-600 mt-1">Paid: <span class="font-semibold">{{ brand.currency }} {{ plan.total_paid|floatformat:2 }}</span></div>
+                                <div class="text-red-600 mt-1">Balance: <span class="font-semibold">{{ brand.currency }} {{ plan.remaining_balance|floatformat:2 }}</span></div>
                             </div>
                         </td>
                         <td class="px-6 py-4">

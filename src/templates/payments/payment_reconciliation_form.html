@@ -27,7 +27,7 @@
             <div><span class="text-gray-500">Client:</span> {{ original.client_vehicle.client.get_full_name }}</div>
             <div><span class="text-gray-500">Vehicle:</span> {{ original.client_vehicle.vehicle.full_name }}</div>
             <div><span class="text-gray-500">Date:</span> {{ original.payment_date|date:'M d, Y' }}</div>
-            <div><span class="text-gray-500">Amount:</span> KES {{ original.amount|floatformat:2 }}</div>
+            <div><span class="text-gray-500">Amount:</span> {{ brand.currency }} {{ original.amount|floatformat:2 }}</div>
             <div><span class="text-gray-500">Method:</span> {{ original.get_payment_method_display }}</div>
             <div><span class="text-gray-500">Reference:</span> {{ original.transaction_reference|default:'—' }}</div>
         </div>

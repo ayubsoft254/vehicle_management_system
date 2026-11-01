@@ -41,15 +41,15 @@
                         </div>
                         <div>
                             <p class="text-gray-600">Outstanding Amount</p>
-                            <p class="text-gray-800 font-medium">KES {{ repossession.outstanding_amount|floatformat:0 }}</p>
+                            <p class="text-gray-800 font-medium">{{ brand.currency }} {{ repossession.outstanding_amount|floatformat:0 }}</p>
                         </div>
                         <div>
                             <p class="text-gray-600">Total Costs</p>
-                            <p class="text-gray-800 font-medium">KES {{ repossession.total_cost|floatformat:0 }}</p>
+                            <p class="text-gray-800 font-medium">{{ brand.currency }} {{ repossession.total_cost|floatformat:0 }}</p>
                         </div>
                         <div>
                             <p class="text-gray-600">New Additional Costs</p>
-                            <p class="text-gray-800 font-medium">KES {{ repossession.additional_costs|floatformat:0 }}</p>
+                            <p class="text-gray-800 font-medium">{{ brand.currency }} {{ repossession.additional_costs|floatformat:0 }}</p>
                         </div>
                         <div>
                             <p class="text-gray-600">Days in Process</p>

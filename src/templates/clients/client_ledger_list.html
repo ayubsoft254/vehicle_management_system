@@ -30,17 +30,17 @@
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Billed</p>
-            <p class="text-xl font-bold text-blue-700 mt-1">KES {{ grand_billed|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-blue-700 mt-1">{{ brand.currency }} {{ grand_billed|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-0.5">Across all vehicle sales</p>
         </div>
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Credit</p>
-            <p class="text-xl font-bold text-green-700 mt-1">KES {{ grand_paid|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-green-700 mt-1">{{ brand.currency }} {{ grand_paid|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-0.5">Received from clients</p>
         </div>
         <div class="bg-white rounded-xl border border-red-100 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Outstanding</p>
-            <p class="text-xl font-bold text-red-700 mt-1">KES {{ grand_outstanding|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-red-700 mt-1">{{ brand.currency }} {{ grand_outstanding|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-0.5">Owed by clients</p>
         </div>
     </div>
@@ -81,11 +81,11 @@
                             <span class="text-gray-600">{{ client.phone_primary|default:"—" }}</span>
                         </td>
                         <td class="px-6 py-4 text-right font-medium text-gray-700">{{ client.vehicle_count }}</td>
-                        <td class="px-6 py-4 text-right text-gray-700">KES {{ client.total_billed|floatformat:0|intcomma }}</td>
-                        <td class="px-6 py-4 text-right text-green-700 font-medium">KES {{ client.total_paid|floatformat:0|intcomma }}</td>
+                        <td class="px-6 py-4 text-right text-gray-700">{{ brand.currency }} {{ client.total_billed|floatformat:0|intcomma }}</td>
+                        <td class="px-6 py-4 text-right text-green-700 font-medium">{{ brand.currency }} {{ client.total_paid|floatformat:0|intcomma }}</td>
                         <td class="px-6 py-4 text-right">
                             {% if client.outstanding > 0 %}
-                            <span class="font-semibold text-red-600">KES {{ client.outstanding|floatformat:0|intcomma }}</span>
+                            <span class="font-semibold text-red-600">{{ brand.currency }} {{ client.outstanding|floatformat:0|intcomma }}</span>
                             {% else %}
                             <span class="text-gray-400 text-xs">—</span>
                             {% endif %}

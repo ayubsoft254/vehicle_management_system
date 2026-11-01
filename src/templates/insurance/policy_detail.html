@@ -43,15 +43,15 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div class="bg-gray-50 rounded-lg p-6">
                 <p class="text-gray-600 text-sm mb-1">Premium Amount</p>
-                <p class="text-2xl font-bold text-primary-600">KES {{ policy.premium_amount|floatformat:0 }}</p>
+                <p class="text-2xl font-bold text-primary-600">{{ brand.currency }} {{ policy.premium_amount|floatformat:0 }}</p>
             </div>
             <div class="bg-gray-50 rounded-lg p-6">
                 <p class="text-gray-600 text-sm mb-1">Sum Insured</p>
-                <p class="text-2xl font-bold text-green-600">KES {{ policy.sum_insured|floatformat:0 }}</p>
+                <p class="text-2xl font-bold text-green-600">{{ brand.currency }} {{ policy.sum_insured|floatformat:0 }}</p>
             </div>
             <div class="bg-gray-50 rounded-lg p-6">
                 <p class="text-gray-600 text-sm mb-1">Excess Amount</p>
-                <p class="text-2xl font-bold text-gray-800">KES {{ policy.excess_amount|floatformat:0 }}</p>
+                <p class="text-2xl font-bold text-gray-800">{{ brand.currency }} {{ policy.excess_amount|floatformat:0 }}</p>
             </div>
             <div class="bg-gray-50 rounded-lg p-6">
                 <p class="text-gray-600 text-sm mb-1">Days Until Expiry</p>
@@ -147,7 +147,7 @@
                                         <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ claim.claim_number }}</td>
                                         <td class="px-6 py-4 text-sm text-gray-900">{{ claim.get_claim_type_display }}</td>
                                         <td class="px-6 py-4 text-sm text-gray-900">{{ claim.claim_date|date:"d M Y" }}</td>
-                                        <td class="px-6 py-4 text-sm text-gray-900">KES {{ claim.claimed_amount|floatformat:0 }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">{{ brand.currency }} {{ claim.claimed_amount|floatformat:0 }}</td>
                                         <td class="px-6 py-4">
                                             <span class="px-2 py-1 text-xs rounded-full {% if claim.status == 'pending' %}bg-yellow-100 text-yellow-800{% elif claim.status == 'approved' %}bg-green-100 text-green-800{% elif claim.status == 'settled' %}bg-teal-100 text-teal-800{% elif claim.status == 'rejected' %}bg-red-100 text-red-800{% else %}bg-blue-100 text-blue-800{% endif %}">
                                                 {{ claim.get_status_display }}
@@ -179,7 +179,7 @@
                             <i class="fas fa-receipt text-primary-600 mr-2"></i>
                             Payment History
                         </h2>
-                        <p class="text-sm text-gray-600">Total: KES {{ total_payments|floatformat:0|default:"0" }}</p>
+                        <p class="text-sm text-gray-600">Total: {{ brand.currency }} {{ total_payments|floatformat:0|default:"0" }}</p>
                     </div>
                 </div>
                 
@@ -201,7 +201,7 @@
                                         <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ payment.receipt_number }}</td>
                                         <td class="px-6 py-4 text-sm text-gray-900">{{ payment.payment_date|date:"d M Y" }}</td>
                                         <td class="px-6 py-4 text-sm text-gray-900">{{ payment.get_payment_method_display }}</td>
-                                        <td class="px-6 py-4 text-sm font-medium text-green-600">KES {{ payment.amount|floatformat:0 }}</td>
+                                        <td class="px-6 py-4 text-sm font-medium text-green-600">{{ brand.currency }} {{ payment.amount|floatformat:0 }}</td>
                                         <td class="px-6 py-4 text-sm text-gray-900">{{ payment.transaction_reference|default:"-" }}</td>
                                     </tr>
                                 {% endfor %}
@@ -296,16 +296,16 @@
                         </div>
                         <div>
                             <p class="text-blue-500">Selling Price</p>
-                            <p class="font-medium">KES {{ rp.selling_price|floatformat:0 }}</p>
+                            <p class="font-medium">{{ brand.currency }} {{ rp.selling_price|floatformat:0 }}</p>
                         </div>
                         {% if rp.payment_type == 'flexible' %}
                         <div>
                             <p class="text-blue-500">Deposit Paid</p>
-                            <p class="font-semibold text-emerald-700">KES {{ rp.insurance_deposit|floatformat:0 }}</p>
+                            <p class="font-semibold text-emerald-700">{{ brand.currency }} {{ rp.insurance_deposit|floatformat:0 }}</p>
                         </div>
                         <div>
                             <p class="text-blue-500">Renewal Balance</p>
-                            <p class="font-semibold {% if rp.insurance_balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">KES {{ rp.insurance_balance|floatformat:0 }}</p>
+                            <p class="font-semibold {% if rp.insurance_balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">{{ brand.currency }} {{ rp.insurance_balance|floatformat:0 }}</p>
                         </div>
                         {% else %}
                         <div>
@@ -314,7 +314,7 @@
                         </div>
                         <div>
                             <p class="text-blue-500">Balance</p>
-                            <p class="font-semibold {% if rp.insurance_balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">KES {{ rp.insurance_balance|floatformat:0 }}</p>
+                            <p class="font-semibold {% if rp.insurance_balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">{{ brand.currency }} {{ rp.insurance_balance|floatformat:0 }}</p>
                         </div>
                         {% endif %}
                     </div>
@@ -326,22 +326,22 @@
                     {% if policy.insurance_balance > 0 %}
                     <div class="flex justify-between text-gray-700">
                         <span>Current policy balance</span>
-                        <span class="font-medium text-red-600">KES {{ policy.insurance_balance|floatformat:0 }}</span>
+                        <span class="font-medium text-red-600">{{ brand.currency }} {{ policy.insurance_balance|floatformat:0 }}</span>
                     </div>
                     {% endif %}
                     <div class="flex justify-between text-gray-700">
                         <span>Renewal balance(s)</span>
-                        <span class="font-medium text-red-600">KES {{ renewal_total_balance|floatformat:0 }}</span>
+                        <span class="font-medium text-red-600">{{ brand.currency }} {{ renewal_total_balance|floatformat:0 }}</span>
                     </div>
                     {% if renewal_total_deposit > 0 %}
                     <div class="flex justify-between text-gray-700">
                         <span>Deposit(s) recorded</span>
-                        <span class="font-medium text-emerald-700">KES {{ renewal_total_deposit|floatformat:0 }}</span>
+                        <span class="font-medium text-emerald-700">{{ brand.currency }} {{ renewal_total_deposit|floatformat:0 }}</span>
                     </div>
                     {% endif %}
                     <div class="flex justify-between font-bold text-base pt-1 border-t border-blue-300 mt-1">
                         <span class="text-gray-800">Total Owed</span>
-                        <span class="text-red-700">KES {{ combined_owed|floatformat:0 }}</span>
+                        <span class="text-red-700">{{ brand.currency }} {{ combined_owed|floatformat:0 }}</span>
                     </div>
                 </div>
             </div>
@@ -361,22 +361,22 @@
                     <div class="grid grid-cols-2 gap-3 mt-2">
                         <div>
                             <p class="text-indigo-500 text-xs">Original Balance</p>
-                            <p class="font-semibold {% if original_balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">KES {{ original_balance|floatformat:0 }}</p>
+                            <p class="font-semibold {% if original_balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">{{ brand.currency }} {{ original_balance|floatformat:0 }}</p>
                         </div>
                         <div>
                             <p class="text-indigo-500 text-xs">This Policy Balance</p>
-                            <p class="font-semibold {% if policy.insurance_balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">KES {{ policy.insurance_balance|floatformat:0 }}</p>
+                            <p class="font-semibold {% if policy.insurance_balance > 0 %}text-red-700{% else %}text-emerald-700{% endif %}">{{ brand.currency }} {{ policy.insurance_balance|floatformat:0 }}</p>
                         </div>
                         {% if policy.insurance_deposit > 0 %}
                         <div class="col-span-2">
                             <p class="text-indigo-500 text-xs">Deposit Recorded</p>
-                            <p class="font-semibold text-emerald-700">KES {{ policy.insurance_deposit|floatformat:0 }}</p>
+                            <p class="font-semibold text-emerald-700">{{ brand.currency }} {{ policy.insurance_deposit|floatformat:0 }}</p>
                         </div>
                         {% endif %}
                     </div>
                     <div class="flex justify-between font-bold text-base pt-2 border-t border-indigo-300 mt-2">
                         <span>Total Owed</span>
-                        <span class="text-red-700">KES {{ combined_owed_with_original|floatformat:0 }}</span>
+                        <span class="text-red-700">{{ brand.currency }} {{ combined_owed_with_original|floatformat:0 }}</span>
                     </div>
                 </div>
             </div>

@@ -34,7 +34,7 @@
             </div>
             <div>
                 <p class="text-gray-600">Starting Price:</p>
-                <p class="font-medium text-gray-900">KES {{ auction.starting_price|floatformat:0 }}</p>
+                <p class="font-medium text-gray-900">{{ brand.currency }} {{ auction.starting_price|floatformat:0 }}</p>
             </div>
             <div>
                 <p class="text-gray-600">Start Date:</p>
@@ -53,13 +53,13 @@
             {% if auction.registration_fee %}
             <li class="flex items-center">
                 <i class="fas fa-check-circle text-yellow-600 mr-2"></i>
-                Registration Fee: <strong class="ml-1">KES {{ auction.registration_fee|floatformat:0 }}</strong>
+                Registration Fee: <strong class="ml-1">{{ brand.currency }} {{ auction.registration_fee|floatformat:0 }}</strong>
             </li>
             {% endif %}
             {% if auction.require_deposit %}
             <li class="flex items-center">
                 <i class="fas fa-check-circle text-yellow-600 mr-2"></i>
-                Security Deposit: <strong class="ml-1">KES {{ auction.deposit_amount|floatformat:0 }}</strong>
+                Security Deposit: <strong class="ml-1">{{ brand.currency }} {{ auction.deposit_amount|floatformat:0 }}</strong>
                 <span class="ml-1 text-xs">(Refundable)</span>
             </li>
             {% endif %}
@@ -122,19 +122,19 @@
                         {% if auction.registration_fee %}
                         <div class="flex justify-between">
                             <span class="text-sm text-gray-600">Registration Fee:</span>
-                            <span class="text-sm font-medium text-gray-900">KES {{ auction.registration_fee|floatformat:0 }}</span>
+                            <span class="text-sm font-medium text-gray-900">{{ brand.currency }} {{ auction.registration_fee|floatformat:0 }}</span>
                         </div>
                         {% endif %}
                         {% if auction.require_deposit %}
                         <div class="flex justify-between">
                             <span class="text-sm text-gray-600">Security Deposit:</span>
-                            <span class="text-sm font-medium text-gray-900">KES {{ auction.deposit_amount|floatformat:0 }}</span>
+                            <span class="text-sm font-medium text-gray-900">{{ brand.currency }} {{ auction.deposit_amount|floatformat:0 }}</span>
                         </div>
                         {% endif %}
                         <div class="flex justify-between pt-2 border-t border-gray-300">
                             <span class="text-sm font-bold text-gray-900">Total Due:</span>
                             <span class="text-lg font-bold text-primary-600">
-                                KES {{ total_amount|floatformat:0 }}
+                                {{ brand.currency }} {{ total_amount|floatformat:0 }}
                             </span>
                         </div>
                     </div>

@@ -13,6 +13,7 @@ rules:
   by PaymentReferenceClaim's conditional unique constraint.
 - Reversals are requested with a reason and applied by an admin.
 """
+from apps.company.services import currency
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -88,7 +89,7 @@ def find_reference_conflicts(portions, client_vehicle, exclude_request=None):
         if payment:
             conflicts.append(
                 f'Reference {ref} is already recorded on receipt {payment.receipt_number} '
-                f'({payment.client_vehicle.client.get_full_name()}, KES {payment.amount:,.2f}, '
+                f'({payment.client_vehicle.client.get_full_name()}, {currency()} {payment.amount:,.2f}, '
                 f'{payment.payment_date:%d %b %Y}).'
             )
             continue
@@ -102,7 +103,7 @@ def find_reference_conflicts(portions, client_vehicle, exclude_request=None):
         if split:
             conflicts.append(
                 f'Reference {ref} is already recorded on receipt {split.payment.receipt_number} '
-                f'({split.payment.client_vehicle.client.get_full_name()}, split portion KES {split.amount:,.2f}).'
+                f'({split.payment.client_vehicle.client.get_full_name()}, split portion {currency()} {split.amount:,.2f}).'
             )
             continue
 
@@ -138,7 +139,7 @@ def find_possible_duplicate(client_vehicle, amount, payment_date, exclude_reques
         client_vehicle=client_vehicle, amount=amount, payment_date=payment_date, is_reversed=False,
     ).first()
     if payment:
-        return (f'Receipt {payment.receipt_number} already records KES {amount:,.2f} '
+        return (f'Receipt {payment.receipt_number} already records {currency()} {amount:,.2f} '
                 f'for this sale on {payment_date:%d %b %Y}.')
     pending = PaymentRequest.objects.filter(
         client_vehicle=client_vehicle, request_type=PaymentRequest.TYPE_RECORD,
@@ -148,7 +149,7 @@ def find_possible_duplicate(client_vehicle, amount, payment_date, exclude_reques
         pending = pending.exclude(pk=exclude_request.pk)
     pending = pending.first()
     if pending:
-        return (f'Payment request #{pending.pk} for KES {amount:,.2f} on {payment_date:%d %b %Y} '
+        return (f'Payment request #{pending.pk} for {currency()} {amount:,.2f} on {payment_date:%d %b %Y} '
                 'is already awaiting approval for this sale.')
     return ''
 
@@ -305,7 +306,7 @@ def submit_payment_request(user, client_vehicle, data):
 
     _notify(
         _approvers(), 'Payment awaiting approval',
-        f'{user.get_full_name() or user.email} recorded KES {payment_request.amount:,.2f} for '
+        f'{user.get_full_name() or user.email} recorded {currency()} {payment_request.amount:,.2f} for '
         f'{client_vehicle.client.get_full_name()} — approval needed.',
         reverse('payments:payment_request_list'), priority='high',
     )
@@ -347,7 +348,7 @@ def submit_reversal_request(user, payment, reason):
     _notify(
         _approvers(), 'Payment reversal awaiting approval',
         f'{user.get_full_name() or user.email} asked to reverse receipt {payment.receipt_number} '
-        f'(KES {payment.amount:,.2f}): {reason}',
+        f'({currency()} {payment.amount:,.2f}): {reason}',
         reverse('payments:payment_request_list'), priority='high',
     )
     return payment_request
@@ -412,7 +413,7 @@ def approve_payment_request(payment_request, user, note=''):
         _notify(
             [payment_request.requested_by], f'{what} approved',
             f'Your {payment_request.get_request_type_display().lower()} request #{payment_request.pk} '
-            f'(KES {payment_request.amount:,.2f}) was approved.',
+            f'({currency()} {payment_request.amount:,.2f}) was approved.',
             reverse('payments:payment_detail', args=[payment.pk]),
         )
     return payment
@@ -437,7 +438,7 @@ def reject_payment_request(payment_request, user, note=''):
         _notify(
             [payment_request.requested_by], 'Payment request rejected',
             f'Your {payment_request.get_request_type_display().lower()} request #{payment_request.pk} '
-            f'(KES {payment_request.amount:,.2f}) was rejected{": " + note if note else "."}',
+            f'({currency()} {payment_request.amount:,.2f}) was rejected{": " + note if note else "."}',
             reverse('payments:payment_request_list'),
         )
     return payment_request

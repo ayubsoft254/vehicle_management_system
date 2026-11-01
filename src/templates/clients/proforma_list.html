@@ -61,7 +61,7 @@
         </div>
         <div class="bg-white rounded-xl shadow-sm p-4 text-center">
             <p class="text-xs text-emerald-600 mb-1">Deposits (Month)</p>
-            <p class="text-lg font-bold text-emerald-700">KES {{ kpis.deposits_this_month|floatformat:0|intcomma }}</p>
+            <p class="text-lg font-bold text-emerald-700">{{ brand.currency }} {{ kpis.deposits_this_month|floatformat:0|intcomma }}</p>
         </div>
         <a href="?status=converted" class="bg-white rounded-xl shadow-sm p-4 text-center hover:shadow-md transition">
             <p class="text-xs text-green-600 mb-1">Converted to Sale</p>
@@ -85,7 +85,7 @@
             <a href="{% url 'clients:proforma_detail' r.proforma_id %}"
                class="flex items-center justify-between bg-white rounded-lg px-4 py-2 text-sm hover:shadow transition">
                 <span class="font-medium text-gray-800">{{ r.vehicle.full_name }} — {{ r.client.get_full_name }}</span>
-                <span class="text-red-600 font-semibold">Expired {{ r.expiry_date|date:"M d, Y" }} · Deposit KES {{ r.deposit_amount|floatformat:0|intcomma }}</span>
+                <span class="text-red-600 font-semibold">Expired {{ r.expiry_date|date:"M d, Y" }} · Deposit {{ brand.currency }} {{ r.deposit_amount|floatformat:0|intcomma }}</span>
             </a>
             {% endfor %}
         </div>
@@ -155,9 +155,9 @@
                             {{ p.get_payment_mode_display }}
                             {% if p.financing_bank %}<p class="text-xs text-gray-400">{{ p.financing_bank }}</p>{% endif %}
                         </td>
-                        <td class="px-4 py-3 text-right text-sm font-semibold text-gray-800">KES {{ p.total_price|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right text-sm font-semibold text-gray-800">{{ brand.currency }} {{ p.total_price|floatformat:0|intcomma }}</td>
                         <td class="px-4 py-3 text-right text-sm text-emerald-700 font-semibold">
-                            {% if p.total_deposits_confirmed > 0 %}KES {{ p.total_deposits_confirmed|floatformat:0|intcomma }}{% else %}—{% endif %}
+                            {% if p.total_deposits_confirmed > 0 %}{{ brand.currency }} {{ p.total_deposits_confirmed|floatformat:0|intcomma }}{% else %}—{% endif %}
                         </td>
                         <td class="px-4 py-3 text-sm">
                             <span class="px-2.5 py-1 rounded-full text-xs font-semibold

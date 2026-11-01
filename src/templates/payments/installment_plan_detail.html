@@ -103,15 +103,15 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                     <div class="bg-blue-50 rounded-lg p-4">
                         <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Principal Amount</label>
-                        <p class="text-2xl font-bold text-blue-600">KES {{ plan.principal_amount|floatformat:2 }}</p>
+                        <p class="text-2xl font-bold text-blue-600">{{ brand.currency }} {{ plan.principal_amount|floatformat:2 }}</p>
                     </div>
                     <div class="bg-green-50 rounded-lg p-4">
                         <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Total Paid</label>
-                        <p class="text-2xl font-bold text-green-600">KES {{ plan.total_paid|floatformat:2 }}</p>
+                        <p class="text-2xl font-bold text-green-600">{{ brand.currency }} {{ plan.total_paid|floatformat:2 }}</p>
                     </div>
                     <div class="bg-red-50 rounded-lg p-4">
                         <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Remaining Balance</label>
-                        <p class="text-2xl font-bold text-red-600">KES {{ plan.remaining_balance|floatformat:2 }}</p>
+                        <p class="text-2xl font-bold text-red-600">{{ brand.currency }} {{ plan.remaining_balance|floatformat:2 }}</p>
                     </div>
                 </div>
 
@@ -143,11 +143,11 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-500 mb-1">Monthly Payment</label>
-                        <p class="text-base font-semibold text-green-600">KES {{ plan.monthly_payment|floatformat:2 }}</p>
+                        <p class="text-base font-semibold text-green-600">{{ brand.currency }} {{ plan.monthly_payment|floatformat:2 }}</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-500 mb-1">Total Interest</label>
-                        <p class="text-base font-semibold text-gray-900">KES {{ plan.total_interest|floatformat:2 }}</p>
+                        <p class="text-base font-semibold text-gray-900">{{ brand.currency }} {{ plan.total_interest|floatformat:2 }}</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-500 mb-1">Start Date</label>
@@ -209,7 +209,7 @@
                             <p class="text-xs text-gray-500 mt-1">{{ payment.payment_date|date:"M d, Y" }}</p>
                         </div>
                         <div class="text-right">
-                            <p class="text-base font-bold text-green-600">KES {{ payment.amount|floatformat:2 }}</p>
+                            <p class="text-base font-bold text-green-600">{{ brand.currency }} {{ payment.amount|floatformat:2 }}</p>
                             <a href="{% url 'payments:payment_detail' payment.pk %}" class="text-xs text-primary-600 hover:text-primary-800">
                                 View <i class="fas fa-external-link-alt ml-1"></i>
                             </a>

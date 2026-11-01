@@ -55,17 +55,17 @@
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Commission</p>
-            <p class="text-xl font-bold text-blue-700 mt-1">KES {{ grand_commission|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-blue-700 mt-1">{{ brand.currency }} {{ grand_commission|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-0.5">Across all sales</p>
         </div>
         <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Debit</p>
-            <p class="text-xl font-bold text-green-700 mt-1">KES {{ grand_paid|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-green-700 mt-1">{{ brand.currency }} {{ grand_paid|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-0.5">Commissions settled</p>
         </div>
         <div class="bg-white rounded-xl border border-red-100 shadow-sm p-4">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Outstanding</p>
-            <p class="text-xl font-bold text-red-700 mt-1">KES {{ grand_owed|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold text-red-700 mt-1">{{ brand.currency }} {{ grand_owed|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-0.5">Unpaid to brokers</p>
         </div>
     </div>
@@ -108,11 +108,11 @@
                             {% if broker.email %}<p class="text-xs text-gray-400">{{ broker.email }}</p>{% endif %}
                         </td>
                         <td class="px-6 py-4 text-right font-medium text-gray-700">{{ broker.total_sales }}</td>
-                        <td class="px-6 py-4 text-right text-gray-700">KES {{ broker.total_commission|floatformat:0|intcomma }}</td>
-                        <td class="px-6 py-4 text-right text-green-700 font-medium">KES {{ broker.total_payments_made|floatformat:0|intcomma }}</td>
+                        <td class="px-6 py-4 text-right text-gray-700">{{ brand.currency }} {{ broker.total_commission|floatformat:0|intcomma }}</td>
+                        <td class="px-6 py-4 text-right text-green-700 font-medium">{{ brand.currency }} {{ broker.total_payments_made|floatformat:0|intcomma }}</td>
                         <td class="px-6 py-4 text-right">
                             {% if broker.total_owed > 0 %}
-                            <span class="font-semibold text-red-600">KES {{ broker.total_owed|floatformat:0|intcomma }}</span>
+                            <span class="font-semibold text-red-600">{{ brand.currency }} {{ broker.total_owed|floatformat:0|intcomma }}</span>
                             {% else %}
                             <span class="text-gray-400 text-xs">—</span>
                             {% endif %}

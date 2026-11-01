@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Browse Auctions - Vehicle Management System{% endblock %}
+{% block title %}Browse Auctions - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -171,7 +171,7 @@
                         <div class="bg-gray-50 rounded-lg p-3 mb-3">
                             <div class="flex justify-between items-center mb-2">
                                 <span class="text-xs text-gray-500">Current Bid</span>
-                                <span class="text-lg font-bold text-primary-600">KES {{ auction.current_bid|floatformat:0 }}</span>
+                                <span class="text-lg font-bold text-primary-600">{{ brand.currency }} {{ auction.current_bid|floatformat:0 }}</span>
                             </div>
                             <div class="flex justify-between items-center text-xs text-gray-500">
                                 <span><i class="fas fa-gavel mr-1"></i> {{ auction.total_bids }} bids</span>

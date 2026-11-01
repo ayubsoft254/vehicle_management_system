@@ -23,8 +23,8 @@
 
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">HOZA / KE Account Withdrawals</h1>
-            <p class="mt-2 text-gray-600">All recorded account withdrawals for HOZA and KE payment methods.</p>
+            <h1 class="text-2xl font-bold text-gray-900">{{ channel_groups.hoza }} / {{ channel_groups.ke }} Account Withdrawals</h1>
+            <p class="mt-2 text-gray-600">All recorded account withdrawals for {{ channel_groups.hoza }} and {{ channel_groups.ke }} accounts.</p>
         </div>
         <a href="{% url 'payments:record_account_withdrawal' %}" class="inline-flex items-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg transition duration-150 shadow-sm">
             <i class="fas fa-file-export mr-2"></i>Record Withdrawal
@@ -74,7 +74,7 @@
                     <tr class="hover:bg-gray-50 transition-colors duration-150">
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ withdrawal.withdrawal_date|date:'M d, Y' }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ withdrawal.get_payment_method_display }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600">KES {{ withdrawal.amount|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600">{{ brand.currency }} {{ withdrawal.amount|floatformat:2 }}</td>
                         <td class="px-6 py-4 text-sm text-gray-600">{{ withdrawal.reason|default:'—' }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{% if withdrawal.recorded_by %}{{ withdrawal.recorded_by.get_full_name }}{% else %}System{% endif %}</td>
                     </tr>

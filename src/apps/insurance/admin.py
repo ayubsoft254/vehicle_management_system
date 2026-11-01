@@ -2,6 +2,7 @@
 Admin configuration for insurance app
 Provides admin interface for managing insurance providers, policies, claims, and payments
 """
+from apps.company.services import currency
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -199,7 +200,7 @@ class InsurancePolicyAdmin(admin.ModelAdmin):
     policy_type_badge.admin_order_field = 'policy_type'
     
     def premium_display(self, obj):
-        return format_html('KES {}', '{:,.2f}'.format(obj.premium_amount or 0))
+        return format_html(currency() + ' {}', '{:,.2f}'.format(obj.premium_amount or 0))
     premium_display.short_description = 'Premium'
     premium_display.admin_order_field = 'premium_amount'
     
@@ -428,7 +429,7 @@ class InsuranceClaimAdmin(admin.ModelAdmin):
     
     def claimed_amount_display(self, obj):
         """Display claimed amount"""
-        return format_html('KES {:,.2f}', obj.claimed_amount)
+        return format_html(currency() + ' {:,.2f}', obj.claimed_amount)
     claimed_amount_display.short_description = 'Claimed'
     claimed_amount_display.admin_order_field = 'claimed_amount'
     
@@ -436,7 +437,7 @@ class InsuranceClaimAdmin(admin.ModelAdmin):
         """Display approved amount"""
         if obj.approved_amount > 0:
             return format_html(
-                '<span style="color: #28a745; font-weight: bold;">KES {:,.2f}</span>',
+                '<span style="color: #28a745; font-weight: bold;">' + currency() + ' {:,.2f}</span>',
                 obj.approved_amount
             )
         return '-'
@@ -577,7 +578,7 @@ class InsurancePaymentAdmin(admin.ModelAdmin):
     def amount_display(self, obj):
         """Display amount formatted"""
         return format_html(
-            '<span style="color: #28a745; font-weight: bold;">KES {:,.2f}</span>',
+            '<span style="color: #28a745; font-weight: bold;">' + currency() + ' {:,.2f}</span>',
             obj.amount
         )
     amount_display.short_description = 'Amount'

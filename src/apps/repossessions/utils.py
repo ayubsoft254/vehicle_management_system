@@ -3,6 +3,7 @@ Utility functions for the repossessions app.
 Handles repossession logic, calculations, notifications, and reporting.
 """
 
+from apps.company.services import currency
 from django.db.models import Sum, Count, Avg, Q
 from django.utils import timezone
 from django.core.mail import send_mail
@@ -216,7 +217,7 @@ Dear {client.name},
 
 This is to inform you that your account is currently in default with {repossession.payments_missed} missed payment(s).
 
-Outstanding Amount: KES {repossession.outstanding_amount:,.2f}
+Outstanding Amount: {currency()} {repossession.outstanding_amount:,.2f}
 Last Payment Date: {repossession.last_payment_date or 'N/A'}
 
 Vehicle Details:
@@ -237,7 +238,7 @@ Dear {client.name},
 
 This is your FINAL NOTICE regarding the default on your account.
 
-Outstanding Amount: KES {repossession.outstanding_amount:,.2f}
+Outstanding Amount: {currency()} {repossession.outstanding_amount:,.2f}
 Days Overdue: {repossession.get_days_in_process()}
 
 Despite previous communications, your account remains in default. You have 7 days from the date of this notice to settle the outstanding amount or make satisfactory payment arrangements.
@@ -259,7 +260,7 @@ Take notice that pursuant to the terms of your financing agreement and applicabl
 
 Make/Model: {vehicle.make} {vehicle.model}
 Registration: {vehicle.registration_number}
-Outstanding Amount: KES {repossession.outstanding_amount:,.2f}
+Outstanding Amount: {currency()} {repossession.outstanding_amount:,.2f}
 
 This action is being taken due to default on payment obligations. You have breached the terms of the agreement by failing to make required payments.
 
@@ -556,7 +557,7 @@ Repossession Update: {repossession.repossession_number}
 Vehicle: {repossession.vehicle}
 Client: {repossession.client}
 Status: {repossession.get_status_display()}
-Outstanding: KES {repossession.outstanding_amount:,.2f}
+Outstanding: {currency()} {repossession.outstanding_amount:,.2f}
 Days in Process: {repossession.get_days_in_process()}
 
 Assigned To: {repossession.assigned_to.get_full_name() if repossession.assigned_to else 'Unassigned'}
@@ -601,7 +602,7 @@ Vehicle Successfully Recovered
 Repossession: {repossession.repossession_number}
 Vehicle: {repossession.vehicle}
 Client: {repossession.client}
-Outstanding Amount: KES {repossession.outstanding_amount:,.2f}
+Outstanding Amount: {currency()} {repossession.outstanding_amount:,.2f}
 Recovery Date: {repossession.recovery_date}
 Location: {repossession.current_location}
 

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Tracker Management - Vehicle Management System{% endblock %}
+{% block title %}Tracker Management - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -34,15 +34,15 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm text-gray-500">Total Tracker Value</p>
-            <p class="text-xl font-bold text-gray-900 mt-1">KES {{ total_sold_value|floatformat:2 }}</p>
+            <p class="text-xl font-bold text-gray-900 mt-1">{{ brand.currency }} {{ total_sold_value|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm text-gray-500">Total Collected</p>
-            <p class="text-xl font-bold text-green-700 mt-1">KES {{ total_paid_value|floatformat:2 }}</p>
+            <p class="text-xl font-bold text-green-700 mt-1">{{ brand.currency }} {{ total_paid_value|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm text-gray-500">Outstanding Balance</p>
-            <p class="text-xl font-bold text-red-700 mt-1">KES {{ total_balance_value|floatformat:2 }}</p>
+            <p class="text-xl font-bold text-red-700 mt-1">{{ brand.currency }} {{ total_balance_value|floatformat:2 }}</p>
         </div>
     </div>
 
@@ -68,9 +68,9 @@
                         <tr>
                             <td class="px-3 py-3 text-gray-700">{{ vendor.provider_display|default:'Unknown' }}</td>
                             <td class="px-3 py-3 text-right text-gray-700">{{ vendor.tracker_count }}</td>
-                            <td class="px-3 py-3 text-right font-semibold text-gray-900">KES {{ vendor.total_sold|floatformat:2 }}</td>
-                            <td class="px-3 py-3 text-right font-semibold text-green-700">KES {{ vendor.total_paid|floatformat:2 }}</td>
-                            <td class="px-3 py-3 text-right font-semibold text-red-700">KES {{ vendor.total_balance|floatformat:2 }}</td>
+                            <td class="px-3 py-3 text-right font-semibold text-gray-900">{{ brand.currency }} {{ vendor.total_sold|floatformat:2 }}</td>
+                            <td class="px-3 py-3 text-right font-semibold text-green-700">{{ brand.currency }} {{ vendor.total_paid|floatformat:2 }}</td>
+                            <td class="px-3 py-3 text-right font-semibold text-red-700">{{ brand.currency }} {{ vendor.total_balance|floatformat:2 }}</td>
                         </tr>
                         {% empty %}
                         <tr>
@@ -149,10 +149,10 @@
                         <td class="px-4 py-3 text-gray-700">{{ tracker.client_vehicle.client.get_full_name }}</td>
                         <td class="px-4 py-3 text-gray-700">{{ tracker.client_vehicle.vehicle.registration_number }}</td>
                         <td class="px-4 py-3 text-gray-700">{{ tracker.provider|default:'N/A' }}</td>
-                        <td class="px-4 py-3 font-semibold text-gray-900">KES {{ tracker.selling_price|floatformat:2 }}</td>
-                        <td class="px-4 py-3 font-semibold text-green-700">KES {{ tracker.total_paid|floatformat:2 }}</td>
+                        <td class="px-4 py-3 font-semibold text-gray-900">{{ brand.currency }} {{ tracker.selling_price|floatformat:2 }}</td>
+                        <td class="px-4 py-3 font-semibold text-green-700">{{ brand.currency }} {{ tracker.total_paid|floatformat:2 }}</td>
                         <td class="px-4 py-3 font-semibold {% if tracker.balance > 0 %}text-red-700{% else %}text-green-700{% endif %}">
-                            KES {{ tracker.balance|floatformat:2 }}
+                            {{ brand.currency }} {{ tracker.balance|floatformat:2 }}
                         </td>
                         <td class="px-4 py-3">
                             {% if tracker.payment_status_color == 'green' %}

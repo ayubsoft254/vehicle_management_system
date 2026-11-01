@@ -3,6 +3,7 @@ Admin configuration for the expenses app.
 Provides comprehensive expense management interface in Django admin.
 """
 
+from apps.company.services import currency
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -317,7 +318,7 @@ class ExpenseCategoryAdmin(admin.ModelAdmin):
     def total_spent(self, obj):
         """Display total amount spent in category."""
         total = obj.exp_total if hasattr(obj, 'exp_total') else Decimal('0.00')
-        return f"KES {total or 0:,.2f}"
+        return f"{currency()} {total or 0:,.2f}"
     total_spent.short_description = 'Total Spent'
     total_spent.admin_order_field = 'exp_total'
 

@@ -2,6 +2,7 @@
 Utility functions for the insurance app
 Includes reminder sending, PDF generation, and helper functions
 """
+from apps.company.services import currency
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -145,14 +146,14 @@ def send_claim_update_notification(claim, update_type='status_change'):
     - Vehicle: {claim.vehicle}
     - Claim Type: {claim.get_claim_type_display()}
     - Status: {claim.get_status_display()}
-    - Claimed Amount: KES {claim.claimed_amount:,.2f}
+    - Claimed Amount: {currency()} {claim.claimed_amount:,.2f}
     """
     
     if claim.approved_amount > 0:
-        message += f"- Approved Amount: KES {claim.approved_amount:,.2f}\n"
+        message += f"- Approved Amount: {currency()} {claim.approved_amount:,.2f}\n"
     
     if claim.settled_amount > 0:
-        message += f"- Settled Amount: KES {claim.settled_amount:,.2f}\n"
+        message += f"- Settled Amount: {currency()} {claim.settled_amount:,.2f}\n"
     
     if claim.rejection_reason:
         message += f"\nRejection Reason:\n{claim.rejection_reason}\n"
@@ -481,9 +482,9 @@ def generate_policy_certificate_pdf(policy):
     # Coverage details
     elements.append(Paragraph("<b>COVERAGE DETAILS:</b>", styles['Heading2']))
     coverage_data = [
-        ['Premium Amount:', f"KES {policy.premium_amount:,.2f}"],
-        ['Sum Insured:', f"KES {policy.sum_insured:,.2f}"],
-        ['Excess Amount:', f"KES {policy.excess_amount:,.2f}"],
+        ['Premium Amount:', f"{currency()} {policy.premium_amount:,.2f}"],
+        ['Sum Insured:', f"{currency()} {policy.sum_insured:,.2f}"],
+        ['Excess Amount:', f"{currency()} {policy.excess_amount:,.2f}"],
     ]
     
     coverage_table = Table(coverage_data, colWidths=[2.5*inch, 4*inch])
@@ -597,10 +598,10 @@ def generate_claim_report_pdf(claim):
     # Financial summary
     elements.append(Paragraph("<b>FINANCIAL SUMMARY:</b>", styles['Heading2']))
     financial_data = [
-        ['Claimed Amount:', f"KES {claim.claimed_amount:,.2f}"],
-        ['Approved Amount:', f"KES {claim.approved_amount:,.2f}"],
-        ['Settled Amount:', f"KES {claim.settled_amount:,.2f}"],
-        ['Excess Paid:', f"KES {claim.excess_paid:,.2f}"],
+        ['Claimed Amount:', f"{currency()} {claim.claimed_amount:,.2f}"],
+        ['Approved Amount:', f"{currency()} {claim.approved_amount:,.2f}"],
+        ['Settled Amount:', f"{currency()} {claim.settled_amount:,.2f}"],
+        ['Excess Paid:', f"{currency()} {claim.excess_paid:,.2f}"],
     ]
     
     financial_table = Table(financial_data, colWidths=[2.5*inch, 4*inch])
@@ -663,14 +664,14 @@ def validate_claim_amount(claimed_amount, sum_insured):
         return False, "Claim amount must be greater than zero"
     
     if claimed_amount > sum_insured:
-        return False, f"Claim amount (KES {claimed_amount:,.2f}) cannot exceed sum insured (KES {sum_insured:,.2f})"
+        return False, f"Claim amount ({currency()} {claimed_amount:,.2f}) cannot exceed sum insured ({currency()} {sum_insured:,.2f})"
     
     return True, None
 
 
 # ==================== FORMAT UTILITIES ====================
 
-def format_currency(amount, currency='KES'):
+def format_currency(amount, currency=None):
     """
     Format amount as currency string
     
@@ -681,6 +682,9 @@ def format_currency(amount, currency='KES'):
     Returns:
         str: Formatted currency string
     """
+    if currency is None:
+        from apps.company.services import get_company
+        currency = get_company().currency_code
     return f"{currency} {amount:,.2f}"
 
 

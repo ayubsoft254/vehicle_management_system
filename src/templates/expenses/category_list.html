@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Expense Categories - Vehicle Management System{% endblock %}
+{% block title %}Expense Categories - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -61,7 +61,7 @@
                     </div>
                     <div class="bg-gray-50 rounded-lg p-3">
                         <p class="text-xs text-gray-500 mb-1">Total Amount</p>
-                        <p class="text-sm font-bold text-gray-900">KES {{ category.total_amount|floatformat:0|default:"0" }}</p>
+                        <p class="text-sm font-bold text-gray-900">{{ brand.currency }} {{ category.total_amount|floatformat:0|default:"0" }}</p>
                     </div>
                 </div>
 
@@ -82,8 +82,8 @@
                              style="width: {{ category.budget_percentage|floatformat:0 }}%"></div>
                     </div>
                     <div class="flex justify-between items-center mt-1">
-                        <span class="text-xs text-gray-500">KES {{ category.get_total_expenses|floatformat:0 }}</span>
-                        <span class="text-xs text-gray-500">KES {{ category.budget_limit|floatformat:0 }}</span>
+                        <span class="text-xs text-gray-500">{{ brand.currency }} {{ category.get_total_expenses|floatformat:0 }}</span>
+                        <span class="text-xs text-gray-500">{{ brand.currency }} {{ category.budget_limit|floatformat:0 }}</span>
                     </div>
                 </div>
                 {% endif %}
@@ -150,7 +150,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">Total Budget</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-2">KES {{ total_budget|floatformat:0|default:"0" }}</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-2">{{ brand.currency }} {{ total_budget|floatformat:0|default:"0" }}</p>
                 </div>
                 <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                     <i class="fas fa-wallet text-2xl text-green-600"></i>
@@ -162,7 +162,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600">Total Spent</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-2">KES {{ total_spent|floatformat:0|default:"0" }}</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-2">{{ brand.currency }} {{ total_spent|floatformat:0|default:"0" }}</p>
                 </div>
                 <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                     <i class="fas fa-chart-pie text-2xl text-purple-600"></i>

@@ -2,6 +2,7 @@
 Models for the payments app
 Handles payment records, installment plans, and payment schedules
 """
+from apps.company.services import currency
 from django.db import models, transaction as db_transaction
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
@@ -10,6 +11,10 @@ from django.utils import timezone
 from decimal import Decimal
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
+
+from django.utils.choices import CallableChoiceIterator
+
+from . import channels
 
 User = get_user_model()
 
@@ -103,21 +108,8 @@ class Payment(models.Model):
     Links to ClientVehicle from clients app
     """
     
-    PAYMENT_METHOD_CHOICES = [
-        ('cash', 'Cash'),
-        ('mpesa', 'M-Pesa'),
-        ('bank_transfer', 'Bank Transfer'),
-        ('equity_hoza', 'Equity Hoza'),
-        ('dib_hoza', 'DIB Hoza'),
-        ('coop_hoza', 'COOP Hoza'),
-        ('kcb_ke', 'KCB KE'),
-        ('absa_ke', 'ABSA KE'),
-        ('equity_ke', 'EQUITY KE'),
-        ('cheque', 'Cheque'),
-        ('card', 'Credit/Debit Card'),
-        ('mixed', 'Multiple Methods'),
-        ('other', 'Other'),
-    ]
+    # Generic methods + the company's accounts — see payments/channels.py
+    PAYMENT_METHOD_CHOICES = channels.PAYMENT_METHOD_CHOICES
     
     # Foreign Keys
     client_vehicle = models.ForeignKey(
@@ -142,7 +134,7 @@ class Payment(models.Model):
     
     payment_method = models.CharField(
         max_length=20,
-        choices=PAYMENT_METHOD_CHOICES,
+        choices=channels.payment_method_choices,
         default='cash',
         help_text="Method of payment"
     )
@@ -228,7 +220,7 @@ class Payment(models.Model):
     def __str__(self):
         # Convert amount to float to ensure proper formatting (avoids SafeString formatting issues)
         amount_value = float(self.amount) if self.amount else 0.0
-        return f"Payment {self.receipt_number or self.pk} - KES {amount_value:,.2f}"
+        return f"Payment {self.receipt_number or self.pk} - {currency()} {amount_value:,.2f}"
     
     def save(self, *args, **kwargs):
         """Generate receipt number if not provided"""
@@ -299,21 +291,12 @@ class Payment(models.Model):
 class AccountWithdrawal(models.Model):
     """Record withdrawals from HOZA and KE accounts."""
 
-    HOZA_METHODS = ('equity_hoza', 'dib_hoza', 'coop_hoza')
-    KE_METHODS = ('kcb_ke', 'absa_ke', 'equity_ke')
-    PAYMENT_METHOD_CHOICES = [
-        ('equity_hoza', 'Equity Hoza'),
-        ('dib_hoza', 'DIB Hoza'),
-        ('coop_hoza', 'COOP Hoza'),
-        ('kcb_ke', 'KCB KE'),
-        ('absa_ke', 'ABSA KE'),
-        ('equity_ke', 'EQUITY KE'),
-    ]
+    PAYMENT_METHOD_CHOICES = channels.WITHDRAWAL_METHOD_CHOICES
 
     payment_method = models.CharField(
         max_length=20,
-        choices=PAYMENT_METHOD_CHOICES,
-        help_text='HOZA or KE account where the withdrawal originated'
+        choices=channels.withdrawal_method_choices,
+        help_text='Account where the withdrawal originated'
     )
 
     amount = models.DecimalField(
@@ -355,23 +338,20 @@ class AccountWithdrawal(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.get_payment_method_display()} withdrawal - KES {self.amount:,.2f} on {self.withdrawal_date}"
+        return f"{self.get_payment_method_display()} withdrawal - {self.amount:,.2f} on {self.withdrawal_date}"
 
     @property
     def is_hoza(self):
-        return self.payment_method in self.HOZA_METHODS
+        return channels.group_of(self.payment_method) == 'hoza'
 
     @property
     def is_ke(self):
-        return self.payment_method in self.KE_METHODS
+        return channels.group_of(self.payment_method) == 'ke'
 
     @property
     def account_category(self):
-        if self.is_hoza:
-            return 'HOZA'
-        if self.is_ke:
-            return 'KE'
-        return 'Unknown'
+        group = channels.group_of(self.payment_method)
+        return channels.group_label(group).upper() if group else 'Unknown'
 
 
 # ==================== PAYMENT SPLIT MODEL ====================
@@ -393,7 +373,7 @@ class PaymentSplit(models.Model):
 
     payment_method = models.CharField(
         max_length=20,
-        choices=PAYMENT_METHOD_CHOICES,
+        choices=channels.payment_method_choices,
         help_text='Payment method for this portion'
     )
 
@@ -426,8 +406,13 @@ class PaymentSplit(models.Model):
         verbose_name_plural = 'Payment Splits'
         ordering = ['created_at']
 
+    @property
+    def method_group(self):
+        """Account group of this split's method ('hoza', 'ke', … or '')."""
+        return channels.group_of(self.payment_method)
+
     def __str__(self):
-        return f"{self.get_payment_method_display()} — KES {self.amount:,.2f}"
+        return f"{self.get_payment_method_display()} — {currency()} {self.amount:,.2f}"
 
 
 # ==================== INSTALLMENT PLAN MODEL ====================
@@ -1028,7 +1013,7 @@ class MpesaSTKRequest(models.Model):
 
     def __str__(self):
         account = self.account_reference or 'no-ref'
-        return f"{account} - KES {self.amount:,.2f} ({self.get_status_display()})"
+        return f"{account} - {currency()} {self.amount:,.2f} ({self.get_status_display()})"
 
 
 # ==================== UPDATED: PaybillTransaction with Increased Field Lengths ====================
@@ -1074,7 +1059,7 @@ class PaybillTransaction(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.trans_id} - KES {self.trans_amount:,.2f}"
+        return f"{self.trans_id} - {currency()} {self.trans_amount:,.2f}"
 
     @property
     def payer_name(self):
@@ -1157,12 +1142,8 @@ class Account(models.Model):
     AccountTransaction/AccountTransfer records.
     """
 
-    CATEGORY_CHOICES = [
-        ('hoza', 'Hoza'),
-        ('ke', 'KE'),
-        ('cash', 'Cash'),
-        ('other', 'Other'),
-    ]
+    # Group codes are fixed; their labels are renamed per company in Settings
+    CATEGORY_CHOICES = CallableChoiceIterator(channels.group_choices)
 
     ACCOUNT_TYPE_CHOICES = [
         ('bank', 'Bank'),
@@ -1175,7 +1156,7 @@ class Account(models.Model):
 
     category = models.CharField(
         max_length=10,
-        choices=CATEGORY_CHOICES,
+        choices=channels.group_choices,
         help_text='Which breakdown page this account appears on'
     )
 
@@ -1211,6 +1192,17 @@ class Account(models.Model):
 
     notes = models.TextField(blank=True)
 
+    # Bank details — printed on proforma invoices when show_on_proforma is set
+    bank_name = models.CharField(max_length=100, blank=True)
+    branch = models.CharField(max_length=150, blank=True)
+    account_holder_name = models.CharField(max_length=150, blank=True)
+    account_number = models.CharField(max_length=50, blank=True)
+    show_on_proforma = models.BooleanField(
+        default=False,
+        help_text='Offer this account as the payee account on proforma invoices'
+    )
+    display_order = models.PositiveIntegerField(default=100)
+
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -1223,7 +1215,7 @@ class Account(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['category', 'name']
+        ordering = ['display_order', 'category', 'name']
         verbose_name = 'Account'
         verbose_name_plural = 'Accounts'
         indexes = [
@@ -1351,7 +1343,7 @@ class AccountTransfer(models.Model):
         verbose_name_plural = 'Account Transfers'
 
     def __str__(self):
-        return f"Transfer KES {self.amount:,.2f}: {self.source_account} -> {self.destination_account}"
+        return f"Transfer {currency()} {self.amount:,.2f}: {self.source_account} -> {self.destination_account}"
 
     def clean(self):
         if self.source_account_id and self.destination_account_id and self.source_account_id == self.destination_account_id:
@@ -1498,7 +1490,7 @@ class AccountTransaction(models.Model):
 
     def __str__(self):
         sign = '-' if self.direction == 'out' else '+'
-        return f"{self.account} {sign}KES {self.amount:,.2f} ({self.get_transaction_type_display()})"
+        return f"{self.account} {sign}{currency()} {self.amount:,.2f} ({self.get_transaction_type_display()})"
 
     def reverse(self, user, reason):
         """
@@ -1728,7 +1720,7 @@ class PaymentRequest(models.Model):
         max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))]
     )
     payment_date = models.DateField(null=True, blank=True)
-    payment_method = models.CharField(max_length=20, choices=Payment.PAYMENT_METHOD_CHOICES, blank=True)
+    payment_method = models.CharField(max_length=20, choices=channels.payment_method_choices, blank=True)
     transaction_reference = models.CharField(max_length=100, blank=True)
     payment_location = models.CharField(max_length=200, blank=True)
     notes = models.TextField(blank=True)
@@ -1766,7 +1758,7 @@ class PaymentRequest(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.get_request_type_display()} #{self.pk} — KES {self.amount:,.2f} ({self.get_status_display()})"
+        return f"{self.get_request_type_display()} #{self.pk} — {currency()} {self.amount:,.2f} ({self.get_status_display()})"
 
     @property
     def is_split(self):

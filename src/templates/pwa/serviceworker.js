@@ -1,6 +1,6 @@
 {% load static %}
 /*
- * Hoza service worker.
+ * App service worker.
  * Static assets: cache-first. Pages: network-only with an offline fallback,
  * so authenticated financial data is never served stale from cache.
  */

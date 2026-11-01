@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Defaulters Report - Vehicle Management System{% endblock %}
+{% block title %}Defaulters Report - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -16,7 +16,7 @@
             <div class="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700">
                 <label for="reportCurrency" class="mr-2 font-medium">Currency</label>
                 <select id="reportCurrency" data-multi-currency=".js-currency" data-currency-decimals="2" data-currency-storage="paymentsReportCurrency" class="border-0 bg-transparent focus:ring-0 text-sm">
-                    <option value="KES" selected>KES</option>
+                    <option value="{{ brand.currency }}" selected>{{ brand.currency }}</option>
                     <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
                     <option value="TZS">TZS</option>
@@ -53,7 +53,7 @@
             <div class="ml-3">
                 <h3 class="text-sm font-medium text-red-800">Critical Attention Required</h3>
                 <p class="text-sm text-red-700 mt-1">
-                    <strong>{{ critical_defaulters|length }} clients</strong> have defaulted for more than 90 days with total outstanding of <strong class="js-currency" data-kes="{{ critical_total|default:'0' }}">KES {{ critical_total|floatformat:2 }}</strong>
+                    <strong>{{ critical_defaulters|length }} clients</strong> have defaulted for more than 90 days with total outstanding of <strong class="js-currency" data-kes="{{ critical_total|default:'0' }}">{{ brand.currency }} {{ critical_total|floatformat:2 }}</strong>
                 </p>
             </div>
         </div>
@@ -83,7 +83,7 @@
                 </div>
                 <div class="ml-4 flex-1">
                     <p class="text-sm font-medium text-gray-600">Total Outstanding</p>
-                    <p class="text-xl font-bold text-gray-900 js-currency" data-kes="{{ total_outstanding|default:'0' }}">KES {{ total_outstanding|floatformat:2|default:"0.00" }}</p>
+                    <p class="text-xl font-bold text-gray-900 js-currency" data-kes="{{ total_outstanding|default:'0' }}">{{ brand.currency }} {{ total_outstanding|floatformat:2|default:"0.00" }}</p>
                 </div>
             </div>
         </div>
@@ -134,7 +134,7 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-sm text-gray-600">Outstanding</span>
-                    <span class="text-base font-bold text-red-600 js-currency" data-kes="{{ critical_amount|default:'0' }}">KES {{ critical_amount|floatformat:2|default:"0.00" }}</span>
+                    <span class="text-base font-bold text-red-600 js-currency" data-kes="{{ critical_amount|default:'0' }}">{{ brand.currency }} {{ critical_amount|floatformat:2|default:"0.00" }}</span>
                 </div>
             </div>
         </div>
@@ -155,7 +155,7 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-sm text-gray-600">Outstanding</span>
-                    <span class="text-base font-bold text-orange-600 js-currency" data-kes="{{ severe_amount|default:'0' }}">KES {{ severe_amount|floatformat:2|default:"0.00" }}</span>
+                    <span class="text-base font-bold text-orange-600 js-currency" data-kes="{{ severe_amount|default:'0' }}">{{ brand.currency }} {{ severe_amount|floatformat:2|default:"0.00" }}</span>
                 </div>
             </div>
         </div>
@@ -176,7 +176,7 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-sm text-gray-600">Outstanding</span>
-                    <span class="text-base font-bold text-yellow-600 js-currency" data-kes="{{ moderate_amount|default:'0' }}">KES {{ moderate_amount|floatformat:2|default:"0.00" }}</span>
+                    <span class="text-base font-bold text-yellow-600 js-currency" data-kes="{{ moderate_amount|default:'0' }}">{{ brand.currency }} {{ moderate_amount|floatformat:2|default:"0.00" }}</span>
                 </div>
             </div>
         </div>
@@ -290,13 +290,13 @@
                             <div class="text-xs text-gray-500">{{ defaulter.overdue_installments }} installments</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-bold text-red-600 js-currency" data-kes="{{ defaulter.total_outstanding|default:'0' }}">KES {{ defaulter.total_outstanding|floatformat:2 }}</div>
+                            <div class="text-sm font-bold text-red-600 js-currency" data-kes="{{ defaulter.total_outstanding|default:'0' }}">{{ brand.currency }} {{ defaulter.total_outstanding|floatformat:2 }}</div>
                             <div class="text-xs text-gray-500">{{ defaulter.payment_percentage|floatformat:1 }}% paid</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             {% if defaulter.last_payment_date %}
                             <div class="text-sm text-gray-900">{{ defaulter.last_payment_date|date:"M d, Y" }}</div>
-                            <div class="text-xs text-gray-500 js-currency" data-kes="{{ defaulter.last_payment_amount|default:'0' }}">KES {{ defaulter.last_payment_amount|floatformat:2 }}</div>
+                            <div class="text-xs text-gray-500 js-currency" data-kes="{{ defaulter.last_payment_amount|default:'0' }}">{{ brand.currency }} {{ defaulter.last_payment_amount|floatformat:2 }}</div>
                             {% else %}
                             <span class="text-xs text-gray-400">No payments</span>
                             {% endif %}

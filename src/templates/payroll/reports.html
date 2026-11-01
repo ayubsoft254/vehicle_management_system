@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Payroll Reports - Vehicle Management System{% endblock %}
+{% block title %}Payroll Reports - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -61,19 +61,19 @@
     <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-6">
             <p class="text-sm font-medium text-blue-700 uppercase">Total Payroll</p>
-            <p class="text-3xl font-bold text-blue-900 mt-2">KES {{ total_payroll|floatformat:0 }}</p>
+            <p class="text-3xl font-bold text-blue-900 mt-2">{{ brand.currency }} {{ total_payroll|floatformat:0 }}</p>
         </div>
         <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow-sm border border-green-200 p-6">
             <p class="text-sm font-medium text-green-700 uppercase">Total Commissions</p>
-            <p class="text-3xl font-bold text-green-900 mt-2">KES {{ total_commissions|floatformat:0 }}</p>
+            <p class="text-3xl font-bold text-green-900 mt-2">{{ brand.currency }} {{ total_commissions|floatformat:0 }}</p>
         </div>
         <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-lg shadow-sm border border-red-200 p-6">
             <p class="text-sm font-medium text-red-700 uppercase">Total Deductions</p>
-            <p class="text-3xl font-bold text-red-900 mt-2">KES {{ total_deductions|floatformat:0 }}</p>
+            <p class="text-3xl font-bold text-red-900 mt-2">{{ brand.currency }} {{ total_deductions|floatformat:0 }}</p>
         </div>
         <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-sm border border-purple-200 p-6">
             <p class="text-sm font-medium text-purple-700 uppercase">Net Pay</p>
-            <p class="text-3xl font-bold text-purple-900 mt-2">KES {{ net_pay|floatformat:0 }}</p>
+            <p class="text-3xl font-bold text-purple-900 mt-2">{{ brand.currency }} {{ net_pay|floatformat:0 }}</p>
         </div>
     </div>
 
@@ -91,15 +91,15 @@
             <div class="mt-4 space-y-2">
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-600">Average Monthly:</span>
-                    <span class="font-bold text-gray-900">KES {{ avg_monthly_salary|floatformat:0 }}</span>
+                    <span class="font-bold text-gray-900">{{ brand.currency }} {{ avg_monthly_salary|floatformat:0 }}</span>
                 </div>
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-600">Highest Month:</span>
-                    <span class="font-bold text-green-600">KES {{ highest_month|floatformat:0 }}</span>
+                    <span class="font-bold text-green-600">{{ brand.currency }} {{ highest_month|floatformat:0 }}</span>
                 </div>
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-600">Lowest Month:</span>
-                    <span class="font-bold text-red-600">KES {{ lowest_month|floatformat:0 }}</span>
+                    <span class="font-bold text-red-600">{{ brand.currency }} {{ lowest_month|floatformat:0 }}</span>
                 </div>
             </div>
         </div>
@@ -113,7 +113,7 @@
             <div class="space-y-4">
                 <div class="bg-blue-50 rounded-lg p-4">
                     <p class="text-sm text-blue-700">Total Commissions Paid</p>
-                    <p class="text-2xl font-bold text-blue-900 mt-1">KES {{ total_commissions_paid|floatformat:0 }}</p>
+                    <p class="text-2xl font-bold text-blue-900 mt-1">{{ brand.currency }} {{ total_commissions_paid|floatformat:0 }}</p>
                 </div>
                 <div class="bg-yellow-50 rounded-lg p-4">
                     <p class="text-sm text-yellow-700">Pending Approval</p>
@@ -122,7 +122,7 @@
                 <div class="bg-green-50 rounded-lg p-4">
                     <p class="text-sm text-green-700">Top Earner</p>
                     <p class="text-xl font-bold text-green-900 mt-1">{{ top_earner.name }}</p>
-                    <p class="text-sm text-green-600">KES {{ top_earner.amount|floatformat:0 }}</p>
+                    <p class="text-sm text-green-600">{{ brand.currency }} {{ top_earner.amount|floatformat:0 }}</p>
                 </div>
             </div>
         </div>
@@ -145,7 +145,7 @@
                             <div class="bg-red-600 h-2 rounded-full" style="width: {{ deduction.percentage }}%"></div>
                         </div>
                         <span class="text-sm font-bold text-gray-900 w-24 text-right">
-                            KES {{ deduction.amount|floatformat:0 }}
+                            {{ brand.currency }} {{ deduction.amount|floatformat:0 }}
                         </span>
                     </div>
                 </div>
@@ -218,14 +218,14 @@
                 <div class="flex justify-between items-center p-4 bg-blue-50 rounded-lg">
                     <div>
                         <p class="text-sm text-blue-700">Total Loans Disbursed</p>
-                        <p class="text-2xl font-bold text-blue-900 mt-1">KES {{ total_loans_amount|floatformat:0 }}</p>
+                        <p class="text-2xl font-bold text-blue-900 mt-1">{{ brand.currency }} {{ total_loans_amount|floatformat:0 }}</p>
                     </div>
                     <i class="fas fa-money-bill-wave text-4xl text-blue-300"></i>
                 </div>
                 <div class="flex justify-between items-center p-4 bg-yellow-50 rounded-lg">
                     <div>
                         <p class="text-sm text-yellow-700">Outstanding Balance</p>
-                        <p class="text-2xl font-bold text-yellow-900 mt-1">KES {{ outstanding_balance|floatformat:0 }}</p>
+                        <p class="text-2xl font-bold text-yellow-900 mt-1">{{ brand.currency }} {{ outstanding_balance|floatformat:0 }}</p>
                     </div>
                     <i class="fas fa-clock text-4xl text-yellow-300"></i>
                 </div>

@@ -82,7 +82,7 @@
                 <thead>
                     <tr class="border-b border-gray-300">
                         <th class="text-left py-2 text-sm font-medium text-gray-700">Description</th>
-                        <th class="text-right py-2 text-sm font-medium text-gray-700">Amount (KES)</th>
+                        <th class="text-right py-2 text-sm font-medium text-gray-700">Amount ({{ brand.currency }})</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
@@ -153,25 +153,25 @@
                 <thead>
                     <tr class="border-b border-gray-300">
                         <th class="text-left py-2 text-sm font-medium text-gray-700">Description</th>
-                        <th class="text-right py-2 text-sm font-medium text-gray-700">Amount (KES)</th>
+                        <th class="text-right py-2 text-sm font-medium text-gray-700">Amount ({{ brand.currency }})</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     {% if payslip.income_tax %}
                     <tr>
-                        <td class="py-2 text-sm text-gray-700">Income Tax (PAYE)</td>
+                        <td class="py-2 text-sm text-gray-700">{% if brand.payroll_module == 'ke' %}Income Tax (PAYE){% else %}Income Tax{% endif %}</td>
                         <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.income_tax|floatformat:2 }}</td>
                     </tr>
                     {% endif %}
                     {% if payslip.pension_contribution %}
                     <tr>
-                        <td class="py-2 text-sm text-gray-700">Pension (NSSF)</td>
+                        <td class="py-2 text-sm text-gray-700">{% if brand.payroll_module == 'ke' %}Pension (NSSF){% else %}Pension{% endif %}</td>
                         <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.pension_contribution|floatformat:2 }}</td>
                     </tr>
                     {% endif %}
                     {% if payslip.insurance_deduction %}
                     <tr>
-                        <td class="py-2 text-sm text-gray-700">Insurance (NHIF)</td>
+                        <td class="py-2 text-sm text-gray-700">{% if brand.payroll_module == 'ke' %}Insurance (NHIF){% else %}Insurance{% endif %}</td>
                         <td class="py-2 text-sm text-gray-900 text-right font-medium">{{ payslip.insurance_deduction|floatformat:2 }}</td>
                     </tr>
                     {% endif %}
@@ -199,7 +199,7 @@
         <div class="bg-primary-50 border-2 border-primary-500 rounded-lg p-6 mb-8">
             <div class="flex justify-between items-center">
                 <h2 class="text-xl font-bold text-gray-900">NET SALARY</h2>
-                <p class="text-3xl font-bold text-primary-600">KES {{ payslip.net_salary|floatformat:2 }}</p>
+                <p class="text-3xl font-bold text-primary-600">{{ brand.currency }} {{ payslip.net_salary|floatformat:2 }}</p>
             </div>
         </div>
 

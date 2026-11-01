@@ -46,22 +46,22 @@
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Vehicle Revenue</p>
-            <p class="text-xl font-bold mt-1 text-slate-800"><span class="kes-amount" data-kes="{{ sales_agg.total_revenue }}">KES {{ sales_agg.total_revenue|floatformat:0|intcomma }}</span></p>
+            <p class="text-xl font-bold mt-1 text-slate-800"><span class="kes-amount" data-kes="{{ sales_agg.total_revenue }}">{{ brand.currency }} {{ sales_agg.total_revenue|floatformat:0|intcomma }}</span></p>
             <p class="text-xs text-slate-400 mt-0.5">{{ sales_agg.total_count }} sold vehicles</p>
         </div>
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Collected</p>
-            <p class="text-xl font-bold mt-1 text-emerald-700"><span class="kes-amount" data-kes="{{ sales_agg.total_collected }}">KES {{ sales_agg.total_collected|floatformat:0|intcomma }}</span></p>
+            <p class="text-xl font-bold mt-1 text-emerald-700"><span class="kes-amount" data-kes="{{ sales_agg.total_collected }}">{{ brand.currency }} {{ sales_agg.total_collected|floatformat:0|intcomma }}</span></p>
             <p class="text-xs text-slate-400 mt-0.5">Cash received so far</p>
         </div>
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Outstanding Balance</p>
-            <p class="text-xl font-bold mt-1 text-amber-700"><span class="kes-amount" data-kes="{{ sales_agg.total_outstanding }}">KES {{ sales_agg.total_outstanding|floatformat:0|intcomma }}</span></p>
+            <p class="text-xl font-bold mt-1 text-amber-700"><span class="kes-amount" data-kes="{{ sales_agg.total_outstanding }}">{{ brand.currency }} {{ sales_agg.total_outstanding|floatformat:0|intcomma }}</span></p>
             <p class="text-xs text-slate-400 mt-0.5">Receivable from clients</p>
         </div>
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Gross Profit (Sales)</p>
-            <p class="text-xl font-bold mt-1 {% if gross_profit >= 0 %}text-slate-800{% else %}text-red-600{% endif %}"><span class="kes-amount" data-kes="{{ gross_profit }}">KES {{ gross_profit|floatformat:0|intcomma }}</span></p>
+            <p class="text-xl font-bold mt-1 {% if gross_profit >= 0 %}text-slate-800{% else %}text-red-600{% endif %}"><span class="kes-amount" data-kes="{{ gross_profit }}">{{ brand.currency }} {{ gross_profit|floatformat:0|intcomma }}</span></p>
             <p class="text-xs text-slate-400 mt-0.5">Revenue &minus; vehicle cost</p>
         </div>
     </div>
@@ -71,7 +71,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-xs text-slate-500 uppercase tracking-wide mb-1">This Month ({{ month_start|date:"N Y" }})</p>
-                <p class="text-2xl font-bold text-slate-800"><span class="kes-amount" data-kes="{{ this_month_revenue.revenue }}">KES {{ this_month_revenue.revenue|floatformat:0|intcomma }}</span></p>
+                <p class="text-2xl font-bold text-slate-800"><span class="kes-amount" data-kes="{{ this_month_revenue.revenue }}">{{ brand.currency }} {{ this_month_revenue.revenue|floatformat:0|intcomma }}</span></p>
                 <p class="text-sm text-slate-500 mt-1">{{ this_month_revenue.count }} new vehicle sale{{ this_month_revenue.count|pluralize }}</p>
             </div>
             <i class="fas fa-calendar-alt text-4xl text-slate-200"></i>
@@ -88,20 +88,20 @@
             <div class="p-5 space-y-3">
                 <div class="flex items-center justify-between py-2 border-b border-slate-50 text-sm">
                     <span class="text-slate-500">Purchase Cost (All Vehicles)</span>
-                    <span class="font-semibold text-slate-800"><span class="kes-amount" data-kes="{{ inventory_agg.total_purchase_cost }}">KES {{ inventory_agg.total_purchase_cost|floatformat:0|intcomma }}</span></span>
+                    <span class="font-semibold text-slate-800"><span class="kes-amount" data-kes="{{ inventory_agg.total_purchase_cost }}">{{ brand.currency }} {{ inventory_agg.total_purchase_cost|floatformat:0|intcomma }}</span></span>
                 </div>
                 <div class="flex items-center justify-between py-2 border-b border-slate-50 text-sm">
                     <span class="text-slate-500">Selling Value (Listed)</span>
-                    <span class="font-semibold text-slate-800"><span class="kes-amount" data-kes="{{ inventory_agg.total_selling_value }}">KES {{ inventory_agg.total_selling_value|floatformat:0|intcomma }}</span></span>
+                    <span class="font-semibold text-slate-800"><span class="kes-amount" data-kes="{{ inventory_agg.total_selling_value }}">{{ brand.currency }} {{ inventory_agg.total_selling_value|floatformat:0|intcomma }}</span></span>
                 </div>
                 <div class="flex items-center justify-between py-2 border-b border-slate-50 text-sm">
                     <span class="text-slate-500">Sales Revenue (Sold)</span>
-                    <span class="font-semibold text-emerald-700"><span class="kes-amount" data-kes="{{ sales_agg.total_revenue }}">KES {{ sales_agg.total_revenue|floatformat:0|intcomma }}</span></span>
+                    <span class="font-semibold text-emerald-700"><span class="kes-amount" data-kes="{{ sales_agg.total_revenue }}">{{ brand.currency }} {{ sales_agg.total_revenue|floatformat:0|intcomma }}</span></span>
                 </div>
                 <div class="flex items-center justify-between py-2 text-sm">
                     <span class="text-slate-600 font-semibold">Estimated Gross Profit</span>
                     <span class="font-bold {% if gross_profit >= 0 %}text-emerald-700{% else %}text-red-600{% endif %}">
-                        <span class="kes-amount" data-kes="{{ gross_profit }}">KES {{ gross_profit|floatformat:0|intcomma }}</span>
+                        <span class="kes-amount" data-kes="{{ gross_profit }}">{{ brand.currency }} {{ gross_profit|floatformat:0|intcomma }}</span>
                     </span>
                 </div>
             </div>
@@ -115,15 +115,15 @@
             <div class="p-5 space-y-3">
                 <div class="flex items-center justify-between py-2 border-b border-slate-50 text-sm">
                     <span class="text-slate-500">Deposits Received</span>
-                    <span class="font-semibold text-slate-800"><span class="kes-amount" data-kes="{{ sales_agg.total_deposit }}">KES {{ sales_agg.total_deposit|floatformat:0|intcomma }}</span></span>
+                    <span class="font-semibold text-slate-800"><span class="kes-amount" data-kes="{{ sales_agg.total_deposit }}">{{ brand.currency }} {{ sales_agg.total_deposit|floatformat:0|intcomma }}</span></span>
                 </div>
                 <div class="flex items-center justify-between py-2 border-b border-slate-50 text-sm">
                     <span class="text-slate-500">Total Collected</span>
-                    <span class="font-semibold text-slate-800"><span class="kes-amount" data-kes="{{ sales_agg.total_collected }}">KES {{ sales_agg.total_collected|floatformat:0|intcomma }}</span></span>
+                    <span class="font-semibold text-slate-800"><span class="kes-amount" data-kes="{{ sales_agg.total_collected }}">{{ brand.currency }} {{ sales_agg.total_collected|floatformat:0|intcomma }}</span></span>
                 </div>
                 <div class="flex items-center justify-between py-2 border-b border-slate-50 text-sm">
                     <span class="text-slate-500">Total Outstanding</span>
-                    <span class="font-semibold text-amber-700"><span class="kes-amount" data-kes="{{ sales_agg.total_outstanding }}">KES {{ sales_agg.total_outstanding|floatformat:0|intcomma }}</span></span>
+                    <span class="font-semibold text-amber-700"><span class="kes-amount" data-kes="{{ sales_agg.total_outstanding }}">{{ brand.currency }} {{ sales_agg.total_outstanding|floatformat:0|intcomma }}</span></span>
                 </div>
                 <div class="flex items-center justify-between py-2 text-sm">
                     <span class="text-slate-500">Paid-off / Active</span>
@@ -166,9 +166,9 @@
                     <tr class="hover:bg-slate-50">
                         <td class="px-5 py-3 font-medium text-slate-800">{{ row.label }}</td>
                         <td class="px-5 py-3 text-right text-slate-600">{{ row.count }}</td>
-                        <td class="px-5 py-3 text-right font-semibold text-slate-800"><span class="kes-amount" data-kes="{{ row.revenue }}">KES {{ row.revenue|floatformat:0|intcomma }}</span></td>
-                        <td class="px-5 py-3 text-right text-emerald-700"><span class="kes-amount" data-kes="{{ row.collected }}">KES {{ row.collected|floatformat:0|intcomma }}</span></td>
-                        <td class="px-5 py-3 text-right text-amber-700"><span class="kes-amount" data-kes="{{ row.outstanding }}">KES {{ row.outstanding|floatformat:0|intcomma }}</span></td>
+                        <td class="px-5 py-3 text-right font-semibold text-slate-800"><span class="kes-amount" data-kes="{{ row.revenue }}">{{ brand.currency }} {{ row.revenue|floatformat:0|intcomma }}</span></td>
+                        <td class="px-5 py-3 text-right text-emerald-700"><span class="kes-amount" data-kes="{{ row.collected }}">{{ brand.currency }} {{ row.collected|floatformat:0|intcomma }}</span></td>
+                        <td class="px-5 py-3 text-right text-amber-700"><span class="kes-amount" data-kes="{{ row.outstanding }}">{{ brand.currency }} {{ row.outstanding|floatformat:0|intcomma }}</span></td>
                         <td class="px-5 py-3">
                             {% if row.revenue > 0 %}
                             <div class="flex items-center space-x-2">
@@ -198,13 +198,13 @@
                 <span class="text-xs text-slate-400">{{ insurance_agg.policy_count }} policies</span>
             </div>
             <div class="p-5 space-y-2.5 text-sm">
-                <div class="flex justify-between"><span class="text-slate-500">Agent Cost (Buying)</span><span class="font-medium text-slate-700"><span class="kes-amount" data-kes="{{ insurance_agg.total_buying }}">KES {{ insurance_agg.total_buying|floatformat:0|intcomma }}</span></span></div>
-                <div class="flex justify-between"><span class="text-slate-500">Charged (Selling)</span><span class="font-medium text-slate-700"><span class="kes-amount" data-kes="{{ insurance_agg.total_selling }}">KES {{ insurance_agg.total_selling|floatformat:0|intcomma }}</span></span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Agent Cost (Buying)</span><span class="font-medium text-slate-700"><span class="kes-amount" data-kes="{{ insurance_agg.total_buying }}">{{ brand.currency }} {{ insurance_agg.total_buying|floatformat:0|intcomma }}</span></span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Charged (Selling)</span><span class="font-medium text-slate-700"><span class="kes-amount" data-kes="{{ insurance_agg.total_selling }}">{{ brand.currency }} {{ insurance_agg.total_selling|floatformat:0|intcomma }}</span></span></div>
                 <div class="flex justify-between border-t border-slate-100 pt-2.5">
                     <span class="text-slate-600 font-semibold">Margin</span>
-                    <span class="font-bold {% if insurance_profit >= 0 %}text-emerald-700{% else %}text-red-600{% endif %}"><span class="kes-amount" data-kes="{{ insurance_profit }}">KES {{ insurance_profit|floatformat:0|intcomma }}</span></span>
+                    <span class="font-bold {% if insurance_profit >= 0 %}text-emerald-700{% else %}text-red-600{% endif %}"><span class="kes-amount" data-kes="{{ insurance_profit }}">{{ brand.currency }} {{ insurance_profit|floatformat:0|intcomma }}</span></span>
                 </div>
-                <div class="flex justify-between text-amber-700"><span>Unpaid to Agent</span><span class="font-medium"><span class="kes-amount" data-kes="{{ insurance_unpaid }}">KES {{ insurance_unpaid|floatformat:0|intcomma }}</span></span></div>
+                <div class="flex justify-between text-amber-700"><span>Unpaid to Agent</span><span class="font-medium"><span class="kes-amount" data-kes="{{ insurance_unpaid }}">{{ brand.currency }} {{ insurance_unpaid|floatformat:0|intcomma }}</span></span></div>
             </div>
         </div>
 
@@ -214,13 +214,13 @@
                 <span class="text-xs text-slate-400">{{ tracker_agg.record_count }} records</span>
             </div>
             <div class="p-5 space-y-2.5 text-sm">
-                <div class="flex justify-between"><span class="text-slate-500">Agent Cost (Buying)</span><span class="font-medium text-slate-700"><span class="kes-amount" data-kes="{{ tracker_agg.total_buying }}">KES {{ tracker_agg.total_buying|floatformat:0|intcomma }}</span></span></div>
-                <div class="flex justify-between"><span class="text-slate-500">Charged (Selling)</span><span class="font-medium text-slate-700"><span class="kes-amount" data-kes="{{ tracker_agg.total_selling }}">KES {{ tracker_agg.total_selling|floatformat:0|intcomma }}</span></span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Agent Cost (Buying)</span><span class="font-medium text-slate-700"><span class="kes-amount" data-kes="{{ tracker_agg.total_buying }}">{{ brand.currency }} {{ tracker_agg.total_buying|floatformat:0|intcomma }}</span></span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Charged (Selling)</span><span class="font-medium text-slate-700"><span class="kes-amount" data-kes="{{ tracker_agg.total_selling }}">{{ brand.currency }} {{ tracker_agg.total_selling|floatformat:0|intcomma }}</span></span></div>
                 <div class="flex justify-between border-t border-slate-100 pt-2.5">
                     <span class="text-slate-600 font-semibold">Margin</span>
-                    <span class="font-bold {% if tracker_profit >= 0 %}text-emerald-700{% else %}text-red-600{% endif %}"><span class="kes-amount" data-kes="{{ tracker_profit }}">KES {{ tracker_profit|floatformat:0|intcomma }}</span></span>
+                    <span class="font-bold {% if tracker_profit >= 0 %}text-emerald-700{% else %}text-red-600{% endif %}"><span class="kes-amount" data-kes="{{ tracker_profit }}">{{ brand.currency }} {{ tracker_profit|floatformat:0|intcomma }}</span></span>
                 </div>
-                <div class="flex justify-between text-amber-700"><span>Unpaid to Agent</span><span class="font-medium"><span class="kes-amount" data-kes="{{ tracker_unpaid }}">KES {{ tracker_unpaid|floatformat:0|intcomma }}</span></span></div>
+                <div class="flex justify-between text-amber-700"><span>Unpaid to Agent</span><span class="font-medium"><span class="kes-amount" data-kes="{{ tracker_unpaid }}">{{ brand.currency }} {{ tracker_unpaid|floatformat:0|intcomma }}</span></span></div>
             </div>
         </div>
 
@@ -230,11 +230,11 @@
                 <span class="text-xs text-slate-400">{{ clearance_agg.record_count }} records</span>
             </div>
             <div class="p-5 space-y-2.5 text-sm">
-                <div class="flex justify-between"><span class="text-slate-500">Total Billed</span><span class="font-medium text-slate-700"><span class="kes-amount" data-kes="{{ clearance_agg.total_billed }}">KES {{ clearance_agg.total_billed|floatformat:0|intcomma }}</span></span></div>
-                <div class="flex justify-between"><span class="text-slate-500">Settled</span><span class="font-medium text-emerald-700"><span class="kes-amount" data-kes="{{ clearance_settled }}">KES {{ clearance_settled|floatformat:0|intcomma }}</span></span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Total Billed</span><span class="font-medium text-slate-700"><span class="kes-amount" data-kes="{{ clearance_agg.total_billed }}">{{ brand.currency }} {{ clearance_agg.total_billed|floatformat:0|intcomma }}</span></span></div>
+                <div class="flex justify-between"><span class="text-slate-500">Settled</span><span class="font-medium text-emerald-700"><span class="kes-amount" data-kes="{{ clearance_settled }}">{{ brand.currency }} {{ clearance_settled|floatformat:0|intcomma }}</span></span></div>
                 <div class="flex justify-between border-t border-slate-100 pt-2.5">
                     <span class="text-slate-600 font-semibold">Outstanding</span>
-                    <span class="font-bold text-amber-700"><span class="kes-amount" data-kes="{{ clearance_unpaid }}">KES {{ clearance_unpaid|floatformat:0|intcomma }}</span></span>
+                    <span class="font-bold text-amber-700"><span class="kes-amount" data-kes="{{ clearance_unpaid }}">{{ brand.currency }} {{ clearance_unpaid|floatformat:0|intcomma }}</span></span>
                 </div>
                 {% if clearance_agg.total_billed > 0 %}
                 <div class="pt-1">
@@ -272,9 +272,9 @@
                             <a href="{% url 'clients:client_detail' c.client__id %}" class="hover:text-slate-900">{{ c.client__first_name }} {{ c.client__last_name }}</a>
                         </td>
                         <td class="px-5 py-3 text-right text-slate-600">{{ c.vehicle_count }}</td>
-                        <td class="px-5 py-3 text-right font-semibold text-slate-800"><span class="kes-amount" data-kes="{{ c.total_purchase }}">KES {{ c.total_purchase|floatformat:0|intcomma }}</span></td>
-                        <td class="px-5 py-3 text-right text-emerald-700"><span class="kes-amount" data-kes="{{ c.total_paid }}">KES {{ c.total_paid|floatformat:0|intcomma }}</span></td>
-                        <td class="px-5 py-3 text-right {% if c.balance > 0 %}text-amber-700{% else %}text-slate-400{% endif %}"><span class="kes-amount" data-kes="{{ c.balance }}">KES {{ c.balance|floatformat:0|intcomma }}</span></td>
+                        <td class="px-5 py-3 text-right font-semibold text-slate-800"><span class="kes-amount" data-kes="{{ c.total_purchase }}">{{ brand.currency }} {{ c.total_purchase|floatformat:0|intcomma }}</span></td>
+                        <td class="px-5 py-3 text-right text-emerald-700"><span class="kes-amount" data-kes="{{ c.total_paid }}">{{ brand.currency }} {{ c.total_paid|floatformat:0|intcomma }}</span></td>
+                        <td class="px-5 py-3 text-right {% if c.balance > 0 %}text-amber-700{% else %}text-slate-400{% endif %}"><span class="kes-amount" data-kes="{{ c.balance }}">{{ brand.currency }} {{ c.balance|floatformat:0|intcomma }}</span></td>
                     </tr>
                     {% endfor %}
                 </tbody>

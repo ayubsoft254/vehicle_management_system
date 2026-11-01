@@ -32,7 +32,7 @@
             {% endif %}
             {% if can_confirm_deposit and proforma.status != 'converted' and proforma.status != 'cancelled' and proforma.status != 'expired' and proforma.status != 'draft' %}
                 {% if proforma.deposit_fully_paid %}
-                <button type="button" disabled title="The full deposit (KES {{ proforma.deposit_required|floatformat:0|intcomma }}) is already held — no further deposit is needed."
+                <button type="button" disabled title="The full deposit ({{ brand.currency }} {{ proforma.deposit_required|floatformat:0|intcomma }}) is already held — no further deposit is needed."
                     class="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-500 rounded-lg text-sm cursor-not-allowed">
                     <i class="fas fa-check-circle mr-2"></i>Deposit Confirmed
                 </button>
@@ -106,10 +106,10 @@
             </div>
             <div class="text-right">
                 <p class="text-xs text-gray-500">Total Purchase Price</p>
-                <p class="text-3xl font-bold text-primary-600">KES {{ proforma.total_price|floatformat:0|intcomma }}</p>
+                <p class="text-3xl font-bold text-primary-600">{{ brand.currency }} {{ proforma.total_price|floatformat:0|intcomma }}</p>
                 <p class="text-sm text-gray-500 mt-1">Deposit held:
-                    <span class="font-semibold text-emerald-600">KES {{ proforma.total_deposits_confirmed|floatformat:0|intcomma }}</span>
-                    / KES {{ proforma.deposit_required|floatformat:0|intcomma }} required
+                    <span class="font-semibold text-emerald-600">{{ brand.currency }} {{ proforma.total_deposits_confirmed|floatformat:0|intcomma }}</span>
+                    / {{ brand.currency }} {{ proforma.deposit_required|floatformat:0|intcomma }} required
                 </p>
             </div>
         </div>
@@ -150,19 +150,19 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div class="bg-gray-50 rounded-lg p-4 text-center">
                         <p class="text-xs text-gray-500 mb-1">Selling Price</p>
-                        <p class="text-lg font-bold text-gray-800">KES {{ proforma.selling_price|floatformat:0|intcomma }}</p>
+                        <p class="text-lg font-bold text-gray-800">{{ brand.currency }} {{ proforma.selling_price|floatformat:0|intcomma }}</p>
                     </div>
                     <div class="bg-amber-50 rounded-lg p-4 text-center">
                         <p class="text-xs text-amber-600 mb-1">Deposit Required</p>
-                        <p class="text-lg font-bold text-amber-700">KES {{ proforma.deposit_required|floatformat:0|intcomma }}</p>
+                        <p class="text-lg font-bold text-amber-700">{{ brand.currency }} {{ proforma.deposit_required|floatformat:0|intcomma }}</p>
                     </div>
                     <div class="bg-blue-50 rounded-lg p-4 text-center">
                         <p class="text-xs text-blue-600 mb-1">Financing Amount</p>
-                        <p class="text-lg font-bold text-blue-700">KES {{ proforma.financing_amount|floatformat:0|intcomma }}</p>
+                        <p class="text-lg font-bold text-blue-700">{{ brand.currency }} {{ proforma.financing_amount|floatformat:0|intcomma }}</p>
                     </div>
                     <div class="bg-indigo-50 rounded-lg p-4 text-center">
                         <p class="text-xs text-indigo-600 mb-1">Remaining Balance</p>
-                        <p class="text-lg font-bold text-indigo-700">KES {{ proforma.remaining_balance|floatformat:0|intcomma }}</p>
+                        <p class="text-lg font-bold text-indigo-700">{{ brand.currency }} {{ proforma.remaining_balance|floatformat:0|intcomma }}</p>
                     </div>
                 </div>
                 {% if proforma.payment_mode == 'bank_financing' %}
@@ -196,7 +196,7 @@
                             {% for d in deposits %}
                             <tr class="hover:bg-gray-50 {% if d.is_reversed %}opacity-50{% endif %}">
                                 <td class="px-4 py-3 text-sm text-gray-700">{{ d.payment_date|date:"M d, Y" }}</td>
-                                <td class="px-4 py-3 text-right text-sm font-semibold text-emerald-700">KES {{ d.amount|floatformat:2|intcomma }}</td>
+                                <td class="px-4 py-3 text-right text-sm font-semibold text-emerald-700">{{ brand.currency }} {{ d.amount|floatformat:2|intcomma }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-600">{{ d.get_payment_method_display }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-600">{{ d.account.name|default:"—" }}</td>
                                 <td class="px-4 py-3 text-sm text-gray-500 font-mono">{{ d.transaction_reference|default:"—" }}</td>
@@ -264,8 +264,8 @@
                         <div class="flex justify-between"><span class="text-gray-500">Reserved On</span><span class="font-medium">{{ reservation.reserved_at|date:"M d, Y H:i" }}</span></div>
                         <div class="flex justify-between"><span class="text-gray-500">Expiry Date</span><span class="font-medium">{{ reservation.expiry_date|date:"M d, Y" }}</span></div>
                         <div class="flex justify-between"><span class="text-gray-500">Period</span><span class="font-medium">{{ reservation.period_days }} day(s)</span></div>
-                        <div class="flex justify-between"><span class="text-gray-500">Deposit Held</span><span class="font-medium text-emerald-600">KES {{ reservation.deposit_amount|floatformat:0|intcomma }}</span></div>
-                        <div class="flex justify-between"><span class="text-gray-500">Remaining Balance</span><span class="font-medium">KES {{ reservation.remaining_balance|floatformat:0|intcomma }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Deposit Held</span><span class="font-medium text-emerald-600">{{ brand.currency }} {{ reservation.deposit_amount|floatformat:0|intcomma }}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-500">Remaining Balance</span><span class="font-medium">{{ brand.currency }} {{ reservation.remaining_balance|floatformat:0|intcomma }}</span></div>
                         <div class="flex justify-between"><span class="text-gray-500">Financing Bank</span><span class="font-medium">{{ proforma.financing_bank|default:"—" }}</span></div>
                         <div class="flex justify-between"><span class="text-gray-500">Confirmed By</span><span class="font-medium">{% if reservation.confirmed_by %}{{ reservation.confirmed_by.get_full_name|default:reservation.confirmed_by.username }}{% else %}—{% endif %}</span></div>
                         {% if reservation.extension_count %}
@@ -299,7 +299,7 @@
                 {% else %}
                     <p class="text-sm text-gray-500">
                         No reservation. The vehicle is only reserved once the required
-                        deposit (KES {{ proforma.deposit_required|floatformat:0|intcomma }}) is confirmed.
+                        deposit ({{ brand.currency }} {{ proforma.deposit_required|floatformat:0|intcomma }}) is confirmed.
                     </p>
                 {% endif %}
             </div>
@@ -336,12 +336,12 @@
               onsubmit="return confirm('Confirm this deposit?\n\nOnce the required deposit is fully covered the vehicle will be RESERVED for {{ proforma.client.get_full_name|escapejs }}.');">
             {% csrf_token %}
             <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
-                Required deposit: KES {{ proforma.deposit_required|floatformat:2|intcomma }} ·
-                Already held: KES {{ proforma.total_deposits_confirmed|floatformat:2|intcomma }} ·
-                Outstanding: <strong>KES {{ proforma.deposit_outstanding|floatformat:2|intcomma }}</strong>
+                Required deposit: {{ brand.currency }} {{ proforma.deposit_required|floatformat:2|intcomma }} ·
+                Already held: {{ brand.currency }} {{ proforma.total_deposits_confirmed|floatformat:2|intcomma }} ·
+                Outstanding: <strong>{{ brand.currency }} {{ proforma.deposit_outstanding|floatformat:2|intcomma }}</strong>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Amount (KES) <span class="text-red-500">*</span></label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Amount ({{ brand.currency }}) <span class="text-red-500">*</span></label>
                 <input type="number" name="amount" step="0.01" min="0.01" required value="{{ proforma.deposit_outstanding }}"
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500">
             </div>
@@ -412,14 +412,14 @@
             <button onclick="document.getElementById('convert-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
         </div>
         <form method="post" action="{% url 'clients:proforma_convert' proforma.pk %}" class="p-6 space-y-4"
-              onsubmit="return confirm('Convert proforma {{ proforma.number }} into an official sale?\n\n• The held deposit of KES {{ proforma.total_deposits_confirmed|floatformat:2 }} transfers to the vehicle payment allocation (never duplicated).\n• The vehicle will be marked SOLD.\n\nThis cannot be undone.');">
+              onsubmit="return confirm('Convert proforma {{ proforma.number }} into an official sale?\n\n• The held deposit of {{ brand.currency }} {{ proforma.total_deposits_confirmed|floatformat:2 }} transfers to the vehicle payment allocation (never duplicated).\n• The vehicle will be marked SOLD.\n\nThis cannot be undone.');">
             {% csrf_token %}
             <div class="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700">
-                Deposit held (KES {{ proforma.total_deposits_confirmed|floatformat:2|intcomma }}) will be transferred into the
+                Deposit held ({{ brand.currency }} {{ proforma.total_deposits_confirmed|floatformat:2|intcomma }}) will be transferred into the
                 official payment allocation — it will not be charged twice.
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Final Sale Price (KES)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Final Sale Price ({{ brand.currency }})</label>
                 <input type="number" name="final_price" step="0.01" min="0.01" value="{{ proforma.total_price }}"
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
             </div>
@@ -565,7 +565,7 @@ document.querySelectorAll('[id$="-modal"]').forEach(function (modal) {
 function openReverseModal(depositPk, amount) {
     const form = document.getElementById('reverse-form');
     form.action = "{% url 'clients:proforma_detail' proforma.pk %}".replace(/\/$/, '') + '/deposits/' + depositPk + '/reverse/';
-    document.getElementById('reverse-amount').textContent = 'KES ' + amount;
+    document.getElementById('reverse-amount').textContent = '{{ brand.currency }} ' + amount;
     document.getElementById('reverse-modal').classList.remove('hidden');
 }
 </script>

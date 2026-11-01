@@ -2,6 +2,7 @@
 Signals for the payments app
 Handles automatic updates after payment actions
 """
+from apps.company.services import currency
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.db import transaction
@@ -462,7 +463,7 @@ def create_reminder_on_due_date(sender, instance, created, **kwargs):
                     
                     message = (
                         f"Dear {client.get_full_name()}, "
-                        f"payment of KES {instance.amount_due:,.2f} "
+                        f"payment of {currency()} {instance.amount_due:,.2f} "
                         f"for {vehicle} is due on {instance.due_date.strftime('%d/%m/%Y')}."
                     )
                     
@@ -587,7 +588,7 @@ def log_payment_activity(sender, instance, created, **kwargs):
                 user=instance.recorded_by,
                 action='create',
                 model_name='Payment',
-                description=f'Payment recorded: {instance.receipt_number} - KES {instance.amount:,.2f}'
+                description=f'Payment recorded: {instance.receipt_number} - {currency()} {instance.amount:,.2f}'
             )
     except Exception as e:
         logger.warning(f"Could not create audit log: {e}")

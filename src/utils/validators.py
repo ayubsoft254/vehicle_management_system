@@ -16,26 +16,33 @@ import magic  # python-magic for file type detection
 # PHONE NUMBER VALIDATORS
 # ============================================================================
 
+def _country():
+    """Rules for the company's country (Settings → Region); see utils/countries.py."""
+    from apps.company.services import get_company
+    return get_company().country_preset
+
+
 def validate_phone_number(value):
     """
-    Validate phone number format
-    Accepts: +254784170447, 0712345678, 254712345678
+    Validate a mobile number for the company's country, e.g. for Kenya:
+    +254712345678, 254712345678 or 0712345678
     """
     # Remove spaces, dashes, and parentheses
     cleaned = re.sub(r'[\s\-\(\)]', '', str(value))
-    
-    # Kenyan phone number patterns
+
+    country = _country()
+    nsn, dial = country['mobile_nsn_regex'], country['dial_code']
     patterns = [
-        r'^(\+254|254)[17]\d{8}$',  # +254784170447 or 254712345678
-        r'^0[17]\d{8}$',             # 0712345678
+        rf'^(\+{dial}|{dial}){nsn}$',  # international
+        rf'^0{nsn}$',                   # local
     ]
-    
+
     if not any(re.match(pattern, cleaned) for pattern in patterns):
         raise ValidationError(
-            _('Enter a valid phone number. Format: +254784170447 or 0712345678'),
+            _('Enter a valid phone number. Format: %(example)s') % {'example': country['phone_example']},
             code='invalid_phone'
         )
-    
+
     return cleaned
 
 
@@ -89,23 +96,22 @@ def validate_vin(value):
 
 def validate_license_plate(value):
     """
-    Validate Kenyan license plate format
-    Examples: KAA 123A, KBZ 456B, KCA 789C
+    Validate a number plate for the company's country,
+    e.g. Kenya: KAA 123A, Uganda: UBA 123A, Tanzania: T 123 ABC
     """
     if not value:
         return value
-    
-    # Kenyan plate format: KXX 123X
-    pattern = r'^K[A-Z]{2}\s?\d{3}[A-Z]$'
-    
+
+    country = _country()
     cleaned = value.upper().strip()
-    
-    if not re.match(pattern, cleaned):
+
+    if not re.match(rf"^{country['plate_regex']}$", cleaned):
         raise ValidationError(
-            _('Enter a valid Kenyan license plate. Format: KAA 123A'),
+            _('Enter a valid %(country)s number plate. Format: %(example)s')
+            % {'country': country['name'], 'example': country['plate_example']},
             code='invalid_license_plate'
         )
-    
+
     return cleaned
 
 
@@ -316,20 +322,22 @@ def validate_date_range(start_date, end_date):
 
 def validate_national_id(value):
     """
-    Validate Kenyan National ID
-    Should be 7-8 digits
+    Validate a national ID number in the company's country format
+    (Kenya: 7-8 digits)
     """
     if not value:
         return value
-    
-    cleaned = re.sub(r'\D', '', str(value))
-    
-    if not 7 <= len(cleaned) <= 8:
+
+    country = _country()
+    cleaned = re.sub(r'[\s\-]', '', str(value)).upper()
+
+    if not re.match(rf"^{country['national_id_regex']}$", cleaned):
         raise ValidationError(
-            _('National ID must be 7 or 8 digits.'),
+            _('Enter a valid %(label)s, e.g. %(example)s')
+            % {'label': country['national_id_label'], 'example': country['national_id_example']},
             code='invalid_national_id'
         )
-    
+
     return cleaned
 
 
@@ -360,21 +368,22 @@ def validate_passport_number(value):
 
 def validate_kra_pin(value):
     """
-    Validate KRA PIN format
-    Format: A123456789X (letter + 9 digits + letter)
+    Validate a tax ID in the company's country format
+    (Kenya KRA PIN: A123456789X; Uganda/Tanzania/Rwanda TIN)
     """
     if not value:
         return value
-    
+
+    country = _country()
     cleaned = value.strip().upper()
-    pattern = r'^[A-Z]\d{9}[A-Z]$'
-    
-    if not re.match(pattern, cleaned):
+
+    if not re.match(rf"^{country['tax_id_regex']}$", cleaned):
         raise ValidationError(
-            _('Enter a valid KRA PIN. Format: A123456789X'),
+            _('Enter a valid %(label)s. Format: %(example)s')
+            % {'label': country['tax_id_label'], 'example': country['tax_id_example']},
             code='invalid_kra_pin'
         )
-    
+
     return cleaned
 
 

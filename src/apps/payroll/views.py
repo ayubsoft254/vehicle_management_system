@@ -3,6 +3,7 @@ Views for the payroll app.
 Handles employee management, salary processing, and payroll operations.
 """
 
+from apps.company.services import get_company
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -893,10 +894,12 @@ def _append_payslip_body(elements, styles, payslip, fmt_money, kpi_table):
     elements.append(Spacer(1, 10))
 
     elements.append(Paragraph('DEDUCTIONS', heading))
+    # Kenyan statutory names only for Kenyan companies (Settings → Region)
+    kenya = get_company().payroll_module == 'ke'
     deduction_fields = [
-        ('Income Tax (PAYE)', payslip.income_tax),
-        ('Pension (NSSF)', payslip.pension_contribution),
-        ('Insurance (NHIF)', payslip.insurance_deduction),
+        ('Income Tax (PAYE)' if kenya else 'Income Tax', payslip.income_tax),
+        ('Pension (NSSF)' if kenya else 'Pension', payslip.pension_contribution),
+        ('Insurance (NHIF)' if kenya else 'Insurance', payslip.insurance_deduction),
         ('Loan Repayment', payslip.loan_repayment),
         ('Other Deductions', payslip.other_deductions),
     ]

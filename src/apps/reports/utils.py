@@ -810,8 +810,9 @@ def calculate_report_statistics(report):
 # ============================================================================
 
 def format_currency(amount):
-    """Format amount as currency"""
-    return f"${float(amount):,.2f}"
+    """Format amount in the company currency"""
+    from apps.company.services import get_company
+    return f"{get_company().currency_code} {float(amount):,.2f}"
 
 
 def format_percentage(value):

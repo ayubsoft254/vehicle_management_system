@@ -952,8 +952,9 @@ def log_dashboard_activity(dashboard, user, activity_type, description='', metad
 
 
 def format_currency(value):
-    """Format value as currency"""
-    return f"${float(value):,.2f}"
+    """Format value in the company currency"""
+    from apps.company.services import get_company
+    return f"{get_company().currency_code} {float(value):,.2f}"
 
 
 def format_number(value):

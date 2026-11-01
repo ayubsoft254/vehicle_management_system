@@ -2,6 +2,7 @@
 Reports App - Background Tasks (Celery)
 """
 
+from apps.company.services import get_company
 from celery import shared_task
 from django.utils import timezone
 from django.core.mail import EmailMessage
@@ -197,7 +198,7 @@ Execution Time: {execution.execution_time:.2f} seconds
 Please find the report attached.
 
 Best regards,
-Vehicle Management System
+{get_company().legal_name}
         """
         
         email = EmailMessage(

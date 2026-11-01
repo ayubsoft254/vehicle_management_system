@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Insurance Claims - Vehicle Management System{% endblock %}
+{% block title %}Insurance Claims - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
@@ -62,12 +62,12 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div class="bg-white rounded-xl shadow-md p-6">
             <h3 class="text-lg font-semibold text-gray-800 mb-2">Total Claimed Amount</h3>
-            <p class="text-3xl font-bold text-red-600">KES {{ total_claimed|floatformat:0|default:"0" }}</p>
+            <p class="text-3xl font-bold text-red-600">{{ brand.currency }} {{ total_claimed|floatformat:0|default:"0" }}</p>
         </div>
         
         <div class="bg-white rounded-xl shadow-md p-6">
             <h3 class="text-lg font-semibold text-gray-800 mb-2">Total Approved Amount</h3>
-            <p class="text-3xl font-bold text-green-600">KES {{ total_approved|floatformat:0|default:"0" }}</p>
+            <p class="text-3xl font-bold text-green-600">{{ brand.currency }} {{ total_approved|floatformat:0|default:"0" }}</p>
         </div>
     </div>
 
@@ -118,8 +118,8 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ claim.get_claim_type_display }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ claim.incident_date|date:"d M Y" }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">KES {{ claim.claimed_amount|floatformat:0 }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">KES {{ claim.approved_amount|floatformat:0 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ brand.currency }} {{ claim.claimed_amount|floatformat:0 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">{{ brand.currency }} {{ claim.approved_amount|floatformat:0 }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="px-2 py-1 text-xs rounded-full {% if claim.status == 'pending' %}bg-yellow-100 text-yellow-800{% elif claim.status == 'approved' %}bg-green-100 text-green-800{% elif claim.status == 'settled' %}bg-teal-100 text-teal-800{% elif claim.status == 'rejected' %}bg-red-100 text-red-800{% else %}bg-blue-100 text-blue-800{% endif %}">
                                         {{ claim.get_status_display }}

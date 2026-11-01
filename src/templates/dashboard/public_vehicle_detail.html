@@ -1,3 +1,4 @@
+{% load company_tags %}
 {% load static %}
 {% load humanize %}
 {% load l10n %}
@@ -7,7 +8,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="{{ vehicle.full_name }} - {{ vehicle.description|truncatewords:20 }}">
-    <title>{{ vehicle.full_name }} - Hoza Investments</title>
+    <title>{{ vehicle.full_name }} - {{ brand.public_name }}</title>
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -15,30 +16,9 @@
     <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50: '#eff6ff',
-                            100: '#dbeafe',
-                            200: '#bfdbfe',
-                            300: '#93c5fd',
-                            400: '#60a5fa',
-                            500: '#3b82f6',
-                            600: '#2563eb',
-                            700: '#1d4ed8',
-                            800: '#1e40af',
-                            900: '#1e3a8a',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    {% tailwind_config %}
 </head>
-<body class="bg-gray-50">
+<body class="bg-gray-50" data-base-currency="{{ brand.currency }}">
     
     <!-- Navigation -->
     <nav class="bg-white shadow-sm sticky top-0 z-50">
@@ -48,7 +28,7 @@
                     <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
                         <i class="fas fa-car text-white text-xl"></i>
                     </div>
-                    <span class="text-2xl font-bold text-gray-900">Hoza Investments</span>
+                    <span class="text-2xl font-bold text-gray-900">{{ brand.public_name }}</span>
                 </div>
                 
                 <div class="flex items-center space-x-4">
@@ -88,7 +68,7 @@
                     </div>
                 </div>
                 <div class="mt-4 md:mt-0 text-right">
-                    <p class="text-lg font-bold text-primary-600">Negotiable KES {{ vehicle.website_price|default:0|floatformat:0 }}</p>
+                    <p class="text-lg font-bold text-primary-600">Negotiable {{ brand.currency }} {{ vehicle.website_price|default:0|floatformat:0 }}</p>
                 </div>
             </div>
         </div>
@@ -277,7 +257,7 @@
                     <div class="space-y-4 mb-6">
                         <div class="flex justify-between items-center py-3 border-b">
                             <span class="text-gray-600">Price</span>
-                            <span class="font-bold text-primary-600 text-lg js-public-price" data-prefix="Negotiable" data-kes="{{ vehicle.website_price|default:0|unlocalize }}">Negotiable KES {{ vehicle.website_price|default:0|floatformat:0|intcomma }}</span>
+                            <span class="font-bold text-primary-600 text-lg js-public-price" data-prefix="Negotiable" data-kes="{{ vehicle.website_price|default:0|unlocalize }}">Negotiable {{ brand.currency }} {{ vehicle.website_price|default:0|floatformat:0|intcomma }}</span>
                         </div>
                         <div class="flex justify-between items-center py-3">
                             <span class="text-gray-600">Status</span>
@@ -291,7 +271,7 @@
                     <div class="flex items-center justify-between mb-5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                         <span class="text-sm text-gray-600"><i class="fas fa-exchange-alt mr-1"></i> Currency</span>
                         <select id="publicDetailCurrency" data-multi-currency=".js-public-price" data-currency-decimals="0" data-currency-storage="vms_public_currencies" class="text-sm border-0 bg-transparent focus:ring-0 font-medium text-gray-700">
-                            <option value="KES" selected>KES — Kenyan Shilling</option>
+                            <option value="{{ brand.currency }}" selected>{{ brand.currency }}</option>
                             <option value="USD">USD — US Dollar</option>
                             <option value="EUR">EUR — Euro</option>
                             <option value="TZS">TZS — Tanzanian Shilling</option>
@@ -368,7 +348,7 @@
                     <div class="p-4">
                         <h3 class="text-lg font-bold text-gray-900 mb-1">{{ similar.full_name }}</h3>
                         <p class="text-sm text-gray-600 mb-3">{{ similar.color|title }}</p>
-                        <p class="text-sm font-semibold text-primary-600 mb-3">Negotiable KES {{ similar.website_price|default:0|floatformat:0 }}</p>
+                        <p class="text-sm font-semibold text-primary-600 mb-3">Negotiable {{ brand.currency }} {{ similar.website_price|default:0|floatformat:0 }}</p>
                         <a href="{% url 'dashboard:public_vehicle_detail' similar.pk %}" 
                            class="block w-full bg-primary-600 hover:bg-primary-700 text-white text-center px-4 py-2 rounded-lg font-semibold transition-colors text-sm">
                             View Details
@@ -385,7 +365,7 @@
     <!-- Footer -->
     <footer class="bg-gray-900 text-white py-8 mt-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <p class="text-gray-400">&copy; 2025 Hoza Investments. All rights reserved.</p>
+            <p class="text-gray-400">&copy; {% now 'Y' %} {{ brand.public_name }}. All rights reserved.</p>
             <div class="mt-4 space-x-6">
                 <a href="{% url 'dashboard:landing' %}" class="text-gray-400 hover:text-white transition-colors">Browse Vehicles</a>
                 <a href="tel:{{ company_phone_primary_tel }}" class="text-gray-400 hover:text-white transition-colors">Contact</a>

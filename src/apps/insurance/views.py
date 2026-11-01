@@ -2,6 +2,7 @@
 Views for the insurance app
 Handles insurance providers, policies, claims, and payments
 """
+from apps.company.services import currency
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -663,8 +664,8 @@ def payment_create(request, policy_pk):
             if payment_amount > ins_balance_owed:
                 form.add_error(
                     'amount',
-                    f'Payment of KES {payment_amount:,.2f} exceeds the balance owed of '
-                    f'KES {ins_balance_owed:,.2f}. Please enter a valid amount.'
+                    f'Payment of {currency()} {payment_amount:,.2f} exceeds the balance owed of '
+                    f'{currency()} {ins_balance_owed:,.2f}. Please enter a valid amount.'
                 )
                 messages.error(request, 'Please correct the errors below.')
             else:
@@ -1701,9 +1702,9 @@ def record_insurance_agent_payment(request, agent_pk):
     if policies_cleared:
         messages.success(
             request,
-            f'Payment of KES {amount:,.2f} recorded for {agent.name}. '
+            f'Payment of {currency()} {amount:,.2f} recorded for {agent.name}. '
             f'{policies_cleared} policy/policies marked as settled.'
         )
     else:
-        messages.success(request, f'Payment of KES {amount:,.2f} recorded for {agent.name}.')
+        messages.success(request, f'Payment of {currency()} {amount:,.2f} recorded for {agent.name}.')
     return redirect('insurance:agent_ledger_detail', pk=agent_pk)

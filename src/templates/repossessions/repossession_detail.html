@@ -39,31 +39,31 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-md p-6 text-white">
             <p class="text-sm opacity-90 mb-1">Outstanding Amount</p>
-            <p class="text-2xl font-bold">KES {{ repossession.outstanding_amount|floatformat:0 }}</p>
+            <p class="text-2xl font-bold">{{ brand.currency }} {{ repossession.outstanding_amount|floatformat:0 }}</p>
             <p class="text-xs opacity-75 mt-2">{{ repossession.payments_missed }} payment{{ repossession.payments_missed|pluralize }} missed</p>
         </div>
 
         <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-md p-6 text-white">
             <p class="text-sm opacity-90 mb-1">Total Costs</p>
-            <p class="text-2xl font-bold">KES {{ repossession.total_cost|floatformat:0 }}</p>
+            <p class="text-2xl font-bold">{{ brand.currency }} {{ repossession.total_cost|floatformat:0 }}</p>
             <p class="text-xs opacity-75 mt-2">Recovery & legal fees</p>
         </div>
 
         <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl shadow-md p-6 text-white">
             <p class="text-sm opacity-90 mb-1">New Additional Costs</p>
-            <p class="text-2xl font-bold">KES {{ repossession.additional_costs|floatformat:0 }}</p>
+            <p class="text-2xl font-bold">{{ brand.currency }} {{ repossession.additional_costs|floatformat:0 }}</p>
             <p class="text-xs opacity-75 mt-2">Applied during repossession</p>
         </div>
 
         <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-md p-6 text-white">
             <p class="text-sm opacity-90 mb-1">Total Amount Due</p>
-            <p class="text-2xl font-bold">KES {{ repossession.get_total_amount_due|floatformat:0 }}</p>
+            <p class="text-2xl font-bold">{{ brand.currency }} {{ repossession.get_total_amount_due|floatformat:0 }}</p>
             <p class="text-xs opacity-75 mt-2">Outstanding + costs</p>
         </div>
 
         <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-md p-6 text-white">
             <p class="text-sm opacity-90 mb-1">Auction/Return Target</p>
-            <p class="text-2xl font-bold">KES {{ recovery_target_amount|floatformat:0 }}</p>
+            <p class="text-2xl font-bold">{{ brand.currency }} {{ recovery_target_amount|floatformat:0 }}</p>
             <p class="text-xs opacity-75 mt-2">Balance + all accumulated costs</p>
         </div>
     </div>
@@ -115,7 +115,7 @@
                         {% endif %}
                         <div>
                             <p class="text-sm text-gray-600 mb-1">Accumulated Additional Costs</p>
-                            <p class="text-gray-800 font-medium">KES {{ total_additional_costs|floatformat:0 }}</p>
+                            <p class="text-gray-800 font-medium">{{ brand.currency }} {{ total_additional_costs|floatformat:0 }}</p>
                         </div>
                         <div>
                             <p class="text-sm text-gray-600 mb-1">Last Known Location</p>
@@ -353,7 +353,7 @@
                                             {{ expense.description }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            KES {{ expense.amount|floatformat:0 }}
+                                            {{ brand.currency }} {{ expense.amount|floatformat:0 }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             {{ expense.expense_date|date:"M d, Y" }}
@@ -400,7 +400,7 @@
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ item.get_category_display }}</td>
                                         <td class="px-6 py-4 text-sm text-gray-900">{{ item.description }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">KES {{ item.amount|floatformat:2 }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ brand.currency }} {{ item.amount|floatformat:2 }}</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>

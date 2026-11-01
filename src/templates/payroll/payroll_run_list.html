@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Payroll Runs - Vehicle Management System{% endblock %}
+{% block title %}Payroll Runs - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -71,15 +71,15 @@
                 </div>
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-500">Gross Total:</span>
-                    <span class="font-medium text-gray-900">KES {{ payroll.total_gross|floatformat:0 }}</span>
+                    <span class="font-medium text-gray-900">{{ brand.currency }} {{ payroll.total_gross|floatformat:0 }}</span>
                 </div>
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-500">Deductions:</span>
-                    <span class="font-medium text-red-600">KES {{ payroll.total_deductions|floatformat:0 }}</span>
+                    <span class="font-medium text-red-600">{{ brand.currency }} {{ payroll.total_deductions|floatformat:0 }}</span>
                 </div>
                 <div class="flex justify-between text-sm pt-2 border-t border-gray-200">
                     <span class="text-gray-700 font-medium">Net Total:</span>
-                    <span class="font-bold text-primary-600">KES {{ payroll.total_net|floatformat:0 }}</span>
+                    <span class="font-bold text-primary-600">{{ brand.currency }} {{ payroll.total_net|floatformat:0 }}</span>
                 </div>
             </div>
             <div class="flex space-x-2">

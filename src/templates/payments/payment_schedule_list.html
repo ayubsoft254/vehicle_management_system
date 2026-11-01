@@ -136,18 +136,18 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-semibold text-gray-900">KES {{ schedule.expected_amount|floatformat:2 }}</div>
+                            <div class="text-sm font-semibold text-gray-900">{{ brand.currency }} {{ schedule.expected_amount|floatformat:2 }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-semibold text-green-600">
-                                KES {{ schedule.amount_paid|floatformat:2|default:"0.00" }}
+                                {{ brand.currency }} {{ schedule.amount_paid|floatformat:2|default:"0.00" }}
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-semibold
                                 {% if schedule.balance > 0 %}text-red-600
                                 {% else %}text-gray-400{% endif %}">
-                                KES {{ schedule.balance|floatformat:2 }}
+                                {{ brand.currency }} {{ schedule.balance|floatformat:2 }}
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -186,13 +186,13 @@
                     <tr>
                         <td colspan="2" class="px-6 py-4 text-sm font-bold text-gray-900">TOTALS</td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-bold text-gray-900">KES {{ total_expected|floatformat:2 }}</div>
+                            <div class="text-sm font-bold text-gray-900">{{ brand.currency }} {{ total_expected|floatformat:2 }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-bold text-green-600">KES {{ total_paid|floatformat:2 }}</div>
+                            <div class="text-sm font-bold text-green-600">{{ brand.currency }} {{ total_paid|floatformat:2 }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-bold text-red-600">KES {{ total_balance|floatformat:2 }}</div>
+                            <div class="text-sm font-bold text-red-600">{{ brand.currency }} {{ total_balance|floatformat:2 }}</div>
                         </td>
                         <td colspan="2"></td>
                     </tr>

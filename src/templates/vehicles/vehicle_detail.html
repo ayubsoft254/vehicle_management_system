@@ -216,7 +216,7 @@
                 {% else %}<span class="font-semibold">{{ active_reservation.client.get_full_name }}</span>{% endif %}
                 via proforma
                 <a href="{% url 'clients:proforma_detail' active_reservation.proforma.pk %}" class="font-semibold underline">{{ active_reservation.proforma.number }}</a>
-                — deposit KES {{ active_reservation.deposit_amount|floatformat:0 }} held, expires {{ active_reservation.expiry_date|date:"M d, Y" }}.
+                — deposit {{ brand.currency }} {{ active_reservation.deposit_amount|floatformat:0 }} held, expires {{ active_reservation.expiry_date|date:"M d, Y" }}.
                 It cannot be sold to another client unless the reservation is cancelled, expires, or is released by a manager.
             </p>
         </div>
@@ -697,7 +697,7 @@
                                 <div class="text-right text-xs text-gray-500">
                                     <p>Reason: <span class="font-medium text-gray-700">{{ repo.get_reason_display }}</span></p>
                                     {% if repo.outstanding_amount %}
-                                    <p class="mt-0.5">Outstanding: <span class="font-medium text-red-600">KES {{ repo.outstanding_amount|floatformat:2 }}</span></p>
+                                    <p class="mt-0.5">Outstanding: <span class="font-medium text-red-600">{{ brand.currency }} {{ repo.outstanding_amount|floatformat:2 }}</span></p>
                                     {% endif %}
                                 </div>
                             </div>
@@ -711,38 +711,38 @@
                                 {% if repo.recovery_cost %}
                                 <div class="flex justify-between bg-gray-50 rounded px-3 py-1.5">
                                     <span class="text-gray-600">Recovery</span>
-                                    <span class="font-semibold text-gray-800">KES {{ repo.recovery_cost|floatformat:2 }}</span>
+                                    <span class="font-semibold text-gray-800">{{ brand.currency }} {{ repo.recovery_cost|floatformat:2 }}</span>
                                 </div>
                                 {% endif %}
                                 {% if repo.storage_cost %}
                                 <div class="flex justify-between bg-gray-50 rounded px-3 py-1.5">
                                     <span class="text-gray-600">Storage</span>
-                                    <span class="font-semibold text-gray-800">KES {{ repo.storage_cost|floatformat:2 }}</span>
+                                    <span class="font-semibold text-gray-800">{{ brand.currency }} {{ repo.storage_cost|floatformat:2 }}</span>
                                 </div>
                                 {% endif %}
                                 {% if repo.legal_cost %}
                                 <div class="flex justify-between bg-gray-50 rounded px-3 py-1.5">
                                     <span class="text-gray-600">Legal</span>
-                                    <span class="font-semibold text-gray-800">KES {{ repo.legal_cost|floatformat:2 }}</span>
+                                    <span class="font-semibold text-gray-800">{{ brand.currency }} {{ repo.legal_cost|floatformat:2 }}</span>
                                 </div>
                                 {% endif %}
                                 {% if repo.other_costs %}
                                 <div class="flex justify-between bg-gray-50 rounded px-3 py-1.5">
                                     <span class="text-gray-600">Other</span>
-                                    <span class="font-semibold text-gray-800">KES {{ repo.other_costs|floatformat:2 }}</span>
+                                    <span class="font-semibold text-gray-800">{{ brand.currency }} {{ repo.other_costs|floatformat:2 }}</span>
                                 </div>
                                 {% endif %}
                                 {% if repo.additional_costs %}
                                 <div class="flex justify-between bg-gray-50 rounded px-3 py-1.5">
                                     <span class="text-gray-600">Additional</span>
-                                    <span class="font-semibold text-gray-800">KES {{ repo.additional_costs|floatformat:2 }}</span>
+                                    <span class="font-semibold text-gray-800">{{ brand.currency }} {{ repo.additional_costs|floatformat:2 }}</span>
                                 </div>
                                 {% endif %}
                             </div>
                             {% if repo.total_cost %}
                             <div class="mt-2 flex justify-between items-center bg-gray-50 rounded px-3 py-2 text-sm">
                                 <span class="font-semibold text-gray-700">Repossession Costs</span>
-                                <span class="font-bold text-gray-800">KES {{ repo.total_cost|floatformat:2 }}</span>
+                                <span class="font-bold text-gray-800">{{ brand.currency }} {{ repo.total_cost|floatformat:2 }}</span>
                             </div>
                             {% endif %}
                         </div>
@@ -759,7 +759,7 @@
                                         <span class="font-medium text-gray-700">{{ exp.get_expense_type_display }}</span>
                                         {% if exp.description %}<span class="text-gray-500"> — {{ exp.description }}</span>{% endif %}
                                     </div>
-                                    <span class="font-semibold text-gray-800 ml-4">KES {{ exp.amount|floatformat:2 }}</span>
+                                    <span class="font-semibold text-gray-800 ml-4">{{ brand.currency }} {{ exp.amount|floatformat:2 }}</span>
                                 </div>
                                 {% endfor %}
                             </div>
@@ -774,7 +774,7 @@
                                 {% for item in repo.additional_cost_items.all %}
                                 <div class="flex justify-between items-center text-xs bg-gray-50 rounded px-3 py-1.5">
                                     <span class="text-gray-700">{{ item.get_category_display }}{% if item.description %} — {{ item.description }}{% endif %}</span>
-                                    <span class="font-semibold text-gray-800 ml-4">KES {{ item.amount|floatformat:2 }}</span>
+                                    <span class="font-semibold text-gray-800 ml-4">{{ brand.currency }} {{ item.amount|floatformat:2 }}</span>
                                 </div>
                                 {% endfor %}
                             </div>
@@ -784,7 +784,7 @@
                         <!-- Total (outstanding + all costs) -->
                         <div class="mt-2 flex justify-between items-center bg-orange-50 border border-orange-200 rounded px-3 py-2 text-sm">
                             <span class="font-bold text-orange-800">Total (Owed + Costs)</span>
-                            <span class="font-bold text-orange-700">KES {{ repo.get_total_amount_due|floatformat:2 }}</span>
+                            <span class="font-bold text-orange-700">{{ brand.currency }} {{ repo.get_total_amount_due|floatformat:2 }}</span>
                         </div>
 
                         <!-- Resolution -->
@@ -817,7 +817,7 @@
                     </span>
                     {% if can_view_prices and repossession_total_with_outstanding %}
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        KES {{ repossession_total_with_outstanding|floatformat:0 }}
+                        {{ brand.currency }} {{ repossession_total_with_outstanding|floatformat:0 }}
                     </span>
                     {% endif %}
                 </div>
@@ -851,7 +851,7 @@
                                 </div>
                                 <div class="text-right text-xs text-gray-500">
                                     <p>{{ repo.get_reason_display }}</p>
-                                    {% if repo.outstanding_amount %}<p class="text-red-600 font-medium">KES {{ repo.outstanding_amount|floatformat:0 }} owed</p>{% endif %}
+                                    {% if repo.outstanding_amount %}<p class="text-red-600 font-medium">{{ brand.currency }} {{ repo.outstanding_amount|floatformat:0 }} owed</p>{% endif %}
                                 </div>
                             </div>
                         </div>
@@ -859,26 +859,26 @@
                         {% if can_view_prices %}
                         <div class="space-y-1">
                             {% if repo.outstanding_amount %}
-                            <div class="flex justify-between text-xs"><span class="text-red-600 font-medium">Amount Owed</span><span class="font-semibold text-red-600">KES {{ repo.outstanding_amount|floatformat:0 }}</span></div>
+                            <div class="flex justify-between text-xs"><span class="text-red-600 font-medium">Amount Owed</span><span class="font-semibold text-red-600">{{ brand.currency }} {{ repo.outstanding_amount|floatformat:0 }}</span></div>
                             {% endif %}
-                            {% if repo.recovery_cost %}<div class="flex justify-between text-xs"><span class="text-gray-600">Recovery</span><span class="font-semibold">KES {{ repo.recovery_cost|floatformat:0 }}</span></div>{% endif %}
-                            {% if repo.storage_cost %}<div class="flex justify-between text-xs"><span class="text-gray-600">Storage</span><span class="font-semibold">KES {{ repo.storage_cost|floatformat:0 }}</span></div>{% endif %}
-                            {% if repo.legal_cost %}<div class="flex justify-between text-xs"><span class="text-gray-600">Legal</span><span class="font-semibold">KES {{ repo.legal_cost|floatformat:0 }}</span></div>{% endif %}
-                            {% if repo.other_costs %}<div class="flex justify-between text-xs"><span class="text-gray-600">Other</span><span class="font-semibold">KES {{ repo.other_costs|floatformat:0 }}</span></div>{% endif %}
-                            {% if repo.additional_costs %}<div class="flex justify-between text-xs"><span class="text-gray-600">Additional</span><span class="font-semibold">KES {{ repo.additional_costs|floatformat:0 }}</span></div>{% endif %}
+                            {% if repo.recovery_cost %}<div class="flex justify-between text-xs"><span class="text-gray-600">Recovery</span><span class="font-semibold">{{ brand.currency }} {{ repo.recovery_cost|floatformat:0 }}</span></div>{% endif %}
+                            {% if repo.storage_cost %}<div class="flex justify-between text-xs"><span class="text-gray-600">Storage</span><span class="font-semibold">{{ brand.currency }} {{ repo.storage_cost|floatformat:0 }}</span></div>{% endif %}
+                            {% if repo.legal_cost %}<div class="flex justify-between text-xs"><span class="text-gray-600">Legal</span><span class="font-semibold">{{ brand.currency }} {{ repo.legal_cost|floatformat:0 }}</span></div>{% endif %}
+                            {% if repo.other_costs %}<div class="flex justify-between text-xs"><span class="text-gray-600">Other</span><span class="font-semibold">{{ brand.currency }} {{ repo.other_costs|floatformat:0 }}</span></div>{% endif %}
+                            {% if repo.additional_costs %}<div class="flex justify-between text-xs"><span class="text-gray-600">Additional</span><span class="font-semibold">{{ brand.currency }} {{ repo.additional_costs|floatformat:0 }}</span></div>{% endif %}
                             {% for exp in repo.expenses.all %}
-                            <div class="flex justify-between text-xs"><span class="text-gray-600">{{ exp.get_expense_type_display }}</span><span class="font-semibold">KES {{ exp.amount|floatformat:0 }}</span></div>
+                            <div class="flex justify-between text-xs"><span class="text-gray-600">{{ exp.get_expense_type_display }}</span><span class="font-semibold">{{ brand.currency }} {{ exp.amount|floatformat:0 }}</span></div>
                             {% endfor %}
                             {% for item in repo.additional_cost_items.all %}
-                            <div class="flex justify-between text-xs"><span class="text-gray-600">{{ item.get_category_display }}</span><span class="font-semibold">KES {{ item.amount|floatformat:0 }}</span></div>
+                            <div class="flex justify-between text-xs"><span class="text-gray-600">{{ item.get_category_display }}</span><span class="font-semibold">{{ brand.currency }} {{ item.amount|floatformat:0 }}</span></div>
                             {% endfor %}
                             {% if repo.total_cost %}
                             <div class="flex justify-between text-xs pt-1 border-t border-gray-200">
-                                <span class="text-gray-600">Repossession Costs</span><span class="font-semibold text-gray-800">KES {{ repo.total_cost|floatformat:0 }}</span>
+                                <span class="text-gray-600">Repossession Costs</span><span class="font-semibold text-gray-800">{{ brand.currency }} {{ repo.total_cost|floatformat:0 }}</span>
                             </div>
                             {% endif %}
                             <div class="flex justify-between text-xs font-bold pt-1 border-t border-orange-200 text-orange-700">
-                                <span>Total</span><span>KES {{ repo.get_total_amount_due|floatformat:0 }}</span>
+                                <span>Total</span><span>{{ brand.currency }} {{ repo.get_total_amount_due|floatformat:0 }}</span>
                             </div>
                         </div>
                         {% endif %}
@@ -903,7 +903,7 @@
                         <div class="flex items-center gap-2">
                             <label for="pricingCurrency" class="text-sm text-gray-600">Currency</label>
                             <select id="pricingCurrency" data-multi-currency="#pricingCard .js-currency" data-currency-decimals="2" data-currency-storage="vms_vehicle_pricing_currencies" class="px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                <option value="KES" selected>KES</option>
+                                <option value="{{ brand.currency }}" selected>{{ brand.currency }}</option>
                                 <option value="USD">USD</option>
                                 <option value="EUR">EUR</option>
                                 <option value="TZS">TZS</option>
@@ -918,7 +918,7 @@
                     {% if can_view_prices %}
                         <div>
                             <p class="text-sm font-medium text-gray-500 mb-1">Purchase Price</p>
-                            <p class="text-2xl font-bold text-gray-900 js-currency" data-kes="{{ vehicle.purchase_price|unlocalize }}">KES {{ vehicle.purchase_price }}</p>
+                            <p class="text-2xl font-bold text-gray-900 js-currency" data-kes="{{ vehicle.purchase_price|unlocalize }}">{{ brand.currency }} {{ vehicle.purchase_price }}</p>
                         </div>
 
                         <div class="pt-4 border-t border-gray-200">
@@ -926,19 +926,19 @@
                             <div class="space-y-2">
                                 <div class="flex justify-between items-center text-sm">
                                     <span class="text-gray-600">Duty Cost</span>
-                                    <span class="font-semibold text-gray-900 js-currency" data-kes="{{ vehicle.duty_cost|unlocalize }}">KES {{ vehicle.duty_cost }}</span>
+                                    <span class="font-semibold text-gray-900 js-currency" data-kes="{{ vehicle.duty_cost|unlocalize }}">{{ brand.currency }} {{ vehicle.duty_cost }}</span>
                                 </div>
                                 <div class="flex justify-between items-center text-sm">
                                     <span class="text-gray-600">Clearance Cost</span>
-                                    <span class="font-semibold text-gray-900 js-currency" data-kes="{{ vehicle.clearance_cost|unlocalize }}">KES {{ vehicle.clearance_cost }}</span>
+                                    <span class="font-semibold text-gray-900 js-currency" data-kes="{{ vehicle.clearance_cost|unlocalize }}">{{ brand.currency }} {{ vehicle.clearance_cost }}</span>
                                 </div>
                                 <div class="flex justify-between items-center text-sm">
                                     <span class="text-gray-600">Commission Cost</span>
-                                    <span class="font-semibold text-gray-900 js-currency" data-kes="{{ vehicle.commission_cost|unlocalize }}">KES {{ vehicle.commission_cost }}</span>
+                                    <span class="font-semibold text-gray-900 js-currency" data-kes="{{ vehicle.commission_cost|unlocalize }}">{{ brand.currency }} {{ vehicle.commission_cost }}</span>
                                 </div>
                                 <div class="flex justify-between items-center text-sm">
                                     <span class="text-gray-600">Extra Costs</span>
-                                    <span class="font-semibold text-gray-900 js-currency" data-kes="{{ extra_cost_total|unlocalize }}">KES {{ extra_cost_total }}</span>
+                                    <span class="font-semibold text-gray-900 js-currency" data-kes="{{ extra_cost_total|unlocalize }}">{{ brand.currency }} {{ extra_cost_total }}</span>
                                 </div>
                                 {% if repossession_cost_total %}
                                 <div class="flex justify-between items-center text-sm bg-orange-50 rounded px-2 py-1 border border-orange-200">
@@ -946,7 +946,7 @@
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18"/></svg>
                                         Repossession Costs
                                     </span>
-                                    <span class="font-semibold text-orange-700 js-currency" data-kes="{{ repossession_cost_total|unlocalize }}">KES {{ repossession_cost_total }}</span>
+                                    <span class="font-semibold text-orange-700 js-currency" data-kes="{{ repossession_cost_total|unlocalize }}">{{ brand.currency }} {{ repossession_cost_total }}</span>
                                 </div>
                                 {% endif %}
                             </div>
@@ -955,7 +955,7 @@
                         <div class="pt-4 border-t border-gray-200 bg-blue-50 rounded p-3">
                             <div class="flex justify-between items-center">
                                 <span class="text-sm font-semibold text-gray-700">Total Cost</span>
-                                <span class="text-xl font-bold text-blue-700 js-currency" data-kes="{{ total_cost|unlocalize }}">KES {{ total_cost }}</span>
+                                <span class="text-xl font-bold text-blue-700 js-currency" data-kes="{{ total_cost|unlocalize }}">{{ brand.currency }} {{ total_cost }}</span>
                             </div>
                         </div>
 
@@ -966,7 +966,7 @@
                                 {% for cost in extra_costs %}
                                 <div class="flex justify-between items-center text-sm rounded bg-gray-50 px-3 py-2">
                                     <span class="text-gray-700">{{ cost.description }}</span>
-                                    <span class="font-semibold text-gray-900 js-currency" data-kes="{{ cost.amount|unlocalize }}">KES {{ cost.amount }}</span>
+                                    <span class="font-semibold text-gray-900 js-currency" data-kes="{{ cost.amount|unlocalize }}">{{ brand.currency }} {{ cost.amount }}</span>
                                 </div>
                                 {% endfor %}
                             </div>
@@ -977,7 +977,7 @@
                             <p class="text-sm font-medium text-gray-500 mb-1">
                                 {% if vehicle.status == 'sold' and latest_sale %}Final Sale Price{% else %}Website Price{% endif %}
                             </p>
-                            <p class="text-3xl font-bold text-blue-600 js-currency" data-kes="{{ display_price|unlocalize }}">KES {{ display_price|floatformat:2 }}</p>
+                            <p class="text-3xl font-bold text-blue-600 js-currency" data-kes="{{ display_price|unlocalize }}">{{ brand.currency }} {{ display_price|floatformat:2 }}</p>
                         </div>
 
                         <div class="pt-4 border-t border-gray-200">
@@ -985,7 +985,7 @@
                                 {% if vehicle.status == 'sold' and latest_sale %}Actual Profit{% else %}Potential Profit{% endif %}
                             </p>
                             <p class="text-2xl font-bold js-currency {% if vehicle_profit >= 0 %}text-green-600{% else %}text-red-600{% endif %}" data-kes="{{ vehicle_profit|unlocalize }}">
-                                KES {{ vehicle_profit|floatformat:2 }}
+                                {{ brand.currency }} {{ vehicle_profit|floatformat:2 }}
                             </p>
                         </div>
 
@@ -1003,7 +1003,7 @@
                                     {% if vehicle.purchase_usd_rate %}
                                     <div class="flex justify-between">
                                         <span class="text-gray-600">Rate at purchase</span>
-                                        <span class="font-semibold text-gray-700">{{ vehicle.purchase_usd_rate }} KES/USD</span>
+                                        <span class="font-semibold text-gray-700">{{ vehicle.purchase_usd_rate }} {{ brand.currency }}/USD</span>
                                     </div>
                                     {% endif %}
                                     <div class="flex justify-between border-t border-amber-200 pt-2">
@@ -1025,7 +1025,7 @@
                                 </div>
                                 <div class="mt-3 pt-3 border-t border-amber-200">
                                     <div class="flex items-center gap-2">
-                                        <label class="text-xs text-gray-600 whitespace-nowrap">Live rate (KES/USD)</label>
+                                        <label class="text-xs text-gray-600 whitespace-nowrap">Live rate ({{ brand.currency }}/USD)</label>
                                         <input type="number" id="liveRateInput" step="0.01" min="0" placeholder="e.g. 130"
                                             class="w-28 text-sm border border-gray-300 rounded px-2 py-1 focus:ring-amber-400 focus:border-amber-400">
                                         <button type="button" id="fetchLiveRateDetailBtn"
@@ -1042,11 +1042,11 @@
                         {% if show_public_prices %}
                         <div>
                             <p class="text-sm font-medium text-gray-500 mb-1">Website Price</p>
-                            <p class="text-3xl font-bold text-blue-600 js-currency" data-kes="{{ display_price|unlocalize }}">KES {{ display_price|floatformat:2 }}</p>
+                            <p class="text-3xl font-bold text-blue-600 js-currency" data-kes="{{ display_price|unlocalize }}">{{ brand.currency }} {{ display_price|floatformat:2 }}</p>
                         </div>
                         <div class="pt-4 border-t border-gray-200">
                             <p class="text-sm font-medium text-gray-500 mb-1">Minimum Deposit</p>
-                            <p class="text-lg font-bold text-orange-600 js-currency" data-kes="{{ vehicle.deposit_required|unlocalize }}">KES {{ vehicle.deposit_required|floatformat:2 }}</p>
+                            <p class="text-lg font-bold text-orange-600 js-currency" data-kes="{{ vehicle.deposit_required|unlocalize }}">{{ brand.currency }} {{ vehicle.deposit_required|floatformat:2 }}</p>
                         </div>
                         {% else %}
                         <div>
@@ -1059,7 +1059,7 @@
                     {% if can_view_prices and vehicle.deposit_required %}
                     <div class="pt-4 border-t border-gray-200">
                         <p class="text-sm font-medium text-gray-500 mb-1">Deposit Required</p>
-                        <p class="text-lg font-bold text-orange-600 js-currency" data-kes="{{ vehicle.deposit_required|unlocalize }}">KES {{ vehicle.deposit_required }}</p>
+                        <p class="text-lg font-bold text-orange-600 js-currency" data-kes="{{ vehicle.deposit_required|unlocalize }}">{{ brand.currency }} {{ vehicle.deposit_required }}</p>
                     </div>
                     {% endif %}
                 </div>
@@ -1462,7 +1462,7 @@ document.addEventListener('click', function(e) {
         if (!rate || rate <= 0) return;
         const breakEvenKes = purchaseUsd * rate;
         const currentUsd   = sellKes / rate;
-        if (breakEvenEl) breakEvenEl.textContent = 'KES ' + breakEvenKes.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        if (breakEvenEl) breakEvenEl.textContent = '{{ brand.currency }} ' + breakEvenKes.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         if (currentSellEl) currentSellEl.textContent = '$ ' + currentUsd.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         const isLoss = currentUsd < purchaseUsd;
         if (warningEl) warningEl.classList.toggle('hidden', !isLoss);
@@ -1478,10 +1478,10 @@ document.addEventListener('click', function(e) {
             fetch('https://open.er-api.com/v6/latest/USD')
                 .then(r => r.json())
                 .then(data => {
-                    const rate = data && data.rates && data.rates.KES ? data.rates.KES : null;
+                    const rate = data && data.rates && data.rates['{{ brand.currency }}'] ? data.rates['{{ brand.currency }}'] : null;
                     if (rate && liveRateInput) {
                         liveRateInput.value = rate.toFixed(2);
-                        if (statusEl) statusEl.textContent = '1 USD = KES ' + rate.toFixed(2) + ' (live)';
+                        if (statusEl) statusEl.textContent = '1 USD = {{ brand.currency }} ' + rate.toFixed(2) + ' (live)';
                         updatePanel(rate);
                     } else {
                         if (statusEl) statusEl.textContent = 'Could not retrieve rate.';

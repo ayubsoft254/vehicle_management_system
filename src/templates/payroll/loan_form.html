@@ -86,10 +86,10 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="{{ form.loan_amount.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                                Loan Amount (KES) <span class="text-red-500">*</span>
+                                Loan Amount ({{ brand.currency }}) <span class="text-red-500">*</span>
                             </label>
                             <div class="relative">
-                                <span class="absolute left-3 top-2.5 text-gray-500 font-medium text-sm">KES</span>
+                                <span class="absolute left-3 top-2.5 text-gray-500 font-medium text-sm">{{ brand.currency }}</span>
                                 <div class="pl-12">{{ form.loan_amount }}</div>
                             </div>
                             {% if form.loan_amount.errors %}
@@ -126,10 +126,10 @@
                             </div>
                             <div>
                                 <label for="{{ form.monthly_repayment.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Monthly Repayment (KES) <span class="text-red-500">*</span>
+                                    Monthly Repayment ({{ brand.currency }}) <span class="text-red-500">*</span>
                                 </label>
                                 <div class="relative">
-                                    <span class="absolute left-3 top-2.5 text-gray-500 font-medium text-sm">KES</span>
+                                    <span class="absolute left-3 top-2.5 text-gray-500 font-medium text-sm">{{ brand.currency }}</span>
                                     <div class="pl-12">{{ form.monthly_repayment }}</div>
                                 </div>
                                 {% if form.monthly_repayment.errors %}
@@ -139,7 +139,7 @@
                         </div>
                         <div class="mt-4 bg-white rounded-lg p-3 border border-purple-200 flex justify-between items-center">
                             <span class="text-sm font-medium text-purple-800">Estimated Total Payable:</span>
-                            <span id="total-payable" class="text-lg font-bold text-purple-700">KES 0</span>
+                            <span id="total-payable" class="text-lg font-bold text-purple-700">{{ brand.currency }} 0</span>
                         </div>
                     </div>
 
@@ -232,7 +232,7 @@
                         <div class="space-y-1 text-xs">
                             <div class="flex justify-between">
                                 <span>Loan Amount:</span>
-                                <span class="font-medium">KES 100,000</span>
+                                <span class="font-medium">{{ brand.currency }} 100,000</span>
                             </div>
                             <div class="flex justify-between">
                                 <span>Interest Rate:</span>
@@ -244,11 +244,11 @@
                             </div>
                             <div class="flex justify-between pt-2 border-t border-purple-200 font-bold">
                                 <span>Monthly Payment:</span>
-                                <span class="text-purple-600">KES 8,561</span>
+                                <span class="text-purple-600">{{ brand.currency }} 8,561</span>
                             </div>
                             <div class="flex justify-between text-purple-700">
                                 <span>Total Payable:</span>
-                                <span>KES 102,728</span>
+                                <span>{{ brand.currency }} 102,728</span>
                             </div>
                         </div>
                     </div>
@@ -369,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             const total = monthly * months;
             monthlyRepaymentInput.value = monthly.toFixed(2);
-            totalPayableEl.textContent = 'KES ' + total.toLocaleString('en-KE', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+            totalPayableEl.textContent = '{{ brand.currency }} ' + total.toLocaleString('{{ brand.locale }}', {minimumFractionDigits: 0, maximumFractionDigits: 0});
 
             // Auto-fill expected completion date from repayment start + months
             if (repaymentStartInput.value && months > 0) {
@@ -378,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 completionDateInput.value = start.toISOString().split('T')[0];
             }
         } else {
-            totalPayableEl.textContent = 'KES 0';
+            totalPayableEl.textContent = '{{ brand.currency }} 0';
         }
 
         // Update total if monthly is edited manually
@@ -390,7 +390,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const monthly = parseFloat(monthlyRepaymentInput.value) || 0;
         if (months > 0 && monthly > 0) {
             const total = months * monthly;
-            totalPayableEl.textContent = 'KES ' + total.toLocaleString('en-KE', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+            totalPayableEl.textContent = '{{ brand.currency }} ' + total.toLocaleString('{{ brand.locale }}', {minimumFractionDigits: 0, maximumFractionDigits: 0});
         }
     }
 

@@ -73,7 +73,7 @@
                         <td class="px-4 py-4 text-sm">
                             <a href="{% url 'clients:client_vehicle_detail' req.client_vehicle.pk %}" class="font-medium text-gray-900 hover:text-primary-600">{{ req.client_vehicle.client.get_full_name }}</a>
                             <div class="text-xs text-gray-500">{{ req.client_vehicle.vehicle.make }} {{ req.client_vehicle.vehicle.model }} · {{ req.client_vehicle.vehicle.registration_number|default:req.client_vehicle.vehicle.vin }}</div>
-                            <div class="text-xs text-gray-400">Balance: KES {{ req.client_vehicle.balance|floatformat:2|intcomma }}</div>
+                            <div class="text-xs text-gray-400">Balance: {{ brand.currency }} {{ req.client_vehicle.balance|floatformat:2|intcomma }}</div>
                         </td>
                         <td class="px-4 py-4 text-sm text-gray-700">
                             {% if req.request_type == 'reverse' %}
@@ -87,7 +87,7 @@
                                 {% if req.is_split %}
                                 <ul class="mt-1 text-xs text-gray-500 space-y-0.5">
                                     {% for s in req.split_rows %}
-                                    <li>KES {{ s.amount|floatformat:2|intcomma }} · {{ s.method }}{% if s.reference %} · <span class="font-mono">{{ s.reference }}</span>{% endif %}</li>
+                                    <li>{{ brand.currency }} {{ s.amount|floatformat:2|intcomma }} · {{ s.method }}{% if s.reference %} · <span class="font-mono">{{ s.reference }}</span>{% endif %}</li>
                                     {% endfor %}
                                 </ul>
                                 {% elif req.transaction_reference %}
@@ -107,7 +107,7 @@
                             {% endif %}
                         </td>
                         <td class="px-4 py-4 text-sm text-right font-semibold whitespace-nowrap {% if req.request_type == 'reverse' %}text-red-700{% else %}text-gray-900{% endif %}">
-                            {% if req.request_type == 'reverse' %}−{% endif %}KES {{ req.amount|floatformat:2|intcomma }}
+                            {% if req.request_type == 'reverse' %}−{% endif %}{{ brand.currency }} {{ req.amount|floatformat:2|intcomma }}
                         </td>
                         <td class="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
                             {{ req.requested_by.get_full_name|default:req.requested_by.email }}

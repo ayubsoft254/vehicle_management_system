@@ -115,6 +115,9 @@ urlpatterns = [
     # SECURITY & COMPLIANCE APPS
     # ============================================================================
     
+    # Company & Branding settings (administrators)
+    path('settings/company/', include('apps.company.urls')),
+
     # Permissions - Role-based access control
     path('permissions/', include('apps.permissions.urls')),
     
@@ -129,13 +132,32 @@ urlpatterns = [
     # path('', RedirectView.as_view(url='/dashboard/', permanent=False), name='home'),
 ]
 
+if settings.MULTI_TENANT:
+    from apps.tenancy.views import support_login
+
+    # Platform owners land here from the control panel's "Open as company"
+    urlpatterns += [
+        path('platform-support/<str:token>/', support_login, name='tenancy_support_login'),
+    ]
+
 # ============================================================================
 # ADMIN SITE CUSTOMIZATION
 # ============================================================================
 
-admin.site.site_header = "Vehicle Management System"
-admin.site.site_title = "VMS Admin Portal"
-admin.site.index_title = "Welcome to Vehicle Management System Administration"
+# Titles come from the company profile, read lazily so a Settings change
+# shows without a restart.
+from django.utils.functional import lazy
+
+
+def _admin_title(suffix=''):
+    from apps.company.services import get_company
+    return f'{get_company().app_name}{suffix}'
+
+
+admin.site.site_header = lazy(_admin_title, str)()
+admin.site.site_title = lazy(_admin_title, str)(' Admin Portal')
+admin.site.index_title = 'Administration'
+
 
 # ============================================================================
 # STATIC AND MEDIA FILES (Development Only)

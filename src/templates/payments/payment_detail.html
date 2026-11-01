@@ -112,7 +112,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-500 mb-1">Amount Paid</label>
-                        <p class="text-2xl font-bold text-green-600">KES {{ payment.amount|floatformat:2 }}</p>
+                        <p class="text-2xl font-bold text-green-600">{{ brand.currency }} {{ payment.amount|floatformat:2 }}</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-500 mb-1">Payment Method</label>
@@ -240,23 +240,23 @@
                 <div class="space-y-4">
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">Total Price</span>
-                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.purchase_price|floatformat:2 }}</span>
+                        <span class="text-base font-semibold text-gray-900">{{ brand.currency }} {{ payment.client_vehicle.purchase_price|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">Deposit Paid</span>
-                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.deposit_paid|floatformat:2 }}</span>
+                        <span class="text-base font-semibold text-gray-900">{{ brand.currency }} {{ payment.client_vehicle.deposit_paid|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between items-center pt-2 border-t border-gray-200">
                         <span class="text-sm text-gray-600">Amount Financed</span>
-                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.financed_amount|floatformat:2 }}</span>
+                        <span class="text-base font-semibold text-gray-900">{{ brand.currency }} {{ payment.client_vehicle.financed_amount|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">Total Paid</span>
-                        <span class="text-base font-semibold text-green-600">KES {{ payment.client_vehicle.total_paid|floatformat:2 }}</span>
+                        <span class="text-base font-semibold text-green-600">{{ brand.currency }} {{ payment.client_vehicle.total_paid|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between items-center pt-2 border-t border-gray-200">
                         <span class="text-sm font-semibold text-gray-700">Remaining Balance</span>
-                        <span class="text-lg font-bold text-red-600">KES {{ payment.client_vehicle.balance|floatformat:2 }}</span>
+                        <span class="text-lg font-bold text-red-600">{{ brand.currency }} {{ payment.client_vehicle.balance|floatformat:2 }}</span>
                     </div>
 
                     <!-- Progress Bar -->
@@ -296,7 +296,7 @@
                         <div class="bg-blue-50 rounded p-3 space-y-2">
                             <div class="flex justify-between text-sm">
                                 <span class="text-gray-600">Monthly Payment</span>
-                                <span class="font-semibold text-gray-900">KES {{ payment.client_vehicle.installment_plan.monthly_installment|floatformat:2 }}</span>
+                                <span class="font-semibold text-gray-900">{{ brand.currency }} {{ payment.client_vehicle.installment_plan.monthly_installment|floatformat:2 }}</span>
                             </div>
                             <div class="flex justify-between text-sm">
                                 <span class="text-gray-600">Duration</span>
@@ -356,7 +356,7 @@
                 </button>
             </div>
             <p class="text-sm text-gray-600 mb-4">
-                This will void receipt <strong>{{ payment.receipt_number }}</strong> (KES {{ payment.amount|floatformat:2 }}).
+                This will void receipt <strong>{{ payment.receipt_number }}</strong> ({{ brand.currency }} {{ payment.amount|floatformat:2 }}).
                 The vehicle balance, installment schedule and ledgers will be recalculated as if this payment never happened.
                 {% if not is_payment_approver %}<br><span class="font-semibold">An administrator must approve the reversal before it takes effect.</span>{% endif %}
             </p>

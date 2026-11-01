@@ -14,8 +14,10 @@ def drop_accountwithdrawal_objects(apps, schema_editor):
     if vendor == 'sqlite':
         schema_editor.execute("DROP TABLE IF EXISTS payments_accountwithdrawal")
     elif vendor == 'postgresql':
-        schema_editor.execute("DROP TABLE IF EXISTS public.payments_accountwithdrawal CASCADE")
-        schema_editor.execute("DROP TYPE IF EXISTS public.payments_accountwithdrawal")
+        # Unqualified so it acts on the schema being migrated (one per company
+        # under django-tenants), not always on "public".
+        schema_editor.execute("DROP TABLE IF EXISTS payments_accountwithdrawal CASCADE")
+        schema_editor.execute("DROP TYPE IF EXISTS payments_accountwithdrawal")
     else:
         schema_editor.execute("DROP TABLE IF EXISTS payments_accountwithdrawal")
 

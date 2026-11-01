@@ -2,6 +2,7 @@
 Vehicles Models
 Manage vehicle inventory with complete specifications and history
 """
+from apps.company.services import currency
 from django.db import models
 from django.db.models import Q
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -973,7 +974,7 @@ class ClearanceRecord(models.Model):
         verbose_name_plural = 'Clearance Records'
 
     def __str__(self):
-        return f"Clearance — {self.vehicle} — KES {self.amount:,.2f}"
+        return f"Clearance — {self.vehicle} — {currency()} {self.amount:,.2f}"
 
 
 class VehicleHistory(models.Model):
@@ -1064,7 +1065,7 @@ class TrackerAgentPayment(models.Model):
         verbose_name_plural = 'Tracker Agent Payments'
 
     def __str__(self):
-        return f"Payment KES {self.amount:,.0f} to {self.agent.name} on {self.payment_date}"
+        return f"Payment {currency()} {self.amount:,.0f} to {self.agent.name} on {self.payment_date}"
 
 
 # ==================== CLEARING AGENT PAYMENT MODEL ====================
@@ -1103,7 +1104,7 @@ class ClearingAgentPayment(models.Model):
         verbose_name_plural = 'Clearing Agent Payments'
 
     def __str__(self):
-        return f"Payment KES {self.amount:,.0f} to {self.agent.name} on {self.payment_date}"
+        return f"Payment {currency()} {self.amount:,.0f} to {self.agent.name} on {self.payment_date}"
 
 
 # ==================== BROKER MODEL ====================
@@ -1196,7 +1197,7 @@ class BrokerPayment(models.Model):
         verbose_name_plural = 'Broker Payments'
 
     def __str__(self):
-        return f"Voucher {self.voucher_number} — KES {self.amount:,.0f} to {self.broker.name}"
+        return f"Voucher {self.voucher_number} — {currency()} {self.amount:,.0f} to {self.broker.name}"
 
     def save(self, *args, **kwargs):
         if not self.voucher_number:
@@ -1363,7 +1364,7 @@ class JapanSupplierRecord(models.Model):
         verbose_name_plural = 'Japan Supplier Records'
 
     def __str__(self):
-        return f"{self.supplier.name} — {self.vehicle} — KES {self.purchase_price:,.2f}"
+        return f"{self.supplier.name} — {self.vehicle} — {currency()} {self.purchase_price:,.2f}"
 
     @staticmethod
     def _tax(base, percent):
@@ -1436,7 +1437,7 @@ class JapanSupplierPayment(models.Model):
         verbose_name_plural = 'Japan Supplier Payments'
 
     def __str__(self):
-        return f"Payment KES {self.amount:,.0f} to {self.supplier.name} on {self.payment_date}"
+        return f"Payment {currency()} {self.amount:,.0f} to {self.supplier.name} on {self.payment_date}"
 
 
 # ==================== MANUAL LEDGER ENTRY ====================
@@ -1470,7 +1471,7 @@ class ManualLedgerEntry(models.Model):
 
     def __str__(self):
         sign = '+' if self.direction == 'in' else '-'
-        return f"{sign}KES {self.amount:,.0f} — {self.description} ({self.date})"
+        return f"{sign}{currency()} {self.amount:,.0f} — {self.description} ({self.date})"
 
 
 # ==================== BUSINESS LOAN (MONEY LOANED OUT) ====================
@@ -1525,7 +1526,7 @@ class BusinessLoan(models.Model):
         verbose_name_plural = 'Business Loans'
 
     def __str__(self):
-        return f"Loan KES {self.principal_amount:,.0f} to {self.borrower_name} on {self.date_issued}"
+        return f"Loan {currency()} {self.principal_amount:,.0f} to {self.borrower_name} on {self.date_issued}"
 
     @property
     def total_repaid(self):
@@ -1586,7 +1587,7 @@ class BusinessLoanRepayment(models.Model):
         verbose_name_plural = 'Business Loan Repayments'
 
     def __str__(self):
-        return f"Repayment KES {self.amount:,.0f} on loan #{self.loan_id} ({self.payment_date})"
+        return f"Repayment {currency()} {self.amount:,.0f} on loan #{self.loan_id} ({self.payment_date})"
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

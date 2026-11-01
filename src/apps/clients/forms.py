@@ -2,7 +2,9 @@
 Forms for the client app
 Handles client registration, vehicle assignment, document uploads, and payments
 """
+from apps.company.services import currency, phone_example
 from django import forms
+from django.utils.text import format_lazy
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
 from decimal import Decimal
@@ -24,7 +26,7 @@ class ClientForm(forms.ModelForm):
         max_length=20,
         widget=forms.TextInput(attrs={
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-            'placeholder': 'e.g. +254784170447 or +447700900123'
+            'placeholder': format_lazy('e.g. {}', phone_example())
         })
     )
     
@@ -441,8 +443,8 @@ class ClientVehicleForm(forms.ModelForm):
 
             if (total_installments - balance).copy_abs() > Decimal('0.01'):
                 raise ValidationError(
-                    f"Flexible installment total must equal remaining balance (KES {balance:,.2f}). "
-                    f"Current total is KES {total_installments:,.2f}."
+                    f"Flexible installment total must equal remaining balance ({currency()} {balance:,.2f}). "
+                    f"Current total is {currency()} {total_installments:,.2f}."
                 )
 
             # Flexible schedule is custom, so derive normalized values for persistence.
@@ -466,7 +468,7 @@ class ClientVehicleForm(forms.ModelForm):
             if balance > effective_available_credit:
                 raise ValidationError(
                     f"Purchase exceeds client's available credit. "
-                    f"Available: KES {effective_available_credit:,.2f}"
+                    f"Available: {currency()} {effective_available_credit:,.2f}"
                 )
         
         return cleaned_data
@@ -536,8 +538,8 @@ class PaymentForm(forms.ModelForm):
         if self.client_vehicle and amount:
             if amount > self.client_vehicle.balance:
                 raise ValidationError(
-                    f"Payment amount (KES {amount:,.2f}) exceeds remaining balance "
-                    f"(KES {self.client_vehicle.balance:,.2f})"
+                    f"Payment amount ({currency()} {amount:,.2f}) exceeds remaining balance "
+                    f"({currency()} {self.client_vehicle.balance:,.2f})"
                 )
         
         return cleaned_data
@@ -699,8 +701,8 @@ class InstallmentPlanForm(forms.ModelForm):
             # Allow some tolerance for rounding
             if abs(balance - total_installments) > 1:
                 raise ValidationError(
-                    f"Payment plan mismatch: Balance (KES {balance:,.2f}) does not match "
-                    f"total installments (KES {total_installments:,.2f})"
+                    f"Payment plan mismatch: Balance ({currency()} {balance:,.2f}) does not match "
+                    f"total installments ({currency()} {total_installments:,.2f})"
                 )
         
         return cleaned_data

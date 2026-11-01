@@ -3,7 +3,8 @@
  *
  * Upgrades <select data-multi-currency="<amount selector>"> into a checkbox
  * dropdown so several currencies can be shown at the same time. Every element
- * matched by the amount selector carries data-kes (its KES amount) and is
+ * matched by the amount selector carries data-kes (its amount in the base
+ * currency — <body data-base-currency>, KES by default) and is
  * rendered in the first ticked currency, with the other ticked currencies
  * listed alongside it in smaller text.
  *
@@ -24,13 +25,19 @@
 (function () {
     'use strict';
 
-    var RATES_URL = 'https://open.er-api.com/v6/latest/KES';
-    var RATES_CACHE_KEY = 'vms_live_rates';
+    // Amounts (data-kes) are in the company's base currency, which the page
+    // declares as <body data-base-currency="KES"> (Settings → Region).
+    function BASE() {
+        return (document.body && document.body.dataset.baseCurrency) || 'KES';
+    }
+    function ratesUrl() { return 'https://open.er-api.com/v6/latest/' + BASE(); }
+    function ratesCacheKey() { return 'vms_live_rates_' + BASE(); }
     var RATES_TTL_MS = 60 * 60 * 1000;
     var MANUAL_RATE_PREFIX = 'vms_rate_';
     var NAMES = {
         KES: 'Kenyan Shilling', USD: 'US Dollar', EUR: 'Euro',
         TZS: 'Tanzanian Shilling', UGX: 'Ugandan Shilling', JPY: 'Japanese Yen',
+        RWF: 'Rwandan Franc',
     };
 
     var pickers = [];
@@ -47,21 +54,21 @@
     function loadLiveRates() {
         if (liveRatesPromise) return liveRatesPromise;
         try {
-            var cached = JSON.parse(storageGet('sessionStorage', RATES_CACHE_KEY) || 'null');
+            var cached = JSON.parse(storageGet('sessionStorage', ratesCacheKey()) || 'null');
             if (cached && cached.rates && Date.now() - cached.at < RATES_TTL_MS) {
                 liveRatesPromise = Promise.resolve(cached.rates);
                 return liveRatesPromise;
             }
         } catch (e) { /* fall through to fetch */ }
 
-        liveRatesPromise = fetch(RATES_URL)
+        liveRatesPromise = fetch(ratesUrl())
             .then(function (res) {
                 if (!res.ok) throw new Error('Exchange rate fetch failed');
                 return res.json();
             })
             .then(function (data) {
                 if (!data || !data.rates) throw new Error('Invalid exchange rate response');
-                storageSet('sessionStorage', RATES_CACHE_KEY, JSON.stringify({ at: Date.now(), rates: data.rates }));
+                storageSet('sessionStorage', ratesCacheKey(), JSON.stringify({ at: Date.now(), rates: data.rates }));
                 return data.rates;
             })
             .catch(function (err) {
@@ -273,9 +280,9 @@
         });
     };
 
-    // Foreign units per 1 KES, or null while unknown.
+    // Foreign units per 1 base-currency unit, or null while unknown.
     Picker.prototype.rate = function (code) {
-        if (code === 'KES') return 1;
+        if (code === BASE()) return 1;
         if (this.rateInputs) {
             var input = this.rateInputs.filter(function (i) { return i.dataset.curRate === code; })[0];
             var kesPerUnit = input ? (parseFloat(input.value) || parseFloat(input.defaultValue)) : null;
@@ -287,17 +294,17 @@
     Picker.prototype.update = function () {
         var self = this;
         var needsLive = !this.rateInputs && !this.liveRates &&
-            this.selected.some(function (code) { return code !== 'KES'; });
+            this.selected.some(function (code) { return code !== BASE(); });
         if (!needsLive) {
             this.render();
             return;
         }
-        this.render(); // show what we can (KES) while rates load
+        this.render(); // show what we can (base currency) while rates load
         loadLiveRates().then(function (rates) {
             self.liveRates = rates;
             self.render();
         }).catch(function () {
-            self.setHint('Live exchange rates are unavailable right now — showing KES only.', true);
+            self.setHint('Live exchange rates are unavailable right now — showing ' + BASE() + ' only.', true);
             self.render();
         });
     };
@@ -305,7 +312,7 @@
     Picker.prototype.shownCurrencies = function () {
         var self = this;
         var shown = this.selected.filter(function (code) { return self.rate(code) !== null; });
-        return shown.length ? shown : ['KES'];
+        return shown.length ? shown : [BASE()];
     };
 
     Picker.prototype.render = function () {

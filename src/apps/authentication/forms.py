@@ -2,7 +2,9 @@
 Authentication Forms
 Complete form definitions for user management
 """
+from apps.company.services import phone_example
 from django import forms
+from django.utils.text import format_lazy
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from allauth.account.forms import SignupForm
 from crispy_forms.helper import FormHelper
@@ -39,10 +41,10 @@ class CustomSignupForm(SignupForm):
         required=False,
         label='Phone Number',
         widget=forms.TextInput(attrs={
-            'placeholder': '+254784170447 or 0712345678',
+            'placeholder': phone_example(),
             'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
         }),
-        help_text='Format: +254784170447 or 0712345678'
+        help_text=format_lazy('Format: {}', phone_example())
     )
     
     def __init__(self, *args, **kwargs):
@@ -100,7 +102,7 @@ class CustomUserCreationForm(UserCreationForm):
         }
         help_texts = {
             'email': 'Email will be used for login',
-            'phone': 'Format: +254784170447 or 0712345678',
+            'phone': format_lazy('Format: {}', phone_example()),
             'role': 'User role determines system permissions',
         }
     
@@ -262,7 +264,7 @@ class UserProfileForm(forms.ModelForm):
             'bio': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Tell us about yourself...'}),
             'national_id': forms.TextInput(attrs={'placeholder': 'Enter your national ID number'}),
             'emergency_contact_name': forms.TextInput(attrs={'placeholder': 'Full name'}),
-            'emergency_contact_phone': forms.TextInput(attrs={'placeholder': '+254784170447'}),
+            'emergency_contact_phone': forms.TextInput(attrs={'placeholder': phone_example()}),
             'emergency_contact_relationship': forms.TextInput(attrs={'placeholder': 'e.g., Spouse, Parent, Sibling'}),
         }
         help_texts = {

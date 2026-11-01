@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Delete Expense - Vehicle Management System{% endblock %}
+{% block title %}Delete Expense - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6 max-w-2xl">
@@ -53,7 +53,7 @@
             </div>
             <div class="flex justify-between items-start">
                 <span class="text-sm font-medium text-gray-600">Amount:</span>
-                <span class="text-sm text-gray-900 font-bold">KES {{ object.total_amount|floatformat:2 }}</span>
+                <span class="text-sm text-gray-900 font-bold">{{ brand.currency }} {{ object.total_amount|floatformat:2 }}</span>
             </div>
             <div class="flex justify-between items-start">
                 <span class="text-sm font-medium text-gray-600">Date:</span>

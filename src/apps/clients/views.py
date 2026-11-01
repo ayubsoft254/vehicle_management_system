@@ -3,6 +3,7 @@ Views for the client app
 Handles client management, vehicle assignments, payments, and documents
 """
 from django.shortcuts import render, redirect, get_object_or_404
+from apps.company.services import currency, get_company, mpesa_setting
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q, Sum, Count, F, Value, DecimalField
@@ -1330,7 +1331,7 @@ def assign_vehicle(request, client_pk):
             {'id': b.pk, 'name': b.name, 'id_number': b.id_number, 'phone': b.phone}
             for b in brokers
         ]),
-        'default_paybill': '4320049',
+        'default_paybill': mpesa_setting('MPESA_SHORTCODE'),
     }
 
     return render(request, 'clients/assign_vehicle.html', context)
@@ -1570,8 +1571,7 @@ def client_vehicle_detail(request, pk):
     from django.conf import settings as django_settings
     default_paybill = (
         client_vehicle.agreement_paybill
-        or getattr(django_settings, 'MPESA_SHORTCODE', '4320049')
-        or '4320049'
+        or mpesa_setting('MPESA_SHORTCODE')
     )
 
     context = {
@@ -2148,8 +2148,8 @@ def client_vehicle_update(request, pk):
     except InstallmentPlan.DoesNotExist:
         pass
 
-    _saved_paybill = client_vehicle.agreement_paybill or '4320049'
-    _known_paybills = {'4320049', '4162495'}
+    _saved_paybill = client_vehicle.agreement_paybill or mpesa_setting('MPESA_SHORTCODE')
+    _known_paybills = {code for code in (mpesa_setting('MPESA_SHORTCODE'), mpesa_setting('MPESA_SHORTCODE_2')) if code}
     _paybill_selection = _saved_paybill if _saved_paybill in _known_paybills else 'custom'
     _custom_paybill_value = _saved_paybill if _saved_paybill not in _known_paybills else ''
 
@@ -2295,14 +2295,14 @@ def return_vehicle(request, pk):
     log_audit(
         request.user, 'update', 'ClientVehicle',
         f'Returned vehicle purchase #{client_vehicle.pk} for {client_vehicle.client.get_full_name()} — '
-        f'{vehicle.full_name}; restored price KES {restored_price:,.2f}, '
-        f'refunded/written off KES {amount_to_refund:,.2f}.'
+        f'{vehicle.full_name}; restored price {currency()} {restored_price:,.2f}, '
+        f'refunded/written off {currency()} {amount_to_refund:,.2f}.'
     )
 
     messages.success(
         request,
-        f'Vehicle returned to available stock at KES {restored_price:,.2f}. '
-        f'KES {amount_to_refund:,.2f} written off.'
+        f'Vehicle returned to available stock at {currency()} {restored_price:,.2f}. '
+        f'{currency()} {amount_to_refund:,.2f} written off.'
     )
     return redirect('clients:client_vehicle_detail', pk=pk)
 
@@ -2331,7 +2331,7 @@ def sign_agreement_online(request, pk):
     if client_vehicle.created_by:
         seller_default_name = client_vehicle.created_by.get_full_name().strip()
     if not seller_default_name:
-        seller_default_name = 'HOZA INVESTMENT (K) LTD'
+        seller_default_name = get_company().short_name
 
     if request.method == 'POST':
         signature_data = request.POST.get('signature_data', '').strip()
@@ -2578,8 +2578,7 @@ def download_sales_agreement(request, client_vehicle_pk, version_id=None):
             request.GET.get('paybill', '').strip()
             or (snapshot.get('paybill') if snapshot else None)
             or client_vehicle.agreement_paybill
-            or getattr(django_settings, 'MPESA_SHORTCODE', '4320049')
-            or '4320049'
+            or mpesa_setting('MPESA_SHORTCODE')
         )
         pdf_buffer = generate_sales_agreement_pdf(client_vehicle, snapshot=snapshot, paybill=paybill)
 
@@ -2701,12 +2700,12 @@ def record_payment(request, client_vehicle_pk):
                 else:
                     messages.success(
                         request, 
-                        f'Payment of KES {payment.amount:,.2f} recorded successfully!'
+                        f'Payment of {currency()} {payment.amount:,.2f} recorded successfully!'
                     )
                 
                 log_audit(
                     request.user, 'create', 'Payment',
-                    f'Recorded payment of KES {payment.amount:,.2f} for {client_vehicle.client.get_full_name()}'
+                    f'Recorded payment of {currency()} {payment.amount:,.2f} for {client_vehicle.client.get_full_name()}'
                 )
                 
                 return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
@@ -2739,7 +2738,7 @@ def record_payment(request, client_vehicle_pk):
     from django.conf import settings as django_settings
     configured_paybills = [
         code for code in dict.fromkeys(
-            str(getattr(django_settings, key, '') or '').strip()
+            str(mpesa_setting(key) or '').strip()
             for key in ('MPESA_SHORTCODE', 'MPESA_SHORTCODE_2')
         ) if code
     ]
@@ -3426,7 +3425,7 @@ def record_tracker_payment(request, tracker_pk):
     if amount > balance_owed:
         messages.error(
             request,
-            f'Payment of KES {amount:,.2f} exceeds the tracker balance of KES {balance_owed:,.2f}. '
+            f'Payment of {currency()} {amount:,.2f} exceeds the tracker balance of {currency()} {balance_owed:,.2f}. '
             f'Please enter an amount that does not exceed the balance owed.'
         )
         return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)
@@ -3436,7 +3435,7 @@ def record_tracker_payment(request, tracker_pk):
     tracker.save(update_fields=['total_paid', 'balance'])
 
     log_audit(request.user, 'update', 'VehicleTracker',
-              f'Recorded payment KES {amount:,.2f} for tracker "{tracker.tracker_name}" '
+              f'Recorded payment {currency()} {amount:,.2f} for tracker "{tracker.tracker_name}" '
               f'(method: {payment_method}){". " + notes if notes else ""}')
-    messages.success(request, f'Payment of KES {amount:,.0f} recorded for tracker "{tracker.tracker_name}".')
+    messages.success(request, f'Payment of {currency()} {amount:,.0f} recorded for tracker "{tracker.tracker_name}".')
     return redirect('clients:client_vehicle_detail', pk=client_vehicle.pk)

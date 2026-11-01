@@ -3,6 +3,7 @@ Admin configuration for the payroll app.
 Provides comprehensive payroll management interface in Django admin.
 """
 
+from apps.company.services import currency
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -402,7 +403,7 @@ class DeductionAdmin(admin.ModelAdmin):
         """Display amount with percentage indicator."""
         if obj.is_percentage:
             return f"{obj.amount}%"
-        return f"KES {obj.amount:,.2f}"
+        return f"{currency()} {obj.amount:,.2f}"
     amount_display.short_description = 'Amount'
     
     @admin.action(description='Activate selected deductions')
@@ -516,7 +517,7 @@ class PayrollRunAdmin(admin.ModelAdmin):
     
     def total_net_display(self, obj):
         """Display formatted net total."""
-        return f"KES {obj.total_net:,.2f}"
+        return f"{currency()} {obj.total_net:,.2f}"
     total_net_display.short_description = 'Total Net'
     total_net_display.admin_order_field = 'total_net'
 

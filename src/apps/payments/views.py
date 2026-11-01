@@ -3,6 +3,8 @@ Views for the payments app
 Handles payment recording, installment plans, schedules, and reporting
 """
 from django.shortcuts import render, redirect, get_object_or_404
+from apps.company.services import currency, get_company, mpesa_setting
+from apps.payments import channels
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
@@ -48,8 +50,8 @@ from .daraja import (
 from .callback_debug import log_incoming_callback
 from apps.clients.models import Client, ClientVehicle
 from apps.audit.utils import log_audit
-from utils.decorators import module_permission_required
-from utils.constants import AccessLevel
+from utils.decorators import module_permission_required, role_required
+from utils.constants import AccessLevel, UserRole
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -66,16 +68,21 @@ _EXPORT_CURRENCY_FALLBACK_RATES = {
     'TZS': Decimal('19.2300'),  # 1 KES ≈ 19.23 TZS   (1 TZS ≈ 0.052 KES)
     'UGX': Decimal('28.5700'),  # 1 KES ≈ 28.57 UGX   (1 UGX ≈ 0.035 KES)
     'JPY': Decimal('1.1494'),   # 1 KES ≈ 1.1494 JPY  (1 JPY ≈ 0.87 KES)
+    'RWF': Decimal('10.4000'),  # 1 KES ≈ 10.40 RWF   (1 RWF ≈ 0.096 KES)
+    'KES': Decimal('1.0000'),
 }
 
 
 def _parse_export_currency(request):
-    """Read export currency context from query params with safe defaults."""
-    currency = (request.GET.get('currency') or 'KES').strip().upper()
-    if currency != 'KES' and currency not in _EXPORT_CURRENCY_FALLBACK_RATES:
-        currency = 'KES'
+    """Read export currency context from query params with safe defaults.
+    Amounts are stored in the company currency (Settings → Region), so the
+    rate converts from that base."""
+    base = get_company().currency_code
+    currency = (request.GET.get('currency') or base).strip().upper()
+    if currency != base and currency not in _EXPORT_CURRENCY_FALLBACK_RATES:
+        currency = base
 
-    if currency == 'KES':
+    if currency == base:
         return currency, Decimal('1.00')
 
     # Prefer client-provided runtime rate from the UI selector/session.
@@ -88,8 +95,12 @@ def _parse_export_currency(request):
         except (InvalidOperation, TypeError):
             pass
 
-    # Fallback for server-side usage when a runtime rate was not supplied.
-    return currency, _EXPORT_CURRENCY_FALLBACK_RATES[currency]
+    # Fallback for server-side usage when a runtime rate was not supplied:
+    # cross rate through the KES table.
+    base_rate = _EXPORT_CURRENCY_FALLBACK_RATES.get(base)
+    if not base_rate:
+        return base, Decimal('1.00')
+    return currency, (_EXPORT_CURRENCY_FALLBACK_RATES[currency] / base_rate).quantize(Decimal('0.000001'))
 
 
 def _convert_kes_amount(amount, fx_rate):
@@ -253,7 +264,7 @@ def _extract_account_balance(raw_value):
         if 'Utility Account' in raw_value:
             import re
             # Pattern: Utility Account|KES|123.45|...
-            match = re.search(r'Utility Account\s*\|\s*KES\s*\|\s*([\d,]+\.?\d*)', raw_value)
+            match = re.search(r'Utility Account\s*\|\s*[A-Z]{3}\s*\|\s*([\d,]+\.?\d*)', raw_value)
             if match:
                 try:
                     balance = Decimal(match.group(1).replace(',', ''))
@@ -265,7 +276,7 @@ def _extract_account_balance(raw_value):
         # If no Utility Account, try Working Account
         if 'Working Account' in raw_value:
             import re
-            match = re.search(r'Working Account\s*\|\s*KES\s*\|\s*([\d,]+\.?\d*)', raw_value)
+            match = re.search(r'Working Account\s*\|\s*[A-Z]{3}\s*\|\s*([\d,]+\.?\d*)', raw_value)
             if match:
                 try:
                     balance = Decimal(match.group(1).replace(',', ''))
@@ -276,7 +287,7 @@ def _extract_account_balance(raw_value):
         
         # Fallback: find any balance in the string
         import re
-        matches = re.findall(r'KES\s*\|\s*([\d,]+\.?\d*)', raw_value)
+        matches = re.findall(r'[A-Z]{3}\s*\|\s*([\d,]+\.?\d*)', raw_value)
         for match in matches:
             try:
                 balance = Decimal(match.replace(',', ''))
@@ -389,7 +400,7 @@ def _callback_secret_is_valid(request):
     than checked via an HTTP header, which real Safaricom traffic can never
     supply.
     """
-    expected_secret = str(getattr(settings, 'MPESA_CALLBACK_SECRET', '') or '').strip()
+    expected_secret = str(mpesa_setting('MPESA_CALLBACK_SECRET', '') or '').strip()
 
     if not expected_secret:
         return True
@@ -471,7 +482,7 @@ def payment_list(request):
         for method, amount in portions:
             method_value = (method or '').lower()
             amt = amount or Decimal('0.00')
-            if method_value in {'equity_hoza', 'dib_hoza', 'coop_hoza'} or method_value.endswith('_ke'):
+            if channels.group_of(method_value) in ('hoza', 'ke'):
                 continue
             elif method_value == 'cash':
                 cash_total += amt
@@ -543,13 +554,13 @@ def record_account_withdrawal(request):
 
             messages.success(
                 request,
-                f'Account withdrawal recorded: KES {withdrawal.amount:,.2f} from {withdrawal.get_payment_method_display()}.'
+                f'Account withdrawal recorded: {currency()} {withdrawal.amount:,.2f} from {withdrawal.get_payment_method_display()}.'
             )
             log_audit(
                 request.user,
                 'create',
                 'AccountWithdrawal',
-                f'Recorded account withdrawal {withdrawal.get_payment_method_display()} for KES {withdrawal.amount:,.2f}'
+                f'Recorded account withdrawal {withdrawal.get_payment_method_display()} for {currency()} {withdrawal.amount:,.2f}'
             )
             return redirect('payments:payment_list')
     else:
@@ -692,7 +703,7 @@ def account_transactions(request, method):
     context = {
         'method': method,
         'label': label,
-        'is_hoza': method in AccountWithdrawal.HOZA_METHODS,
+        'is_hoza': channels.group_of(method) == 'hoza',
         'transactions': page_obj,
         'search': search,
         'total_additions': total_additions,
@@ -707,7 +718,7 @@ def account_transactions(request, method):
 
 # ==================== FINANCE ACCOUNT BREAKDOWN VIEWS ====================
 
-CATEGORY_LABELS = {'hoza': 'Hoza', 'ke': 'KE', 'other': 'Other'}
+BREAKDOWN_CATEGORIES = ('hoza', 'ke', 'other')
 CATEGORY_ACCENTS = {'hoza': 'orange', 'ke': 'cyan', 'other': 'amber'}
 CATEGORY_ICONS = {'hoza': 'fa-layer-group', 'ke': 'fa-university', 'other': 'fa-wallet'}
 
@@ -731,7 +742,7 @@ def _is_approver(user):
 @login_required
 def account_breakdown(request, category):
     """Full-page account breakdown for the Hoza or KE category (replaces the old modal)."""
-    if category not in CATEGORY_LABELS:
+    if category not in BREAKDOWN_CATEGORIES:
         messages.error(request, 'Unknown account category.')
         return redirect('payments:payment_list')
 
@@ -766,7 +777,7 @@ def account_breakdown(request, category):
 
     context = {
         'category': category,
-        'category_label': CATEGORY_LABELS[category],
+        'category_label': channels.group_label(category),
         'accent': CATEGORY_ACCENTS.get(category, 'cyan'),
         'category_icon': CATEGORY_ICONS.get(category, 'fa-university'),
         'accounts': accounts,
@@ -774,7 +785,7 @@ def account_breakdown(request, category):
         'pending_approvals': pending_approvals,
     }
 
-    log_audit(request.user, 'view', 'Account', f'Viewed {CATEGORY_LABELS[category]} account breakdown')
+    log_audit(request.user, 'view', 'Account', f'Viewed {channels.group_label(category)} account breakdown')
     return render(request, 'payments/account_breakdown.html', context)
 
 
@@ -1007,7 +1018,7 @@ def account_create(request):
 
     initial = {}
     preselect = request.GET.get('category')
-    if preselect in CATEGORY_LABELS:
+    if preselect in BREAKDOWN_CATEGORIES:
         initial['category'] = preselect
 
     if request.method == 'POST':
@@ -1094,7 +1105,7 @@ def account_transaction_create(request, pk):
             txn.save()
             log_audit(
                 request.user, 'create', 'AccountTransaction',
-                f'Recorded {txn.get_transaction_type_display()} of KES {txn.amount:,.2f} on {account.name} '
+                f'Recorded {txn.get_transaction_type_display()} of {currency()} {txn.amount:,.2f} on {account.name} '
                 f'({txn.approval_status})'
             )
             if txn.approval_status == 'pending':
@@ -1135,7 +1146,7 @@ def account_transfer_create(request):
             transfer.execute(request.user)
             log_audit(
                 request.user, 'create', 'AccountTransfer',
-                f'Transferred KES {transfer.amount:,.2f} from {transfer.source_account.name} '
+                f'Transferred {currency()} {transfer.amount:,.2f} from {transfer.source_account.name} '
                 f'to {transfer.destination_account.name} ({transfer.status})'
             )
             if transfer.status == 'pending':
@@ -1373,7 +1384,7 @@ def reverse_payment(request, pk):
     if is_payment_approver(request.user):
         log_audit(
             request.user, 'update', 'Payment',
-            f'Reversed payment {payment.receipt_number} (KES {payment.amount:,.2f}): {reason}'
+            f'Reversed payment {payment.receipt_number} ({currency()} {payment.amount:,.2f}): {reason}'
         )
         messages.success(request, f'Payment {payment.receipt_number} has been reversed.')
     else:
@@ -1440,11 +1451,11 @@ def payment_request_approve(request, pk):
 
     if payment_request.request_type == PaymentRequest.TYPE_RECORD:
         log_audit(request.user, 'update', 'PaymentRequest',
-                  f'Approved payment request #{pk}: recorded {payment.receipt_number} (KES {payment.amount:,.2f})')
+                  f'Approved payment request #{pk}: recorded {payment.receipt_number} ({currency()} {payment.amount:,.2f})')
         messages.success(request, f'Request #{pk} approved — payment {payment.receipt_number} recorded.')
     else:
         log_audit(request.user, 'update', 'PaymentRequest',
-                  f'Approved reversal request #{pk}: reversed {payment.receipt_number} (KES {payment.amount:,.2f})')
+                  f'Approved reversal request #{pk}: reversed {payment.receipt_number} ({currency()} {payment.amount:,.2f})')
         messages.success(request, f'Request #{pk} approved — payment {payment.receipt_number} reversed.')
     return redirect('payments:payment_request_list')
 
@@ -1506,11 +1517,11 @@ def _submit_manual_payment(request, client_vehicle):
     if payment is None:
         log_audit(
             request.user, 'create', 'PaymentRequest',
-            f'Submitted payment request #{payment_request.pk} (KES {payment_request.amount:,.2f}) for {client_name}'
+            f'Submitted payment request #{payment_request.pk} ({currency()} {payment_request.amount:,.2f}) for {client_name}'
         )
         messages.info(
             request,
-            f'Payment of KES {payment_request.amount:,.2f} submitted for admin approval '
+            f'Payment of {currency()} {payment_request.amount:,.2f} submitted for admin approval '
             f'(request #{payment_request.pk}). It will reflect on the balance once approved.'
         )
         return redirect('payments:payment_request_list'), ''
@@ -1520,15 +1531,15 @@ def _submit_manual_payment(request, client_vehicle):
     client_vehicle.refresh_from_db()
     log_audit(
         request.user, 'create', 'Payment',
-        f'Recorded payment {payment.receipt_number} (KES {payment.amount:,.2f}) for {client_name}'
+        f'Recorded payment {payment.receipt_number} ({currency()} {payment.amount:,.2f}) for {client_name}'
     )
     if client_vehicle.is_paid_off:
         messages.success(request, f'Payment {payment.receipt_number} recorded! Vehicle fully paid off! 🎉')
     else:
         messages.success(
             request,
-            f'Payment of KES {payment.amount:,.2f} recorded ({payment.receipt_number}). '
-            f'Remaining balance: KES {client_vehicle.balance:,.2f}'
+            f'Payment of {currency()} {payment.amount:,.2f} recorded ({payment.receipt_number}). '
+            f'Remaining balance: {currency()} {client_vehicle.balance:,.2f}'
         )
     return redirect('payments:payment_detail', pk=payment.pk), ''
 
@@ -2125,7 +2136,7 @@ def extend_installment_plan(request, pk):
 
                 note_line = (
                     f"[{timezone.now().strftime('%Y-%m-%d %H:%M')}] Extended by {extension_months} months; "
-                    f"fee KES {extension_fee:,.2f}."
+                    f"fee {currency()} {extension_fee:,.2f}."
                 )
                 if reason:
                     note_line += f" Reason: {reason}"
@@ -2137,12 +2148,12 @@ def extend_installment_plan(request, pk):
                     request.user,
                     'update',
                     'InstallmentPlan',
-                    f'Extended installment plan {plan.pk} by {extension_months} months with fee KES {extension_fee:,.2f}'
+                    f'Extended installment plan {plan.pk} by {extension_months} months with fee {currency()} {extension_fee:,.2f}'
                 )
 
                 messages.success(
                     request,
-                    f'Installment plan extended by {extension_months} month(s). Extension fee KES {extension_fee:,.2f} applied.'
+                    f'Installment plan extended by {extension_months} month(s). Extension fee {currency()} {extension_fee:,.2f} applied.'
                 )
                 return redirect('payments:installment_plan_detail', pk=plan.pk)
         else:
@@ -2650,7 +2661,7 @@ def paybill_tracker(request):
     # don't get a card of their own.
     configured_paybills = [
         code for code in dict.fromkeys(
-            str(getattr(settings, key, '') or '').strip()
+            str(mpesa_setting(key) or '').strip()
             for key in ('MPESA_SHORTCODE', 'MPESA_SHORTCODE_2')
         ) if code
     ]
@@ -2688,7 +2699,7 @@ def paybill_tracker(request):
         code_snapshots = PaybillBalanceSnapshot.objects.filter(business_short_code=code)
         balance_snapshots.append({
             'code': code,
-            'is_secondary': code == str(getattr(settings, 'MPESA_SHORTCODE_2', '') or '').strip(),
+            'is_secondary': code == str(mpesa_setting('MPESA_SHORTCODE_2', '') or '').strip(),
             'configured': mpesa_is_configured(code),
             'missing_vars': get_missing_mpesa_vars(code),
             'latest_snapshot': code_snapshots.first(),
@@ -2795,7 +2806,7 @@ def _backfill_paybill_transactions():
             transaction_reference__in=existing_ids
         ).select_related('client_vehicle__vehicle').order_by('-payment_date')[:200]
 
-        shortcode = str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip()
+        shortcode = str(mpesa_setting('MPESA_SHORTCODE', '') or '').strip()
 
         for pmt in orphan_payments:
             if not pmt.transaction_reference:
@@ -2837,7 +2848,7 @@ def refresh_paybill_balance(request):
     else:
         codes_to_refresh = [
             code for code in dict.fromkeys(
-                str(getattr(settings, key, '') or '').strip()
+                str(mpesa_setting(key) or '').strip()
                 for key in ('MPESA_SHORTCODE', 'MPESA_SHORTCODE_2')
             ) if code
         ]
@@ -2863,14 +2874,14 @@ def register_paybill_c2b(request):
     """Register C2B callback URLs with Safaricom for all configured paybills."""
     paybills = [
         {
-            'shortcode': settings.MPESA_SHORTCODE,
-            'consumer_key': settings.MPESA_CONSUMER_KEY,
-            'consumer_secret': settings.MPESA_CONSUMER_SECRET,
+            'shortcode': mpesa_setting('MPESA_SHORTCODE'),
+            'consumer_key': mpesa_setting('MPESA_CONSUMER_KEY'),
+            'consumer_secret': mpesa_setting('MPESA_CONSUMER_SECRET'),
         },
         {
-            'shortcode': getattr(settings, 'MPESA_SHORTCODE_2', ''),
-            'consumer_key': getattr(settings, 'MPESA_CONSUMER_KEY_2', ''),
-            'consumer_secret': getattr(settings, 'MPESA_CONSUMER_SECRET_2', ''),
+            'shortcode': mpesa_setting('MPESA_SHORTCODE_2', ''),
+            'consumer_key': mpesa_setting('MPESA_CONSUMER_KEY_2', ''),
+            'consumer_secret': mpesa_setting('MPESA_CONSUMER_SECRET_2', ''),
         },
     ]
     results = []
@@ -2915,26 +2926,27 @@ def register_paybill_c2b(request):
 
 
 @login_required
+@role_required(UserRole.ADMIN)
 @require_POST
 def update_mpesa_security_credential(request):
     """
-    Update MPESA_SECURITY_CREDENTIAL (or _2) in the .env file and live in the
-    current process's settings, without disturbing any other line in .env.
+    Update the M-Pesa security credential for paybill 1 or 2 in the company
+    profile (Settings → Company & Branding → Payments). Stored encrypted and
+    read by every worker on its next request — no restart or .env edit.
     """
-    from pathlib import Path
+    from apps.company.services import get_company
 
     paybill = request.POST.get('paybill', '1').strip()
     new_value = request.POST.get('security_credential', '')
 
     if paybill == '2':
         env_key = 'MPESA_SECURITY_CREDENTIAL_2'
-        shortcode_label = getattr(settings, 'MPESA_SHORTCODE_2', '') or 'Paybill 2'
+        shortcode_label = mpesa_setting('MPESA_SHORTCODE_2', '') or 'Paybill 2'
     else:
         env_key = 'MPESA_SECURITY_CREDENTIAL'
-        shortcode_label = getattr(settings, 'MPESA_SHORTCODE', '') or 'Paybill 1'
+        shortcode_label = mpesa_setting('MPESA_SHORTCODE', '') or 'Paybill 1'
 
-    # Reject embedded newlines — a security credential is a single base64
-    # blob and must never span multiple lines in .env.
+    # A security credential is a single base64 blob — reject line breaks.
     if '\n' in new_value or '\r' in new_value:
         messages.error(request, 'Security credential must not contain line breaks. Paste it as a single line.')
         return redirect('payments:paybill_tracker')
@@ -2944,55 +2956,19 @@ def update_mpesa_security_credential(request):
         messages.error(request, 'Security credential cannot be empty.')
         return redirect('payments:paybill_tracker')
 
-    env_path = Path(settings.BASE_DIR) / '.env'
-    if not env_path.exists():
-        messages.error(
-            request,
-            f'.env file not found at {env_path}. This action only edits an existing .env — '
-            'it will not create one from scratch. Contact an administrator to set this up on the server.'
-        )
-        return redirect('payments:paybill_tracker')
-
-    try:
-        lines = env_path.read_text(encoding='utf-8').splitlines()
-    except Exception as e:
-        messages.error(request, f'Could not read .env file: {e}')
-        return redirect('payments:paybill_tracker')
-
-    updated = False
-    new_lines = []
-    for line in lines:
-        stripped = line.strip()
-        if stripped.startswith(f'{env_key}=') or stripped.startswith(f'{env_key} ='):
-            new_lines.append(f'{env_key}={new_value}')
-            updated = True
-        else:
-            new_lines.append(line)
-    if not updated:
-        new_lines.append(f'{env_key}={new_value}')
-
-    try:
-        env_path.write_text('\n'.join(new_lines) + '\n', encoding='utf-8')
-    except Exception as e:
-        messages.error(request, f'Could not write .env file: {e}')
-        return redirect('payments:paybill_tracker')
-
-    # Apply immediately to this process — other worker processes in a
-    # multi-worker production deployment will still need a restart to pick
-    # this up, since they each hold their own in-memory settings.
-    setattr(settings, env_key, new_value)
+    profile = get_company()
+    profile.set_mpesa(env_key, new_value)
+    profile.updated_by = request.user
+    profile.save()
 
     log_audit(
         request.user, 'update', 'MpesaConfig',
-        f'Updated {env_key} for {shortcode_label} in .env (value not logged).'
+        f'Updated {env_key} for {shortcode_label} in Company Settings (value not logged).'
     )
 
     messages.success(
         request,
-        f'Security credential for {shortcode_label} updated in .env and applied to this process immediately. '
-        'Other gunicorn workers and the Celery containers still hold the old value in memory — a plain '
-        '"docker-compose restart" will NOT pick up the change (it keeps the environment the container '
-        'started with). Run "docker-compose up -d" to recreate the containers and apply it everywhere.'
+        f'Security credential for {shortcode_label} saved. It applies immediately everywhere.'
     )
     return redirect('payments:paybill_tracker')
 
@@ -3211,7 +3187,7 @@ def stk_push_callback(request):
                     defaults={
                         'trans_time': trans_time,
                         'trans_amount': amount,
-                        'business_short_code': str(getattr(settings, 'MPESA_SHORTCODE', '') or '').strip(),
+                        'business_short_code': str(mpesa_setting('MPESA_SHORTCODE', '') or '').strip(),
                         'bill_ref_number': account_reference,
                         'invoice_number': checkout_request_id,
                         'msisdn': phone_number,
@@ -3582,7 +3558,7 @@ def export_payments_csv(request):
     writer = csv.writer(response)
     writer.writerow([
         'Receipt Number', 'Client', 'ID Number', 'Vehicle', 
-        'Payment Date', 'Amount', 'Currency', 'FX Rate (from KES)',
+        'Payment Date', 'Amount', 'Currency', f'FX Rate (from {get_company().currency_code})',
         'Payment Method', 'Transaction Reference', 'Balance', 'Recorded By', 'Status'
     ])
     
@@ -3912,7 +3888,7 @@ def staff_stk_initiate(request, client_vehicle_pk):
 
     log_audit(
         request.user, 'create', 'MpesaSTKRequest',
-        f'Staff STK push initiated: {account_reference}, KES {amount}, phone {phone}'
+        f'Staff STK push initiated: {account_reference}, {currency()} {amount}, phone {phone}'
     )
 
     return JsonResponse({

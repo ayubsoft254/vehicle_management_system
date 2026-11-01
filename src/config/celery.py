@@ -3,10 +3,19 @@ Celery configuration for Vehicle Management System
 """
 
 import os
-from celery import Celery
+
+from decouple import config
 
 # Set the default Django settings module
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+
+# In multi-company mode every task carries the schema of the company that
+# queued it (tenant-schemas-celery), so .delay() from a company's request
+# runs against that company's data.
+if config('MULTI_TENANT', default=False, cast=bool):
+    from tenant_schemas_celery.app import CeleryApp as Celery
+else:
+    from celery import Celery
 
 # Create Celery app
 app = Celery('vehicle_management_system')

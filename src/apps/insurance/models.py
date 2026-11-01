@@ -2,7 +2,9 @@
 Models for the insurance app
 Handles insurance providers, policies, claims, and payments
 """
+from apps.company.services import currency
 from django.db import models
+from apps.payments import channels
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.utils import timezone
@@ -298,20 +300,7 @@ class InsurancePolicy(models.Model):
         help_text='How the client pays for insurance',
     )
 
-    INSURANCE_PAYMENT_METHOD_CHOICES = [
-        ('cash', 'Cash'),
-        ('mpesa', 'M-Pesa'),
-        ('bank_transfer', 'Bank Transfer'),
-        ('equity_hoza', 'Equity Hoza'),
-        ('dib_hoza', 'DIB Hoza'),
-        ('coop_hoza', 'COOP Hoza'),
-        ('kcb_ke', 'KCB KE'),
-        ('absa_ke', 'ABSA KE'),
-        ('equity_ke', 'EQUITY KE'),
-        ('cheque', 'Cheque'),
-        ('card', 'Credit/Debit Card'),
-        ('other', 'Other'),
-    ]
+    INSURANCE_PAYMENT_METHOD_CHOICES = channels.SINGLE_METHOD_CHOICES
 
     insurance_payment_method = models.CharField(
         'Payment Method',
@@ -968,7 +957,7 @@ class InsurancePayment(models.Model):
         ]
     
     def __str__(self):
-        return f"Payment {self.receipt_number} - KES {self.amount:,.2f}"
+        return f"Payment {self.receipt_number} - {currency()} {self.amount:,.2f}"
     
     def save(self, *args, **kwargs):
         """Generate receipt number if not provided"""
@@ -1217,4 +1206,4 @@ class InsuranceAgentPayment(models.Model):
         db_table = 'insurance_agent_payments'
 
     def __str__(self):
-        return f"Payment KES {self.amount:,.0f} to {self.agent.name} on {self.payment_date}"
+        return f"Payment {currency()} {self.amount:,.0f} to {self.agent.name} on {self.payment_date}"

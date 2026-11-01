@@ -24,11 +24,11 @@
                 <div class="mt-3 grid grid-cols-2 gap-4">
                     <div>
                         <p class="text-xs text-blue-600">Purchase Price</p>
-                        <p class="text-lg font-bold text-blue-900">KES {{ client_vehicle.purchase_price|floatformat:2 }}</p>
+                        <p class="text-lg font-bold text-blue-900">{{ brand.currency }} {{ client_vehicle.purchase_price|floatformat:2 }}</p>
                     </div>
                     <div>
                         <p class="text-xs text-blue-600">Balance</p>
-                        <p class="text-lg font-bold text-blue-900">KES {{ client_vehicle.balance|floatformat:2 }}</p>
+                        <p class="text-lg font-bold text-blue-900">{{ brand.currency }} {{ client_vehicle.balance|floatformat:2 }}</p>
                     </div>
                 </div>
             </div>
@@ -61,7 +61,7 @@
                     <!-- Monthly Installment -->
                     <div>
                         <label for="{{ form.monthly_installment.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                            Monthly Installment (KES) <span class="text-red-500">*</span>
+                            Monthly Installment ({{ brand.currency }}) <span class="text-red-500">*</span>
                         </label>
                         {{ form.monthly_installment }}
                         {% if form.monthly_installment.errors %}

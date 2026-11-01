@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Auction Dashboard - Vehicle Management System{% endblock %}
+{% block title %}Auction Dashboard - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -103,7 +103,7 @@
                             </div>
                             <div class="text-right ml-4">
                                 <p class="text-xs text-gray-500">Current Bid</p>
-                                <p class="text-lg font-bold text-primary-600">KES {{ auction.current_bid|floatformat:0 }}</p>
+                                <p class="text-lg font-bold text-primary-600">{{ brand.currency }} {{ auction.current_bid|floatformat:0 }}</p>
                             </div>
                         </div>
                     </a>

@@ -3,7 +3,7 @@
 {% load humanize %}
 {% load l10n %}
 
-{% block title %}Vehicles - Vehicle Management System{% endblock %}
+{% block title %}Vehicles - {{ brand.app_name }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -165,7 +165,7 @@
             <div class="inline-flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-3 py-2">
                 <label for="publicListCurrency" class="text-sm text-gray-600">Currency</label>
                 <select id="publicListCurrency" data-multi-currency=".js-public-list-currency" data-currency-decimals="2" data-currency-storage="vms_public_currencies" class="text-sm border-0 focus:ring-0">
-                    <option value="KES" selected>KES</option>
+                    <option value="{{ brand.currency }}" selected>{{ brand.currency }}</option>
                     <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
                     <option value="TZS">TZS</option>
@@ -281,7 +281,7 @@
                 <div class="ml-4 min-w-0">
                     <p class="text-sm font-medium text-gray-600">Total Value</p>
                     {% if can_view_prices %}
-                    <p class="stats-value text-xl md:text-2xl font-bold text-indigo-600">KES {{ total_inventory_value|floatformat:0|intcomma }}</p>
+                    <p class="stats-value text-xl md:text-2xl font-bold text-indigo-600">{{ brand.currency }} {{ total_inventory_value|floatformat:0|intcomma }}</p>
                     {% else %}
                     <p class="stats-value text-sm md:text-base font-semibold text-gray-500">Restricted</p>
                     {% endif %}
@@ -547,10 +547,10 @@
                                             <p class="text-[11px] font-semibold uppercase tracking-wider text-blue-700">{% if can_view_prices %}Total Price{% else %}Website Price{% endif %}</p>
                                             <div class="price-tag price-value text-blue-700 font-extrabold text-lg sm:text-xl xl:text-2xl tabular-nums">
                                                 {% if can_view_prices %}
-                                                <span class="text-[11px] font-semibold text-blue-600 mr-1 align-middle">KES</span>
+                                                <span class="text-[11px] font-semibold text-blue-600 mr-1 align-middle">{{ brand.currency }}</span>
                                                 <span class="align-middle">{{ vehicle.selling_price|floatformat:0|intcomma }}</span>
                                                 {% else %}
-                                                <span class="align-middle js-public-list-currency" data-kes="{{ vehicle.website_display_price|unlocalize }}">KES {{ vehicle.website_display_price|floatformat:0|intcomma }}</span>
+                                                <span class="align-middle js-public-list-currency" data-kes="{{ vehicle.website_display_price|unlocalize }}">{{ brand.currency }} {{ vehicle.website_display_price|floatformat:0|intcomma }}</span>
                                                 {% endif %}
                                             </div>
                                         </div>

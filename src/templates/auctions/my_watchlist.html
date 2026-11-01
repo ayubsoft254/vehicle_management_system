@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}My Watchlist - Vehicle Management System{% endblock %}
+{% block title %}My Watchlist - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -43,7 +43,7 @@
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
                     <div class="flex justify-between items-center">
                         <span class="text-xs text-gray-500">Current Bid</span>
-                        <span class="text-lg font-bold text-primary-600">KES {{ watch.auction.current_bid|floatformat:0 }}</span>
+                        <span class="text-lg font-bold text-primary-600">{{ brand.currency }} {{ watch.auction.current_bid|floatformat:0 }}</span>
                     </div>
                 </div>
 

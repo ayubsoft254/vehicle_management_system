@@ -1,10 +1,11 @@
+{% load company_tags %}
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-gray-50">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>{% block head_title %}{% endblock %} - Vehicle Management System</title>
+    <title>{% block head_title %}{% endblock %} - {{ brand.app_name }}</title>
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,28 +14,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Custom Tailwind Configuration -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50: '#eff6ff',
-                            100: '#dbeafe',
-                            200: '#bfdbfe',
-                            300: '#93c5fd',
-                            400: '#60a5fa',
-                            500: '#3b82f6',
-                            600: '#2563eb',
-                            700: '#1d4ed8',
-                            800: '#1e40af',
-                            900: '#1e3a8a',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    {% tailwind_config %}
     
     {% block extra_head %}{% endblock %}
 </head>
@@ -43,12 +23,16 @@
         <!-- Logo and Header -->
         <div class="sm:mx-auto sm:w-full sm:max-w-md">
             <div class="flex justify-center">
+                {% if brand.logo %}
+                <img src="{{ brand.logo.url }}" alt="{{ brand.public_name }}" class="h-16 w-auto max-w-[12rem] object-contain">
+                {% else %}
                 <div class="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg">
                     <i class="fas fa-car text-white text-3xl"></i>
                 </div>
+                {% endif %}
             </div>
             <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                {% block header_title %}Vehicle Management System{% endblock %}
+                {% block header_title %}{{ brand.public_name }}{% endblock %}
             </h2>
             <p class="mt-2 text-center text-sm text-gray-600">
                 {% block header_subtitle %}{% endblock %}
@@ -87,7 +71,7 @@
         <!-- Footer -->
         <div class="mt-8 text-center">
             <p class="text-sm text-gray-500">
-                &copy; 2025 Vehicle Management System. All rights reserved.
+                &copy; {% now 'Y' %} {{ brand.legal_name }}. All rights reserved.
             </p>
         </div>
     </div>

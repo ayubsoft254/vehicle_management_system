@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Payroll Dashboard - Vehicle Management System{% endblock %}
+{% block title %}Payroll Dashboard - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -31,7 +31,7 @@
                 <div>
                     <p class="text-sm font-medium text-green-900">Current Month</p>
                     {% if current_payroll %}
-                    <p class="text-2xl font-bold text-green-900 mt-2">KES {{ current_payroll.total_net|floatformat:0 }}</p>
+                    <p class="text-2xl font-bold text-green-900 mt-2">{{ brand.currency }} {{ current_payroll.total_net|floatformat:0 }}</p>
                     {% else %}
                     <p class="text-2xl font-bold text-gray-500 mt-2">Not Processed</p>
                     {% endif %}
@@ -99,11 +99,11 @@
                         </div>
                         <div>
                             <p class="text-xs text-gray-500">Gross Total</p>
-                            <p class="text-lg font-bold text-gray-900">KES {{ current_payroll.total_gross|floatformat:0 }}</p>
+                            <p class="text-lg font-bold text-gray-900">{{ brand.currency }} {{ current_payroll.total_gross|floatformat:0 }}</p>
                         </div>
                         <div>
                             <p class="text-xs text-gray-500">Net Total</p>
-                            <p class="text-lg font-bold text-primary-600">KES {{ current_payroll.total_net|floatformat:0 }}</p>
+                            <p class="text-lg font-bold text-primary-600">{{ brand.currency }} {{ current_payroll.total_net|floatformat:0 }}</p>
                         </div>
                     </div>
                     <a href="{% url 'payroll:payroll_run_detail' current_payroll.pk %}" 
@@ -140,7 +140,7 @@
                         <div class="w-full bg-primary-500 rounded-t hover:bg-primary-600 transition-colors duration-200 relative group" 
                              style="height: {{ height|default:5 }}%">
                             <div class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                KES {{ item.total_net|floatformat:0 }}
+                                {{ brand.currency }} {{ item.total_net|floatformat:0 }}
                             </div>
                         </div>
                         {% else %}
@@ -171,7 +171,7 @@
                                 <p class="text-xs text-gray-500 mt-1">{{ payroll.total_employees }} employees | {{ payroll.payroll_number }}</p>
                             </div>
                             <div class="text-right">
-                                <p class="text-sm font-bold text-gray-900">KES {{ payroll.total_net|floatformat:0 }}</p>
+                                <p class="text-sm font-bold text-gray-900">{{ brand.currency }} {{ payroll.total_net|floatformat:0 }}</p>
                                 <span class="text-xs px-2 py-1 rounded-full 
                                     {% if payroll.status == 'PAID' %}bg-green-100 text-green-800
                                     {% elif payroll.status == 'APPROVED' %}bg-blue-100 text-blue-800

@@ -110,7 +110,7 @@
                     <i class="fas fa-arrow-down text-green-600 text-sm"></i>
                 </span>
             </div>
-            <p class="text-2xl font-bold text-green-600">KES {{ total_in|floatformat:0|intcomma }}</p>
+            <p class="text-2xl font-bold text-green-600">{{ brand.currency }} {{ total_in|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-1">Client payments, loan repayments &amp; manual entries received</p>
         </div>
         <!-- Credits (money out) -->
@@ -121,7 +121,7 @@
                     <i class="fas fa-arrow-up text-red-600 text-sm"></i>
                 </span>
             </div>
-            <p class="text-2xl font-bold text-red-600">KES {{ total_out|floatformat:0|intcomma }}</p>
+            <p class="text-2xl font-bold text-red-600">{{ brand.currency }} {{ total_out|floatformat:0|intcomma }}</p>
             <p class="text-xs text-gray-400 mt-1">All outgoing payments &amp; expenses</p>
         </div>
         <!-- Net Position -->
@@ -133,7 +133,7 @@
                 </span>
             </div>
             <p class="text-2xl font-bold {% if net >= 0 %}text-indigo-600{% else %}text-orange-600{% endif %}">
-                KES {{ net|floatformat:0|intcomma }}
+                {{ brand.currency }} {{ net|floatformat:0|intcomma }}
             </p>
             <p class="text-xs text-gray-400 mt-1">{% if net >= 0 %}Surplus{% else %}Deficit{% endif %} for selected period</p>
         </div>
@@ -152,9 +152,9 @@
                 <thead>
                     <tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
                         <th class="px-6 py-3 text-left">Category</th>
-                        <th class="px-6 py-3 text-right">Debit (KES)</th>
-                        <th class="px-6 py-3 text-right">Credit (KES)</th>
-                        <th class="px-6 py-3 text-right">Net (KES)</th>
+                        <th class="px-6 py-3 text-right">Debit ({{ brand.currency }})</th>
+                        <th class="px-6 py-3 text-right">Credit ({{ brand.currency }})</th>
+                        <th class="px-6 py-3 text-right">Net ({{ brand.currency }})</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
@@ -399,7 +399,7 @@
                 <!-- Amount -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Amount (KES) <span class="text-red-500">*</span>
+                        Amount ({{ brand.currency }}) <span class="text-red-500">*</span>
                     </label>
                     <input type="number" name="entry_amount" min="1" step="0.01" required placeholder="0.00"
                         class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">

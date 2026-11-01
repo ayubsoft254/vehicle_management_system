@@ -44,7 +44,7 @@
                 </div>
                 <div class="text-right">
                     <p class="text-sm text-gray-700">Winning Bid</p>
-                    <p class="text-3xl font-bold text-primary-600">KES {{ auction.winning_bid_amount|floatformat:0 }}</p>
+                    <p class="text-3xl font-bold text-primary-600">{{ brand.currency }} {{ auction.winning_bid_amount|floatformat:0 }}</p>
                 </div>
             </div>
         </div>
@@ -83,11 +83,11 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="text-center p-4 bg-blue-50 rounded-lg">
                 <p class="text-sm text-gray-600">Starting Price</p>
-                <p class="text-lg font-bold text-blue-700">KES {{ auction.starting_price|floatformat:0 }}</p>
+                <p class="text-lg font-bold text-blue-700">{{ brand.currency }} {{ auction.starting_price|floatformat:0 }}</p>
             </div>
             <div class="text-center p-4 bg-green-50 rounded-lg">
                 <p class="text-sm text-gray-600">Final Price</p>
-                <p class="text-lg font-bold text-green-700">KES {{ auction.winning_bid_amount|default:0|floatformat:0 }}</p>
+                <p class="text-lg font-bold text-green-700">{{ brand.currency }} {{ auction.winning_bid_amount|default:0|floatformat:0 }}</p>
             </div>
             <div class="text-center p-4 bg-purple-50 rounded-lg">
                 <p class="text-sm text-gray-600">Total Bids</p>
@@ -112,23 +112,23 @@
                 <div class="space-y-2">
                     <div class="flex justify-between">
                         <span class="text-sm text-gray-600">Final Price</span>
-                        <span class="text-sm font-medium">KES {{ result.final_price|floatformat:0 }}</span>
+                        <span class="text-sm font-medium">{{ brand.currency }} {{ result.final_price|floatformat:0 }}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-sm text-gray-600">Buyer's Premium</span>
-                        <span class="text-sm font-medium">KES {{ result.buyers_premium|floatformat:0 }}</span>
+                        <span class="text-sm font-medium">{{ brand.currency }} {{ result.buyers_premium|floatformat:0 }}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-sm text-gray-600">Taxes</span>
-                        <span class="text-sm font-medium">KES {{ result.taxes|floatformat:0 }}</span>
+                        <span class="text-sm font-medium">{{ brand.currency }} {{ result.taxes|floatformat:0 }}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-sm text-gray-600">Shipping</span>
-                        <span class="text-sm font-medium">KES {{ result.shipping_cost|floatformat:0 }}</span>
+                        <span class="text-sm font-medium">{{ brand.currency }} {{ result.shipping_cost|floatformat:0 }}</span>
                     </div>
                     <div class="flex justify-between pt-2 border-t border-gray-200">
                         <span class="text-sm font-bold text-gray-900">Total Amount</span>
-                        <span class="text-sm font-bold text-primary-600">KES {{ result.total_amount|floatformat:0 }}</span>
+                        <span class="text-sm font-bold text-primary-600">{{ brand.currency }} {{ result.total_amount|floatformat:0 }}</span>
                     </div>
                 </div>
 

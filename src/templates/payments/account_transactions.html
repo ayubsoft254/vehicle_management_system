@@ -40,15 +40,15 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm font-medium text-gray-600">Total Additions</p>
-            <p class="text-xl font-bold text-green-600">KES {{ total_additions|floatformat:2 }}</p>
+            <p class="text-xl font-bold text-green-600">{{ brand.currency }} {{ total_additions|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm font-medium text-gray-600">Total Withdrawals</p>
-            <p class="text-xl font-bold text-red-600">KES {{ total_withdrawals|floatformat:2 }}</p>
+            <p class="text-xl font-bold text-red-600">{{ brand.currency }} {{ total_withdrawals|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm font-medium text-gray-600">Net Total</p>
-            <p class="text-xl font-bold text-gray-900">KES {{ net_total|floatformat:2 }}</p>
+            <p class="text-xl font-bold text-gray-900">{{ brand.currency }} {{ net_total|floatformat:2 }}</p>
         </div>
     </div>
 
@@ -123,7 +123,7 @@
                             {% if txn.type == 'reversed' %}text-red-400 line-through
                             {% elif txn.type == 'withdrawal' %}text-red-600
                             {% else %}text-green-600{% endif %}">
-                            {% if txn.type == 'withdrawal' %}- {% endif %}KES {{ txn.amount|floatformat:2 }}
+                            {% if txn.type == 'withdrawal' %}- {% endif %}{{ brand.currency }} {{ txn.amount|floatformat:2 }}
                             {% if txn.detail_url %}
                             <a href="{{ txn.detail_url }}" class="ml-2 text-primary-600 hover:text-primary-900" title="View Payment">
                                 <i class="fas fa-eye"></i>

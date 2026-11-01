@@ -34,19 +34,19 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div class="bg-gray-50 rounded-lg p-6">
                 <p class="text-gray-600 text-sm mb-1">Claimed Amount</p>
-                <p class="text-2xl font-bold text-red-600">KES {{ claim.claimed_amount|floatformat:0 }}</p>
+                <p class="text-2xl font-bold text-red-600">{{ brand.currency }} {{ claim.claimed_amount|floatformat:0 }}</p>
             </div>
             <div class="bg-gray-50 rounded-lg p-6">
                 <p class="text-gray-600 text-sm mb-1">Approved Amount</p>
-                <p class="text-2xl font-bold text-green-600">KES {{ claim.approved_amount|floatformat:0 }}</p>
+                <p class="text-2xl font-bold text-green-600">{{ brand.currency }} {{ claim.approved_amount|floatformat:0 }}</p>
             </div>
             <div class="bg-gray-50 rounded-lg p-6">
                 <p class="text-gray-600 text-sm mb-1">Settled Amount</p>
-                <p class="text-2xl font-bold text-teal-600">KES {{ claim.settled_amount|floatformat:0 }}</p>
+                <p class="text-2xl font-bold text-teal-600">{{ brand.currency }} {{ claim.settled_amount|floatformat:0 }}</p>
             </div>
             <div class="bg-gray-50 rounded-lg p-6">
                 <p class="text-gray-600 text-sm mb-1">Excess Paid</p>
-                <p class="text-2xl font-bold text-gray-800">KES {{ claim.excess_paid|floatformat:0 }}</p>
+                <p class="text-2xl font-bold text-gray-800">{{ brand.currency }} {{ claim.excess_paid|floatformat:0 }}</p>
             </div>
         </div>
     </div>

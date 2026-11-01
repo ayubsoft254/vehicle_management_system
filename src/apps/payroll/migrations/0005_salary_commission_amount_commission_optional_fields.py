@@ -20,7 +20,8 @@ def rename_commission_rate_if_needed(apps, schema_editor):
             cursor.execute("""
                 SELECT COUNT(*)
                 FROM information_schema.columns
-                WHERE table_name = 'payroll_salarystructure'
+                WHERE table_schema = current_schema()
+                  AND table_name = 'payroll_salarystructure'
                   AND column_name = 'commission_rate'
             """)
             has_old_column = cursor.fetchone()[0] > 0

@@ -2,6 +2,8 @@
 Utility functions for the payments app
 Includes PDF generation, calculations, and helper functions
 """
+from apps.company.services import get_company
+from utils.theme import brand_hex
 from django.conf import settings
 from django.http import HttpResponse
 from django.template.loader import render_to_string
@@ -191,7 +193,7 @@ def calculate_late_fee(amount_due, days_overdue, rate_per_day=0.1):
     return min(late_fee, max_fee)
 
 
-def format_currency(amount, currency='KES'):
+def format_currency(amount, currency=None):
     """
     Format amount as currency string
     
@@ -202,6 +204,9 @@ def format_currency(amount, currency='KES'):
     Returns:
         str: Formatted currency string
     """
+    if currency is None:
+        from apps.company.services import get_company
+        currency = get_company().currency_code
     return f"{currency} {amount:,.2f}"
 
 
@@ -302,7 +307,7 @@ def generate_payment_receipt_pdf(payment):
         'CustomTitle',
         parent=styles['Heading1'],
         fontSize=24,
-        textColor=colors.HexColor('#1e40af'),
+        textColor=colors.HexColor(brand_hex(800, '#1e40af')),
         spaceAfter=30,
         alignment=TA_CENTER
     )
@@ -311,7 +316,7 @@ def generate_payment_receipt_pdf(payment):
         'CustomHeading',
         parent=styles['Heading2'],
         fontSize=14,
-        textColor=colors.HexColor('#1e40af'),
+        textColor=colors.HexColor(brand_hex(800, '#1e40af')),
         spaceAfter=12,
     )
     
@@ -407,7 +412,7 @@ def generate_payment_receipt_pdf(payment):
     return response
 
 
-def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00')):
+def generate_agreement_pdf(client_vehicle, currency=None, fx_rate=Decimal('1.00')):
     """
     Generate sales agreement PDF
     
@@ -417,6 +422,7 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
     Returns:
         HttpResponse: PDF response
     """
+    currency = currency or get_company().currency_code
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer, pagesize=A4,
@@ -431,7 +437,7 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
         'Title',
         parent=styles['Title'],
         fontSize=20,
-        textColor=colors.HexColor('#1e40af'),
+        textColor=colors.HexColor(brand_hex(800, '#1e40af')),
         alignment=TA_CENTER,
         spaceAfter=30
     )
@@ -451,9 +457,9 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
     
     seller_text = f"""
     <b>SELLER:</b><br/>
-    {_esc(settings.COMPANY_NAME)}<br/>
-    {_esc(settings.COMPANY_ADDRESS)}<br/>
-    Tel: {_esc(settings.COMPANY_PHONE)}<br/>
+    {_esc(get_company().legal_name)}<br/>
+    {_esc(get_company().postal_address)}<br/>
+    Tel: {_esc(get_company().phone)}<br/>
     """
     elements.append(Paragraph(seller_text, styles['Normal']))
     elements.append(Spacer(1, 0.2*inch))
@@ -544,7 +550,7 @@ def generate_agreement_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00
     return response
 
 
-def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00')):
+def generate_payment_tracker_pdf(client_vehicle, currency=None, fx_rate=Decimal('1.00')):
     """
     Generate payment tracker/history PDF
     
@@ -554,6 +560,7 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
     Returns:
         HttpResponse: PDF response
     """
+    currency = currency or get_company().currency_code
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer, pagesize=A4,
@@ -568,7 +575,7 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
         'Title',
         parent=styles['Title'],
         fontSize=18,
-        textColor=colors.HexColor('#1e40af'),
+        textColor=colors.HexColor(brand_hex(800, '#1e40af')),
         alignment=TA_CENTER,
         spaceAfter=20
     )
@@ -632,7 +639,7 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
         
         payment_table = Table(payment_data, colWidths=[1.2*inch, 1.5*inch, 1.2*inch, 1.2*inch, 1.2*inch])
         payment_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(brand_hex(500, '#3b82f6'))),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
@@ -671,7 +678,7 @@ def generate_client_statement_pdf(client, rows, summary):
 
     title_style = ParagraphStyle(
         'Title', parent=styles['Title'], fontSize=18,
-        textColor=colors.HexColor('#1e40af'), alignment=TA_CENTER, spaceAfter=20
+        textColor=colors.HexColor(brand_hex(800, '#1e40af')), alignment=TA_CENTER, spaceAfter=20
     )
     elements.append(Paragraph("CLIENT STATEMENT", title_style))
     elements.append(Spacer(1, 0.2 * inch))
@@ -720,7 +727,7 @@ def generate_client_statement_pdf(client, rows, summary):
 
     ledger_table = Table(ledger_data, colWidths=[0.8 * inch, 1 * inch, 1 * inch, 1 * inch, 1 * inch, 1 * inch, 1 * inch])
     ledger_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(brand_hex(500, '#3b82f6'))),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 8),
@@ -740,7 +747,7 @@ def generate_client_statement_pdf(client, rows, summary):
     return response
 
 
-def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decimal('1.00')):
+def generate_performa_invoice_pdf(client_vehicle, currency=None, fx_rate=Decimal('1.00')):
     """
     Generate performa invoice PDF
     
@@ -750,6 +757,7 @@ def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decima
     Returns:
         HttpResponse: PDF response
     """
+    currency = currency or get_company().currency_code
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer, pagesize=A4,
@@ -764,7 +772,7 @@ def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decima
         'Title',
         parent=styles['Title'],
         fontSize=22,
-        textColor=colors.HexColor('#1e40af'),
+        textColor=colors.HexColor(brand_hex(800, '#1e40af')),
         alignment=TA_CENTER,
         spaceAfter=30
     )
@@ -801,7 +809,7 @@ def generate_performa_invoice_pdf(client_vehicle, currency='KES', fx_rate=Decima
     
     vehicle_table = Table(vehicle_data, colWidths=[4*inch, 2*inch])
     vehicle_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(brand_hex(500, '#3b82f6'))),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 11),

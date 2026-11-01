@@ -2,6 +2,7 @@
 Admin configuration for client app
 Provides admin interface for managing clients, vehicles, payments, and documents
 """
+from apps.company.services import currency
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
@@ -266,13 +267,13 @@ class ClientAdmin(admin.ModelAdmin):
     
     def credit_limit_display(self, obj):
         """Display credit limit formatted"""
-        return format_html('KES {}', f'{obj.credit_limit:,.2f}')
+        return format_html(currency() + ' {}', f'{obj.credit_limit:,.2f}')
     credit_limit_display.short_description = 'Credit Limit'
     credit_limit_display.admin_order_field = 'credit_limit'
     
     def available_credit_display(self, obj):
         """Display available credit formatted"""
-        return format_html('KES {}', f'{obj.available_credit:,.2f}')
+        return format_html(currency() + ' {}', f'{obj.available_credit:,.2f}')
     available_credit_display.short_description = 'Available Credit'
     
     def credit_utilization_display(self, obj):
@@ -295,13 +296,13 @@ class ClientAdmin(admin.ModelAdmin):
     def total_spent_display(self, obj):
         """Display total amount spent"""
         total = obj.vehicles.aggregate(Sum('purchase_price'))['purchase_price__sum'] or 0
-        return format_html('KES {}', f'{total:,.2f}')
+        return format_html(currency() + ' {}', f'{total:,.2f}')
     total_spent_display.short_description = 'Total Spent'
     
     def total_paid_display(self, obj):
         """Display total amount paid"""
         total = obj.vehicles.aggregate(Sum('total_paid'))['total_paid__sum'] or 0
-        return format_html('KES {}', f'{total:,.2f}')
+        return format_html(currency() + ' {}', f'{total:,.2f}')
     total_paid_display.short_description = 'Total Paid'
     
     def total_balance_display(self, obj):
@@ -309,7 +310,7 @@ class ClientAdmin(admin.ModelAdmin):
         total = obj.vehicles.aggregate(Sum('balance'))['balance__sum'] or 0
         color = '#dc3545' if total > 0 else '#28a745'
         return format_html(
-            '<span style="color: {}; font-weight: bold;">KES {}</span>',
+            '<span style="color: {}; font-weight: bold;">' + currency() + ' {}</span>',
             color,
             f'{total:,.2f}'
         )
@@ -434,13 +435,13 @@ class ClientVehicleAdmin(admin.ModelAdmin):
     
     def purchase_price_display(self, obj):
         """Display purchase price formatted"""
-        return format_html('KES {}', f'{obj.purchase_price:,.2f}')
+        return format_html(currency() + ' {}', f'{obj.purchase_price:,.2f}')
     purchase_price_display.short_description = 'Purchase Price'
     purchase_price_display.admin_order_field = 'purchase_price'
     
     def total_paid_display(self, obj):
         """Display total paid formatted"""
-        return format_html('KES {}', f'{obj.total_paid:,.2f}')
+        return format_html(currency() + ' {}', f'{obj.total_paid:,.2f}')
     total_paid_display.short_description = 'Total Paid'
     total_paid_display.admin_order_field = 'total_paid'
     
@@ -448,7 +449,7 @@ class ClientVehicleAdmin(admin.ModelAdmin):
         """Display balance formatted"""
         color = '#dc3545' if obj.balance > 0 else '#28a745'
         return format_html(
-            '<span style="color: {}; font-weight: bold;">KES {}</span>',
+            '<span style="color: {}; font-weight: bold;">' + currency() + ' {}</span>',
             color,
             f'{obj.balance:,.2f}'
         )

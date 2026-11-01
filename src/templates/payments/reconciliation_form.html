@@ -33,7 +33,7 @@
             <div><span class="text-gray-500">Account:</span> {{ original.account.name }}</div>
             <div><span class="text-gray-500">Date:</span> {{ original.date|date:'M d, Y' }}</div>
             <div><span class="text-gray-500">Type:</span> {{ original.get_transaction_type_display }}</div>
-            <div><span class="text-gray-500">Amount:</span> KES {{ original.amount|floatformat:2 }}</div>
+            <div><span class="text-gray-500">Amount:</span> {{ brand.currency }} {{ original.amount|floatformat:2 }}</div>
             <div><span class="text-gray-500">Reference:</span> {{ original.reference|default:'—' }}</div>
             <div><span class="text-gray-500">Narration:</span> {{ original.narration|default:'—' }}</div>
         </div>

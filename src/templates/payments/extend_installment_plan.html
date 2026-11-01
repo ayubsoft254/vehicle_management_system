@@ -88,11 +88,11 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600">Unpaid Amount</span>
-                    <span class="font-semibold text-red-600">KES {{ unpaid_total|floatformat:2 }}</span>
+                    <span class="font-semibold text-red-600">{{ brand.currency }} {{ unpaid_total|floatformat:2 }}</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-gray-600">Current Monthly</span>
-                    <span class="font-semibold text-gray-900">KES {{ plan.monthly_installment|floatformat:2 }}</span>
+                    <span class="font-semibold text-gray-900">{{ brand.currency }} {{ plan.monthly_installment|floatformat:2 }}</span>
                 </div>
             </div>
         </div>

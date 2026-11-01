@@ -2,6 +2,7 @@
 Dashboard App - Views
 """
 
+from apps.company.services import get_company
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
@@ -118,7 +119,7 @@ def landing_page(request):
     page_obj = paginator.get_page(page_number)
     
     context = {
-        'system_name': 'Vehicle Management System',
+        'system_name': get_company().public_name,
         'tagline': 'Find Your Perfect Vehicle',
         'page_obj': page_obj,
         'featured_vehicles': featured_vehicles,

@@ -25,7 +25,10 @@ User = get_user_model()
 @receiver(post_save, sender=User)
 def create_notification_preferences(sender, instance, created, **kwargs):
     """Create notification preferences for new users"""
-    
+    from utils.tenancy import on_platform_schema
+    if on_platform_schema():
+        return  # platform owners: notifications exist only inside companies
+
     if created:
         NotificationPreference.objects.get_or_create(user=instance)
 

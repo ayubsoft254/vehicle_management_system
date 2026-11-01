@@ -1,12 +1,12 @@
 {% load static %}{
-    "name": "Hoza",
-    "short_name": "Hoza",
-    "description": "Vehicle sales, client and finance management for HOZA Investments.",
+    "name": "{{ brand.app_name|escapejs }}",
+    "short_name": "{{ brand.app_name|escapejs }}",
+    "description": "Vehicle sales, client and finance management for {{ brand.public_name|escapejs }}.",
     "start_url": "/",
     "scope": "/",
     "display": "standalone",
     "orientation": "portrait-primary",
-    "theme_color": "#2563eb",
+    "theme_color": "{{ theme.primary.600 }}",
     "background_color": "#f9fafb",
     "icons": [
         {

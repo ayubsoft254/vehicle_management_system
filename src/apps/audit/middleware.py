@@ -2,6 +2,7 @@
 Audit Middleware
 Automatically logs all requests and user actions
 """
+from apps.company.services import get_company
 from django.utils.deprecation import MiddlewareMixin
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -51,7 +52,7 @@ class ExceptionEmailNotificationMiddleware(MiddlewareMixin):
             else:
                 user_identity = 'Anonymous'
 
-            subject = f"[VMS] Production Error: {request.method} {request.path}"
+            subject = f"[{get_company().app_name}] Production Error: {request.method} {request.path}"
             message = (
                 "An unhandled server error occurred.\n\n"
                 f"Host: {request.get_host()}\n"

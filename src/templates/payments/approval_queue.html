@@ -64,7 +64,7 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ txn.date|date:'M d, Y' }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold {% if txn.direction == 'out' %}text-red-600{% else %}text-green-600{% endif %}">
-                            {% if txn.direction == 'out' %}-{% endif %}KES {{ txn.amount|floatformat:2 }}
+                            {% if txn.direction == 'out' %}-{% endif %}{{ brand.currency }} {{ txn.amount|floatformat:2 }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{% if txn.created_by %}{{ txn.created_by.get_full_name }}{% else %}System{% endif %}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
@@ -111,7 +111,7 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ t.source_account.name }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ t.destination_account.name }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ t.transfer_date|date:'M d, Y' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">KES {{ t.amount|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">{{ brand.currency }} {{ t.amount|floatformat:2 }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{% if t.created_by %}{{ t.created_by.get_full_name }}{% else %}System{% endif %}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
                             <div class="flex items-center justify-end gap-2">
@@ -155,7 +155,7 @@
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <a href="{% url 'payments:account_detail' r.original_transaction.account.pk %}" class="hover:text-primary-600">
-                                {{ r.original_transaction.account.name }} — KES {{ r.original_transaction.amount|floatformat:2 }}
+                                {{ r.original_transaction.account.name }} — {{ brand.currency }} {{ r.original_transaction.amount|floatformat:2 }}
                             </a>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ r.get_issue_type_display }}</td>
@@ -200,7 +200,7 @@
                     {% for account in suspense_accounts %}
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ account.name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">KES {{ account.current_balance|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">{{ brand.currency }} {{ account.current_balance|floatformat:2 }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
                             <a href="{% url 'payments:account_detail' account.pk %}" class="text-primary-600 hover:text-primary-900"><i class="fas fa-list mr-1"></i>View Ledger</a>
                         </td>

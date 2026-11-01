@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Paybill Tracker - Vehicle Management System{% endblock %}
+{% block title %}Paybill Tracker - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -20,7 +20,7 @@
                 </button>
             </form>
             <form method="post" action="{% url 'payments:register_paybill_c2b' %}"
-                  onsubmit="return confirm('Register C2B callback URLs with Safaricom for both paybills (4320049 and 4162495)?\n\nDo this once after deployment or when the callback URL changes.');">
+                  onsubmit="return confirm('Register C2B callback URLs with Safaricom for {{ paybill_primary|escapejs }}{% if paybill_secondary %} and {{ paybill_secondary|escapejs }}{% endif %}?\n\nDo this once after deployment or when the callback URL changes.');">
                 {% csrf_token %}
                 <button type="submit"
                         class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
@@ -28,12 +28,14 @@
                     Register Callbacks
                 </button>
             </form>
+            {% if user.is_superuser or user.role == 'admin' %}
             <button type="button"
                     onclick="document.getElementById('security-credential-modal').classList.remove('hidden')"
                     class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-key mr-2"></i>
                 Update Security Credential
             </button>
+            {% endif %}
             <a href="{% url 'payments:payment_list' %}"
                class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
                 <i class="fas fa-arrow-left mr-2"></i>
@@ -93,11 +95,11 @@
                 </div>
                 <div>
                     <p class="text-xs text-gray-500">Total Received</p>
-                    <p class="text-lg font-bold text-green-700 mt-0.5">KES {{ pb.total|floatformat:2 }}</p>
+                    <p class="text-lg font-bold text-green-700 mt-0.5">{{ brand.currency }} {{ pb.total|floatformat:2 }}</p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500">This Month</p>
-                    <p class="text-lg font-bold text-blue-700 mt-0.5">KES {{ pb.month|floatformat:2 }}</p>
+                    <p class="text-lg font-bold text-blue-700 mt-0.5">{{ brand.currency }} {{ pb.month|floatformat:2 }}</p>
                 </div>
             </div>
         </div>
@@ -111,7 +113,7 @@
             <p class="text-sm text-gray-600">Latest Balance</p>
             <p class="text-2xl font-bold text-gray-900 mt-1">
                 {% if latest_successful_snapshot and latest_successful_snapshot.available_balance is not None %}
-                    KES {{ latest_successful_snapshot.available_balance|floatformat:2 }}
+                    {{ brand.currency }} {{ latest_successful_snapshot.available_balance|floatformat:2 }}
                 {% else %}
                     <span class="text-gray-400">--</span>
                 {% endif %}
@@ -132,11 +134,11 @@
             <p class="text-sm text-gray-600">
                 {% if paybill_filter %}Total — {{ paybill_filter }}{% else %}Total Received{% endif %}
             </p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">KES {{ total_received|floatformat:2 }}</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ brand.currency }} {{ total_received|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm text-gray-600">This Month</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">KES {{ month_received|floatformat:2 }}</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ brand.currency }} {{ month_received|floatformat:2 }}</p>
         </div>
     </div>
 
@@ -186,7 +188,7 @@
                 {% if bs.latest_snapshot.available_balance is not None %}
                 <div>
                     <span class="text-gray-500">Balance:</span>
-                    <span class="font-bold text-green-700">KES {{ bs.latest_snapshot.available_balance|floatformat:2 }}</span>
+                    <span class="font-bold text-green-700">{{ brand.currency }} {{ bs.latest_snapshot.available_balance|floatformat:2 }}</span>
                 </div>
                 {% endif %}
                 {% if bs.latest_snapshot.result_desc %}
@@ -342,7 +344,7 @@
                         <td class="px-4 py-3 text-sm text-gray-700">{{ tx.payer_name }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ tx.display_msisdn }}</td>
                         <td class="px-4 py-3 text-sm text-gray-700">{{ tx.bill_ref_number|default:"-" }}</td>
-                        <td class="px-4 py-3 text-sm text-right font-semibold text-green-700 whitespace-nowrap">KES {{ tx.trans_amount|floatformat:2 }}</td>
+                        <td class="px-4 py-3 text-sm text-right font-semibold text-green-700 whitespace-nowrap">{{ brand.currency }} {{ tx.trans_amount|floatformat:2 }}</td>
                     </tr>
                     {% empty %}
                     <tr>

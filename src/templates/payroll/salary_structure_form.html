@@ -31,7 +31,7 @@
                 Basic Salary
             </h2>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Basic Monthly Salary (KES) *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Basic Monthly Salary ({{ brand.currency }}) *</label>
                 {{ form.basic_salary }}
                 {% if form.basic_salary.errors %}
                 <p class="mt-1 text-sm text-red-600">{{ form.basic_salary.errors.0 }}</p>
@@ -47,35 +47,35 @@
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Housing Allowance (KES)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Housing Allowance ({{ brand.currency }})</label>
                     {{ form.housing_allowance }}
                     {% if form.housing_allowance.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.housing_allowance.errors.0 }}</p>
                     {% endif %}
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Transport Allowance (KES)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Transport Allowance ({{ brand.currency }})</label>
                     {{ form.transport_allowance }}
                     {% if form.transport_allowance.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.transport_allowance.errors.0 }}</p>
                     {% endif %}
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Medical Allowance (KES)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Medical Allowance ({{ brand.currency }})</label>
                     {{ form.medical_allowance }}
                     {% if form.medical_allowance.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.medical_allowance.errors.0 }}</p>
                     {% endif %}
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Meal Allowance (KES)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Meal Allowance ({{ brand.currency }})</label>
                     {{ form.meal_allowance }}
                     {% if form.meal_allowance.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.meal_allowance.errors.0 }}</p>
                     {% endif %}
                 </div>
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Other Allowances (KES)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Other Allowances ({{ brand.currency }})</label>
                     {{ form.other_allowances }}
                     {% if form.other_allowances.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.other_allowances.errors.0 }}</p>
@@ -98,7 +98,7 @@
                             Enable Commission
                         </label>
                     </div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Commission Amount (KES)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Commission Amount ({{ brand.currency }})</label>
                     {{ form.commission_amount }}
                     {% if form.commission_amount.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.commission_amount.errors.0 }}</p>
@@ -111,7 +111,7 @@
                             Enable Overtime
                         </label>
                     </div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Overtime Rate (KES/hour)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Overtime Rate ({{ brand.currency }}/hour)</label>
                     {{ form.overtime_rate }}
                     {% if form.overtime_rate.errors %}
                     <p class="mt-1 text-sm text-red-600">{{ form.overtime_rate.errors.0 }}</p>
@@ -151,15 +151,15 @@
             <div id="salary-preview" class="space-y-2">
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-600">Basic Salary:</span>
-                    <span class="font-medium" id="preview-basic">KES 0</span>
+                    <span class="font-medium" id="preview-basic">{{ brand.currency }} 0</span>
                 </div>
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-600">Total Allowances:</span>
-                    <span class="font-medium" id="preview-allowances">KES 0</span>
+                    <span class="font-medium" id="preview-allowances">{{ brand.currency }} 0</span>
                 </div>
                 <div class="flex justify-between text-lg font-bold pt-2 border-t border-green-300">
                     <span class="text-gray-900">Gross Salary:</span>
-                    <span class="text-green-700" id="preview-gross">KES 0</span>
+                    <span class="text-green-700" id="preview-gross">{{ brand.currency }} 0</span>
                 </div>
             </div>
         </div>
@@ -223,9 +223,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 0);
         const gross = basic + allowances;
 
-        document.getElementById('preview-basic').textContent = `KES ${basic.toLocaleString()}`;
-        document.getElementById('preview-allowances').textContent = `KES ${allowances.toLocaleString()}`;
-        document.getElementById('preview-gross').textContent = `KES ${gross.toLocaleString()}`;
+        document.getElementById('preview-basic').textContent = `{{ brand.currency }} ${basic.toLocaleString()}`;
+        document.getElementById('preview-allowances').textContent = `{{ brand.currency }} ${allowances.toLocaleString()}`;
+        document.getElementById('preview-gross').textContent = `{{ brand.currency }} ${gross.toLocaleString()}`;
     }
 
     basicInput.addEventListener('input', updatePreview);

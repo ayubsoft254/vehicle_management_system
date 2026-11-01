@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Deductions - Vehicle Management System{% endblock %}
+{% block title %}Deductions - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -22,15 +22,15 @@
     <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <p class="text-xs font-medium text-gray-500 uppercase">Total Deductions</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">KES {{ total_deductions|floatformat:0 }}</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ brand.currency }} {{ total_deductions|floatformat:0 }}</p>
         </div>
         <div class="bg-blue-50 rounded-lg shadow-sm border border-blue-200 p-4">
             <p class="text-xs font-medium text-blue-700 uppercase">Tax</p>
-            <p class="text-2xl font-bold text-blue-700 mt-1">KES {{ tax_amount|floatformat:0 }}</p>
+            <p class="text-2xl font-bold text-blue-700 mt-1">{{ brand.currency }} {{ tax_amount|floatformat:0 }}</p>
         </div>
         <div class="bg-purple-50 rounded-lg shadow-sm border border-purple-200 p-4">
             <p class="text-xs font-medium text-purple-700 uppercase">Insurance</p>
-            <p class="text-2xl font-bold text-purple-700 mt-1">KES {{ insurance_amount|floatformat:0 }}</p>
+            <p class="text-2xl font-bold text-purple-700 mt-1">{{ brand.currency }} {{ insurance_amount|floatformat:0 }}</p>
         </div>
         <div class="bg-green-50 rounded-lg shadow-sm border border-green-200 p-4">
             <p class="text-xs font-medium text-green-700 uppercase">Active</p>
@@ -117,7 +117,7 @@
                                 {% if deduction.is_percentage %}
                                     {{ deduction.amount }}%
                                 {% else %}
-                                    KES {{ deduction.amount|floatformat:0 }}
+                                    {{ brand.currency }} {{ deduction.amount|floatformat:0 }}
                                 {% endif %}
                             </div>
                         </td>

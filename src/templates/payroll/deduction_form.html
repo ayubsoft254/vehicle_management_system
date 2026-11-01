@@ -89,7 +89,7 @@
                                 Description <span class="text-red-500">*</span>
                             </label>
                             {{ form.description }}
-                            <p class="text-xs text-gray-500 mt-1">Short label for this deduction (e.g. "NHIF Premium")</p>
+                            <p class="text-xs text-gray-500 mt-1">Short label for this deduction (e.g. "{% if brand.payroll_module == 'ke' %}NHIF{% else %}Health Insurance{% endif %} Premium")</p>
                             {% if form.description.errors %}
                                 <p class="text-xs text-red-500 mt-1">{{ form.description.errors.0 }}</p>
                             {% endif %}
@@ -219,21 +219,21 @@
                         <i class="fas fa-receipt text-blue-600 mr-2 mt-1"></i>
                         <div>
                             <p class="font-medium">Tax</p>
-                            <p class="text-xs text-blue-700">PAYE / income tax</p>
+                            <p class="text-xs text-blue-700">{% if brand.payroll_module == 'ke' %}PAYE / income tax{% else %}Income tax{% endif %}</p>
                         </div>
                     </div>
                     <div class="flex items-start">
                         <i class="fas fa-piggy-bank text-blue-600 mr-2 mt-1"></i>
                         <div>
                             <p class="font-medium">Pension</p>
-                            <p class="text-xs text-blue-700">NSSF / retirement contributions</p>
+                            <p class="text-xs text-blue-700">{% if brand.payroll_module == 'ke' %}NSSF / retirement contributions{% else %}Retirement contributions{% endif %}</p>
                         </div>
                     </div>
                     <div class="flex items-start">
                         <i class="fas fa-briefcase-medical text-blue-600 mr-2 mt-1"></i>
                         <div>
                             <p class="font-medium">Insurance</p>
-                            <p class="text-xs text-blue-700">NHIF / health/life premiums</p>
+                            <p class="text-xs text-blue-700">{% if brand.payroll_module == 'ke' %}NHIF / health/life premiums{% else %}Health/life premiums{% endif %}</p>
                         </div>
                     </div>
                     <div class="flex items-start">
@@ -269,7 +269,7 @@
                     </li>
                     <li class="flex items-start">
                         <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>
-                        <span>Check <strong>Percentage</strong> to deduct a % of gross (e.g. 6% for NSSF)</span>
+                        <span>Check <strong>Percentage</strong> to deduct a % of gross (e.g. 6% for {% if brand.payroll_module == 'ke' %}NSSF{% else %}a pension scheme{% endif %})</span>
                     </li>
                     <li class="flex items-start">
                         <i class="fas fa-check text-yellow-600 mr-2 mt-1"></i>

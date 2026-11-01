@@ -1,0 +1,25 @@
+{% extends 'tenancy/base.html' %}
+{% block title %}New company{% endblock %}
+{% block content %}
+<a href="{% url 'platform:company_list' %}" class="text-sm text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left mr-1"></i>Companies</a>
+<div class="max-w-2xl bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-3">
+    <h1 class="text-xl font-bold text-gray-900 mb-1">New company</h1>
+    <p class="text-sm text-gray-500 mb-6">Creates the company's own data space, applies its country's defaults, and emails its first admin a sign-in link. Everything else (logo, colours, bank accounts, M-Pesa) the company's admin sets up in their own Settings.</p>
+    <form method="post" class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="{% if field.name == 'name' or field.name == 'subdomain' or field.name == 'admin_email' %}sm:col-span-2{% endif %}">
+            <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">{{ field.label }}</label>
+            {% if field.name == 'subdomain' %}
+            <div class="flex items-center gap-2">{{ field }}<span class="text-sm text-gray-500 whitespace-nowrap">.{{ platform_domain|default:request.get_host }}</span></div>
+            {% else %}{{ field }}{% endif %}
+            {% if field.help_text %}<p class="text-xs text-gray-400 mt-1">{{ field.help_text }}</p>{% endif %}
+            {% for error in field.errors %}<p class="text-xs text-red-600 mt-1">{{ error }}</p>{% endfor %}
+        </div>
+        {% endfor %}
+        <div class="sm:col-span-2 flex justify-end">
+            <button class="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium">Create company</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

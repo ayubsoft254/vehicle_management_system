@@ -1,3 +1,4 @@
+{% load company_tags %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -76,12 +77,13 @@
             <div class="bg-gray-50 border-b-2 border-gray-200 p-6">
                 <div class="grid grid-cols-2 gap-6">
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-900 mb-3">Vehicle Management System</h2>
+                        {% if brand.logo %}<img src="{{ brand.logo.url }}" alt="{{ brand.legal_name }}" class="h-12 w-auto mb-2">{% endif %}
+                        <h2 class="text-2xl font-bold text-gray-900 mb-3">{{ brand.legal_name }}</h2>
                         <div class="space-y-1 text-sm text-gray-600">
-                            <p><i class="fas fa-map-marker-alt w-5"></i> P.O. Box 12345-00100, Nairobi</p>
-                            <p><i class="fas fa-phone w-5"></i> +254 712 345 678</p>
-                            <p><i class="fas fa-envelope w-5"></i> info@vehiclemgmt.co.ke</p>
-                            <p><i class="fas fa-globe w-5"></i> www.vehiclemgmt.co.ke</p>
+                            {% if brand.postal_address %}<p><i class="fas fa-map-marker-alt w-5"></i> {{ brand.postal_address }}</p>{% endif %}
+                            {% if brand.phone %}<p><i class="fas fa-phone w-5"></i> {{ brand.phone }}</p>{% endif %}
+                            {% if brand.email %}<p><i class="fas fa-envelope w-5"></i> {{ brand.email }}</p>{% endif %}
+                            {% if brand.website_display %}<p><i class="fas fa-globe w-5"></i> {{ brand.website_display }}</p>{% endif %}
                         </div>
                     </div>
                     <div class="text-right">
@@ -165,8 +167,8 @@
                                         {% elif split.payment_method == 'cash' %}bg-blue-600 text-white
                                         {% elif split.payment_method == 'bank_transfer' %}bg-purple-600 text-white
                                         {% elif split.payment_method == 'cheque' %}bg-yellow-600 text-white
-                                        {% elif split.payment_method == 'equity_hoza' or split.payment_method == 'dib_hoza' or split.payment_method == 'coop_hoza' %}bg-orange-500 text-white
-                                        {% elif split.payment_method == 'kcb_ke' or split.payment_method == 'absa_ke' or split.payment_method == 'equity_ke' %}bg-cyan-600 text-white
+                                        {% elif split.method_group == 'hoza' %}bg-orange-500 text-white
+                                        {% elif split.method_group == 'ke' %}bg-cyan-600 text-white
                                         {% else %}bg-gray-600 text-white{% endif %}">
                                         {{ split.get_payment_method_display }}
                                     </span>
@@ -174,7 +176,7 @@
                                     <span class="text-xs text-gray-500 font-mono">{{ split.transaction_reference }}</span>
                                     {% endif %}
                                 </div>
-                                <span class="text-sm font-bold text-gray-900">KES {{ split.amount|floatformat:2 }}</span>
+                                <span class="text-sm font-bold text-gray-900">{{ brand.currency }} {{ split.amount|floatformat:2 }}</span>
                             </div>
                             {% endfor %}
                         </div>
@@ -201,7 +203,7 @@
                     <div class="col-span-2">
                         <div class="bg-white rounded-lg p-6 border-2 border-green-300">
                             <label class="block text-sm font-semibold text-gray-600 mb-2">AMOUNT PAID</label>
-                            <p class="text-4xl font-bold text-green-600">KES {{ payment.amount|floatformat:2 }}</p>
+                            <p class="text-4xl font-bold text-green-600">{{ brand.currency }} {{ payment.amount|floatformat:2 }}</p>
                             <p class="text-sm text-gray-500 mt-1 italic">
                                 ({{ payment.amount|floatformat:0 }} Shillings)
                             </p>
@@ -219,23 +221,23 @@
                 <div class="space-y-3">
                     <div class="flex justify-between items-center py-2">
                         <span class="text-sm text-gray-600">Total Purchase Price</span>
-                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.purchase_price|floatformat:2 }}</span>
+                        <span class="text-base font-semibold text-gray-900">{{ brand.currency }} {{ payment.client_vehicle.purchase_price|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between items-center py-2">
                         <span class="text-sm text-gray-600">Initial Deposit Paid</span>
-                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.deposit_paid|floatformat:2 }}</span>
+                        <span class="text-base font-semibold text-gray-900">{{ brand.currency }} {{ payment.client_vehicle.deposit_paid|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between items-center py-2 border-t border-gray-200">
                         <span class="text-sm font-medium text-gray-700">Amount Financed</span>
-                        <span class="text-base font-semibold text-gray-900">KES {{ payment.client_vehicle.balance|floatformat:2 }}</span>
+                        <span class="text-base font-semibold text-gray-900">{{ brand.currency }} {{ payment.client_vehicle.balance|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between items-center py-2 bg-green-50 px-3 rounded">
                         <span class="text-sm font-medium text-gray-700">Total Amount Paid to Date</span>
-                        <span class="text-base font-bold text-green-600">KES {{ payment.client_vehicle.total_paid|floatformat:2 }}</span>
+                        <span class="text-base font-bold text-green-600">{{ brand.currency }} {{ payment.client_vehicle.total_paid|floatformat:2 }}</span>
                     </div>
                     <div class="flex justify-between items-center py-3 border-t-2 border-gray-300 bg-yellow-50 px-3 rounded">
                         <span class="text-base font-bold text-gray-900">Outstanding Balance</span>
-                        <span class="text-xl font-bold text-red-600">KES {{ payment.client_vehicle.balance|floatformat:2 }}</span>
+                        <span class="text-xl font-bold text-red-600">{{ brand.currency }} {{ payment.client_vehicle.balance|floatformat:2 }}</span>
                     </div>
                 </div>
                 
@@ -287,7 +289,7 @@
                         <strong>Important Notice:</strong> This is an official payment receipt. Please retain for your records.
                     </p>
                     <p class="text-xs text-gray-500 text-center">
-                        For any queries regarding this receipt, please contact us at +254 712 345 678 or info@vehiclemgmt.co.ke
+                        For any queries regarding this receipt, please contact us at {{ brand.primary_phone }} or {{ brand.email }}
                     </p>
                 </div>
 
@@ -309,27 +311,6 @@
         </div>
     </div>
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50: '#eff6ff',
-                            100: '#dbeafe',
-                            200: '#bfdbfe',
-                            300: '#93c5fd',
-                            400: '#60a5fa',
-                            500: '#3b82f6',
-                            600: '#2563eb',
-                            700: '#1d4ed8',
-                            800: '#1e40af',
-                            900: '#1e3a8a',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    {% tailwind_config %}
 </body>
 </html>

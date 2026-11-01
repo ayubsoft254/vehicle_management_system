@@ -2,6 +2,7 @@
 Forms for the insurance app
 Handles insurance providers, policies, claims, and payments
 """
+from apps.company.services import currency, with_currency
 from django import forms
 from django.core.validators import MinValueValidator
 from django.core.exceptions import ValidationError
@@ -719,8 +720,8 @@ class InsuranceClaimForm(forms.ModelForm):
         if policy and claimed_amount:
             if claimed_amount > policy.sum_insured:
                 raise ValidationError(
-                    f"Claimed amount (KES {claimed_amount:,.2f}) cannot exceed "
-                    f"sum insured (KES {policy.sum_insured:,.2f})."
+                    f"Claimed amount ({currency()} {claimed_amount:,.2f}) cannot exceed "
+                    f"sum insured ({currency()} {policy.sum_insured:,.2f})."
                 )
         
         return cleaned_data
@@ -1033,7 +1034,7 @@ class PolicyRenewalForm(forms.Form):
     )
 
     buying_price = forms.DecimalField(
-        label='Buying Price (KES)',
+        label=with_currency('Buying Price (KES)'),
         min_value=Decimal('0'),
         max_digits=12,
         decimal_places=2,
@@ -1042,7 +1043,7 @@ class PolicyRenewalForm(forms.Form):
     )
 
     selling_price = forms.DecimalField(
-        label='Selling Price (KES)',
+        label=with_currency('Selling Price (KES)'),
         min_value=Decimal('0'),
         max_digits=12,
         decimal_places=2,

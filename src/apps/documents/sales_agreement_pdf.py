@@ -18,6 +18,9 @@ from reportlab.platypus import (
 )
 from reportlab.lib import colors
 from django.utils import timezone
+from apps.company.services import get_company, mpesa_setting
+from utils.theme import brand_hex
+from itertools import zip_longest
 
 from xml.sax.saxutils import escape as _xml_escape
 
@@ -44,7 +47,7 @@ def _draw_agreement_page(canvas, doc):
     page_width, page_height = doc.pagesize
     canvas.setFont('Helvetica-Bold', 8.5)
     canvas.setFillColor(colors.HexColor('#1e293b'))
-    canvas.drawString(1 * cm, page_height - 0.55 * cm, 'HOZA INVESTMENT (K) LIMITED')
+    canvas.drawString(1 * cm, page_height - 0.55 * cm, get_company().legal_name)
     canvas.setFont('Helvetica', 7.5)
     canvas.setFillColor(colors.HexColor('#64748b'))
     canvas.drawRightString(page_width - 1 * cm, page_height - 0.55 * cm, 'Vehicle Sales Agreement')
@@ -61,17 +64,18 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     Args:
         client_vehicle: ClientVehicle instance
         snapshot: optional frozen agreement data dict
-        paybill: paybill number to print on payment page (defaults to settings.MPESA_SHORTCODE)
+        paybill: paybill number to print on payment page (defaults to the company's primary paybill)
 
     Returns:
         BytesIO object containing the PDF
     """
     if paybill is None:
-        try:
-            from django.conf import settings
-            paybill = settings.MPESA_SHORTCODE or '4320049'
-        except Exception:
-            paybill = '4320049'
+        paybill = mpesa_setting('MPESA_SHORTCODE')
+    brand = get_company()
+    cur = brand.currency_code
+    # "HOZA INVESTMENT (K) LTD - MOMBASA KENYA"-style section title
+    location = ' '.join(filter(None, [brand.city, brand.country_preset['name']]))
+    company_title = _e(f'{brand.short_name} - {location}'.upper() if location else brand.short_name.upper())
     buffer = BytesIO()
 
     _title_reg = (snapshot or {}).get('vehicle', {}).get('registration_number') or client_vehicle.vehicle.registration_number or ''
@@ -335,19 +339,19 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
             ''
         ],
         [
-            Paragraph('<b>HOZA INVESTMENT K LIMITED</b>', heading_style),
+            Paragraph(f'<b>{_e(brand.legal_name)}</b>', heading_style),
             ''
         ],
         [
-            Paragraph('HOTEL Mombasa - Kenya Mombasa - Kenya', normal_small),
+            Paragraph(_e(brand.physical_address), normal_small),
             ''
         ],
         [
-            Paragraph('P.O BOX 43074-80100 MOMBASA, E-mail: hozainvltd@gmail.com', normal_small),
+            Paragraph(_e(', '.join(filter(None, [brand.postal_address, f'E-mail: {brand.email}' if brand.email else '']))), normal_small),
             ''
         ],
         [
-            Paragraph('Mobile: +254700170447/+254784170447', normal_small),
+            Paragraph(_e(f'Mobile: {brand.phone}'), normal_small),
             ''
         ],
     ]
@@ -458,7 +462,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
 
     price_data = [
         [
-            Paragraph(f'<b>PRICE (KES):</b> {float(client_final_price):,.2f}', normal_small),
+            Paragraph(f'<b>PRICE ({cur}):</b> {float(client_final_price):,.2f}', normal_small),
             Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(client_final_price)}', normal_small),
         ],
     ]
@@ -469,17 +473,17 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     if deposit_deductions_total > Decimal('0.00'):
         gross_label = 'AMOUNT RECEIVED IN FULL' if is_full_payment else 'AMOUNT RECEIVED (DEPOSIT)'
         price_data.append([
-            Paragraph(f'<b>{gross_label}:</b> KES {float(gross_deposit_received):,.2f}', normal_small),
+            Paragraph(f'<b>{gross_label}:</b> {cur} {float(gross_deposit_received):,.2f}', normal_small),
             Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(gross_deposit_received)}', normal_small),
         ])
         for item in _deposit_deductions:
             price_data.append([
-                Paragraph(f'<b>LESS — {_e(item["label"])} (Deducted from Deposit):</b> KES {float(item["amount"]):,.2f}', normal_small),
+                Paragraph(f'<b>LESS — {_e(item["label"])} (Deducted from Deposit):</b> {cur} {float(item["amount"]):,.2f}', normal_small),
                 '',
             ])
         net_label = 'NET AMOUNT CREDITED TO VEHICLE'
         price_data.append([
-            Paragraph(f'<b>{net_label}:</b> KES {float(deposit_paid):,.2f}', normal_small),
+            Paragraph(f'<b>{net_label}:</b> {cur} {float(deposit_paid):,.2f}', normal_small),
             Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(deposit_paid)}', normal_small),
         ])
     elif deposit_paid > Decimal('0.00'):
@@ -488,13 +492,13 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         else:
             paid_label = 'AMOUNT PAID (DEPOSIT)'
         price_data.append([
-            Paragraph(f'<b>{paid_label}:</b> KES {float(deposit_paid):,.2f}', normal_small),
+            Paragraph(f'<b>{paid_label}:</b> {cur} {float(deposit_paid):,.2f}', normal_small),
             Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(deposit_paid)}', normal_small),
         ])
 
     if not is_full_payment and balance_amount > Decimal('0.00'):
         price_data.append([
-            Paragraph(f'<b>BALANCE:</b> KES {float(balance_amount):,.2f}', normal_small),
+            Paragraph(f'<b>BALANCE:</b> {cur} {float(balance_amount):,.2f}', normal_small),
             Paragraph(f'<b>IN WORDS:</b> {_amount_to_words(balance_amount)}', normal_small),
         ])
 
@@ -538,7 +542,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         ],
         [
             Paragraph(f'<b>{_e(client.get_full_name())}</b>', normal_small),
-            Paragraph(_e(getattr(agreement_signature, 'seller_name', '')) or 'For HOZA INVESTMENT (K) LTD', normal_small),
+            Paragraph(_e(getattr(agreement_signature, 'seller_name', '')) or _e(brand.seller_line), normal_small),
         ],
     ]
     sig1_table = Table(sig1_data, colWidths=[9.5*cm, 8.5*cm])
@@ -560,7 +564,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     elements.append(PageBreak())
 
     # Page 2 mini-header
-    elements.append(Paragraph('<b>HOZA INVESTMENT (K) LTD — INSURANCE &amp; TRACKER DETAILS</b>', title_style))
+    elements.append(Paragraph(f'<b>{_e(brand.short_name.upper())} — INSURANCE &amp; TRACKER DETAILS</b>', title_style))
     elements.append(Paragraph(
         f'<b>Vehicle:</b> {_e(vehicle.make)} {_e(vehicle.model)}  '
         f'<b>Reg:</b> {_e(vehicle.registration_number) or "Not yet registered"}  '
@@ -581,15 +585,15 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     # Shared table styles
     def _detail_table_style():
         return TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f0f4ff')),
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a6e')),
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor(brand_hex(50, '#f0f4ff'))),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(brand_hex(900, '#1e3a6e'))),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 7.5),
             ('LEADING', (0, 0), (-1, -1), 10),
             ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
-            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#c7d2e8')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f7f9ff')]),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor(brand_hex(200, '#c7d2e8'))),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor(brand_hex(50, '#f7f9ff'))]),
             ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
             ('LEFTPADDING', (0, 0), (-1, -1), 4),
             ('RIGHTPADDING', (0, 0), (-1, -1), 4),
@@ -630,7 +634,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         # Header spans both columns
         ins_detail_rows = [
             [Paragraph('<b>INSURANCE</b>', ParagraphStyle('h', fontName='Helvetica-Bold', fontSize=7.5, textColor=colors.white)), ''],
-            ['Price', f'KES {float(ins_price):,.2f}'],
+            ['Price', f'{cur} {float(ins_price):,.2f}'],
             ['Vehicle Usage', insurance_policy.get_vehicle_usage_display() or 'Private'],
         ]
 
@@ -638,13 +642,13 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
             ins_detail_rows.append(['Status', 'PAID IN FULL'])
         else:
             if ins_deposit > Decimal('0.00'):
-                ins_detail_rows.append(['Deposit Paid', f'KES {float(ins_deposit):,.2f}'])
+                ins_detail_rows.append(['Deposit Paid', f'{cur} {float(ins_deposit):,.2f}'])
             if ins_total_paid > ins_deposit:
-                ins_detail_rows.append(['Total Paid', f'KES {float(ins_total_paid):,.2f}'])
-            ins_detail_rows.append(['Balance Remaining', f'KES {float(ins_balance):,.2f}'])
+                ins_detail_rows.append(['Total Paid', f'{cur} {float(ins_total_paid):,.2f}'])
+            ins_detail_rows.append(['Balance Remaining', f'{cur} {float(ins_balance):,.2f}'])
             if insurance_policy.has_payment_plan:
                 months = insurance_policy.insurance_installment_months or '—'
-                ins_detail_rows.append(['Plan', f'Deposit KES {float(ins_deposit):,.2f} · {months} Month(s)'])
+                ins_detail_rows.append(['Plan', f'Deposit {cur} {float(ins_deposit):,.2f} · {months} Month(s)'])
 
         ins_detail_table = Table(ins_detail_rows, colWidths=[6*cm, 12*cm])
         style = _detail_table_style()
@@ -657,7 +661,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         insurance_schedules = list(insurance_policy.insurance_payment_schedules.order_by('installment_number'))
         if insurance_schedules:
             elements.append(Spacer(1, 0.1*cm))
-            sched_rows = [['#', 'Due Date', 'Amount (KES)', 'Balance After (KES)']]
+            sched_rows = [['#', 'Due Date', f'Amount ({cur})', f'Balance After ({cur})']]
             running_balance = ins_price - ins_deposit
             for sch in insurance_schedules:
                 due_str = sch.due_date.strftime('%d-%m-%Y') if sch.due_date else '—'
@@ -693,17 +697,17 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
             trk_header_text = f'TRACKER {idx}{": " + tracker.tracker_name if tracker.tracker_name else ""}'
             trk_detail_rows = [
                 [Paragraph(f'<b>{_e(trk_header_text)}</b>', ParagraphStyle('th', fontName='Helvetica-Bold', fontSize=7.5, textColor=colors.white)), ''],
-                ['Price', f'KES {float(trk_price):,.2f}'],
+                ['Price', f'{cur} {float(trk_price):,.2f}'],
             ]
 
             if tracker.payment_type == 'full' or trk_balance <= Decimal('0.00'):
                 trk_detail_rows.append(['Status', 'PAID IN FULL'])
             else:
                 if trk_deposit > Decimal('0.00'):
-                    trk_detail_rows.append(['Deposit Paid', f'KES {float(trk_deposit):,.2f}'])
+                    trk_detail_rows.append(['Deposit Paid', f'{cur} {float(trk_deposit):,.2f}'])
                 if trk_total_paid > trk_deposit:
-                    trk_detail_rows.append(['Total Paid', f'KES {float(trk_total_paid):,.2f}'])
-                trk_detail_rows.append(['Balance Remaining', f'KES {float(trk_balance):,.2f}'])
+                    trk_detail_rows.append(['Total Paid', f'{cur} {float(trk_total_paid):,.2f}'])
+                trk_detail_rows.append(['Balance Remaining', f'{cur} {float(trk_balance):,.2f}'])
                 if tracker.has_payment_plan and tracker.installment_months:
                     trk_detail_rows.append(['Plan', f'{tracker.installment_months} Month(s)'])
 
@@ -745,7 +749,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
 
             if trk_installments:
                 elements.append(Spacer(1, 0.1*cm))
-                trk_sched_rows = [['#', 'Due Date', 'Amount (KES)', 'Balance After (KES)']]
+                trk_sched_rows = [['#', 'Due Date', f'Amount ({cur})', f'Balance After ({cur})']]
                 running_trk_balance = trk_price - trk_deposit
                 for t_idx, entry in enumerate(trk_installments, start=1):
                     due_raw = str(entry.get('due_date', '')).strip()
@@ -784,7 +788,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         ],
         [
             Paragraph(f'<b>{_e(client.get_full_name())}</b>', normal_small),
-            Paragraph(_e(getattr(agreement_signature, 'seller_name', '')) or 'For HOZA INVESTMENT (K) LTD', normal_small),
+            Paragraph(_e(getattr(agreement_signature, 'seller_name', '')) or _e(brand.seller_line), normal_small),
         ],
     ]
     sig2_table = Table(sig2_data, colWidths=[9.5*cm, 8.5*cm])
@@ -809,7 +813,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         elements.append(PageBreak())
 
         # Payment schedule page header
-        elements.append(Paragraph('<b>HOZA INVESTMENT (K) LTD - MOMBASA KENYA</b>', title_style))
+        elements.append(Paragraph(f'<b>{company_title}</b>', title_style))
         elements.append(Paragraph('<b>PAYMENT SCHEDULE</b>', heading_style))
         elements.append(Spacer(1, 0.2*cm))
 
@@ -841,7 +845,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
         months_str = str(selected_months) if selected_months else '___'
         end_date_text = end_date_str if end_date_str else '___________'
         elements.append(Paragraph(
-            f'<b>BALANCE TO PAY:</b> KES {float(balance_amount):,.2f}  '
+            f'<b>BALANCE TO PAY:</b> {cur} {float(balance_amount):,.2f}  '
             f'<b>IN</b> {months_str} <b>MONTHS FROM AGREEMENT DATE UPTO</b> {end_date_text}',
             normal_small
         ))
@@ -883,7 +887,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
             if i < len(schedules):
                 s = schedules[i]
                 date_left = s.due_date.strftime('%d-%m-%Y') if s.due_date else ''
-                amt_left = f'KES {float(s.amount_due):,.2f}'
+                amt_left = f'{cur} {float(s.amount_due):,.2f}'
             else:
                 date_left = ''
                 amt_left = ''
@@ -894,7 +898,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
                 if i + 1 < len(schedules):
                     s2 = schedules[i + 1]
                     date_right = s2.due_date.strftime('%d-%m-%Y') if s2.due_date else ''
-                    amt_right = f'KES {float(s2.amount_due):,.2f}'
+                    amt_right = f'{cur} {float(s2.amount_due):,.2f}'
                 else:
                     date_right = ''
                     amt_right = ''
@@ -940,7 +944,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
             ],
             [
                 Paragraph(f'{_e(client.get_full_name())}', normal_small),
-                Paragraph(_e(getattr(agreement_signature, 'seller_name', '')) or 'For HOZA INVESTMENT (K) LTD', normal_small),
+                Paragraph(_e(getattr(agreement_signature, 'seller_name', '')) or _e(brand.seller_line), normal_small),
             ],
         ]
         sched_sig_table = Table(sched_sig_data, colWidths=[9*cm, 9*cm])
@@ -958,7 +962,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     # PAGE 4 — TERMS AND CONDITIONS
     # ============================================================
     elements.append(PageBreak())
-    elements.append(Paragraph('<b>HOZA INVESTMENT (K) LTD - MOMBASA KENYA</b>', title_style))
+    elements.append(Paragraph(f'<b>{company_title}</b>', title_style))
     elements.append(Paragraph('<b>TERMS AND CONDITIONS</b>', heading_style))
     elements.append(Paragraph(
         '<b>IT IS FURTHER AGREED BETWEEN THE PURCHASER &amp; THE VENDOR AS FOLLOWS:-</b>',
@@ -966,33 +970,10 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     ))
     elements.append(Spacer(1, 0.2*cm))
 
-    english_terms = [
-        "1. That the purchaser shall take possession of the motor vehicle immediately upon signing this agreement",
-        "2. The motor vehicle sold on 'AS IT IS' and where it is basis and the purchase has taken possession upon being satisfied that same is in proper and sound mechanical, type and body condition",
-        "3. This is used vehicle the vendor does not give the purchaser any guarantee or warranty whatsoever as to the worthiness of the motor vehicle and no CLAIM on this account shall be entertained",
-        "4. That the COMMITMENT paid herein by the purchaser shall not be refundable in full amount. The fee shall attract a penalty of 60% upon refunding the amount. The minimum commitment fee therefore shall be Kshs.50,000",
-        "5. The vendor shall be at liberty to repossess the motor vehicle without any further notice in the event the purchaser defaults in paying any of the remaining balance as agreed and in such a case the purchaser shall meet all the repossess and incidental charges and further, the buyer shall pay the seller a further sum equivalent to 20% MONTHLY of the remain balance as penalty for the default.",
-        "6. THAT on repossession of the vehicle the total outstanding balance shall fail due and owing the same shall have to be paid in full within 15 days from the date of such repossession FAILURE to which the vendor shall have the right to sell the motor vehicle to recover the outstanding balance.",
-        "7. The purchaser shall not sell the vehicle to a third party or remove it out of Kenya before paying the vendor in full and or change the road license(s) or route without permission and prior notification of the vendor.",
-        "8. THAT upon taking possession of the motor vehicle the purchaser shall take an insurance cover as well as the CAR TRACK GADGET if required in case of settling remaining amount of the total price of the car as agreed and this shall be fully facilitated by HOZA Investment (K) Limited via its company's broker and the purchaser should solemnly settle agreeable insurance fee and car track fee. Furthermore, should the motor vehicle be involved in an accident or stolen it shall be the sole responsibility of the purchaser notwithstanding the fact that motor vehicle has not been formally transferred into its/his/her name.",
-        "9. THAT the purchaser after acquiring the vehicle has no authority whatsoever to dismantle tracker gadget or any serious mechanical or electric modification without the consent of the vendor.",
-        "10. In case the purchaser make any cheques in favour of the vendor for purchase price or any part thereof, the purchaser hereby expressly warrants that there will be sufficient fund on his/her/its account when the said cheque [s] is presented for payment and that in the case of the dishonor of the cheque[s] then the purchaser hereby undertakes liability on the said cheque [s] both in the civil and criminal liability.",
-        "11. Upon completion of the purchase price the purchaser is required to pay a transfer fee, and in the case of commercial vehicle pay inspection fee, booking fee, advance tax fee among other fees that are mandatory. Therefore he/she/its should issue pin/ID copies or certificates of registration & required documents for transfer of the log book before it is issued by the vendor to the purchaser.",
-    ]
-
-    swahili_terms = [
-        "1. Mnunuzi atamiliki gari pindi atakapo tia sahihi kwenye karatasi ya makubaliano",
-        "2. Mteja anakubali kununua gari kwa njia ya 'JINSI ILIVYO' na anaridhika kununua kwamba amekubali jinsi ilivyo hali ya kiufundi na muundo",
-        "3. Gari hii imetumika na mnunuzi hapewi udhamini wowote wa gari na hakuna lawama yeyote inakubaliwa baada ya kununua gari",
-        "4. Pesa iliyolipwa na mnunuzi kama rubuni hairudishwi kwa njia yeyote ila itapunguzwa kwa asili mia sitini [60%] kisha iliyosalia apewe mnunuzi baada ya kujieleza kuhusu kuihairisha shughuli ya kununua gari. Malipo ya rubuni itakuwa kiasi cha 50,000 elfu.",
-        "5. Muuzaji anaruhusiwa kuchukua tena gari baada ya mnunuzi kushindwa kulipa malipo yaliyosalia hivyo basi mnunuzi atagharamikia gharama zote za kuchukua ile gari kutoka kwake hadi kwa muuzaji. Mnunuzi atakaposhindwa kulipa pesa kwa muda uliowekwa atamlipa muuzaji pesa zaidi kwa asilimia 20% kila MWEZI ya pesa waliokuwa wamekubaliana kama faini kwa kutotimiza mkataba.",
-        "6. Baada ya muuzaji kuchukua ile gari, pesa iliyobakia inatakiwa kulipwa kabla ya siku kumi na mitano (15) na isipolipwa katikati ya huo muda muuzaji anaruhusiwa kuuza gari tena ili apate pesa hizo.",
-        "7. Mnunuzi haruhusiwi kuuza ile gari kwa mtu mwingine au kuitoa nje ya Kenya kabla hajalipa muuzaji pesa yote au kubadilisha leseni ya barabara bila idhini ya mwenye gari.",
-        "8. Baada ya kumiliki gari, mnunuzi atachukua jukumu ya kulipia bima ya gari na itakuwa mpangilio wa Kampuni ya HOZA Investment (K) Limited itakayo muezesha mnunuzi kupata bima ya namna ilivyo jadiliwa kwa kumhusisha kampuni ya udalali inayoshughulikia maswala ya bima na hata pia shughuli ya mtambo wa kitegesho na kuchunguza muenendo ya gari iwapo mnunuzi atabakisha sehemu ya jumla ya bei ya gari kwa njia ya mkopo na gari kwa namna yeyote ipate ajali ama kuibiwa basi ni jukumu la mnunuzi kuijishughulisha bila ya kumhusisha na kumlaumu muuzaji gari kwa njia yoyote ile.",
-        "9. Mnunuzi baada ya kununua gari haswa kwa njia ya mkopo, hastahili kwa namna yeyote ile kuharibu ama kutoa mtambo wa kiegesho ama wa kuchunguza muenendo wa gari na kadhalika bila idhini ya muuzaji.",
-        "10. Kama mnunuzi atapeana cheki kwa muuzaji, inaamanisha kuwa mnunuzi yuko na uhakika kwamba katika akaunti yake ya benki ina pesa za kutosha na wakati wa kupeleka hiyo cheki kwenye benki, akaunti yake itakua na pesa pia inaamanisha mnunuzi amechukua huo wadhifa kisheria.",
-        "11. Baada ya kulipa pesa zote za kununua gari mnunuzi anahitajika kulipa pesa ya kuhamisha usajili wa gari kwa majina yake, anastahili pia kulipia shughuli za kufanyia gari ukaguzi na shughuli zingine zenye umuhimu za kukamilika pia anafaa kupeana nakala ya pin/kitambulisho na kartasi zote zinazohitajika kwa ajili ya kumiliki logbook kwa majina yake.",
-    ]
+    # Admin-edited text (Settings → Company & Branding → Documents), one
+    # clause per line; escaped because Paragraph text is markup.
+    english_terms = [_e(line.strip()) for line in brand.terms_primary.splitlines() if line.strip()]
+    swahili_terms = [_e(line.strip()) for line in (brand.terms_secondary or '').splitlines() if line.strip()]
 
     # Two-column layout: English left, Swahili right. A header row is
     # included (with repeatRows=1) so that if this table is long enough to
@@ -1001,15 +982,20 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     terms_header_style = ParagraphStyle(
         'TermsHeader', parent=normal_small, textColor=colors.white, fontName='Helvetica-Bold',
     )
-    terms_data = [
-        [Paragraph('ENGLISH', terms_header_style), Paragraph('KISWAHILI', terms_header_style)],
-    ]
-    for eng, swa in zip(english_terms, swahili_terms):
-        terms_data.append([
-            Paragraph(eng, normal_small),
-            Paragraph(swa, normal_small),
-        ])
-    terms_table = Table(terms_data, colWidths=[9.5*cm, 8.5*cm], repeatRows=1)
+    if swahili_terms:
+        terms_data = [[Paragraph(_e(brand.terms_primary_label), terms_header_style),
+                       Paragraph(_e(brand.terms_secondary_label), terms_header_style)]]
+        for eng, swa in zip_longest(english_terms, swahili_terms, fillvalue=''):
+            terms_data.append([
+                Paragraph(eng, normal_small),
+                Paragraph(swa, normal_small),
+            ])
+        col_widths = [9.5*cm, 8.5*cm]
+    else:
+        terms_data = [[Paragraph(_e(brand.terms_primary_label), terms_header_style)]]
+        terms_data += [[Paragraph(eng, normal_small)] for eng in english_terms]
+        col_widths = [18*cm]
+    terms_table = Table(terms_data, colWidths=col_widths, repeatRows=1)
     terms_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -1040,7 +1026,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     )
     witness_name_val = getattr(agreement_signature, 'witness_name', '') or '___________________________'
     witness_phone_val = getattr(agreement_signature, 'witness_phone', '') or '___________________________'
-    seller_name_val = getattr(agreement_signature, 'seller_name', '') or 'For HOZA INVESTMENT (K) LTD'
+    seller_name_val = getattr(agreement_signature, 'seller_name', '') or brand.seller_line
 
     # Row heights: label rows are short, signature rows are taller, name rows medium
     col_l = 9.5 * cm
@@ -1137,7 +1123,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     # PAGE 5 — PAYMENT DETAILS
     # ============================================================
     elements.append(PageBreak())
-    elements.append(Paragraph('<b>PAYMENT DETAILS FOR HOZA INVESTMENT K LIMITED</b>', title_style))
+    elements.append(Paragraph(f'<b>PAYMENT DETAILS FOR {_e(brand.legal_name.upper())}</b>', title_style))
     elements.append(Spacer(1, 0.3*cm))
 
     paybill_heading_style = ParagraphStyle(
@@ -1185,7 +1171,8 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     account_ref = vehicle.registration_number or vehicle.vin or 'REG FOR THE CAR'
     elements.append(Paragraph(f'<b>A/C: {_e(account_ref)}</b>', paybill_account_style))
     elements.append(Spacer(1, 0.25*cm))
-    elements.append(Paragraph('<b>NOTE: WE DO NOT ACCEPT THIRD PARTY PAYMENTS.</b>', paybill_note_style))
+    if brand.payment_note:
+        elements.append(Paragraph(f'<b>NOTE: {_e(brand.payment_note)}</b>', paybill_note_style))
 
     elements.append(Spacer(1, 0.8*cm))
 
@@ -1246,7 +1233,7 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
 
 def _number_to_words(number):
     """
-    Convert a number to words for KES amounts, including cents.
+    Convert a number to words, including cents.
     """
     try:
         amount = Decimal(str(number)).quantize(Decimal('0.01'))
@@ -1314,14 +1301,16 @@ def _number_to_words(number):
 
 
 def _amount_to_words(number):
-    """Format an amount as words with Kenya Shillings and optional cents."""
+    """Format an amount in words with the company currency's name
+    (e.g. "Kenya Shillings") and optional cents."""
     try:
+        currency_words = get_company().currency_words
         amount = Decimal(str(number)).quantize(Decimal('0.01'))
         whole_amount = int(amount)
         cents = int((amount - Decimal(str(whole_amount))) * 100)
 
         if cents:
-            return f'{_number_to_words(whole_amount)} Kenya Shillings and {_number_to_words(cents)} Cents Only'
-        return f'{_number_to_words(whole_amount)} Kenya Shillings Only'
+            return f'{_number_to_words(whole_amount)} {currency_words} and {_number_to_words(cents)} Cents Only'
+        return f'{_number_to_words(whole_amount)} {currency_words} Only'
     except Exception:
         return ''

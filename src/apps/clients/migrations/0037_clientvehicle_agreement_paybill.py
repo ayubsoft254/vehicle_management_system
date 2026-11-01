@@ -11,7 +11,7 @@ def _column_exists(connection, table_name, column_name):
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT column_name FROM information_schema.columns
-            WHERE table_name = %s AND column_name = %s
+            WHERE table_schema = current_schema() AND table_name = %s AND column_name = %s
         """, [table_name, column_name])
         return cursor.fetchone() is not None
 

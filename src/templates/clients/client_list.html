@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Clients - Vehicle Management System{% endblock %}
+{% block title %}Clients - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -273,9 +273,9 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <div class="font-semibold {% if client.outstanding_debt > 0 %}text-red-600{% else %}text-green-600{% endif %}">
-                                Debt Owed: KES {{ client.outstanding_debt|floatformat:2|default:"0.00" }}
+                                Debt Owed: {{ brand.currency }} {{ client.outstanding_debt|floatformat:2|default:"0.00" }}
                             </div>
-                            <div class="text-xs text-gray-500">Credit Limit: KES {{ client.credit_limit|floatformat:2|default:"0.00" }}</div>
+                            <div class="text-xs text-gray-500">Credit Limit: {{ brand.currency }} {{ client.credit_limit|floatformat:2|default:"0.00" }}</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ client.date_registered|date:"M d, Y" }}

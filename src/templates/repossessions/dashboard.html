@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Repossession Dashboard - Vehicle Management System{% endblock %}
+{% block title %}Repossession Dashboard - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
@@ -70,7 +70,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm opacity-90 mb-1">Total Outstanding</p>
-                    <p class="text-2xl font-bold">KES {{ total_outstanding|floatformat:0 }}</p>
+                    <p class="text-2xl font-bold">{{ brand.currency }} {{ total_outstanding|floatformat:0 }}</p>
                 </div>
                 <i class="fas fa-exclamation-triangle text-4xl opacity-80"></i>
             </div>
@@ -80,7 +80,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm opacity-90 mb-1">Total Costs</p>
-                    <p class="text-2xl font-bold">KES {{ total_costs|floatformat:0 }}</p>
+                    <p class="text-2xl font-bold">{{ brand.currency }} {{ total_costs|floatformat:0 }}</p>
                 </div>
                 <i class="fas fa-money-bill-wave text-4xl opacity-80"></i>
             </div>
@@ -156,7 +156,7 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
-                                    KES {{ repo.outstanding_amount|floatformat:0 }}
+                                    {{ brand.currency }} {{ repo.outstanding_amount|floatformat:0 }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                                     <a href="{% url 'repossessions:repossession_detail' repo.pk %}" class="text-primary-600 hover:text-primary-900" title="View Details">

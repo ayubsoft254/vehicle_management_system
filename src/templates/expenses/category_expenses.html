@@ -55,7 +55,7 @@
                         </div>
                         <div class="ml-4">
                             <p class="text-sm font-medium text-gray-600">Total Amount</p>
-                            <p class="text-xl font-bold text-gray-900">KES {{ total_amount|floatformat:2|default:"0.00" }}</p>
+                            <p class="text-xl font-bold text-gray-900">{{ brand.currency }} {{ total_amount|floatformat:2|default:"0.00" }}</p>
                         </div>
                     </div>
                 </div>
@@ -67,7 +67,7 @@
                         </div>
                         <div class="ml-4">
                             <p class="text-sm font-medium text-gray-600">This Month</p>
-                            <p class="text-xl font-bold text-gray-900">KES {{ month_total|floatformat:0|default:"0" }}</p>
+                            <p class="text-xl font-bold text-gray-900">{{ brand.currency }} {{ month_total|floatformat:0|default:"0" }}</p>
                         </div>
                     </div>
                 </div>
@@ -181,16 +181,16 @@
                     <div class="pt-3 border-t border-gray-200 space-y-2">
                         <div class="flex justify-between text-sm">
                             <span class="text-gray-600">Budget</span>
-                            <span class="font-semibold">KES {{ category.budget_limit|floatformat:2 }}</span>
+                            <span class="font-semibold">{{ brand.currency }} {{ category.budget_limit|floatformat:2 }}</span>
                         </div>
                         <div class="flex justify-between text-sm">
                             <span class="text-gray-600">Spent</span>
-                            <span class="font-semibold">KES {{ category.get_total_expenses|floatformat:2 }}</span>
+                            <span class="font-semibold">{{ brand.currency }} {{ category.get_total_expenses|floatformat:2 }}</span>
                         </div>
                         <div class="flex justify-between text-sm pt-2 border-t border-gray-200">
                             <span class="text-gray-600 font-semibold">Remaining</span>
                             <span class="font-bold {% if category.is_over_budget %}text-red-600{% else %}text-green-600{% endif %}">
-                                KES {{ category.budget_limit|add:category.get_total_expenses|floatformat:2 }}
+                                {{ brand.currency }} {{ category.budget_limit|add:category.get_total_expenses|floatformat:2 }}
                             </span>
                         </div>
                     </div>

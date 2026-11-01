@@ -3,6 +3,7 @@ Signal handlers for the payroll app.
 Handles automatic processing, notifications, and audit logging.
 """
 
+from apps.company.services import currency
 from django.db.models.signals import post_save, pre_save, post_delete, m2m_changed
 from django.dispatch import receiver
 from django.utils import timezone
@@ -226,7 +227,7 @@ Dear {instance.employee.get_full_name()},
 Your commission has been approved!
 
 Description: {instance.description}
-Amount: KES {instance.amount:,.2f}
+Amount: {currency()} {instance.amount:,.2f}
 Commission Date: {instance.commission_date}
 Payroll Month: {instance.payroll_month.strftime('%B %Y')}
 
@@ -281,7 +282,7 @@ A new deduction has been added to your salary:
 
 Type: {instance.get_deduction_type_display()}
 Description: {instance.description}
-Amount: {'{}%'.format(instance.amount) if instance.is_percentage else 'KES {:.2f}'.format(instance.amount)}
+Amount: {'{}%'.format(instance.amount) if instance.is_percentage else currency() + ' {:.2f}'.format(instance.amount)}
 Start Date: {instance.start_date}
 Frequency: {instance.get_frequency_display()}
 
@@ -317,7 +318,7 @@ def payroll_run_post_save(sender, instance, created, **kwargs):
     
     # Log status changes
     if instance.status == 'COMPLETED':
-        print(f"Payroll completed: {instance.total_employees} employees, Total: KES {instance.total_net:,.2f}")
+        print(f"Payroll completed: {instance.total_employees} employees, Total: {currency()} {instance.total_net:,.2f}")
     
     elif instance.status == 'APPROVED':
         print(f"Payroll approved by {instance.approved_by}")
@@ -341,7 +342,7 @@ def payslip_post_save(sender, instance, created, **kwargs):
     - Update payroll run totals
     """
     if created:
-        print(f"Payslip generated for {instance.employee.get_full_name()}: Net KES {instance.net_salary:,.2f}")
+        print(f"Payslip generated for {instance.employee.get_full_name()}: Net {currency()} {instance.net_salary:,.2f}")
 
     # Post net salary into the expense ledger once the payslip is paid.
     if instance.is_paid:
@@ -466,11 +467,11 @@ def loan_post_save(sender, instance, created, **kwargs):
     - Create deduction for repayment
     """
     if created:
-        print(f"Loan application: {instance.employee.get_full_name()} - KES {instance.loan_amount:,.2f}")
+        print(f"Loan application: {instance.employee.get_full_name()} - {currency()} {instance.loan_amount:,.2f}")
     
     # Check for approval
     if not created and instance.status == 'APPROVED':
-        print(f"Loan approved: {instance.employee.get_full_name()} - KES {instance.loan_amount:,.2f}")
+        print(f"Loan approved: {instance.employee.get_full_name()} - {currency()} {instance.loan_amount:,.2f}")
         
         # Send notification
         if instance.employee.email:
@@ -481,10 +482,10 @@ Dear {instance.employee.get_full_name()},
 
 Your loan application has been approved!
 
-Loan Amount: KES {instance.loan_amount:,.2f}
+Loan Amount: {currency()} {instance.loan_amount:,.2f}
 Interest Rate: {instance.interest_rate}%
-Monthly Repayment: KES {instance.monthly_repayment:,.2f}
-Total Repayable: KES {instance.total_repayable:,.2f}
+Monthly Repayment: {currency()} {instance.monthly_repayment:,.2f}
+Total Repayable: {currency()} {instance.total_repayable:,.2f}
 
 Disbursement Date: {instance.disbursement_date}
 Repayment Start: {instance.repayment_start_date}
@@ -564,8 +565,8 @@ Dear {instance.employee.get_full_name()},
 
 Congratulations! Your loan has been fully repaid.
 
-Original Amount: KES {instance.loan_amount:,.2f}
-Total Repaid: KES {instance.amount_repaid:,.2f}
+Original Amount: {currency()} {instance.loan_amount:,.2f}
+Total Repaid: {currency()} {instance.amount_repaid:,.2f}
 Completion Date: {instance.actual_completion_date}
 
 Thank you for your timely repayments.

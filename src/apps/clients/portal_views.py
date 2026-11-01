@@ -2,7 +2,11 @@
 Client Portal Views
 Views for client-facing portal where clients can manage their accounts
 """
+from apps.company.services import get_company
+from xml.sax.saxutils import escape as _xml_escape
+
 from django.shortcuts import render, redirect, get_object_or_404
+from apps.payments.channels import customer_bank_details
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q, Sum, Count, Prefetch, F, Max, Avg
@@ -992,14 +996,8 @@ def portal_payment_bank_details(request, client_vehicle_id, payment_type):
         ).order_by('due_date').first()
         amount_to_pay = next_schedule.amount_due if next_schedule else Decimal('0')
     
-    # Bank details (should be from settings/config)
-    bank_details = {
-        'bank_name': 'Example Bank Limited',
-        'account_name': 'Vehicle Management System',
-        'account_number': '1234567890',
-        'branch': 'Main Branch',
-        'swift_code': 'EXAMPLEKE',
-    }
+    # The company's bank account, managed at Settings → Company & Branding
+    bank_details = customer_bank_details()
     
     context = {
         'client': client,
@@ -1037,13 +1035,7 @@ def portal_payment_bank_details_pdf(request, client_vehicle_id, payment_type):
         ).order_by('due_date').first()
         amount_to_pay = next_schedule.amount_due if next_schedule else Decimal('0')
 
-    bank_details = {
-        'bank_name': 'Example Bank Limited',
-        'account_name': 'Vehicle Management System',
-        'account_number': '1234567890',
-        'branch': 'Main Branch',
-        'swift_code': 'EXAMPLEKE',
-    }
+    bank_details = customer_bank_details()
 
     def body(elements, styles):
         from reportlab.lib.units import inch
@@ -1062,7 +1054,6 @@ def portal_payment_bank_details_pdf(request, client_vehicle_id, payment_type):
             ('Account Name', bank_details['account_name']),
             ('Account Number', bank_details['account_number']),
             ('Branch', bank_details['branch']),
-            ('SWIFT Code', bank_details['swift_code']),
         ], col_widths=[2.6 * inch, 2.6 * inch]))
         elements.append(Spacer(1, 10))
 
@@ -1085,7 +1076,10 @@ def portal_payment_bank_details_pdf(request, client_vehicle_id, payment_type):
         elements.append(Spacer(1, 10))
 
         elements.append(Paragraph(
-            'Send payment proof to: payments@vehiclemanagement.com or WhatsApp +254 700 000 000',
+            _xml_escape('Send payment proof to: ' + ' or '.join(filter(None, [
+                get_company().email,
+                f'WhatsApp +{get_company().whatsapp}' if get_company().whatsapp else get_company().primary_phone,
+            ]))),
             styles['ReportCompanyMeta'],
         ))
 

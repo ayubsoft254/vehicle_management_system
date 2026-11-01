@@ -72,32 +72,32 @@
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Debits</p>
-            <p class="text-xl font-bold mt-1 text-red-700">KES {{ total_debits|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold mt-1 text-red-700">{{ brand.currency }} {{ total_debits|floatformat:0|intcomma }}</p>
             <p class="text-xs text-slate-400 mt-0.5">{{ expense_count }} entr{{ expense_count|pluralize:"y,ies" }}</p>
         </div>
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Credits</p>
-            <p class="text-xl font-bold mt-1 text-emerald-700">KES {{ total_credits|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold mt-1 text-emerald-700">{{ brand.currency }} {{ total_credits|floatformat:0|intcomma }}</p>
             <p class="text-xs text-slate-400 mt-0.5">Refunds &amp; reversals</p>
         </div>
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Net Balance</p>
-            <p class="text-xl font-bold mt-1 text-slate-800">KES {{ net_balance|floatformat:0|intcomma }}</p>
+            <p class="text-xl font-bold mt-1 text-slate-800">{{ brand.currency }} {{ net_balance|floatformat:0|intcomma }}</p>
             <p class="text-xs text-slate-400 mt-0.5">Debits &minus; Credits</p>
         </div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Paid</p>
-            <p class="text-lg font-bold mt-1 text-emerald-700">KES {{ paid_amount|floatformat:0|intcomma }}</p>
+            <p class="text-lg font-bold mt-1 text-emerald-700">{{ brand.currency }} {{ paid_amount|floatformat:0|intcomma }}</p>
         </div>
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Approved (Unpaid)</p>
-            <p class="text-lg font-bold mt-1 text-slate-800">KES {{ approved_amount|floatformat:0|intcomma }}</p>
+            <p class="text-lg font-bold mt-1 text-slate-800">{{ brand.currency }} {{ approved_amount|floatformat:0|intcomma }}</p>
         </div>
         <div class="bg-white rounded-lg border border-slate-200 p-4">
             <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Pending Approval</p>
-            <p class="text-lg font-bold mt-1 text-amber-700">KES {{ pending_amount|floatformat:0|intcomma }}</p>
+            <p class="text-lg font-bold mt-1 text-amber-700">{{ brand.currency }} {{ pending_amount|floatformat:0|intcomma }}</p>
         </div>
     </div>
 
@@ -120,7 +120,7 @@
                     <tr class="hover:bg-slate-50">
                         <td class="px-5 py-3 font-medium text-slate-800">{{ row.category__name|default:"—" }}</td>
                         <td class="px-5 py-3 text-right text-slate-600">{{ row.count }}</td>
-                        <td class="px-5 py-3 text-right font-semibold text-slate-800">KES {{ row.total|floatformat:0|intcomma }}</td>
+                        <td class="px-5 py-3 text-right font-semibold text-slate-800">{{ brand.currency }} {{ row.total|floatformat:0|intcomma }}</td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="3" class="px-5 py-6 text-center text-slate-400">No expenses in this period.</td></tr>

@@ -52,19 +52,19 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm font-medium text-gray-600">Opening Balance</p>
-            <p class="text-xl font-bold text-gray-900">KES {{ summary.opening_balance|floatformat:2 }}</p>
+            <p class="text-xl font-bold text-gray-900">{{ brand.currency }} {{ summary.opening_balance|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm font-medium text-gray-600">Debits</p>
-            <p class="text-xl font-bold text-green-600">KES {{ summary.money_in|floatformat:2 }}</p>
+            <p class="text-xl font-bold text-green-600">{{ brand.currency }} {{ summary.money_in|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm font-medium text-gray-600">Credits</p>
-            <p class="text-xl font-bold text-red-600">KES {{ summary.money_out|floatformat:2 }}</p>
+            <p class="text-xl font-bold text-red-600">{{ brand.currency }} {{ summary.money_out|floatformat:2 }}</p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border {% if accent == 'orange' %}border-orange-200{% elif accent == 'amber' %}border-amber-200{% else %}border-cyan-200{% endif %} p-5">
             <p class="text-sm font-medium text-gray-600">Current Balance</p>
-            <p class="text-xl font-bold {% if accent == 'orange' %}text-orange-700{% elif accent == 'amber' %}text-amber-700{% else %}text-cyan-700{% endif %}">KES {{ summary.current_balance|floatformat:2 }}</p>
+            <p class="text-xl font-bold {% if accent == 'orange' %}text-orange-700{% elif accent == 'amber' %}text-amber-700{% else %}text-cyan-700{% endif %}">{{ brand.currency }} {{ summary.current_balance|floatformat:2 }}</p>
         </div>
     </div>
 
@@ -72,9 +72,9 @@
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <p class="text-sm font-medium text-gray-600">Transfers In / Out</p>
             <p class="text-lg font-bold text-gray-900">
-                <span class="text-green-600">+KES {{ summary.transfers_in|floatformat:2 }}</span>
+                <span class="text-green-600">+{{ brand.currency }} {{ summary.transfers_in|floatformat:2 }}</span>
                 &nbsp;/&nbsp;
-                <span class="text-red-600">-KES {{ summary.transfers_out|floatformat:2 }}</span>
+                <span class="text-red-600">-{{ brand.currency }} {{ summary.transfers_out|floatformat:2 }}</span>
             </p>
         </div>
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
@@ -110,9 +110,9 @@
                             <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-700">Inactive</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-green-600">KES {{ account.computed_money_in|floatformat:2 }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-red-600">KES {{ account.computed_money_out|floatformat:2 }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">KES {{ account.computed_balance|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-green-600">{{ brand.currency }} {{ account.computed_money_in|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-red-600">{{ brand.currency }} {{ account.computed_money_out|floatformat:2 }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">{{ brand.currency }} {{ account.computed_balance|floatformat:2 }}</td>
                     </tr>
                     {% empty %}
                     <tr>

@@ -39,10 +39,12 @@
                 <dt class="text-gray-600 font-medium">Branch:</dt>
                 <dd class="font-bold text-gray-900 text-right">{{ bank_details.branch }}</dd>
             </div>
+            {% if bank_details.swift_code %}
             <div class="flex justify-between py-3">
                 <dt class="text-gray-600 font-medium">SWIFT Code:</dt>
                 <dd class="font-bold text-gray-900 text-right">{{ bank_details.swift_code }}</dd>
             </div>
+            {% endif %}
         </dl>
 
         <!-- Reference Note -->
@@ -85,11 +87,11 @@
         <div class="space-y-2">
             <div class="flex items-center text-green-900">
                 <i class="fas fa-envelope w-6"></i>
-                <span class="font-semibold">payments@vehiclemanagement.com</span>
+                <span class="font-semibold">{{ brand.email }}</span>
             </div>
             <div class="flex items-center text-green-900">
                 <i class="fab fa-whatsapp w-6"></i>
-                <span class="font-semibold">+254 700 000 000</span>
+                <span class="font-semibold">{% if brand.whatsapp %}+{{ brand.whatsapp }}{% else %}{{ brand.primary_phone }}{% endif %}</span>
             </div>
         </div>
     </div>

@@ -147,7 +147,7 @@
                                 {% if can_view_prices %}
                                 <div>
                                     <p class="text-sm text-gray-500">Selling Price</p>
-                                    <p class="font-medium text-gray-900">KES {{ vehicle.selling_price|floatformat:2|intcomma }}</p>
+                                    <p class="font-medium text-gray-900">{{ brand.currency }} {{ vehicle.selling_price|floatformat:2|intcomma }}</p>
                                 </div>
                                 {% endif %}
                             </div>

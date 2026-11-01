@@ -134,7 +134,7 @@
 
                 <div>
                     <label for="id_cost_incurred" class="block text-sm font-medium text-gray-700 mb-2">
-                        Cost Incurred (KES)
+                        Cost Incurred ({{ brand.currency }})
                     </label>
                     <input type="number" name="cost_incurred" id="id_cost_incurred" value="{{ form.cost_incurred.value|default:'0.00' }}" step="0.01" min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                     {% if form.cost_incurred.errors %}

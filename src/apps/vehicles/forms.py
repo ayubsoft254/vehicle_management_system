@@ -1,6 +1,7 @@
 """
 Vehicles Forms
 """
+from apps.company.services import phone_example, with_currency
 from django import forms
 from django.core.exceptions import ValidationError
 from .models import Vehicle, VehiclePhoto, VehicleHistory, TrackerAgent, ClearingAgent, Broker, JapanSupplier
@@ -92,7 +93,7 @@ class VehicleForm(forms.ModelForm):
             }),
             'purchase_price': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'Purchase price in KES',
+                'placeholder': with_currency('Purchase price in KES'),
                 'step': '0.01',
                 'required': 'required'
             }),
@@ -110,28 +111,28 @@ class VehicleForm(forms.ModelForm):
             }),
             'selling_price': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'Vehicle cost in KES',
+                'placeholder': with_currency('Vehicle cost in KES'),
                 'step': '0.01',
                 'required': 'required'
             }),
             'website_price': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'Website price in KES (optional)',
+                'placeholder': with_currency('Website price in KES (optional)'),
                 'step': '0.01'
             }),
             'deposit_required': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'Minimum deposit in KES',
+                'placeholder': with_currency('Minimum deposit in KES'),
                 'step': '0.01'
             }),
             'duty_cost': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'Import duty cost in KES',
+                'placeholder': with_currency('Import duty cost in KES'),
                 'step': '0.01'
             }),
             'clearance_cost': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
-                'placeholder': 'Clearance/port cost in KES',
+                'placeholder': with_currency('Clearance/port cost in KES'),
                 'step': '0.01'
             }),
             'status': forms.Select(attrs={
@@ -655,7 +656,7 @@ class TrackerAgentForm(forms.ModelForm):
         fields = ['name', 'phone', 'email', 'notes']
         widgets = {
             'name':  forms.TextInput(attrs={'class': _FC, 'placeholder': 'Agent name'}),
-            'phone': forms.TextInput(attrs={'class': _FC, 'placeholder': '+254...'}),
+            'phone': forms.TextInput(attrs={'class': _FC, 'placeholder': phone_example()}),
             'email': forms.EmailInput(attrs={'class': _FC, 'placeholder': 'agent@example.com'}),
             'notes': forms.Textarea(attrs={'class': _FC, 'rows': 3, 'placeholder': 'Optional notes'}),
         }
@@ -669,7 +670,7 @@ class ClearingAgentForm(forms.ModelForm):
         fields = ['name', 'phone', 'email', 'notes']
         widgets = {
             'name':  forms.TextInput(attrs={'class': _FC, 'placeholder': 'Agent name'}),
-            'phone': forms.TextInput(attrs={'class': _FC, 'placeholder': '+254...'}),
+            'phone': forms.TextInput(attrs={'class': _FC, 'placeholder': phone_example()}),
             'email': forms.EmailInput(attrs={'class': _FC, 'placeholder': 'agent@example.com'}),
             'notes': forms.Textarea(attrs={'class': _FC, 'rows': 3, 'placeholder': 'Optional notes'}),
         }
@@ -699,7 +700,7 @@ class BrokerForm(forms.ModelForm):
         widgets = {
             'name':      forms.TextInput(attrs={'class': _FC, 'placeholder': 'Broker full name'}),
             'id_number': forms.TextInput(attrs={'class': _FC, 'placeholder': 'National ID or passport'}),
-            'phone':     forms.TextInput(attrs={'class': _FC, 'placeholder': '+254...'}),
+            'phone':     forms.TextInput(attrs={'class': _FC, 'placeholder': phone_example()}),
             'email':     forms.EmailInput(attrs={'class': _FC, 'placeholder': 'broker@example.com'}),
             'notes':     forms.Textarea(attrs={'class': _FC, 'rows': 3, 'placeholder': 'Optional notes'}),
         }

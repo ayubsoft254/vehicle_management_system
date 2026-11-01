@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Payment Tracker - Vehicle Management System{% endblock %}
+{% block title %}Payment Tracker - {{ brand.app_name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6">
@@ -33,7 +33,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-green-100 mb-1">Today's Collections</p>
-                    <p class="text-2xl font-bold">KES {{ today_collections|floatformat:2|default:"0.00" }}</p>
+                    <p class="text-2xl font-bold">{{ brand.currency }} {{ today_collections|floatformat:2|default:"0.00" }}</p>
                     <p class="text-xs text-green-100 mt-2">
                         {{ today_payment_count }} payments received
                     </p>
@@ -49,7 +49,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-blue-100 mb-1">This Week</p>
-                    <p class="text-2xl font-bold">KES {{ week_collections|floatformat:2|default:"0.00" }}</p>
+                    <p class="text-2xl font-bold">{{ brand.currency }} {{ week_collections|floatformat:2|default:"0.00" }}</p>
                     <p class="text-xs text-blue-100 mt-2">
                         {{ week_payment_count }} payments
                     </p>
@@ -65,7 +65,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-purple-100 mb-1">This Month</p>
-                    <p class="text-2xl font-bold">KES {{ month_collections|floatformat:2|default:"0.00" }}</p>
+                    <p class="text-2xl font-bold">{{ brand.currency }} {{ month_collections|floatformat:2|default:"0.00" }}</p>
                     <p class="text-xs text-purple-100 mt-2">
                         {{ month_payment_count }} payments
                     </p>
@@ -81,7 +81,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-orange-100 mb-1">Expected Today</p>
-                    <p class="text-2xl font-bold">KES {{ expected_today|floatformat:2|default:"0.00" }}</p>
+                    <p class="text-2xl font-bold">{{ brand.currency }} {{ expected_today|floatformat:2|default:"0.00" }}</p>
                     <p class="text-xs text-orange-100 mt-2">
                         {{ due_today_count }} due payments
                     </p>
@@ -105,15 +105,15 @@
             <div class="space-y-4">
                 <div class="flex justify-between items-center">
                     <span class="text-sm text-gray-600">Monthly Target</span>
-                    <span class="text-base font-bold text-gray-900">KES {{ monthly_target|floatformat:2|default:"0.00" }}</span>
+                    <span class="text-base font-bold text-gray-900">{{ brand.currency }} {{ monthly_target|floatformat:2|default:"0.00" }}</span>
                 </div>
                 <div class="flex justify-between items-center">
                     <span class="text-sm text-gray-600">Collected So Far</span>
-                    <span class="text-base font-bold text-green-600">KES {{ month_collections|floatformat:2|default:"0.00" }}</span>
+                    <span class="text-base font-bold text-green-600">{{ brand.currency }} {{ month_collections|floatformat:2|default:"0.00" }}</span>
                 </div>
                 <div class="flex justify-between items-center">
                     <span class="text-sm text-gray-600">Remaining</span>
-                    <span class="text-base font-bold text-red-600">KES {{ remaining_target|floatformat:2|default:"0.00" }}</span>
+                    <span class="text-base font-bold text-red-600">{{ brand.currency }} {{ remaining_target|floatformat:2|default:"0.00" }}</span>
                 </div>
                 <div class="pt-3 border-t border-gray-200">
                     <div class="flex justify-between text-sm text-gray-600 mb-2">
@@ -227,7 +227,7 @@
                     </div>
                 </div>
                 <div class="text-right ml-3">
-                    <p class="text-sm font-bold text-green-600">KES {{ payment.amount|floatformat:2 }}</p>
+                    <p class="text-sm font-bold text-green-600">{{ brand.currency }} {{ payment.amount|floatformat:2 }}</p>
                     <a href="{% url 'payments:payment_detail' payment.pk %}" class="text-xs text-primary-600 hover:text-primary-800">
                         View <i class="fas fa-external-link-alt ml-1"></i>
                     </a>
@@ -273,7 +273,7 @@
                             <i class="fas fa-calendar text-gray-400 mr-1"></i>
                             {{ schedule.due_date|date:"M d, Y" }}
                         </td>
-                        <td class="px-4 py-3 text-sm font-semibold text-gray-900">KES {{ schedule.expected_amount|floatformat:2 }}</td>
+                        <td class="px-4 py-3 text-sm font-semibold text-gray-900">{{ brand.currency }} {{ schedule.expected_amount|floatformat:2 }}</td>
                         <td class="px-4 py-3 text-right text-sm">
                             <a href="{% url 'payments:record_payment' schedule.installment_plan.client_vehicle.pk %}" 
                                class="text-green-600 hover:text-green-900">

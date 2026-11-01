@@ -13,6 +13,9 @@ LEGACY_ACCOUNTS = [
 
 
 def seed_legacy_accounts(apps, schema_editor):
+    from utils.tenancy import is_new_company_schema
+    if is_new_company_schema(schema_editor):
+        return  # a new company's schema: provisioning seeds its own data
     Account = apps.get_model('payments', 'Account')
     for code, name, category in LEGACY_ACCOUNTS:
         Account.objects.get_or_create(

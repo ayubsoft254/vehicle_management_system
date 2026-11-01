@@ -13,6 +13,13 @@ class CustomAccountAdapter(DefaultAccountAdapter):
     Customize signup, login, and email behavior
     """
     
+    def format_email_subject(self, subject):
+        # Prefix from Settings → Company & Branding, not settings.py, so each
+        # company's emails carry its own prefix.
+        from apps.company.services import get_company
+        prefix = get_company().email_subject_prefix
+        return f'{prefix}{subject}' if prefix else subject
+
     def is_open_for_signup(self, request):
         """
         Whether to allow sign ups.
