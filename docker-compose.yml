@@ -104,7 +104,8 @@ services:
     networks:
       - vms_network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3333/health/ || exit 1"]
+      # Multi-company mode only answers registered addresses, so ask as the platform
+      test: ["CMD-SHELL", "curl -f -H \"Host: $${PLATFORM_DOMAIN:-localhost}\" http://localhost:3333/health/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

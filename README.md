@@ -434,6 +434,8 @@ make update
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide
 - **[SETUP_COMPLETE.md](SETUP_COMPLETE.md)** - Setup overview
 - **[nginx.conf.example](nginx.conf.example)** - Nginx configuration
+- **[docs/DEPLOY_MULTI_TENANT.md](docs/DEPLOY_MULTI_TENANT.md)** - Deploy the multi-company platform on a new server (DNS, certbot, nginx, static permissions)
+- **[docs/multi-company.md](docs/multi-company.md)** - Moving existing single-company sites onto the platform
 
 ## Contributing
 
