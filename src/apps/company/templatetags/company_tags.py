@@ -27,7 +27,15 @@ def tailwind_config():
         colors['blue'] = primary
         colors['indigo'] = primary
     config = {'theme': {'extend': {'colors': colors}}}
-    return mark_safe(f'<script>tailwind.config = {json.dumps(config)};</script>')
+    # The same palettes as CSS variables, for page CSS that isn't Tailwind
+    # classes: var(--brand-800), rgb(var(--brand-500-rgb) / 0.15), var(--accent-500)
+    css_vars = []
+    for prefix, shades in (('brand', colors['primary']), ('accent', colors['accent'])):
+        for shade, hex_value in shades.items():
+            r, g, b = (int(hex_value[i:i + 2], 16) for i in (1, 3, 5))
+            css_vars.append(f'--{prefix}-{shade}:{hex_value};--{prefix}-{shade}-rgb:{r} {g} {b};')
+    return mark_safe(f'<style>:root{{{"".join(css_vars)}}}</style>'
+                     f'<script>tailwind.config = {json.dumps(config)};</script>')
 
 
 @register.simple_tag
