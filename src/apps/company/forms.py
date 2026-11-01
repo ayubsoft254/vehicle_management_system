@@ -41,6 +41,9 @@ class CompanyProfileForm(forms.ModelForm):
         widgets = {
             'primary_color': forms.TextInput(attrs={'type': 'color'}),
             'accent_color': forms.TextInput(attrs={'type': 'color'}),
+            # Rendered as radio buttons in the template (radio.tag); the
+            # default <select> would submit nothing and fail every save.
+            'letterhead_mode': forms.RadioSelect,
             'terms_primary': forms.Textarea(attrs={'rows': 10}),
             'terms_secondary': forms.Textarea(attrs={'rows': 10}),
             'logo': forms.ClearableFileInput(attrs={'accept': 'image/*'}),
@@ -89,7 +92,7 @@ class CompanyProfileForm(forms.ModelForm):
 
         for name, field in self.fields.items():
             widget = field.widget
-            if isinstance(widget, (forms.CheckboxInput, forms.ClearableFileInput)):
+            if isinstance(widget, (forms.CheckboxInput, forms.ClearableFileInput, forms.RadioSelect)):
                 continue
             if widget.attrs.get('type') == 'color':
                 widget.attrs['class'] = 'h-10 w-16 border border-gray-300 rounded cursor-pointer'
