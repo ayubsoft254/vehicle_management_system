@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Agreement Terms — {{ client_vehicle.client.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-5xl">
+
+    <div class="flex items-center justify-between mb-6">
+        <a href="{% url 'clients:client_vehicle_detail' client_vehicle.pk %}"
+           class="inline-flex items-center text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-md p-6">
+        <h1 class="text-xl font-bold text-gray-800 mb-1 flex items-center">
+            <i class="fas fa-file-contract text-primary-600 mr-3"></i>
+            Agreement Terms &amp; Conditions
+        </h1>
+        <p class="text-sm text-gray-500 mb-4">
+            {{ client_vehicle.client.get_full_name }} — {{ client_vehicle.vehicle.full_name }}
+        </p>
+
+        <div class="rounded-lg px-4 py-3 mb-6 text-sm {% if client_vehicle.agreement_terms_custom %}bg-amber-50 border border-amber-200 text-amber-800{% else %}bg-blue-50 border border-blue-200 text-blue-800{% endif %}">
+            {% if client_vehicle.agreement_terms_custom %}
+            <i class="fas fa-pen mr-1"></i> This agreement uses its own terms, edited for this sale.
+            {% else %}
+            <i class="fas fa-info-circle mr-1"></i> This agreement currently uses the default terms. Saving here makes them specific to this agreement; other agreements are not affected.
+            {% endif %}
+            {% if has_signature %}
+            <p class="mt-1">The agreement is already signed. Saved versions keep the terms they were saved with — use <span class="font-semibold">New Revision</span> on the sale page to save a version with the new terms.</p>
+            {% endif %}
+        </div>
+
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+            <p class="text-xs text-gray-500">One clause per line. Add, remove or reword clauses as needed; each line prints as its own row on the agreement.</p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div>
+                    <label for="agreement_terms_primary" class="block text-sm font-medium text-gray-700 mb-1">
+                        {{ primary_label }} <span class="text-red-500">*</span>
+                    </label>
+                    <textarea id="agreement_terms_primary" name="agreement_terms_primary" rows="22" required
+                              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-primary-500 focus:border-primary-500">{{ terms_primary }}</textarea>
+                </div>
+                <div>
+                    <label for="agreement_terms_secondary" class="block text-sm font-medium text-gray-700 mb-1">
+                        {{ secondary_label }} <span class="text-gray-400 font-normal">(optional)</span>
+                    </label>
+                    <textarea id="agreement_terms_secondary" name="agreement_terms_secondary" rows="22"
+                              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-primary-500 focus:border-primary-500">{{ terms_secondary }}</textarea>
+                    <p class="text-xs text-gray-400 mt-1">Printed beside the first column, line by line. Leave blank to print a single column.</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-100">
+                <div>
+                    {% if client_vehicle.agreement_terms_custom %}
+                    <button type="submit" name="action" value="reset" formnovalidate
+                            onclick="return confirm('Discard the edited terms and use the default terms for this agreement?');"
+                            class="px-4 py-2 text-sm text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition">
+                        <i class="fas fa-undo mr-1"></i>Reset to default terms
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-3">
+                    <a href="{% url 'clients:client_vehicle_detail' client_vehicle.pk %}"
+                       class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</a>
+                    <button type="submit" name="action" value="save"
+                            class="px-4 py-2 text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                        <i class="fas fa-save mr-1"></i>Save Terms
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
