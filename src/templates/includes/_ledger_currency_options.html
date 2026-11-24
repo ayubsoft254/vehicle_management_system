@@ -1,0 +1,7 @@
+{# <option>s for a ledger currency picker. Pass selected="USD" etc. (default KES). Keep in step with utils/currency.py. #}
+<option value="KES"{% if not selected or selected == "KES" %} selected{% endif %}>KES</option>
+<option value="USD"{% if selected == "USD" %} selected{% endif %}>USD</option>
+<option value="JPY"{% if selected == "JPY" %} selected{% endif %}>JPY</option>
+<option value="EUR"{% if selected == "EUR" %} selected{% endif %}>EUR</option>
+<option value="TZS"{% if selected == "TZS" %} selected{% endif %}>TZS</option>
+<option value="UGX"{% if selected == "UGX" %} selected{% endif %}>UGX</option>
