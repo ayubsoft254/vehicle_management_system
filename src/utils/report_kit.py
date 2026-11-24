@@ -284,14 +284,32 @@ def fitted_table(headers, rows, usable_width, currency_cols=None, totals_row=Non
 
 
 def ledger_statement_pdf_response(filename, title, subtitle, statement_rows, statement_summary,
-                                   debit_hint=None, credit_hint=None, meta_lines=None):
+                                   debit_hint=None, credit_hint=None, meta_lines=None,
+                                   display=None):
     """
     A single-entity debit/credit statement PDF - the printable counterpart
     to includes/ledger_statement.html. Used by every party ledger detail
     page (broker, tracker agent, clearing agent, Japan supplier, insurance
     agent) so their "Print" button downloads the same statement shown on
     screen instead of just opening the browser print dialog.
+
+    `display` is an optional (currency, factor) pair from
+    utils.currency.parse_display_currency (the on-screen currency picker's
+    choice): amounts are multiplied by factor and labelled with currency.
+    Without it they print as-is in KES.
     """
+    from decimal import Decimal as _D
+    currency, fx = display or (None, None)
+    factor = _D(str(fx)) if fx else _D('1')
+
+    def money(amount):
+        return fmt_money((amount or _D('0')) * factor, currency or 'KES')
+
+    if factor != 1 and currency:
+        meta_lines = list(meta_lines or []) + [
+            f'Amounts shown in {currency} (conversion rate {factor.normalize():f} per unit)'
+        ]
+
     def body(elements, styles):
         if debit_hint or credit_hint:
             hint_bits = []
@@ -303,10 +321,10 @@ def ledger_statement_pdf_response(filename, title, subtitle, statement_rows, sta
             elements.append(Spacer(1, 6))
 
         elements.append(kpi_table([
-            ('Opening Balance', fmt_money(statement_summary['opening_balance'])),
-            ('Total Debits', fmt_money(statement_summary['total_debits'])),
-            ('Total Credits', fmt_money(statement_summary['total_credits'])),
-            ('Closing Balance', fmt_money(statement_summary['closing_balance'])),
+            ('Opening Balance', money(statement_summary['opening_balance'])),
+            ('Total Debits', money(statement_summary['total_debits'])),
+            ('Total Credits', money(statement_summary['total_credits'])),
+            ('Closing Balance', money(statement_summary['closing_balance'])),
         ], col_widths=[2.6 * inch, 2.6 * inch]))
         elements.append(Spacer(1, 10))
 
@@ -319,16 +337,16 @@ def ledger_statement_pdf_response(filename, title, subtitle, statement_rows, sta
                 (row['description'] or '') + (' (REVERSED)' if row.get('is_reversed') else ''),
                 row['related'] or '—',
                 row['method'] or '—',
-                fmt_money(row['debit']) if row['debit'] else '—',
-                fmt_money(row['credit']) if row['credit'] else '—',
-                fmt_money(row['running_balance']),
+                money(row['debit']) if row['debit'] else '—',
+                money(row['credit']) if row['credit'] else '—',
+                money(row['running_balance']),
                 row['status'] or '—',
             ])
         totals_row = [
             '', '', 'GRAND TOTAL', '', '',
-            fmt_money(statement_summary['total_debits']),
-            fmt_money(statement_summary['total_credits']),
-            fmt_money(statement_summary['closing_balance']),
+            money(statement_summary['total_debits']),
+            money(statement_summary['total_credits']),
+            money(statement_summary['closing_balance']),
             '',
         ]
         usable_width = _landscape(A4)[0] - 1.5 * inch
