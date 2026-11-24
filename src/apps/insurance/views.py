@@ -1603,6 +1603,7 @@ def agent_ledger_pdf(request, pk):
     """Printable PDF statement for a single insurance agent."""
     from utils.ledger import parse_date_range
     from utils.report_kit import ledger_statement_pdf_response
+    from utils.currency import parse_display_currency
 
     date_from, date_to = parse_date_range(request)
     agent = get_object_or_404(InsuranceAgent, pk=pk)
@@ -1617,6 +1618,7 @@ def agent_ledger_pdf(request, pk):
         f'insurance-agent-{agent.pk}-statement.pdf', 'Insurance Agent Statement', subtitle,
         statement_rows, statement_summary,
         debit_hint='payment made to agent', credit_hint='policy premium billed by agent',
+        display=parse_display_currency(request),
     )
 
 
