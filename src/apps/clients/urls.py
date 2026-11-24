@@ -81,6 +81,7 @@ urlpatterns = [
     path('proformas/settings/', proforma_views.reservation_settings, name='reservation_settings'),
     path('proformas/<int:pk>/', proforma_views.proforma_detail, name='proforma_detail'),
     path('proformas/<int:pk>/edit/', proforma_views.proforma_update, name='proforma_update'),
+    path('proformas/<int:pk>/terms/', proforma_views.proforma_edit_terms, name='proforma_edit_terms'),
     path('proformas/<int:pk>/pdf/', proforma_views.proforma_pdf, name='proforma_pdf'),
     path('proformas/<int:pk>/issue/', proforma_views.proforma_issue, name='proforma_issue'),
     path('proformas/<int:pk>/cancel/', proforma_views.proforma_cancel, name='proforma_cancel'),
@@ -98,6 +99,7 @@ urlpatterns = [
     path('vehicle/<int:client_vehicle_pk>/sales-agreement/', views.download_sales_agreement, name='download_sales_agreement'),
     path('vehicle/<int:client_vehicle_pk>/sales-agreement/<int:version_id>/', views.download_sales_agreement, name='download_sales_agreement_version'),
     path('vehicle/<int:pk>/agreement-revision/', views.create_agreement_revision, name='create_agreement_revision'),
+    path('vehicle/<int:pk>/agreement-terms/', views.edit_agreement_terms, name='edit_agreement_terms'),
     path('vehicle/<int:pk>/sign/', views.sign_agreement_online, name='sign_agreement_online'),
 
     # Client Vehicle Management
