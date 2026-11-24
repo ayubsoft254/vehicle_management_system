@@ -1,5 +1,7 @@
 {% load humanize %}
-{# Standard debit/credit ledger statement. Expects: statement_rows, statement_summary, statement_title (optional), debit_hint / credit_hint (optional), date_from / date_to (optional, date objects). #}
+{# Standard debit/credit ledger statement. Expects: statement_rows, statement_summary, statement_title (optional), debit_hint / credit_hint (optional), date_from / date_to (optional, date objects), statement_currency (optional: the currency the amounts are stored in, default KES). #}
+{# The currency picker converts every [data-ledger-money] element on the page, so a host page can tag its own amounts (same data-kes = amount in statement_currency) to follow it. #}
+{% firstof statement_currency "KES" as stmt_cur %}
 <style>
     @media print {
         .no-print { display: none !important; }
@@ -40,12 +42,22 @@
             {% if date_from or date_to %}
             <a href="{{ request.path }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium rounded-lg">Reset</a>
             {% endif %}
-            {% if statement_pdf_url %}
-            <a href="{{ statement_pdf_url }}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" target="_blank"
-                class="ml-auto px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium rounded-lg">
-                <i class="fas fa-print mr-1"></i>Print
-            </a>
-            {% endif %}
+            <div class="ml-auto flex items-end gap-3">
+                <div>
+                    <label for="ledgerCurrency" class="block text-xs font-medium text-gray-600 mb-1">Show amounts in</label>
+                    <select id="ledgerCurrency" data-multi-currency="[data-ledger-money]" data-amount-currency="{{ stmt_cur }}"
+                        data-currency-decimals="2" data-currency-storage="vms_ledger_currencies_{{ stmt_cur }}"
+                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                        {% include "includes/_ledger_currency_options.html" with selected=stmt_cur %}
+                    </select>
+                </div>
+                {% if statement_pdf_url %}
+                <a id="ledgerPrintLink" href="{{ statement_pdf_url }}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" target="_blank"
+                    class="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium rounded-lg">
+                    <i class="fas fa-print mr-1"></i>Print
+                </a>
+                {% endif %}
+            </div>
         </form>
         {% if date_from or date_to %}
         <p class="text-xs text-gray-500 mt-2">
@@ -59,19 +71,19 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 pb-2">
         <div class="bg-gray-50 rounded-lg p-4 text-center">
             <p class="text-xs text-gray-500 mb-1">Opening Balance</p>
-            <p class="text-lg font-bold text-gray-800">KES {{ statement_summary.opening_balance|floatformat:2|intcomma }}</p>
+            <p class="text-lg font-bold text-gray-800"><span data-ledger-money data-kes="{{ statement_summary.opening_balance|stringformat:'f' }}">{{ stmt_cur }} {{ statement_summary.opening_balance|floatformat:2|intcomma }}</span></p>
         </div>
         <div class="bg-emerald-50 rounded-lg p-4 text-center">
             <p class="text-xs text-emerald-600 mb-1">Total Debits</p>
-            <p class="text-lg font-bold text-emerald-800">KES {{ statement_summary.total_debits|floatformat:2|intcomma }}</p>
+            <p class="text-lg font-bold text-emerald-800"><span data-ledger-money data-kes="{{ statement_summary.total_debits|stringformat:'f' }}">{{ stmt_cur }} {{ statement_summary.total_debits|floatformat:2|intcomma }}</span></p>
         </div>
         <div class="bg-rose-50 rounded-lg p-4 text-center">
             <p class="text-xs text-rose-600 mb-1">Total Credits</p>
-            <p class="text-lg font-bold text-rose-800">KES {{ statement_summary.total_credits|floatformat:2|intcomma }}</p>
+            <p class="text-lg font-bold text-rose-800"><span data-ledger-money data-kes="{{ statement_summary.total_credits|stringformat:'f' }}">{{ stmt_cur }} {{ statement_summary.total_credits|floatformat:2|intcomma }}</span></p>
         </div>
         <div class="bg-indigo-50 rounded-lg p-4 text-center">
             <p class="text-xs text-indigo-600 mb-1">Closing Balance</p>
-            <p class="text-lg font-bold text-indigo-800">KES {{ statement_summary.closing_balance|floatformat:2|intcomma }}</p>
+            <p class="text-lg font-bold text-indigo-800"><span data-ledger-money data-kes="{{ statement_summary.closing_balance|stringformat:'f' }}">{{ stmt_cur }} {{ statement_summary.closing_balance|floatformat:2|intcomma }}</span></p>
         </div>
     </div>
 
@@ -107,12 +119,12 @@
                     <td class="px-4 py-3 text-sm text-gray-600">{{ row.related|default:"—" }}</td>
                     <td class="px-4 py-3 text-sm text-gray-500">{{ row.method|default:"—" }}</td>
                     <td class="px-4 py-3 text-right text-sm font-semibold {% if row.debit %}text-emerald-700{% else %}text-gray-300{% endif %}">
-                        {% if row.debit %}KES {{ row.debit|floatformat:2|intcomma }}{% else %}—{% endif %}
+                        {% if row.debit %}<span data-ledger-money data-kes="{{ row.debit|stringformat:'f' }}">{{ stmt_cur }} {{ row.debit|floatformat:2|intcomma }}</span>{% else %}—{% endif %}
                     </td>
                     <td class="px-4 py-3 text-right text-sm font-semibold {% if row.credit %}text-rose-700{% else %}text-gray-300{% endif %}">
-                        {% if row.credit %}KES {{ row.credit|floatformat:2|intcomma }}{% else %}—{% endif %}
+                        {% if row.credit %}<span data-ledger-money data-kes="{{ row.credit|stringformat:'f' }}">{{ stmt_cur }} {{ row.credit|floatformat:2|intcomma }}</span>{% else %}—{% endif %}
                     </td>
-                    <td class="px-4 py-3 text-right text-sm font-bold text-gray-800">KES {{ row.running_balance|floatformat:2|intcomma }}</td>
+                    <td class="px-4 py-3 text-right text-sm font-bold text-gray-800"><span data-ledger-money data-kes="{{ row.running_balance|stringformat:'f' }}">{{ stmt_cur }} {{ row.running_balance|floatformat:2|intcomma }}</span></td>
                     <td class="px-4 py-3 text-sm text-gray-500">
                         {% if row.created_by %}{{ row.created_by.get_full_name|default:row.created_by.username }}{% else %}—{% endif %}
                     </td>
@@ -131,9 +143,9 @@
             <tfoot class="bg-slate-50">
                 <tr>
                     <td colspan="5" class="px-4 py-3 text-sm font-semibold text-gray-700 text-right">Totals</td>
-                    <td class="px-4 py-3 text-right text-sm font-bold text-emerald-700">KES {{ statement_summary.total_debits|floatformat:2|intcomma }}</td>
-                    <td class="px-4 py-3 text-right text-sm font-bold text-rose-700">KES {{ statement_summary.total_credits|floatformat:2|intcomma }}</td>
-                    <td class="px-4 py-3 text-right text-sm font-bold text-indigo-700">KES {{ statement_summary.closing_balance|floatformat:2|intcomma }}</td>
+                    <td class="px-4 py-3 text-right text-sm font-bold text-emerald-700"><span data-ledger-money data-kes="{{ statement_summary.total_debits|stringformat:'f' }}">{{ stmt_cur }} {{ statement_summary.total_debits|floatformat:2|intcomma }}</span></td>
+                    <td class="px-4 py-3 text-right text-sm font-bold text-rose-700"><span data-ledger-money data-kes="{{ statement_summary.total_credits|stringformat:'f' }}">{{ stmt_cur }} {{ statement_summary.total_credits|floatformat:2|intcomma }}</span></td>
+                    <td class="px-4 py-3 text-right text-sm font-bold text-indigo-700"><span data-ledger-money data-kes="{{ statement_summary.closing_balance|stringformat:'f' }}">{{ stmt_cur }} {{ statement_summary.closing_balance|floatformat:2|intcomma }}</span></td>
                     <td colspan="2"></td>
                 </tr>
             </tfoot>
@@ -141,3 +153,25 @@
         </table>
     </div>
 </div>
+<script>
+(function () {
+    // Print downloads the statement in the first ticked currency, at the
+    // same rate the page is showing.
+    var select = document.getElementById('ledgerCurrency');
+    var link = document.getElementById('ledgerPrintLink');
+    if (!select || !link) return;
+    var baseHref = link.getAttribute('href');
+    select.addEventListener('currencychange', function (e) {
+        var url = new URL(baseHref, window.location.href);
+        url.searchParams.delete('currency');
+        url.searchParams.delete('currency_rate');
+        var primary = e.detail.primary;
+        var factor = e.detail.factor ? e.detail.factor(primary) : null;
+        if (primary !== e.detail.source && factor) {
+            url.searchParams.set('currency', primary);
+            url.searchParams.set('currency_rate', factor.toPrecision(10));
+        }
+        link.setAttribute('href', url.pathname + url.search);
+    });
+})();
+</script>
