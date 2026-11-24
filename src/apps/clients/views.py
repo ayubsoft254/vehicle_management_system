@@ -2546,6 +2546,7 @@ def _build_agreement_snapshot(client_vehicle):
         'insurance': si,
         'trackers': tracker_snapshots,
         'paybill': client_vehicle.agreement_paybill or '',
+        'terms': dict(zip(('primary', 'secondary'), client_vehicle.agreement_terms())),
     }
 
 
@@ -2596,6 +2597,58 @@ def download_sales_agreement(request, client_vehicle_pk, version_id=None):
     except Exception as e:
         messages.error(request, f'Error generating PDF: {str(e)}')
         return redirect('clients:client_vehicle_detail', pk=client_vehicle_pk)
+
+
+@login_required
+def edit_agreement_terms(request, pk):
+    """
+    Edit the Terms & Conditions printed on this sale's agreement. They start
+    as the company terms (Settings → Company & Branding → Documents); saving
+    here makes them specific to this agreement, and "Reset" goes back to the
+    company terms. Saved agreement versions keep the terms they were saved with.
+    """
+    if request.user.role == UserRole.CLIENT:
+        messages.error(request, 'You do not have permission to edit agreement terms.')
+        return redirect('dashboard:home')
+
+    client_vehicle = get_object_or_404(ClientVehicle.objects.select_related('client', 'vehicle'), pk=pk)
+    brand = get_company()
+
+    if request.method == 'POST':
+        if request.POST.get('action') == 'reset':
+            client_vehicle.agreement_terms_custom = False
+            client_vehicle.agreement_terms_primary = ''
+            client_vehicle.agreement_terms_secondary = ''
+            message = 'Agreement terms reset to the company default terms.'
+        else:
+            primary = request.POST.get('agreement_terms_primary', '').strip()
+            if not primary:
+                messages.error(request, 'The terms cannot be empty. Use "Reset to company terms" instead.')
+                return redirect('clients:edit_agreement_terms', pk=pk)
+            client_vehicle.agreement_terms_custom = True
+            client_vehicle.agreement_terms_primary = primary
+            client_vehicle.agreement_terms_secondary = request.POST.get('agreement_terms_secondary', '').strip()
+            message = 'Agreement terms updated. The next agreement you print will use them.'
+        client_vehicle.save(update_fields=[
+            'agreement_terms_custom', 'agreement_terms_primary', 'agreement_terms_secondary',
+        ])
+        log_audit(
+            request.user, 'update', 'ClientVehicle',
+            f'{"Reset" if not client_vehicle.agreement_terms_custom else "Edited"} agreement terms for '
+            f'{client_vehicle.client.get_full_name()} — {client_vehicle.vehicle.full_name}'
+        )
+        messages.success(request, message)
+        return redirect('clients:client_vehicle_detail', pk=pk)
+
+    terms_primary, terms_secondary = client_vehicle.agreement_terms()
+    return render(request, 'clients/agreement_terms_form.html', {
+        'client_vehicle': client_vehicle,
+        'terms_primary': terms_primary,
+        'terms_secondary': terms_secondary,
+        'primary_label': brand.terms_primary_label or 'Terms',
+        'secondary_label': brand.terms_secondary_label or 'Second language',
+        'has_signature': bool(getattr(client_vehicle, 'agreement_signature', None)),
+    })
 
 
 @login_required

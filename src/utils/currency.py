@@ -51,3 +51,46 @@ def parse_rate(value):
     except (InvalidOperation, ValueError):
         return None
     return rate if rate > 0 else None
+
+
+def base_units_per(code, profile=None):
+    """Base-currency units per 1 `code`: the company's fixed rate from
+    Settings → Region when set, else the approximate one (None if unknown)."""
+    if profile is None:
+        from apps.company.services import get_company
+        profile = get_company()
+    if code == profile.currency_code:
+        return Decimal('1')
+    for option in profile.currency_options:
+        if option['code'] == code and option['rate']:
+            return option['rate']
+    return approx_rate(profile.currency_code, code)
+
+
+LEDGER_CURRENCIES = ('KES', 'USD', 'JPY')
+
+
+def parse_display_currency(request, source=None):
+    """(currency, factor) for printing amounts stored in `source` (default:
+    the base currency) in the currency a page's picker selected —
+    ?currency=XXX&currency_rate=n, the rate being target units per 1 source
+    unit. Without a usable rate it falls back to the company's fixed rate,
+    then an approximate one, then to `source` unconverted. Allowed targets:
+    the source, the base, the configured currencies and LEDGER_CURRENCIES."""
+    from apps.company.services import get_company
+    profile = get_company()
+    source = source or profile.currency_code
+    target = (request.GET.get('currency') or source).strip().upper()
+    allowed = {profile.currency_code, source, *LEDGER_CURRENCIES}
+    allowed.update(o['code'] for o in profile.currency_options)
+    if target == source or target not in allowed:
+        return source, Decimal('1')
+
+    rate = parse_rate(request.GET.get('currency_rate', ''))
+    if rate:
+        return target, rate
+
+    from_base, to_base = base_units_per(source, profile), base_units_per(target, profile)
+    if not from_base or not to_base:
+        return source, Decimal('1')
+    return target, (from_base / to_base).quantize(Decimal('0.00000001'))

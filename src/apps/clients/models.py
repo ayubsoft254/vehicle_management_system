@@ -656,6 +656,22 @@ class ClientVehicle(models.Model):
         help_text='Paybill number to print on the sales agreement'
     )
 
+    # Per-agreement Terms & Conditions. While agreement_terms_custom is off the
+    # agreement prints the company terms (Settings → Company & Branding →
+    # Documents); once staff edit them for this sale, these texts are used.
+    agreement_terms_custom = models.BooleanField(
+        'Custom agreement terms', default=False,
+        help_text='Use the terms below instead of the company default terms',
+    )
+    agreement_terms_primary = models.TextField(
+        'Agreement terms', blank=True, default='',
+        help_text='One clause per line',
+    )
+    agreement_terms_secondary = models.TextField(
+        'Agreement terms (second language)', blank=True, default='',
+        help_text='One clause per line; leave blank to print a single column',
+    )
+
     vehicle_price_before_sale = models.DecimalField(
         'Vehicle Price Before Sale',
         max_digits=12,
@@ -697,6 +713,14 @@ class ClientVehicle(models.Model):
     
     def __str__(self):
         return f"{self.client.get_full_name()} - {self.vehicle.full_name}"
+
+    def agreement_terms(self):
+        """(primary, secondary) Terms & Conditions text for this sale's agreement."""
+        if self.agreement_terms_custom:
+            return self.agreement_terms_primary or '', self.agreement_terms_secondary or ''
+        from apps.company.services import get_company
+        brand = get_company()
+        return brand.terms_primary or '', brand.terms_secondary or ''
     
     @property
     def payment_progress(self):

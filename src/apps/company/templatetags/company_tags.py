@@ -52,17 +52,27 @@ def payment_method_options(selected='', mixed=False):
 
 
 @register.simple_tag
-def currency_options(long_names=False):
+def currency_options(long_names=False, include='', selected=''):
     """<option>s for a currency picker: the company's base currency
-    (selected) followed by the other currencies from Settings → Region."""
+    followed by the other currencies from Settings → Region, plus any
+    comma-separated `include` codes (e.g. "KES,USD,JPY" for ledgers that
+    must always offer those). `selected` defaults to the base currency."""
     from utils.currency import currency_name
     brand = get_company()
     codes = [(brand.currency_code, currency_name(brand.currency_code))]
     codes += [(o['code'], o['name']) for o in brand.currency_options]
+    seen = {code for code, _ in codes}
+    for code in (c.strip().upper() for c in str(include or '').split(',')):
+        if len(code) == 3 and code not in seen:
+            seen.add(code)
+            codes.append((code, currency_name(code)))
+    selected = str(selected or '').strip().upper()
+    if selected not in seen:
+        selected = brand.currency_code
     return format_html_join(
         '\n', '<option value="{}"{}>{}</option>',
-        ((code, mark_safe(' selected') if i == 0 else '', f'{code} — {name}' if long_names and name != code else code)
-         for i, (code, name) in enumerate(codes)),
+        ((code, mark_safe(' selected') if code == selected else '', f'{code} — {name}' if long_names and name != code else code)
+         for code, name in codes),
     )
 
 

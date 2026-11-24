@@ -209,10 +209,15 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
                     amount_due=Decimal(str(_s.get('amount_due') or '0')),
                     is_paid=_s.get('is_paid', False),
                 ))
+            from apps.insurance.models import InsurancePolicy as _InsurancePolicy
+            _usage = si.get('vehicle_usage') or 'private'
+            _usage_label = dict(_InsurancePolicy.VEHICLE_USAGE_CHOICES).get(_usage, str(_usage).replace('_', ' ').title())
             insurance_policy = SimpleNamespace(
                 selling_price=Decimal(str(si.get('selling_price') or '0')),
                 payment_type=si.get('payment_type', 'installment'),
-                vehicle_usage=si.get('vehicle_usage', 'private'),
+                vehicle_usage=_usage,
+                # The PDF calls the model's choice-label method; mirror it here.
+                get_vehicle_usage_display=lambda: _usage_label,
                 has_payment_plan=si.get('has_payment_plan', False),
                 insurance_installment_months=si.get('insurance_installment_months'),
                 insurance_deposit=Decimal(str(si.get('insurance_deposit') or '0')),
@@ -970,10 +975,21 @@ def generate_sales_agreement_pdf(client_vehicle, snapshot=None, paybill=None):
     ))
     elements.append(Spacer(1, 0.2*cm))
 
-    # Admin-edited text (Settings → Company & Branding → Documents), one
-    # clause per line; escaped because Paragraph text is markup.
-    english_terms = [_e(line.strip()) for line in brand.terms_primary.splitlines() if line.strip()]
-    swahili_terms = [_e(line.strip()) for line in (brand.terms_secondary or '').splitlines() if line.strip()]
+    # One clause per line; escaped because Paragraph text is markup. A saved
+    # version prints the terms frozen in its snapshot (versions saved before
+    # per-agreement terms existed carry none and keep the company terms);
+    # otherwise this sale's own terms, which default to the company terms
+    # (Settings → Company & Branding → Documents).
+    snapshot_terms = (snapshot or {}).get('terms')
+    if snapshot_terms is not None:
+        terms_primary = snapshot_terms.get('primary', '')
+        terms_secondary = snapshot_terms.get('secondary', '')
+    elif snapshot:
+        terms_primary, terms_secondary = brand.terms_primary, brand.terms_secondary
+    else:
+        terms_primary, terms_secondary = client_vehicle.agreement_terms()
+    english_terms = [_e(line.strip()) for line in (terms_primary or '').splitlines() if line.strip()]
+    swahili_terms = [_e(line.strip()) for line in (terms_secondary or '').splitlines() if line.strip()]
 
     # Two-column layout: English left, Swahili right. A header row is
     # included (with repeatRows=1) so that if this table is long enough to

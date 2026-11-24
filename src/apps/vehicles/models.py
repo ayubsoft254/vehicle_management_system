@@ -1364,7 +1364,7 @@ class JapanSupplierRecord(models.Model):
         verbose_name_plural = 'Japan Supplier Records'
 
     def __str__(self):
-        return f"{self.supplier.name} — {self.vehicle} — {currency()} {self.purchase_price:,.2f}"
+        return f"{self.supplier.name} — {self.vehicle} — USD {self.purchase_price:,.2f}"
 
     @staticmethod
     def _tax(base, percent):
@@ -1414,8 +1414,9 @@ class JapanSupplierPayment(models.Model):
     supplier = models.ForeignKey(
         JapanSupplier, on_delete=models.CASCADE, related_name='payments'
     )
+    # USD, like the supplier records it settles (the ledger nets them directly).
     amount = models.DecimalField(
-        'Amount (KES)', max_digits=12, decimal_places=2,
+        'Amount (USD)', max_digits=12, decimal_places=2,
         validators=[MinValueValidator(Decimal('0.01'))]
     )
     payment_date = models.DateField('Payment Date', default=timezone.now)
@@ -1437,7 +1438,7 @@ class JapanSupplierPayment(models.Model):
         verbose_name_plural = 'Japan Supplier Payments'
 
     def __str__(self):
-        return f"Payment {currency()} {self.amount:,.0f} to {self.supplier.name} on {self.payment_date}"
+        return f"Payment USD {self.amount:,.0f} to {self.supplier.name} on {self.payment_date}"
 
 
 # ==================== MANUAL LEDGER ENTRY ====================
