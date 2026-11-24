@@ -239,8 +239,41 @@
             <div class="bg-white rounded-xl shadow-md p-6">
                 <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Company Bank Details</h2>
                 <p class="text-sm text-gray-600 whitespace-pre-line">{{ proforma.bank_details|default:"—" }}</p>
-                <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mt-5 mb-3">Terms &amp; Conditions</h2>
-                <p class="text-sm text-gray-600 whitespace-pre-line">{{ proforma.terms_conditions|default:"—" }}</p>
+                <div x-data="{ editing: false }">
+                    <div class="flex items-center justify-between mt-5 mb-3">
+                        <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Terms &amp; Conditions</h2>
+                        {% if can_edit_terms %}
+                        <button type="button" x-show="!editing" @click="editing = true; $nextTick(() => $refs.terms.focus())"
+                                class="inline-flex items-center px-3 py-1 text-xs border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                            <i class="fas fa-edit mr-1"></i>Edit
+                        </button>
+                        {% endif %}
+                    </div>
+                    <p x-show="!editing" class="text-sm text-gray-600 whitespace-pre-line">{{ proforma.terms_conditions|default:"—" }}</p>
+                    {% if can_edit_terms %}
+                    <form x-show="editing" x-cloak method="post" action="{% url 'clients:proforma_edit_terms' proforma.pk %}" class="space-y-3">
+                        {% csrf_token %}
+                        <textarea x-ref="terms" name="terms_conditions" rows="10"
+                                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">{{ proforma.terms_conditions }}</textarea>
+                        <p class="text-xs text-gray-400">One term per line. Changes print on the next PDF download.</p>
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <button type="submit" name="action" value="reset"
+                                    onclick="return confirm('Replace these terms with the default terms?');"
+                                    class="px-3 py-1.5 text-xs text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition">
+                                <i class="fas fa-undo mr-1"></i>Reset to default
+                            </button>
+                            <div class="flex items-center gap-2">
+                                <button type="button" @click="editing = false"
+                                        class="px-3 py-1.5 text-xs text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+                                <button type="submit" name="action" value="save"
+                                        class="px-3 py-1.5 text-xs font-medium bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition">
+                                    <i class="fas fa-save mr-1"></i>Save Terms
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
