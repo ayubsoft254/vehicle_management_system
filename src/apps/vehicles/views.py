@@ -1451,6 +1451,7 @@ def tracker_agent_ledger_pdf(request, pk):
     """Printable PDF statement for a single tracker agent."""
     from utils.ledger import parse_date_range
     from utils.report_kit import ledger_statement_pdf_response
+    from utils.currency import parse_display_currency
 
     date_from, date_to = parse_date_range(request)
     agent = get_object_or_404(TrackerAgent, pk=pk)
@@ -1464,6 +1465,7 @@ def tracker_agent_ledger_pdf(request, pk):
         f'tracker-agent-{agent.pk}-statement.pdf', 'Tracker Agent Statement', subtitle,
         statement_rows, statement_summary,
         debit_hint='payment made to agent', credit_hint='tracker billed by agent',
+        display=parse_display_currency(request),
     )
 
 
@@ -1598,6 +1600,7 @@ def clearing_agent_ledger_pdf(request, pk):
     """Printable PDF statement for a single clearing agent."""
     from utils.ledger import parse_date_range
     from utils.report_kit import ledger_statement_pdf_response
+    from utils.currency import parse_display_currency
 
     date_from, date_to = parse_date_range(request)
     agent = get_object_or_404(ClearingAgent, pk=pk)
@@ -1611,6 +1614,7 @@ def clearing_agent_ledger_pdf(request, pk):
         f'clearing-agent-{agent.pk}-statement.pdf', 'Clearing Agent Statement', subtitle,
         statement_rows, statement_summary,
         debit_hint='payment made to agent', credit_hint='clearance billed by agent',
+        display=parse_display_currency(request),
     )
 
 
@@ -1874,6 +1878,8 @@ def japan_supplier_ledger_detail(request, pk):
         'statement_summary': statement_summary,
         'debit_hint': 'payment made to supplier',
         'credit_hint': 'vehicle billed by supplier',
+        # Supplier records and payments are kept in USD (see JapanSupplierRecord).
+        'statement_currency': 'USD',
         'date_from': date_from,
         'date_to': date_to,
     }
@@ -1886,6 +1892,7 @@ def japan_supplier_ledger_pdf(request, pk):
     """Printable PDF statement for a single Japan supplier."""
     from utils.ledger import parse_date_range
     from utils.report_kit import ledger_statement_pdf_response
+    from utils.currency import parse_display_currency
 
     date_from, date_to = parse_date_range(request)
     supplier = get_object_or_404(JapanSupplier, pk=pk)
@@ -1902,6 +1909,7 @@ def japan_supplier_ledger_pdf(request, pk):
         f'japan-supplier-{supplier.pk}-statement.pdf', 'Japan Supplier Statement', subtitle,
         statement_rows, statement_summary,
         debit_hint='payment made to supplier', credit_hint='vehicle billed by supplier',
+        display=parse_display_currency(request, 'USD'),
     )
 
 
@@ -2607,6 +2615,7 @@ def broker_ledger_pdf(request, pk):
     """Printable PDF statement for a single broker."""
     from utils.ledger import parse_date_range
     from utils.report_kit import ledger_statement_pdf_response
+    from utils.currency import parse_display_currency
 
     date_from, date_to = parse_date_range(request)
     broker = get_object_or_404(Broker, pk=pk)
@@ -2620,6 +2629,7 @@ def broker_ledger_pdf(request, pk):
         f'broker-{broker.pk}-statement.pdf', 'Broker Statement', subtitle,
         statement_rows, statement_summary,
         debit_hint='commission paid to broker', credit_hint='commission earned by broker',
+        display=parse_display_currency(request),
     )
 
 
@@ -2819,6 +2829,7 @@ _PARTY_LEDGER_EXPORT_CONFIG = {
         'title': 'Japan Supplier Ledger',
         'billed_attr': 'total_purchase_value',
         'billed_label': 'Total Purchase Value',
+        'currency': 'USD',  # supplier records/payments are kept in USD
     },
 }
 
@@ -2833,7 +2844,8 @@ def party_ledger_export(request, kind, fmt):
         raise Http404('Unknown ledger type.')
 
     parties = config['queryset']()
-    headers = ['Name', 'Phone', 'Email', config['billed_label'], 'Paid', 'Outstanding']
+    cur = config.get('currency') or 'KES'
+    headers = ['Name', 'Phone', 'Email', f"{config['billed_label']} ({cur})", f'Paid ({cur})', f'Outstanding ({cur})']
     rows = [
         [
             p.name, p.phone or '', getattr(p, 'email', '') or '',
