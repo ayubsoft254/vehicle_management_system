@@ -43,15 +43,15 @@
             </div>
             <div class="bg-blue-50 rounded-lg p-4 text-center">
                 <p class="text-xs text-blue-600 mb-1">Total Purchased</p>
-                <p class="text-lg font-bold text-blue-800">USD {{ supplier.total_purchase_value|floatformat:0|intcomma }}</p>
+                <p class="text-lg font-bold text-blue-800"><span data-ledger-money data-kes="{{ supplier.total_purchase_value|stringformat:'f' }}">USD {{ supplier.total_purchase_value|floatformat:2|intcomma }}</span></p>
             </div>
             <div class="bg-indigo-50 rounded-lg p-4 text-center">
                 <p class="text-xs text-indigo-600 mb-1">Payments Made</p>
-                <p class="text-lg font-bold text-indigo-800">USD {{ supplier.total_payments_made|floatformat:0|intcomma }}</p>
+                <p class="text-lg font-bold text-indigo-800"><span data-ledger-money data-kes="{{ supplier.total_payments_made|stringformat:'f' }}">USD {{ supplier.total_payments_made|floatformat:2|intcomma }}</span></p>
             </div>
             <div class="bg-red-50 rounded-lg p-4 text-center">
                 <p class="text-xs text-red-600 mb-1">Outstanding</p>
-                <p class="text-lg font-bold text-red-800">USD {{ supplier.total_owed|floatformat:0|intcomma }}</p>
+                <p class="text-lg font-bold text-red-800"><span data-ledger-money data-kes="{{ supplier.total_owed|stringformat:'f' }}">USD {{ supplier.total_owed|floatformat:2|intcomma }}</span></p>
             </div>
         </div>
     </div>
@@ -122,14 +122,14 @@
                         <td class="px-4 py-3 text-sm text-gray-500">{{ record.vehicle.ship_name|default:"—" }}</td>
                         <td class="px-4 py-3 text-sm text-gray-500 font-mono">{{ record.vehicle.vessel_number|default:"—" }}</td>
                         <td class="px-4 py-3 text-right text-sm font-medium text-gray-800 align-top">
-                            USD {{ record.purchase_price|floatformat:0|intcomma }}
+                            <span data-ledger-money data-kes="{{ record.purchase_price|stringformat:'f' }}">USD {{ record.purchase_price|floatformat:2|intcomma }}</span>
                             {% with breakdown=record.charge_breakdown %}
                             {% if breakdown %}
                             <details class="mt-1 text-xs font-normal text-gray-500">
                                 <summary class="cursor-pointer text-indigo-600 hover:underline">Breakdown</summary>
                                 <table class="mt-1 ml-auto">
                                     {% for label, amount in breakdown %}
-                                    <tr><td class="pr-3 text-left">{{ label }}</td><td class="text-right">{{ amount|floatformat:2|intcomma }}</td></tr>
+                                    <tr><td class="pr-3 text-left">{{ label }}</td><td class="text-right"><span data-ledger-money data-kes="{{ amount|stringformat:'f' }}">USD {{ amount|floatformat:2|intcomma }}</span></td></tr>
                                     {% endfor %}
                                 </table>
                             </details>
@@ -147,7 +147,7 @@
                 <tfoot class="bg-gray-50">
                     <tr>
                         <td colspan="5" class="px-4 py-3 text-sm font-semibold text-gray-700">Total</td>
-                        <td class="px-4 py-3 text-right text-sm font-bold text-gray-800">USD {{ supplier.total_purchase_value|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right text-sm font-bold text-gray-800"><span data-ledger-money data-kes="{{ supplier.total_purchase_value|stringformat:'f' }}">USD {{ supplier.total_purchase_value|floatformat:2|intcomma }}</span></td>
                     </tr>
                 </tfoot>
                 {% endif %}
@@ -183,7 +183,7 @@
                     {% for payment in payments %}
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3 text-sm text-gray-700">{{ payment.payment_date|date:"M d, Y" }}</td>
-                        <td class="px-4 py-3 text-right text-sm font-semibold text-indigo-700">USD {{ payment.amount|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right text-sm font-semibold text-indigo-700"><span data-ledger-money data-kes="{{ payment.amount|stringformat:'f' }}">USD {{ payment.amount|floatformat:2|intcomma }}</span></td>
                         <td class="px-4 py-3 text-sm">
                             <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">{{ payment.get_payment_method_display }}</span>
                         </td>
@@ -206,7 +206,7 @@
                 <tfoot class="bg-indigo-50">
                     <tr>
                         <td class="px-4 py-3 text-sm font-semibold text-gray-700">Total Debit</td>
-                        <td class="px-4 py-3 text-right text-sm font-bold text-indigo-700">USD {{ supplier.total_payments_made|floatformat:0|intcomma }}</td>
+                        <td class="px-4 py-3 text-right text-sm font-bold text-indigo-700"><span data-ledger-money data-kes="{{ supplier.total_payments_made|stringformat:'f' }}">USD {{ supplier.total_payments_made|floatformat:2|intcomma }}</span></td>
                         <td colspan="4"></td>
                     </tr>
                 </tfoot>
