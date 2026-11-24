@@ -395,6 +395,7 @@ def proforma_detail(request, pk):
         'can_confirm_deposit': _can_confirm_deposit(request.user),
         'is_manager': _is_manager(request.user),
         'today': timezone.now().date(),
+        'can_edit_terms': proforma.status not in TERMS_LOCKED_STATUSES,
     }
     return render(request, 'clients/proforma_detail.html', context)
 
@@ -432,6 +433,37 @@ def proforma_issue(request, pk):
         f'Proforma {proforma.number} issued. The vehicle stays available for '
         f'sale until a deposit is confirmed.'
     )
+    return redirect('clients:proforma_detail', pk=pk)
+
+
+# Terms carry no money or stock effect, so unlike the full edit form they
+# stay editable after a deposit is confirmed — only finished proformas lock.
+TERMS_LOCKED_STATUSES = ('converted', 'cancelled')
+
+
+@login_required
+@module_permission_required('clients', AccessLevel.READ_WRITE)
+def proforma_edit_terms(request, pk):
+    """Edit only the Terms & Conditions of a proforma (inline on the detail page)."""
+    if request.method != 'POST':
+        return redirect('clients:proforma_detail', pk=pk)
+    proforma = get_object_or_404(ProformaInvoice, pk=pk)
+    if proforma.status in TERMS_LOCKED_STATUSES:
+        messages.error(request, f'Terms cannot be changed on a {proforma.get_status_display().lower()} proforma.')
+        return redirect('clients:proforma_detail', pk=pk)
+
+    if request.POST.get('action') == 'reset':
+        new_terms = DEFAULT_TERMS_CONDITIONS
+    else:
+        new_terms = request.POST.get('terms_conditions', '').strip()
+    old_terms = proforma.terms_conditions
+    if new_terms != old_terms:
+        proforma.terms_conditions = new_terms
+        proforma.save(update_fields=['terms_conditions', 'updated_at'])
+        _audit(request, 'update', f'Edited terms & conditions on proforma {proforma.number}',
+               object_id=str(proforma.pk),
+               changes={'terms_conditions': {'old': old_terms, 'new': new_terms}})
+        messages.success(request, f'Terms & conditions on {proforma.number} updated.')
     return redirect('clients:proforma_detail', pk=pk)
 
 
