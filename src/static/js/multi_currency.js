@@ -13,12 +13,16 @@
  *   data-currency-rate-inputs  selector for manual "1 X = n KES" inputs, each with
  *                              data-cur-rate="X"; without it, live rates are fetched
  *                              from open.er-api.com
+ *   data-amount-currency       currency the data-kes amounts are stored in, when it
+ *                              is not the base currency (e.g. "USD" for the Japan
+ *                              supplier ledger); conversion goes through KES
  * Amount element options:
  *   data-prefix                text shown before the primary amount ("Negotiable")
  *   data-currency-layout       "stack" or "inline"; auto-detected when omitted
  *
  * After every render the select fires a bubbling "currencychange" event with
- * detail {currencies, primary, rate(code)}; rate is foreign units per 1 KES.
+ * detail {currencies, primary, rate(code), source, factor(code)}; rate is foreign
+ * units per 1 KES, factor is foreign units per 1 data-kes (source) unit.
  * Call MultiCurrency.refresh() after a page changes data-kes values.
  */
 (function () {
@@ -130,6 +134,7 @@
             ? Array.prototype.slice.call(document.querySelectorAll(select.dataset.currencyRateInputs))
             : null;
         this.codes = Array.prototype.map.call(select.options, function (o) { return o.value; });
+        this.sourceCode = (select.dataset.amountCurrency || '').trim().toUpperCase();
         this.liveRates = null;
         this.hintText = 'The first ticked currency is shown largest.';
         this.selected = this.restore();
@@ -284,10 +289,23 @@
         return this.liveRates && this.liveRates[code] ? this.liveRates[code] : null;
     };
 
+    // Currency the data-kes amounts are in (KES unless data-amount-currency says otherwise).
+    Picker.prototype.source = function () {
+        return this.sourceCode || 'KES';
+    };
+
+    // Units of `code` per 1 source unit, or null while unknown.
+    Picker.prototype.factor = function (code) {
+        var src = this.source();
+        if (code === src) return 1;
+        var to = this.rate(code), from = this.rate(src);
+        return to !== null && from ? to / from : null;
+    };
+
     Picker.prototype.update = function () {
         var self = this;
         var needsLive = !this.rateInputs && !this.liveRates &&
-            this.selected.some(function (code) { return code !== 'KES'; });
+            this.selected.concat([this.source()]).some(function (code) { return code !== 'KES'; });
         if (!needsLive) {
             this.render();
             return;
@@ -297,15 +315,15 @@
             self.liveRates = rates;
             self.render();
         }).catch(function () {
-            self.setHint('Live exchange rates are unavailable right now — showing KES only.', true);
+            self.setHint('Live exchange rates are unavailable right now — showing ' + self.source() + ' only.', true);
             self.render();
         });
     };
 
     Picker.prototype.shownCurrencies = function () {
         var self = this;
-        var shown = this.selected.filter(function (code) { return self.rate(code) !== null; });
-        return shown.length ? shown : ['KES'];
+        var shown = this.selected.filter(function (code) { return self.factor(code) !== null; });
+        return shown.length ? shown : [this.source()];
     };
 
     Picker.prototype.render = function () {
@@ -318,11 +336,11 @@
             var kes = parseFloat(String(node.dataset.kes || '0').replace(/,/g, '')) || 0;
             var prefix = (node.dataset.prefix || '').trim();
             if (!node.dataset.currencyLayout) node.dataset.currencyLayout = detectLayout(node);
-            node.textContent = (prefix ? prefix + ' ' : '') + formatAmount(kes * self.rate(primary), primary, decimals);
+            node.textContent = (prefix ? prefix + ' ' : '') + formatAmount(kes * self.factor(primary), primary, decimals);
             shown.slice(1).forEach(function (code) {
                 var extra = document.createElement('span');
                 extra.className = 'mc-extra mc-extra--' + node.dataset.currencyLayout;
-                extra.textContent = formatAmount(kes * self.rate(code), code, decimals);
+                extra.textContent = formatAmount(kes * self.factor(code), code, decimals);
                 node.appendChild(extra);
             });
         });
@@ -337,6 +355,8 @@
                 currencies: shown.slice(),
                 primary: primary,
                 rate: function (code) { return self.rate(code); },
+                source: self.source(),
+                factor: function (code) { return self.factor(code); },
             },
         }));
     };
