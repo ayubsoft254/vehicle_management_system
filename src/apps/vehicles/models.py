@@ -1278,7 +1278,7 @@ class JapanSupplierRecord(models.Model):
         on_delete=models.PROTECT,
         related_name='supplier_records',
     )
-    # Flat USD charges billed by the supplier, in invoice order.
+    # Flat charges billed by the supplier, in invoice order, in `currency`.
     CHARGE_FIELDS = [
         'push_auction_charges', 'recycle_charges', 'auction_fee_charges',
         'transport_charges', 'shipping_charges', 'inspection_charges',
@@ -1288,16 +1288,26 @@ class JapanSupplierRecord(models.Model):
     # Tax rates: auction tax applies to push auction charges, auction fee tax to the auction fee.
     TAX_FIELDS = ['auction_tax_percent', 'auction_fee_tax_percent']
 
+    # Ledger amount — always USD so records and payments net directly.
     purchase_price = models.DecimalField(
         'Total Amount (USD)', max_digits=12, decimal_places=2,
         validators=[MinValueValidator(Decimal('0.00'))],
+    )
+    # Currency the charges/total were entered in; exchange_rate is units of it per 1 USD.
+    currency = models.CharField('Entry Currency', max_length=3, default='USD')
+    exchange_rate = models.DecimalField(
+        'Exchange Rate (per 1 USD)', max_digits=16, decimal_places=6, default=Decimal('1'),
+        validators=[MinValueValidator(Decimal('0.000001'))],
+    )
+    original_amount = models.DecimalField(
+        'Total Amount (entry currency)', max_digits=14, decimal_places=2, null=True, blank=True,
     )
     date = models.DateField('Purchase Date')
     auction_name = models.CharField('Auction Name', max_length=200, blank=True)
     bid_number = models.CharField('Bid Number', max_length=100, blank=True)
 
     push_auction_charges = models.DecimalField(
-        'Push Auction Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        'Push Auction Charges', max_digits=12, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     auction_tax_percent = models.DecimalField(
@@ -1305,11 +1315,11 @@ class JapanSupplierRecord(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     recycle_charges = models.DecimalField(
-        'Recycle Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        'Recycle Charges', max_digits=12, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     auction_fee_charges = models.DecimalField(
-        'Auction Fee Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        'Auction Fee Charges', max_digits=12, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     auction_fee_tax_percent = models.DecimalField(
@@ -1317,35 +1327,35 @@ class JapanSupplierRecord(models.Model):
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     transport_charges = models.DecimalField(
-        'Transport Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        'Transport Charges', max_digits=12, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     shipping_charges = models.DecimalField(
-        'Shipping Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        'Shipping Charges', max_digits=12, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     inspection_charges = models.DecimalField(
-        'Inspection Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        'Inspection Charges', max_digits=12, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     freight_charges = models.DecimalField(
-        'Freight Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        'Freight Charges', max_digits=12, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     radiation_charges = models.DecimalField(
-        'Radiation Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        'Radiation Charges', max_digits=12, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     repair_charges = models.DecimalField(
-        'Repair Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        'Repair Charges', max_digits=12, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     container_charges = models.DecimalField(
-        'Container Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        'Container Charges', max_digits=12, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
     )
     extra_charges = models.DecimalField(
-        'Extra Charges (USD)', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        'Extra Charges', max_digits=12, decimal_places=2, default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
     )
 
@@ -1385,13 +1395,24 @@ class JapanSupplierRecord(models.Model):
         return total + self.auction_tax_amount + self.auction_fee_tax_amount
 
     @property
+    def is_foreign_entry(self):
+        return self.currency != 'USD'
+
+    @property
+    def entered_total(self):
+        """Total in the currency it was entered in (legacy rows: the USD total)."""
+        if self.original_amount is not None:
+            return self.original_amount
+        return self.purchase_price
+
+    @property
     def charge_breakdown(self):
-        """(label, amount) pairs for every non-zero charge, in invoice order."""
+        """(label, amount) pairs for every non-zero charge, in invoice order, in `currency`."""
         rows = []
         for field in self.CHARGE_FIELDS:
             amount = getattr(self, field)
             if amount:
-                rows.append((self._meta.get_field(field).verbose_name.replace(' (USD)', ''), amount))
+                rows.append((self._meta.get_field(field).verbose_name, amount))
             if field == 'push_auction_charges' and self.auction_tax_amount:
                 rows.append((f'Auction Tax ({self.auction_tax_percent.normalize():f}%)', self.auction_tax_amount))
             if field == 'auction_fee_charges' and self.auction_fee_tax_amount:
@@ -1418,6 +1439,15 @@ class JapanSupplierPayment(models.Model):
         'Amount (USD)', max_digits=12, decimal_places=2,
         validators=[MinValueValidator(Decimal('0.01'))]
     )
+    # What was actually paid when not in USD; exchange_rate is units of it per 1 USD.
+    currency = models.CharField('Paid Currency', max_length=3, default='USD')
+    exchange_rate = models.DecimalField(
+        'Exchange Rate (per 1 USD)', max_digits=16, decimal_places=6, default=Decimal('1'),
+        validators=[MinValueValidator(Decimal('0.000001'))],
+    )
+    original_amount = models.DecimalField(
+        'Amount Paid (paid currency)', max_digits=14, decimal_places=2, null=True, blank=True,
+    )
     payment_date = models.DateField('Payment Date', default=timezone.now)
     payment_method = models.CharField(
         'Payment Method', max_length=20,
@@ -1438,6 +1468,10 @@ class JapanSupplierPayment(models.Model):
 
     def __str__(self):
         return f"Payment USD {self.amount:,.0f} to {self.supplier.name} on {self.payment_date}"
+
+    @property
+    def is_foreign_entry(self):
+        return self.currency != 'USD'
 
 
 # ==================== MANUAL LEDGER ENTRY ====================
