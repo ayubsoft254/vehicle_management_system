@@ -8,7 +8,8 @@ browser (open.er-api.com, see static/js/multi_currency.js); the approximate
 rates below are only a server-side fallback for exports when neither a live
 nor a fixed rate is available.
 """
-from decimal import Decimal, InvalidOperation
+import re
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 CURRENCY_NAMES = {
     'KES': 'Kenyan Shilling', 'UGX': 'Ugandan Shilling', 'TZS': 'Tanzanian Shilling',
@@ -94,3 +95,31 @@ def parse_display_currency(request, source=None):
     if not from_base or not to_base:
         return source, Decimal('1')
     return target, (from_base / to_base).quantize(Decimal('0.00000001'))
+
+
+# ── Foreign-currency entry (Japan supplier charges and payments) ────────────
+# Staff can enter supplier amounts in any currency with a rate of
+# "<currency> per 1 USD"; the ledger itself stays in USD.
+
+FOREIGN_ENTRY_CURRENCIES = ['USD', 'JPY', 'KES', 'EUR', 'GBP', 'CNY', 'AED']
+
+
+def parse_entry_currency(post_data, prefix):
+    """(currency, rate per 1 USD) from <prefix>currency / <prefix>currency_other /
+    <prefix>exchange_rate. Raises ValueError with a user-facing message."""
+    code = (post_data.get(f'{prefix}currency') or 'USD').strip().upper()
+    if code == 'OTHER':
+        code = (post_data.get(f'{prefix}currency_other') or '').strip().upper()
+    if not re.fullmatch(r'[A-Z]{3}', code):
+        raise ValueError('Enter a valid 3-letter currency code (e.g. JPY).')
+    if code == 'USD':
+        return code, Decimal('1')
+    rate = parse_rate(post_data.get(f'{prefix}exchange_rate', ''))
+    if not rate:
+        raise ValueError(f'Enter the exchange rate ({code} per 1 USD).')
+    return code, rate.quantize(Decimal('0.000001'))
+
+
+def to_usd(amount, rate):
+    """Amount in a currency quoted at `rate` per 1 USD, as USD (2 dp, half-up)."""
+    return (Decimal(amount) / Decimal(rate)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
