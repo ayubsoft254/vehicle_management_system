@@ -1,0 +1,9 @@
+{# <option>s for entering an amount in a chosen currency. Pass selected="JPY" etc. (default USD). Keep in step with utils/currency.py FOREIGN_ENTRY_CURRENCIES. #}
+<option value="USD"{% if not selected or selected == "USD" %} selected{% endif %}>USD — US Dollar</option>
+<option value="JPY"{% if selected == "JPY" %} selected{% endif %}>JPY — Japanese Yen</option>
+<option value="KES"{% if selected == "KES" %} selected{% endif %}>KES — Kenyan Shilling</option>
+<option value="EUR"{% if selected == "EUR" %} selected{% endif %}>EUR — Euro</option>
+<option value="GBP"{% if selected == "GBP" %} selected{% endif %}>GBP — British Pound</option>
+<option value="CNY"{% if selected == "CNY" %} selected{% endif %}>CNY — Chinese Yuan</option>
+<option value="AED"{% if selected == "AED" %} selected{% endif %}>AED — UAE Dirham</option>
+<option value="OTHER"{% if selected == "OTHER" %} selected{% endif %}>Other…</option>
