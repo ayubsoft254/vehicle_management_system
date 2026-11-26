@@ -264,7 +264,32 @@
                         </div>
                     </div>
 
-                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Charges (USD)</p>
+                    <!-- Currency the supplier's invoice is in; the ledger converts it to USD at this rate -->
+                    <div id="japanEntryCurrency" data-entry-currency data-ec-scope="#japan-supplier-price-row"
+                        class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-5">
+                        <div>
+                            <label for="japan_currency" class="block text-sm font-medium text-gray-700 mb-1">Charges Currency</label>
+                            <select name="japan_currency" id="japan_currency" data-ec-select
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                {% include 'includes/_entry_currency_options.html' with selected=japan_record_values.currency %}
+                            </select>
+                            <input type="text" name="japan_currency_other" id="japan_currency_other" data-ec-other
+                                maxlength="3" value="{{ japan_record_values.currency_other }}" placeholder="Currency code, e.g. THB"
+                                class="hidden mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg uppercase focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <p class="text-xs text-gray-400 mt-1">Enter the charges as they appear on the supplier's invoice.</p>
+                        </div>
+                        <div data-ec-rate-wrap class="hidden">
+                            <label for="japan_exchange_rate" class="block text-sm font-medium text-gray-700 mb-1">
+                                Exchange Rate <span class="text-gray-400 font-normal">(<span data-ec-code>USD</span> per 1 USD)</span>
+                            </label>
+                            <input type="number" name="japan_exchange_rate" id="japan_exchange_rate" data-ec-rate
+                                step="any" min="0" value="{{ japan_record_values.exchange_rate }}" placeholder="e.g. 150"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <p data-ec-status class="text-xs text-gray-400 mt-1"></p>
+                        </div>
+                    </div>
+
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Charges (<span data-ec-code>USD</span>)</p>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-5">
                         {% include 'vehicles/includes/japan_charge_input.html' with field='push_auction_charges' label='Push Auction Charges' value=japan_record_values.push_auction_charges %}
                         <div>
@@ -308,19 +333,21 @@
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
                         <div class="sm:col-start-3">
                             <label for="japan_supplier_price_usd" class="block text-sm font-semibold text-gray-800 mb-1">
-                                Total Amount (USD) <span class="text-red-500">*</span>
+                                Total Amount (<span data-ec-code>USD</span>) <span class="text-red-500">*</span>
                             </label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <span class="text-gray-400 text-sm font-medium">$</span>
+                                    <span class="text-gray-400 text-sm font-medium" data-ec-symbol>$</span>
                                 </div>
+                                {# Named _usd for history: holds the total in the charges currency #}
                                 <input type="number" name="japan_supplier_price_usd" id="japan_supplier_price_usd"
                                     step="0.01" min="0"
                                     value="{{ existing_japan_supplier_price_usd }}"
                                     placeholder="e.g. 8500"
                                     class="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg font-semibold focus:ring-2 focus:ring-primary-500 focus:border-transparent read-only:bg-gray-50"
-                                    oninput="syncSupplierUsdToTracking()">
+                                    data-ec-pad oninput="syncSupplierUsdToTracking()">
                             </div>
+                            <p id="japanUsdEquivalent" class="hidden text-xs font-medium text-indigo-600 mt-1"></p>
                             <p id="japanTotalHint" class="text-xs text-gray-400 mt-1">Auto-fills the {{ brand.currency }} purchase price below using the live rate.</p>
                         </div>
                     </div>
@@ -329,7 +356,7 @@
                 <!-- Step 2: Exchange Rate Panel -->
                 <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-5">
                     <div class="flex items-center justify-between mb-2">
-                        <p class="text-sm font-semibold text-amber-800">USD / {{ brand.currency }} Exchange Rate</p>
+                        <p class="text-sm font-semibold text-amber-800">Exchange Rates <span class="font-normal text-amber-700">(USD / {{ brand.currency }})</span></p>
                         <button type="button" id="fetchRateBtn"
                             class="px-3 py-1 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition flex items-center gap-1">
                             <i class="fas fa-sync-alt"></i> Fetch Live Rate
@@ -362,6 +389,34 @@
                                 <p id="usdKesEquivalent" class="text-sm font-bold text-gray-800">—</p>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Other currencies (reference conversions; the supplier currency's row edits its rate) -->
+                    <div class="mt-4 pt-3 border-t border-amber-200">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <p class="text-xs font-semibold text-amber-800 uppercase tracking-wide">
+                                Other Currencies <span class="font-normal normal-case text-amber-700">(rate per 1 USD)</span>
+                            </p>
+                            <div class="flex items-center gap-2">
+                                <select id="fxAddSelect" aria-label="Currency to add"
+                                    class="px-2 py-1 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500">
+                                    <option value="JPY">JPY</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="GBP">GBP</option>
+                                    <option value="CNY">CNY</option>
+                                    <option value="AED">AED</option>
+                                    <option value="OTHER">Other…</option>
+                                </select>
+                                <input type="text" id="fxAddOther" maxlength="3" placeholder="e.g. THB" aria-label="Currency code"
+                                    class="hidden w-20 px-2 py-1 border border-gray-300 rounded-lg text-xs uppercase focus:ring-2 focus:ring-amber-500">
+                                <button type="button" id="fxAddBtn"
+                                    class="px-3 py-1 text-xs bg-white border border-amber-300 text-amber-800 rounded-lg hover:bg-amber-100 transition flex items-center gap-1">
+                                    <i class="fas fa-plus"></i> Add currency
+                                </button>
+                            </div>
+                        </div>
+                        <div id="fxRows" class="space-y-2"></div>
+                        <p id="fxEmpty" class="hidden text-xs text-gray-500">No other currencies — add one to see its rate.</p>
                     </div>
                 </div>
                 {% endif %}
@@ -738,6 +793,7 @@
     </div>
 </div>
 
+<script src="{% static 'js/entry_currency.js' %}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
@@ -961,6 +1017,9 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <script>
+// Home (ledger) currency of this deployment, used by the exchange-rate panel.
+const HOME_CURRENCY = '{{ brand.currency|escapejs }}';
+
 function toggleJapanSupplierPrice() {
     const select = document.getElementById('japan_supplier_id');
     const row = document.getElementById('japan-supplier-price-row');
@@ -974,20 +1033,56 @@ function toggleJapanSupplierPrice() {
         // Clear the tracking panel USD field when supplier is removed
         const trackingUsd = document.getElementById('id_purchase_price_usd');
         if (trackingUsd) trackingUsd.value = '';
+        showJapanUsdEquivalent();
     }
 }
 
-// Called from oninput on the supplier price field — user is actively changing it
-function syncSupplierUsdToTracking() {
-    const supplierUsd = document.getElementById('japan_supplier_price_usd');
-    const trackingUsd = document.getElementById('id_purchase_price_usd');
-    if (supplierUsd && trackingUsd) {
-        trackingUsd.value = supplierUsd.value;
-        // Dispatch with forceKes marker so updateEquiv overwrites the KES field
-        const evt = new Event('input');
-        evt._forceKes = true;
-        trackingUsd.dispatchEvent(evt);
+function fmtMoney(n, maxDigits) {
+    return n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: maxDigits || 2});
+}
+
+// Currency the Japan charges are entered in, and its rate per 1 USD (1 for USD, 0 if not yet known).
+function japanEntry() {
+    const w = window.EntryCurrency && EntryCurrency.of(document.getElementById('japanEntryCurrency'));
+    return w ? { code: w.code(), rate: w.rateValue(), widget: w } : { code: 'USD', rate: 1, widget: null };
+}
+
+// The supplier total converted to USD (string with 2 dp), or '' when it can't be worked out.
+function japanTotalUsd() {
+    const totalEl = document.getElementById('japan_supplier_price_usd');
+    const total = parseFloat(totalEl && totalEl.value) || 0;
+    const entry = japanEntry();
+    if (!(total > 0) || !(entry.rate > 0)) return '';
+    return (Math.round(total / entry.rate * 100) / 100).toFixed(2);
+}
+
+function showJapanUsdEquivalent() {
+    const out = document.getElementById('japanUsdEquivalent');
+    const totalEl = document.getElementById('japan_supplier_price_usd');
+    if (!out) return;
+    const entry = japanEntry();
+    const total = parseFloat(totalEl && totalEl.value) || 0;
+    if (entry.code === 'USD' || !(total > 0)) {
+        out.classList.add('hidden');
+        return;
     }
+    const usd = japanTotalUsd();
+    out.textContent = usd
+        ? '≈ USD ' + fmtMoney(parseFloat(usd)) + ' at ' + entry.rate + ' ' + entry.code + ' per USD (recorded in the supplier ledger)'
+        : 'Enter the exchange rate to convert this total to USD.';
+    out.classList.remove('hidden');
+}
+
+// User changed the total or its currency: push the USD value to the tracking panel,
+// which then overwrites the KES purchase price.
+function syncSupplierUsdToTracking() {
+    showJapanUsdEquivalent();
+    const trackingUsd = document.getElementById('id_purchase_price_usd');
+    if (!trackingUsd) return;
+    trackingUsd.value = japanTotalUsd();
+    const evt = new Event('input');
+    evt._forceKes = true;
+    trackingUsd.dispatchEvent(evt);
 }
 
 // Sums the itemised Japan buyer charges (plus their tax %) into the total.
@@ -995,6 +1090,7 @@ function syncSupplierUsdToTracking() {
 function recalcJapanSupplierTotal(sync) {
     const totalEl = document.getElementById('japan_supplier_price_usd');
     if (!totalEl) return;
+    const symbol = window.UsdRates ? UsdRates.symbol(japanEntry().code) : '$';
     let total = 0;
     document.querySelectorAll('[data-japan-charge]').forEach(function (el) {
         total += parseFloat(el.value) || 0;
@@ -1004,33 +1100,214 @@ function recalcJapanSupplierTotal(sync) {
         const tax = Math.round(base * (parseFloat(el.value) || 0)) / 100;
         total += tax;
         const out = document.querySelector('[data-japan-tax-amount="' + el.id + '"]');
-        if (out) out.textContent = '$' + tax.toFixed(2);
+        if (out) out.textContent = symbol + (symbol.length > 1 ? ' ' : '') + tax.toFixed(2);
     });
     const hint = document.getElementById('japanTotalHint');
     if (total > 0) {
         totalEl.value = total.toFixed(2);
         totalEl.readOnly = true;
-        if (hint) hint.textContent = 'Calculated from the charges above. Auto-fills the {{ brand.currency }} purchase price below.';
+        if (hint) hint.textContent = 'Calculated from the charges above. Auto-fills the ' + HOME_CURRENCY + ' purchase price below.';
     } else {
         if (totalEl.readOnly) totalEl.value = '';
         totalEl.readOnly = false;
-        if (hint) hint.textContent = 'Auto-fills the {{ brand.currency }} purchase price below using the live rate.';
+        if (hint) hint.textContent = 'Auto-fills the ' + HOME_CURRENCY + ' purchase price below using the live rate.';
     }
     if (sync) syncSupplierUsdToTracking();
+    else showJapanUsdEquivalent();
 }
 
 document.addEventListener('draft-restored', function () { recalcJapanSupplierTotal(false); });
 
+// Charges currency or its rate changed. Charges entered in the home currency use the
+// panel's home rate so the round trip back to the purchase price is exact.
+document.addEventListener('entrycurrencychange', function (e) {
+    if (!e.target || e.target.id !== 'japanEntryCurrency') return;
+    const w = japanEntry().widget;
+    const homeRateEl = document.getElementById('id_purchase_usd_rate');
+    if (w && e.detail.code === HOME_CURRENCY && !w.userRate && homeRateEl && homeRateEl.value
+            && w.rate.value !== homeRateEl.value) {
+        w.rate.value = homeRateEl.value;
+        w.setStatus('Same as the ' + HOME_CURRENCY + ' rate below.');
+        w.emit(e.detail.user);
+        return;
+    }
+    recalcJapanSupplierTotal(e.detail.user);
+});
+
 document.addEventListener('DOMContentLoaded', function () {
     toggleJapanSupplierPrice();
     recalcJapanSupplierTotal(false);
-    // On page load: silently mirror supplier price into the tracking USD field
+    // On page load: silently mirror the supplier total (as USD) into the tracking USD field
     // so the KES-equivalent display is correct, but do NOT overwrite an existing KES price.
-    const supplierUsd = document.getElementById('japan_supplier_price_usd');
     const trackingUsd = document.getElementById('id_purchase_price_usd');
-    if (supplierUsd && supplierUsd.value && trackingUsd && !trackingUsd.value) {
-        trackingUsd.value = supplierUsd.value;
+    const usd = japanTotalUsd();
+    if (usd && trackingUsd && !trackingUsd.value) {
+        trackingUsd.value = usd;
     }
+
+    // ── Other currencies in the exchange-rate panel ──────────────────────
+    (function () {
+        const rowsEl = document.getElementById('fxRows');
+        if (!rowsEl || !window.UsdRates) return;
+        const STORE_KEY = 'vms_fx_panel_currencies';
+        const emptyEl = document.getElementById('fxEmpty');
+        const homeRateEl = document.getElementById('id_purchase_usd_rate');
+        const usdEl = document.getElementById('id_purchase_price_usd');
+        const addSel = document.getElementById('fxAddSelect');
+        const addOther = document.getElementById('fxAddOther');
+        const addBtn = document.getElementById('fxAddBtn');
+        const fetchBtn = document.getElementById('fetchRateBtn');
+        let liveRates = null;
+
+        function valid(code) { return /^[A-Z]{3}$/.test(code) && code !== 'USD' && code !== HOME_CURRENCY; }
+        function loadList() {
+            try {
+                const saved = JSON.parse(window.localStorage.getItem(STORE_KEY) || 'null');
+                if (Array.isArray(saved)) return saved.filter(valid);
+            } catch (e) { /* default below */ }
+            return ['JPY'];
+        }
+        function saveList() {
+            try { window.localStorage.setItem(STORE_KEY, JSON.stringify(list)); } catch (e) { /* per-viewer only */ }
+        }
+        let list = loadList();
+
+        function supplierCode() {
+            const select = document.getElementById('japan_supplier_id');
+            if (!select || !select.value) return null;
+            const code = japanEntry().code;
+            return valid(code) ? code : null;
+        }
+
+        function buildRow(code) {
+            const row = document.createElement('div');
+            row.dataset.fxRow = code;
+            row.className = 'grid grid-cols-2 sm:grid-cols-4 gap-3 items-center bg-white border border-gray-200 rounded-lg px-3 py-2';
+            row.innerHTML =
+                '<div class="text-sm font-semibold text-gray-800">' + code +
+                '  <span data-fx-badge class="hidden ml-1 text-[10px] font-medium uppercase bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">Supplier</span></div>' +
+                '<div><input type="number" step="any" min="0" placeholder="' + code + ' per 1 USD" aria-label="' + code + ' per 1 USD"' +
+                '  class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500">' +
+                '  <p class="text-[11px] text-gray-400 mt-0.5">' + code + ' per 1 USD</p></div>' +
+                '<div class="text-xs text-gray-600" data-fx-home>—</div>' +
+                '<div class="flex items-center justify-between gap-2 text-xs text-gray-600">' +
+                '  <span><span class="text-gray-400">Purchase ≈</span> <span data-fx-purchase class="font-semibold text-gray-800">—</span></span>' +
+                '  <button type="button" data-fx-remove class="text-gray-400 hover:text-red-600" title="Remove ' + code + '"><i class="fas fa-times"></i></button></div>';
+            const input = row.querySelector('input');
+            if (liveRates && liveRates[code]) input.value = UsdRates.formatRate(liveRates[code]);
+            input.addEventListener('input', function () {
+                // The supplier currency's row edits the rate the charges are recorded at.
+                if (code === supplierCode()) {
+                    const w = japanEntry().widget;
+                    if (w) {
+                        w.rate.value = input.value;
+                        w.userRate = true;
+                        w.setStatus('');
+                        w.emit(true);
+                    }
+                }
+                update();
+            });
+            row.querySelector('[data-fx-remove]').addEventListener('click', function () {
+                list = list.filter(function (c) { return c !== code; });
+                saveList();
+                render();
+            });
+            return row;
+        }
+
+        function update() {
+            const home = parseFloat(homeRateEl && homeRateEl.value) || 0;
+            const usd = parseFloat(usdEl && usdEl.value) || 0;
+            const supplier = supplierCode();
+            const w = japanEntry().widget;
+            rowsEl.querySelectorAll('[data-fx-row]').forEach(function (row) {
+                const code = row.dataset.fxRow;
+                const input = row.querySelector('input');
+                const isSupplier = code === supplier;
+                if (isSupplier && w && document.activeElement !== input) input.value = w.rate.value;
+                const rate = parseFloat(input.value) || 0;
+                row.querySelector('[data-fx-home]').textContent =
+                    rate && home ? '1 ' + code + ' = ' + HOME_CURRENCY + ' ' + fmtMoney(home / rate, 4) : '—';
+                // The supplier currency shows the invoice total itself (no USD round trip).
+                const supplierTotal = parseFloat((document.getElementById('japan_supplier_price_usd') || {}).value) || 0;
+                const purchase = isSupplier && supplierTotal ? supplierTotal : (rate && usd ? usd * rate : 0);
+                row.querySelector('[data-fx-purchase]').textContent = purchase ? code + ' ' + fmtMoney(purchase) : '—';
+                row.querySelector('[data-fx-badge]').classList.toggle('hidden', !isSupplier);
+                row.querySelector('[data-fx-remove]').classList.toggle('invisible', isSupplier && list.indexOf(code) < 0);
+            });
+        }
+
+        function render() {
+            const supplier = supplierCode();
+            const want = list.slice();
+            if (supplier && want.indexOf(supplier) < 0) want.unshift(supplier);
+            const existing = {};
+            rowsEl.querySelectorAll('[data-fx-row]').forEach(function (row) { existing[row.dataset.fxRow] = row; });
+            Object.keys(existing).forEach(function (code) {
+                if (want.indexOf(code) < 0) existing[code].remove();
+            });
+            want.forEach(function (code) { rowsEl.appendChild(existing[code] || buildRow(code)); });
+            if (emptyEl) emptyEl.classList.toggle('hidden', want.length > 0);
+            update();
+        }
+
+        function fillLive(force) {
+            UsdRates.get(force).then(function (data) {
+                liveRates = data.rates;
+                const supplier = supplierCode();
+                rowsEl.querySelectorAll('[data-fx-row]').forEach(function (row) {
+                    const input = row.querySelector('input');
+                    const rate = liveRates[row.dataset.fxRow];
+                    if (row.dataset.fxRow !== supplier && rate && (force || !input.value)) {
+                        input.value = UsdRates.formatRate(rate);
+                    }
+                });
+                update();
+            }).catch(function () { /* rows stay editable by hand */ });
+        }
+
+        addSel.addEventListener('change', function () {
+            addOther.classList.toggle('hidden', addSel.value !== 'OTHER');
+            if (addSel.value === 'OTHER') addOther.focus();
+        });
+        addOther.addEventListener('input', function () {
+            addOther.value = addOther.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+        });
+        addBtn.addEventListener('click', function () {
+            const code = addSel.value === 'OTHER' ? addOther.value : addSel.value;
+            if (!valid(code)) { addOther.focus(); return; }
+            if (list.indexOf(code) < 0) list.push(code);
+            saveList();
+            addOther.value = '';
+            render();
+            fillLive(false);
+        });
+        if (fetchBtn) fetchBtn.addEventListener('click', function () {
+            fillLive(true);
+            const w = japanEntry().widget;
+            if (w && !w.userRate) w.fillLive(true);
+        });
+        if (homeRateEl) homeRateEl.addEventListener('input', function () {
+            // Charges entered in the home currency follow the panel's home rate.
+            const entry = japanEntry();
+            if (entry.widget && entry.code === HOME_CURRENCY && !entry.widget.userRate) {
+                entry.widget.rate.value = homeRateEl.value;
+                entry.widget.emit(true);
+            }
+            update();
+        });
+        if (usdEl) usdEl.addEventListener('input', update);
+        document.addEventListener('entrycurrencychange', function (e) {
+            if (e.target && e.target.id === 'japanEntryCurrency') render();
+        });
+        const supplierSelect = document.getElementById('japan_supplier_id');
+        if (supplierSelect) supplierSelect.addEventListener('change', render);
+        document.addEventListener('draft-restored', render);
+
+        render();
+        fillLive(false);
+    })();
 });
 </script>
 
