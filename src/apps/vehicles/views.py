@@ -98,6 +98,21 @@ def _sync_vehicle_extra_costs(vehicle, entries, user):
 _JAPAN_RECORD_TEXT_FIELDS = ['auction_name', 'bid_number']
 _JAPAN_RECORD_AMOUNT_FIELDS = JapanSupplierRecord.CHARGE_FIELDS + JapanSupplierRecord.TAX_FIELDS
 _JAPAN_RECORD_FORM_FIELDS = ['date'] + _JAPAN_RECORD_TEXT_FIELDS + _JAPAN_RECORD_AMOUNT_FIELDS
+_JAPAN_RECORD_CURRENCY_FIELDS = ['currency', 'currency_other', 'exchange_rate']
+
+
+def _japan_currency_ok(post_data, form):
+    """Validate the Japan supplier entry currency/rate; adds a form error if bad."""
+    from utils.currency import parse_entry_currency
+
+    if not post_data.get('japan_supplier_id'):
+        return True
+    try:
+        parse_entry_currency(post_data, 'japan_')
+    except ValueError as exc:
+        form.add_error(None, f'Japan supplier charges: {exc}')
+        return False
+    return True
 
 
 def _parse_non_negative_decimal(value):
@@ -113,8 +128,11 @@ def _save_japan_supplier_record(post_data, vehicle, fallback_date):
 
     When any itemised charge is entered the total is recomputed from them, so the
     ledger can never disagree with the breakdown; otherwise the typed total is used.
+    Charges are kept in the currency they were entered in; the ledger amount
+    (purchase_price) is that total converted to USD at the entered rate.
     """
     from django.utils.dateparse import parse_date
+    from utils.currency import parse_entry_currency, to_usd
 
     supplier_id = post_data.get('japan_supplier_id')
     if not supplier_id:
@@ -124,8 +142,15 @@ def _save_japan_supplier_record(post_data, vehicle, fallback_date):
     except (JapanSupplier.DoesNotExist, ValueError):
         return
 
+    try:
+        entry_currency, entry_rate = parse_entry_currency(post_data, 'japan_')
+    except ValueError:
+        return  # the views validate this first (_japan_currency_ok)
+
     record = JapanSupplierRecord.objects.filter(vehicle=vehicle).first() or JapanSupplierRecord(vehicle=vehicle)
     record.supplier = supplier
+    record.currency = entry_currency
+    record.exchange_rate = entry_rate
     for field in _JAPAN_RECORD_AMOUNT_FIELDS:
         setattr(record, field, _parse_non_negative_decimal(post_data.get(f'japan_{field}')))
     for field in JapanSupplierRecord.TAX_FIELDS:
@@ -139,20 +164,34 @@ def _save_japan_supplier_record(post_data, vehicle, fallback_date):
         record.date = fallback_date
 
     if record.charges_total > 0:
-        record.purchase_price = record.charges_total
+        entered_total = record.charges_total
     else:
+        # Typed total, in the entry currency (field name predates multi-currency)
         typed_total = (post_data.get('japan_supplier_price_usd') or '').strip()
         if not typed_total:
             return
-        record.purchase_price = _parse_non_negative_decimal(typed_total)
+        entered_total = _parse_non_negative_decimal(typed_total)
+    record.original_amount = entered_total
+    record.purchase_price = to_usd(entered_total, entry_rate)
     record.save()
 
 
 def _japan_supplier_form_values(request, record):
     """Pre-fill values for the breakdown: the POST on a failed submit, else the saved record."""
+    from utils.currency import FOREIGN_ENTRY_CURRENCIES
+
     if request.method == 'POST':
-        return {f: request.POST.get(f'japan_{f}', '') for f in _JAPAN_RECORD_FORM_FIELDS}
-    values = {}
+        return {
+            f: request.POST.get(f'japan_{f}', '')
+            for f in _JAPAN_RECORD_FORM_FIELDS + _JAPAN_RECORD_CURRENCY_FIELDS
+        }
+    values = {'currency': 'USD', 'currency_other': '', 'exchange_rate': ''}
+    if record and record.currency != 'USD':
+        if record.currency in FOREIGN_ENTRY_CURRENCIES:
+            values['currency'] = record.currency
+        else:
+            values['currency'], values['currency_other'] = 'OTHER', record.currency
+        values['exchange_rate'] = format(record.exchange_rate.normalize(), 'f')
     for field in _JAPAN_RECORD_FORM_FIELDS:
         value = getattr(record, field, None) if record else None
         if field == 'date':
@@ -506,7 +545,7 @@ def vehicle_create_view(request):
         form = VehicleForm(request.POST, request.FILES, can_view_prices=can_view_prices)
         print("Form created, checking validity...")
         
-        if form.is_valid():
+        if form.is_valid() and _japan_currency_ok(request.POST, form):
             print("✓ Form is VALID!")
             extra_cost_entries, extra_cost_total = _extract_extra_cost_entries(request.POST)
 
@@ -617,7 +656,7 @@ def vehicle_update_view(request, pk):
     
     if request.method == 'POST':
         form = VehicleForm(request.POST, request.FILES, instance=vehicle, can_view_prices=can_view_prices)
-        if form.is_valid():
+        if form.is_valid() and _japan_currency_ok(request.POST, form):
             extra_cost_entries, extra_cost_total = _extract_extra_cost_entries(request.POST)
 
             vehicle = form.save(commit=False)
@@ -696,8 +735,9 @@ def vehicle_update_view(request, pk):
         _existing_japan_supplier_price_usd = request.POST.get('japan_supplier_price_usd', '')
     else:
         _existing_japan_supplier_id = existing_supplier_record.supplier_id if existing_supplier_record else None
-        # Convert Decimal to plain string so Django template won't add thousand separators
-        _price = existing_supplier_record.purchase_price if existing_supplier_record else None
+        # Convert Decimal to plain string so Django template won't add thousand separators.
+        # The form shows the total in the currency it was entered in.
+        _price = existing_supplier_record.entered_total if existing_supplier_record else None
         _existing_japan_supplier_price_usd = str(_price) if _price is not None else ''
 
     context = {
@@ -1812,6 +1852,13 @@ def japan_supplier_ledger_list(request):
     return render(request, 'vehicles/japan_supplier_ledger_list.html', context)
 
 
+def _foreign_entry_note(obj, original_amount):
+    """' (JPY 1,200,000.00 @ 150/USD)' for supplier entries not made in USD."""
+    if obj.currency == 'USD' or original_amount is None:
+        return ''
+    return f' ({obj.currency} {original_amount:,.2f} @ {obj.exchange_rate.normalize():f}/USD)'
+
+
 def _japan_supplier_statement(supplier, date_from, date_to, vehicle_search=''):
     """Shared by the on-screen detail view and its PDF export so they never disagree."""
     from utils.ledger import make_entry, build_statement
@@ -1828,7 +1875,7 @@ def _japan_supplier_statement(supplier, date_from, date_to, vehicle_search=''):
     entries = [
         make_entry(
             r.date,
-            'Vehicle purchased from supplier',
+            'Vehicle purchased from supplier' + _foreign_entry_note(r, r.entered_total),
             credit=r.purchase_price,
             reference=f'SUP-{r.pk}',
             related=str(r.vehicle),
@@ -1840,7 +1887,7 @@ def _japan_supplier_statement(supplier, date_from, date_to, vehicle_search=''):
     ] + [
         make_entry(
             p.payment_date,
-            'Payment to supplier',
+            'Payment to supplier' + _foreign_entry_note(p, p.original_amount),
             debit=p.amount,
             reference=p.reference_number or f'PAY-{p.pk}',
             method=p.get_payment_method_display(),
@@ -1943,6 +1990,8 @@ def record_japan_supplier_payment(request, supplier_pk):
     if request.method != 'POST':
         messages.error(request, 'Method not allowed.')
         return redirect('vehicles:japan_supplier_ledger_detail', pk=supplier_pk)
+    from utils.currency import parse_entry_currency, to_usd
+
     supplier = get_object_or_404(JapanSupplier, pk=supplier_pk)
     amount_str = request.POST.get('amount', '').strip()
     payment_method = request.POST.get('payment_method', 'bank_transfer')
@@ -1950,8 +1999,14 @@ def record_japan_supplier_payment(request, supplier_pk):
     notes = request.POST.get('notes', '').strip()
     payment_date_str = request.POST.get('payment_date', '').strip()
     try:
-        amount = Decimal(amount_str)
-        if amount <= 0:
+        paid_currency, paid_rate = parse_entry_currency(request.POST, '')
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect('vehicles:japan_supplier_ledger_detail', pk=supplier_pk)
+    try:
+        paid_amount = Decimal(amount_str.replace(',', '')).quantize(Decimal('0.01'))
+        amount = to_usd(paid_amount, paid_rate)  # the ledger nets in USD
+        if paid_amount <= 0 or amount <= 0:
             raise ValueError
     except Exception:
         messages.error(request, 'Invalid payment amount.')
@@ -1967,6 +2022,9 @@ def record_japan_supplier_payment(request, supplier_pk):
         JapanSupplierPayment.objects.create(
             supplier=supplier,
             amount=amount,
+            currency=paid_currency,
+            exchange_rate=paid_rate,
+            original_amount=paid_amount,
             payment_method=payment_method,
             reference_number=reference_number,
             notes=notes,
@@ -1990,14 +2048,17 @@ def record_japan_supplier_payment(request, supplier_pk):
             else:
                 break
 
+    paid_label = f'USD {amount:,.2f}'
+    if paid_currency != 'USD':
+        paid_label = f'{paid_currency} {paid_amount:,.2f} (USD {amount:,.2f})'
     if records_cleared:
         messages.success(
             request,
-            f'Payment of {currency()} {amount:,.2f} recorded for {supplier.name}. '
+            f'Payment of {paid_label} recorded for {supplier.name}. '
             f'{records_cleared} vehicle(s) marked as settled.'
         )
     else:
-        messages.success(request, f'Payment of {currency()} {amount:,.2f} recorded for {supplier.name}.')
+        messages.success(request, f'Payment of {paid_label} recorded for {supplier.name}.')
     return redirect('vehicles:japan_supplier_ledger_detail', pk=supplier_pk)
 
 
