@@ -99,3 +99,9 @@ def parse_entry_currency(post_data, prefix, home='KES', home_usd_rate=None):
 def to_usd(amount, usd_per_unit):
     """Amount worth `usd_per_unit` USD per unit, as USD (2 dp, half-up)."""
     return (Decimal(amount) * Decimal(usd_per_unit)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+
+def export_display(request, source='KES'):
+    """For ledger downloads: (currency, factor) chosen with ?currency=&currency_rate=
+    (see parse_display_currency) plus the currency the amounts are stored in."""
+    return parse_display_currency(request, source), source
