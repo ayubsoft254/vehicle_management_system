@@ -16,7 +16,7 @@
             {% url 'vehicles:party_ledger_export' 'broker' 'pdf' as export_pdf_url %}
             {% url 'vehicles:party_ledger_export' 'broker' 'excel' as export_excel_url %}
             {% url 'vehicles:party_ledger_export' 'broker' 'csv' as export_csv_url %}
-            {% include 'reports/partials/_export_bar.html' %}
+            {% include 'reports/partials/_export_bar.html' with export_currency=brand.currency %}
             {% if show_inactive %}
             <a href="{% url 'vehicles:broker_ledger_list' %}"
                class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">
