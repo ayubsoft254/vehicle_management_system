@@ -95,17 +95,31 @@ def _sync_vehicle_extra_costs(vehicle, entries, user):
 _JAPAN_RECORD_TEXT_FIELDS = ['auction_name', 'bid_number']
 _JAPAN_RECORD_AMOUNT_FIELDS = JapanSupplierRecord.CHARGE_FIELDS + JapanSupplierRecord.TAX_FIELDS
 _JAPAN_RECORD_FORM_FIELDS = ['date'] + _JAPAN_RECORD_TEXT_FIELDS + _JAPAN_RECORD_AMOUNT_FIELDS
-_JAPAN_RECORD_CURRENCY_FIELDS = ['currency', 'currency_other', 'exchange_rate']
+_JAPAN_RECORD_CURRENCY_FIELDS = ['currency', 'currency_other', 'exchange_rate', 'rate_currency']
+
+
+def _home_currency():
+    """Currency the vehicle purchase price is kept in."""
+    return 'KES'
+
+
+def _parse_japan_entry_currency(post_data):
+    """(currency, rate_currency, rate, usd_per_unit) for the vehicle form's Japan charges.
+    The form's own "1 USD = x <home>" rate converts home-currency rates to USD."""
+    from utils.currency import parse_entry_currency
+
+    return parse_entry_currency(
+        post_data, 'japan_', home=_home_currency(),
+        home_usd_rate=post_data.get('purchase_usd_rate') or None,
+    )
 
 
 def _japan_currency_ok(post_data, form):
     """Validate the Japan supplier entry currency/rate; adds a form error if bad."""
-    from utils.currency import parse_entry_currency
-
     if not post_data.get('japan_supplier_id'):
         return True
     try:
-        parse_entry_currency(post_data, 'japan_')
+        _parse_japan_entry_currency(post_data)
     except ValueError as exc:
         form.add_error(None, f'Japan supplier charges: {exc}')
         return False
@@ -126,10 +140,10 @@ def _save_japan_supplier_record(post_data, vehicle, fallback_date):
     When any itemised charge is entered the total is recomputed from them, so the
     ledger can never disagree with the breakdown; otherwise the typed total is used.
     Charges are kept in the currency they were entered in; the ledger amount
-    (purchase_price) is that total converted to USD at the entered rate.
+    (purchase_price) is that total converted to USD via the entered rate.
     """
     from django.utils.dateparse import parse_date
-    from utils.currency import parse_entry_currency, to_usd
+    from utils.currency import to_usd
 
     supplier_id = post_data.get('japan_supplier_id')
     if not supplier_id:
@@ -140,7 +154,7 @@ def _save_japan_supplier_record(post_data, vehicle, fallback_date):
         return
 
     try:
-        entry_currency, entry_rate = parse_entry_currency(post_data, 'japan_')
+        entry_currency, rate_currency, entry_rate, usd_per_unit = _parse_japan_entry_currency(post_data)
     except ValueError:
         return  # the views validate this first (_japan_currency_ok)
 
@@ -148,6 +162,7 @@ def _save_japan_supplier_record(post_data, vehicle, fallback_date):
     record.supplier = supplier
     record.currency = entry_currency
     record.exchange_rate = entry_rate
+    record.rate_currency = rate_currency
     for field in _JAPAN_RECORD_AMOUNT_FIELDS:
         setattr(record, field, _parse_non_negative_decimal(post_data.get(f'japan_{field}')))
     for field in JapanSupplierRecord.TAX_FIELDS:
@@ -169,7 +184,7 @@ def _save_japan_supplier_record(post_data, vehicle, fallback_date):
             return
         entered_total = _parse_non_negative_decimal(typed_total)
     record.original_amount = entered_total
-    record.purchase_price = to_usd(entered_total, entry_rate)
+    record.purchase_price = to_usd(entered_total, usd_per_unit)
     record.save()
 
 
@@ -182,13 +197,14 @@ def _japan_supplier_form_values(request, record):
             f: request.POST.get(f'japan_{f}', '')
             for f in _JAPAN_RECORD_FORM_FIELDS + _JAPAN_RECORD_CURRENCY_FIELDS
         }
-    values = {'currency': 'USD', 'currency_other': '', 'exchange_rate': ''}
+    values = {'currency': 'USD', 'currency_other': '', 'exchange_rate': '', 'rate_currency': ''}
     if record and record.currency != 'USD':
         if record.currency in FOREIGN_ENTRY_CURRENCIES:
             values['currency'] = record.currency
         else:
             values['currency'], values['currency_other'] = 'OTHER', record.currency
         values['exchange_rate'] = format(record.exchange_rate.normalize(), 'f')
+        values['rate_currency'] = record.rate_currency
     for field in _JAPAN_RECORD_FORM_FIELDS:
         value = getattr(record, field, None) if record else None
         if field == 'date':
@@ -1850,10 +1866,10 @@ def japan_supplier_ledger_list(request):
 
 
 def _foreign_entry_note(obj, original_amount):
-    """' (JPY 1,200,000.00 @ 150/USD)' for supplier entries not made in USD."""
+    """' (JPY 1,200,000.00 at 1 JPY = 0.82 KES)' for supplier entries not made in USD."""
     if obj.currency == 'USD' or original_amount is None:
         return ''
-    return f' ({obj.currency} {original_amount:,.2f} @ {obj.exchange_rate.normalize():f}/USD)'
+    return f' ({obj.currency} {original_amount:,.2f} at {obj.rate_label})'
 
 
 def _japan_supplier_statement(supplier, date_from, date_to, vehicle_search=''):
@@ -1996,13 +2012,15 @@ def record_japan_supplier_payment(request, supplier_pk):
     notes = request.POST.get('notes', '').strip()
     payment_date_str = request.POST.get('payment_date', '').strip()
     try:
-        paid_currency, paid_rate = parse_entry_currency(request.POST, '')
+        paid_currency, rate_currency, paid_rate, usd_per_unit = parse_entry_currency(
+            request.POST, '', home=_home_currency(),
+        )
     except ValueError as exc:
         messages.error(request, str(exc))
         return redirect('vehicles:japan_supplier_ledger_detail', pk=supplier_pk)
     try:
         paid_amount = Decimal(amount_str.replace(',', '')).quantize(Decimal('0.01'))
-        amount = to_usd(paid_amount, paid_rate)  # the ledger nets in USD
+        amount = to_usd(paid_amount, usd_per_unit)  # the ledger nets in USD
         if paid_amount <= 0 or amount <= 0:
             raise ValueError
     except Exception:
@@ -2021,6 +2039,7 @@ def record_japan_supplier_payment(request, supplier_pk):
             amount=amount,
             currency=paid_currency,
             exchange_rate=paid_rate,
+            rate_currency=rate_currency,
             original_amount=paid_amount,
             payment_method=payment_method,
             reference_number=reference_number,
