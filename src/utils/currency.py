@@ -47,28 +47,55 @@ def parse_display_currency(request, source='KES'):
 
 
 # ── Foreign-currency entry (Japan supplier charges and payments) ────────────
-# Staff can enter supplier amounts in any currency with a rate of
-# "<currency> per 1 USD"; the ledger itself stays in USD.
+# Staff enter supplier amounts in any currency with a direct rate,
+# "1 <currency> = <rate> <rate currency>" (e.g. 1 JPY = 0.82 KES). The supplier
+# ledger itself stays in USD, so the rate currency's USD value comes from the
+# page's own USD rate for the home currency, else the live rate the browser
+# posts (<prefix>quote_usd).
 
 FOREIGN_ENTRY_CURRENCIES = ['USD', 'JPY', 'KES', 'EUR', 'GBP', 'CNY', 'AED']
+_CODE_RE = re.compile(r'[A-Z]{3}')
 
 
-def parse_entry_currency(post_data, prefix):
-    """(currency, rate per 1 USD) from <prefix>currency / <prefix>currency_other /
-    <prefix>exchange_rate. Raises ValueError with a user-facing message."""
+def parse_entry_currency(post_data, prefix, home='KES', home_usd_rate=None):
+    """(currency, rate_currency, rate, usd_per_unit) from <prefix>currency /
+    <prefix>currency_other / <prefix>exchange_rate / <prefix>rate_currency /
+    <prefix>quote_usd. `home_usd_rate` is an on-page "1 USD = x <home>" rate.
+    Raises ValueError with a user-facing message."""
     code = (post_data.get(f'{prefix}currency') or 'USD').strip().upper()
     if code == 'OTHER':
         code = (post_data.get(f'{prefix}currency_other') or '').strip().upper()
-    if not re.fullmatch(r'[A-Z]{3}', code):
+    if not _CODE_RE.fullmatch(code):
         raise ValueError('Enter a valid 3-letter currency code (e.g. JPY).')
     if code == 'USD':
-        return code, Decimal('1')
-    rate = parse_rate(post_data.get(f'{prefix}exchange_rate', ''))
-    if not rate:
-        raise ValueError(f'Enter the exchange rate ({code} per 1 USD).')
-    return code, rate.quantize(Decimal('0.000001'))
+        return 'USD', 'USD', Decimal('1'), Decimal('1')
+
+    quote = (post_data.get(f'{prefix}rate_currency') or home or 'USD').strip().upper()
+    if not _CODE_RE.fullmatch(quote):
+        raise ValueError('Choose the currency the exchange rate converts to.')
+    if quote == code:
+        rate = Decimal('1')
+    else:
+        rate = parse_rate(post_data.get(f'{prefix}exchange_rate', ''))
+        if not rate:
+            raise ValueError(f'Enter the exchange rate (1 {code} = ? {quote}).')
+        rate = rate.quantize(Decimal('0.0000000001'))
+
+    home_rate = parse_rate(home_usd_rate) if home_usd_rate is not None else None
+    if quote == 'USD':
+        usd_per_quote = Decimal('1')
+    elif quote == home and home_rate:
+        usd_per_quote = Decimal('1') / home_rate
+    else:
+        usd_per_quote = parse_rate(post_data.get(f'{prefix}quote_usd', ''))
+        if not usd_per_quote:
+            raise ValueError(
+                f'Could not get a live {quote} rate to post this to the supplier ledger. '
+                'Check your connection and try again.'
+            )
+    return code, quote, rate, rate * usd_per_quote
 
 
-def to_usd(amount, rate):
-    """Amount in a currency quoted at `rate` per 1 USD, as USD (2 dp, half-up)."""
-    return (Decimal(amount) / Decimal(rate)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+def to_usd(amount, usd_per_unit):
+    """Amount worth `usd_per_unit` USD per unit, as USD (2 dp, half-up)."""
+    return (Decimal(amount) * Decimal(usd_per_unit)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
