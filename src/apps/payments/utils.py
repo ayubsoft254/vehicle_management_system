@@ -654,12 +654,20 @@ def generate_payment_tracker_pdf(client_vehicle, currency='KES', fx_rate=Decimal
     return response
 
 
-def generate_client_statement_pdf(client, rows, summary):
+def generate_client_statement_pdf(client, rows, summary, display=None):
     """
+    `display` (utils.currency.export_display) converts the amounts into the
+    currency picked for the download.
     Generate a client ledger statement PDF from the same (rows, summary) data
     produced by apps.clients.utils.build_client_ledger, so the PDF always
     matches the on-screen statement and its CSV/Excel exports.
     """
+    (cur, fx), source = display or (('KES', Decimal('1')), 'KES')
+    fx = Decimal(str(fx))
+
+    def money(amount):
+        return format_currency(((amount or Decimal('0')) * fx).quantize(Decimal('0.01')), cur)
+
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer, pagesize=A4,
@@ -681,14 +689,16 @@ def generate_client_statement_pdf(client, rows, summary):
     <b>Phone:</b> {_esc(client.phone_primary) or '—'}<br/>
     <b>Generated:</b> {timezone.localtime().strftime('%d %B %Y')}
     """
+    if fx != 1:
+        info_text += f"<br/><b>Amounts in {_esc(cur)}</b> (converted at 1 {_esc(source)} = {fx.normalize():f} {_esc(cur)})"
     elements.append(Paragraph(info_text, styles['Normal']))
     elements.append(Spacer(1, 0.2 * inch))
 
     summary_data = [
-        ['Total Expected:', format_currency(summary['total_expected'])],
-        ['Total Paid:', format_currency(summary['total_paid'])],
-        ['Outstanding Balance:', format_currency(summary['outstanding'])],
-        ['Overpayment:', format_currency(summary['overpayment'])],
+        ['Total Expected:', money(summary['total_expected'])],
+        ['Total Paid:', money(summary['total_paid'])],
+        ['Outstanding Balance:', money(summary['outstanding'])],
+        ['Overpayment:', money(summary['overpayment'])],
         ['Payment Status:', summary['payment_status']],
     ]
     summary_table = Table(summary_data, colWidths=[2.5 * inch, 3.5 * inch])
@@ -711,9 +721,9 @@ def generate_client_statement_pdf(client, rows, summary):
             row['reference'] or '',
             row['type_label'],
             (row['related_vehicle'].registration_number or row['related_vehicle'].vin) if row['related_vehicle'] else '',
-            format_currency(row['debit']) if row['debit'] else '',
-            format_currency(row['credit']) if row['credit'] else '',
-            format_currency(row['running_balance']),
+            money(row['debit']) if row['debit'] else '',
+            money(row['credit']) if row['credit'] else '',
+            money(row['running_balance']),
         ])
     if not rows:
         ledger_data.append(['No transactions recorded yet.', '', '', '', '', '', ''])
