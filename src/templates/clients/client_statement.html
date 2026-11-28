@@ -22,20 +22,21 @@
            class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition duration-150 ease-in-out">
             <i class="fas fa-arrow-left mr-2"></i> Back to Client
         </a>
-        <div class="flex flex-wrap gap-2">
-            <a href="{% url 'payments:client_statement_pdf' client.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}&vehicle={{ vehicle_pk|default:'' }}&payment_method={{ payment_method|default:'' }}"
+        <div class="flex flex-wrap items-center gap-2">
+            {% include 'includes/_export_currency_picker.html' with source="KES" %}
+            <a data-export-link href="{% url 'payments:client_statement_pdf' client.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}&vehicle={{ vehicle_pk|default:'' }}&payment_method={{ payment_method|default:'' }}"
                     class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-print mr-2"></i> Print
             </a>
-            <a href="{% url 'clients:export_client_ledger_csv' client.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}&vehicle={{ vehicle_pk|default:'' }}&payment_method={{ payment_method|default:'' }}"
+            <a data-export-link href="{% url 'clients:export_client_ledger_csv' client.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}&vehicle={{ vehicle_pk|default:'' }}&payment_method={{ payment_method|default:'' }}"
                class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-file-csv mr-2"></i> CSV
             </a>
-            <a href="{% url 'clients:export_client_ledger_excel' client.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}&vehicle={{ vehicle_pk|default:'' }}&payment_method={{ payment_method|default:'' }}"
+            <a data-export-link href="{% url 'clients:export_client_ledger_excel' client.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}&vehicle={{ vehicle_pk|default:'' }}&payment_method={{ payment_method|default:'' }}"
                class="inline-flex items-center px-4 py-2 bg-green-700 hover:bg-green-800 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-file-excel mr-2"></i> Excel
             </a>
-            <a href="{% url 'payments:client_statement_pdf' client.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}&vehicle={{ vehicle_pk|default:'' }}&payment_method={{ payment_method|default:'' }}"
+            <a data-export-link href="{% url 'payments:client_statement_pdf' client.pk %}?date_from={{ date_from|default:'' }}&date_to={{ date_to|default:'' }}&vehicle={{ vehicle_pk|default:'' }}&payment_method={{ payment_method|default:'' }}"
                class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-150 ease-in-out shadow-sm">
                 <i class="fas fa-file-pdf mr-2"></i> PDF
             </a>
