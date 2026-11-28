@@ -1,0 +1,9 @@
+{# <option>s for the currency an exchange rate converts to ("1 JPY = x KES"). Params: home (listed first; default selection), selected. #}
+{% if home and home not in "USD JPY KES EUR GBP CNY AED" %}<option value="{{ home }}"{% if not selected or selected == home %} selected{% endif %}>{{ home }}</option>{% endif %}
+<option value="KES"{% if selected == "KES" or not selected and home == "KES" %} selected{% endif %}>KES</option>
+<option value="USD"{% if selected == "USD" or not selected and home == "USD" %} selected{% endif %}>USD</option>
+<option value="JPY"{% if selected == "JPY" or not selected and home == "JPY" %} selected{% endif %}>JPY</option>
+<option value="EUR"{% if selected == "EUR" or not selected and home == "EUR" %} selected{% endif %}>EUR</option>
+<option value="GBP"{% if selected == "GBP" or not selected and home == "GBP" %} selected{% endif %}>GBP</option>
+<option value="CNY"{% if selected == "CNY" or not selected and home == "CNY" %} selected{% endif %}>CNY</option>
+<option value="AED"{% if selected == "AED" or not selected and home == "AED" %} selected{% endif %}>AED</option>
