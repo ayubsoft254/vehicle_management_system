@@ -3789,7 +3789,8 @@ def client_statement_pdf_view(request, client_pk):
 
     log_audit(request.user, 'export', 'Client', f'Generated statement PDF for {client.get_full_name()}')
 
-    return generate_client_statement_pdf(client, rows, summary)
+    from utils.currency import export_display
+    return generate_client_statement_pdf(client, rows, summary, display=export_display(request))
 
 
 @login_required
