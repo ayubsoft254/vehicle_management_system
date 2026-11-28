@@ -962,13 +962,15 @@ document.addEventListener('DOMContentLoaded', function () {
         function updateEquiv(forceKes) {
             var rate = parseFloat(rateEl.value) || 0;
             var usd  = parseFloat(usdEl.value) || 0;
-            if (rate > 0 && usd > 0) {
-                var kes = rate * usd;
+            // Supplier charges priced straight into the home currency win over USD x rate.
+            var direct = window.japanDirectHomeAmount ? window.japanDirectHomeAmount() : 0;
+            if (direct > 0 || (rate > 0 && usd > 0)) {
+                var kes = direct > 0 ? direct : rate * usd;
                 if (equivEl) {
                     equivEl.textContent = 'KES ' + kes.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 }
                 if (kesEl && (forceKes || !parseFloat(kesEl.value))) {
-                    kesEl.value = Math.round(kes);
+                    kesEl.value = kes.toFixed(2);
                     kesEl.dispatchEvent(new Event('input'));
                 }
             } else if (equivEl) {
@@ -997,6 +999,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (statusEl) statusEl.textContent = 'Live: 1 USD = KES ' + rate.toFixed(2) + ' (as of ' + (data.time_last_update_utc || 'now') + ')';
                         updateEquiv(forceKes);
                         autoFillUsdFromKes();
+                        if (window.onHomeRateFilled) window.onHomeRateFilled();
                     } else {
                         if (statusEl) statusEl.textContent = 'Could not read rate from API.';
                     }
@@ -1101,19 +1104,31 @@ function syncSupplierUsdToTracking() {
     const trackingUsd = document.getElementById('id_purchase_price_usd');
     if (!trackingUsd) return;
     trackingUsd.value = japanTotalUsd();
+    // The tracking panel turns this into the home-currency purchase price
+    // (directly from the supplier rate when it is quoted in the home currency).
     const evt = new Event('input');
     evt._forceKes = true;
     trackingUsd.dispatchEvent(evt);
-    const entry = japanEntry();
-    const priceEl = document.getElementById('id_purchase_price');
-    const total = japanTotal();
-    if (priceEl && entry.code !== 'USD' && entry.quote === HOME_CURRENCY && entry.rate > 0 && total > 0) {
-        priceEl.value = Math.round(total * entry.rate);
-        priceEl.dispatchEvent(new Event('input'));
-        const equivEl = document.getElementById('usdKesEquivalent');
-        if (equivEl) equivEl.textContent = HOME_CURRENCY + ' ' + fmtMoney(total * entry.rate);
-    }
 }
+
+// Supplier total converted straight into the home currency, when its rate is quoted
+// in the home currency (0 otherwise) — used for the purchase price.
+function japanDirectHomeAmount() {
+    const select = document.getElementById('japan_supplier_id');
+    if (!select || !select.value) return 0;
+    const entry = japanEntry();
+    const total = japanTotal();
+    if (entry.code === 'USD' || entry.quote !== HOME_CURRENCY || !(entry.rate > 0) || !(total > 0)) return 0;
+    return Math.round(total * entry.rate * 100) / 100;
+}
+window.japanDirectHomeAmount = japanDirectHomeAmount;
+
+// The page's live "1 USD = x" rate arrived: if supplier charges are already entered,
+// redo their USD value and the purchase price with it.
+window.onHomeRateFilled = function () {
+    const select = document.getElementById('japan_supplier_id');
+    recalcJapanSupplierTotal(!!(select && select.value && japanTotal() > 0));
+};
 
 // Sums the itemised Japan buyer charges (plus their tax %) into the total.
 // While any charge is entered the total is locked — the server recomputes it the same way.
@@ -1130,7 +1145,7 @@ function recalcJapanSupplierTotal(sync) {
         const tax = Math.round(base * (parseFloat(el.value) || 0)) / 100;
         total += tax;
         const out = document.querySelector('[data-japan-tax-amount="' + el.id + '"]');
-        if (out) out.textContent = symbol + (symbol.length > 1 ? ' ' : '') + tax.toFixed(2);
+        if (out) out.textContent = symbol + (symbol.length > 1 ? ' ' : '') + fmtMoney(tax);
     });
     const hint = document.getElementById('japanTotalHint');
     if (total > 0) {
