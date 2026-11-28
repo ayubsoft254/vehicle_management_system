@@ -125,7 +125,7 @@
                         <td class="px-4 py-3 text-right text-sm font-medium text-gray-800 align-top">
                             <span data-ledger-money data-kes="{{ record.purchase_price|stringformat:'f' }}">USD {{ record.purchase_price|floatformat:2|intcomma }}</span>
                             {% if record.is_foreign_entry %}
-                            <p class="text-xs font-normal text-gray-500">Entered as {{ record.currency }} {{ record.entered_total|floatformat:2|intcomma }} @ {{ record.exchange_rate|floatformat:"-6" }}/USD</p>
+                            <p class="text-xs font-normal text-gray-500">Entered as {{ record.currency }} {{ record.entered_total|floatformat:2|intcomma }} · {{ record.rate_label }}</p>
                             {% endif %}
                             {% with breakdown=record.charge_breakdown %}
                             {% if breakdown %}
@@ -190,7 +190,7 @@
                         <td class="px-4 py-3 text-right text-sm font-semibold text-indigo-700">
                             <span data-ledger-money data-kes="{{ payment.amount|stringformat:'f' }}">USD {{ payment.amount|floatformat:2|intcomma }}</span>
                             {% if payment.is_foreign_entry and payment.original_amount is not None %}
-                            <p class="text-xs font-normal text-gray-500">Paid {{ payment.currency }} {{ payment.original_amount|floatformat:2|intcomma }} @ {{ payment.exchange_rate|floatformat:"-6" }}/USD</p>
+                            <p class="text-xs font-normal text-gray-500">Paid {{ payment.currency }} {{ payment.original_amount|floatformat:2|intcomma }} · {{ payment.rate_label }}</p>
                             {% endif %}
                         </td>
                         <td class="px-4 py-3 text-sm">
@@ -238,7 +238,7 @@
         </div>
         <form method="post" action="{% url 'vehicles:record_japan_supplier_payment' supplier.pk %}" class="p-6 space-y-4">
             {% csrf_token %}
-            <div id="paymentEntryCurrency" data-entry-currency data-ec-required data-ec-scope="#payment-modal" class="grid grid-cols-2 gap-4">
+            <div id="paymentEntryCurrency" data-entry-currency data-ec-required data-ec-scope="#payment-modal" data-ec-home="{{ brand.currency }}" class="space-y-3">
                 <div>
                     <label for="payment_currency" class="block text-sm font-medium text-gray-700 mb-1">Currency</label>
                     <select name="currency" id="payment_currency" data-ec-select
@@ -249,9 +249,17 @@
                         class="hidden mt-2 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase focus:ring-2 focus:ring-indigo-500">
                 </div>
                 <div data-ec-rate-wrap class="hidden">
-                    <label for="payment_exchange_rate" class="block text-sm font-medium text-gray-700 mb-1"><span data-ec-code>USD</span> per 1 USD <span class="text-red-500">*</span></label>
-                    <input type="number" name="exchange_rate" id="payment_exchange_rate" data-ec-rate step="any" min="0" placeholder="e.g. 150"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                    <label for="payment_exchange_rate" class="block text-sm font-medium text-gray-700 mb-1">Exchange Rate <span class="text-red-500">*</span></label>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-medium text-gray-600 whitespace-nowrap">1 <span data-ec-code>USD</span> =</span>
+                        <input type="number" name="exchange_rate" id="payment_exchange_rate" data-ec-rate step="any" min="0" placeholder="e.g. 0.85"
+                            class="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                        <select name="rate_currency" data-ec-quote aria-label="Convert to currency"
+                            class="w-24 border border-gray-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                            {% include 'includes/_quote_currency_options.html' with home=brand.currency %}
+                        </select>
+                    </div>
+                    <input type="hidden" name="quote_usd" data-ec-quote-usd>
                     <p data-ec-status class="text-xs text-gray-400 mt-1"></p>
                 </div>
             </div>
@@ -260,7 +268,7 @@
                 <input type="number" name="amount" id="payment_amount" step="0.01" min="0.01" required placeholder="e.g. 8000"
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                 <p id="paymentUsdEquivalent" class="hidden text-xs font-medium text-indigo-600 mt-1"></p>
-                <p class="text-xs text-gray-400 mt-1">The supplier ledger is kept in USD; other currencies are converted at the rate above.</p>
+                <p class="text-xs text-gray-400 mt-1">Other currencies are converted at the rate above.</p>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -342,20 +350,23 @@ document.getElementById('delete-modal').addEventListener('click', function(e) {
 </script>
 <script src="{% static 'js/entry_currency.js' %}"></script>
 <script>
-// Record Payment: show what a non-USD payment comes to in USD (what the ledger records).
+// Record Payment: show a non-USD payment converted straight into the chosen currency,
+// plus what it posts to the supplier ledger (kept in USD).
 (function () {
     var amountEl = document.getElementById('payment_amount');
     var out = document.getElementById('paymentUsdEquivalent');
     var widgetEl = document.getElementById('paymentEntryCurrency');
+    function money(n) { return n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
     function update() {
         var w = window.EntryCurrency && EntryCurrency.of(widgetEl);
-        var code = w ? w.code() : 'USD';
-        var rate = w ? w.rateValue() : 1;
         var amount = parseFloat(amountEl.value) || 0;
-        if (code === 'USD' || !(amount > 0)) { out.classList.add('hidden'); return; }
-        out.textContent = rate > 0
-            ? '≈ USD ' + (Math.round(amount / rate * 100) / 100).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' at ' + rate + ' ' + code + ' per USD'
-            : 'Enter the exchange rate to convert to USD.';
+        if (!w || w.code() === 'USD' || !(amount > 0)) { out.classList.add('hidden'); return; }
+        var code = w.code(), quote = w.quote(), rate = w.rateValue(), usdPerUnit = w.usdPerUnit();
+        var parts = [];
+        if (!(rate > 0)) parts.push('Enter the exchange rate.');
+        else if (quote !== code) parts.push('≈ ' + quote + ' ' + money(amount * rate));
+        if (usdPerUnit > 0 && quote !== 'USD') parts.push('posts USD ' + money(Math.round(amount * usdPerUnit * 100) / 100) + ' to the supplier ledger');
+        out.textContent = parts.join(' · ');
         out.classList.remove('hidden');
     }
     amountEl.addEventListener('input', update);
