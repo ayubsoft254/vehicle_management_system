@@ -190,6 +190,12 @@ def _save_japan_supplier_record(post_data, vehicle, fallback_date):
     record.purchase_price = to_usd(entered_total, usd_per_unit)
     record.save()
 
+    # Keep the vehicle's USD purchase price identical to what the supplier ledger records.
+    if vehicle.purchase_price_usd != record.purchase_price:
+        vehicle.purchase_price_usd = record.purchase_price
+        Vehicle.objects.filter(pk=vehicle.pk).update(purchase_price_usd=record.purchase_price)
+    return record
+
 
 def _japan_supplier_form_values(request, record):
     """Pre-fill values for the breakdown: the POST on a failed submit, else the saved record."""
@@ -2921,6 +2927,7 @@ _PARTY_LEDGER_EXPORT_CONFIG = {
 def party_ledger_export(request, kind, fmt):
     """Export the Broker/Tracker Agent/Clearing Agent/Japan Supplier ledger list as PDF/Excel/CSV."""
     from utils.report_kit import export_rows
+    from utils.currency import export_display
 
     config = _PARTY_LEDGER_EXPORT_CONFIG.get(kind)
     if not config:
@@ -2941,7 +2948,8 @@ def party_ledger_export(request, kind, fmt):
         sum(r[3] for r in rows), sum(r[4] for r in rows), sum(r[5] for r in rows),
     ]
     return export_rows(fmt, f'{kind}_ledger', config['title'], headers, rows,
-                       currency_cols={4, 5, 6}, totals_row=totals_row)
+                       currency_cols={4, 5, 6}, totals_row=totals_row,
+                       display=export_display(request, cur))
 
 
 # ==================== BUSINESS LOANS (MONEY LOANED OUT) ====================
@@ -3060,6 +3068,7 @@ def business_loan_list(request):
 def business_loan_export(request, fmt):
     """Export the Business Loans list as PDF/Excel/CSV."""
     from utils.report_kit import export_rows
+    from utils.currency import export_display
     loans = BusinessLoan.objects.select_related('recorded_by').order_by('-date_issued')
     headers = ['Borrower', 'Date Issued', 'Principal', 'Repaid', 'Outstanding', 'Status']
     rows = [
@@ -3075,7 +3084,7 @@ def business_loan_export(request, fmt):
         sum(r[2] for r in rows), sum(r[3] for r in rows), sum(r[4] for r in rows), '',
     ]
     return export_rows(fmt, 'business_loans', 'Business Loans', headers, rows,
-                       currency_cols={3, 4, 5}, totals_row=totals_row)
+                       currency_cols={3, 4, 5}, totals_row=totals_row, display=export_display(request))
 
 
 @login_required
@@ -3584,6 +3593,7 @@ def _main_ledger_export_rows(ctx):
 def main_ledger_export(request, fmt):
     """Export the Main Ledger (filtered the same way as the on-screen view) as PDF/Excel/CSV."""
     from utils.report_kit import export_rows
+    from utils.currency import export_display
     ctx = _compute_main_ledger_context(request)
     headers, rows = _main_ledger_export_rows(ctx)
     subtitle = f"{ctx['date_from']} to {ctx['date_to']}"
@@ -3592,7 +3602,8 @@ def main_ledger_export(request, fmt):
         float(ctx['total_in']), float(ctx['total_out']), float(ctx['net']),
     ]
     return export_rows(fmt, 'main_ledger', 'Main Ledger', headers, rows,
-                       currency_cols={6, 7, 8}, subtitle=subtitle, totals_row=totals_row)
+                       currency_cols={6, 7, 8}, subtitle=subtitle, totals_row=totals_row,
+                       display=export_display(request))
 
 
 # ==================== SALES LEDGER ====================
@@ -3694,6 +3705,7 @@ def sales_ledger(request):
 def sales_ledger_export(request, fmt):
     """Export the Sales Ledger (same date filters as the on-screen view) as PDF/Excel/CSV."""
     from utils.report_kit import export_rows
+    from utils.currency import export_display
     from utils.ledger import parse_date_range
     from .utils import bulk_sale_totals
 
@@ -3725,6 +3737,7 @@ def sales_ledger_export(request, fmt):
     return export_rows(
         fmt, 'sales_ledger', 'Sales Ledger', headers, export_data,
         currency_cols={6, 7, 8}, subtitle=subtitle, totals_row=totals_row,
+        display=export_display(request),
     )
 
 
@@ -3856,6 +3869,7 @@ def vehicle_ledger(request):
 def vehicle_ledger_export(request, fmt):
     """Export the Vehicle Ledger (same filters as the on-screen view) as PDF/Excel/CSV."""
     from utils.report_kit import export_rows
+    from utils.currency import export_display
     from utils.ledger import parse_date_range
     from .utils import bulk_sale_totals
 
@@ -3891,4 +3905,5 @@ def vehicle_ledger_export(request, fmt):
     return export_rows(
         fmt, 'vehicle_ledger', 'Vehicle Ledger', headers, export_data,
         currency_cols={7, 8, 9}, subtitle=subtitle, totals_row=totals_row,
+        display=export_display(request),
     )
