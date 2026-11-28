@@ -3089,6 +3089,7 @@ def client_ledger_list(request):
 def client_ledger_export(request, fmt):
     """Export the Client Ledger summary list as PDF/Excel/CSV."""
     from utils.report_kit import export_rows
+    from utils.currency import export_display
     search = request.GET.get('q', '').strip()
     clients = _client_ledger_queryset(search)
     headers = ['Client', 'Phone', 'Vehicles', 'Total Billed', 'Total Paid', 'Outstanding']
@@ -3101,7 +3102,19 @@ def client_ledger_export(request, fmt):
         sum(r[3] for r in rows), sum(r[4] for r in rows), sum(r[5] for r in rows),
     ]
     return export_rows(fmt, 'client_ledger', 'Client Ledger', headers, rows,
-                       currency_cols={4, 5, 6}, totals_row=totals_row)
+                       currency_cols={4, 5, 6}, totals_row=totals_row, display=export_display(request))
+
+
+def _statement_display(request):
+    """Download currency for the client statement exports (?currency=&currency_rate=)."""
+    from utils.currency import export_display
+    return export_display(request)
+
+
+def _in_display(amount, fx):
+    """A stored amount converted into the statement download currency (2 dp)."""
+    from decimal import Decimal
+    return ((amount or Decimal('0')) * fx).quantize(Decimal('0.01'))
 
 
 def _statement_filters(request):
@@ -3162,16 +3175,17 @@ def export_client_ledger_csv(request, client_pk):
         f'attachment; filename="statement_{client.pk}_{timezone.now().strftime("%Y%m%d")}.csv"'
     )
 
+    (cur, fx), _source = _statement_display(request)
     writer = csv.writer(response)
     writer.writerow([
         'Date', 'Reference', 'Type', 'Payment Method', 'Description', 'Vehicle',
-        'Debit', 'Credit', 'Running Balance', 'Created By', 'Reconciliation Status', 'Notes'
+        f'Debit ({cur})', f'Credit ({cur})', f'Running Balance ({cur})', 'Created By', 'Reconciliation Status', 'Notes'
     ])
     for row in reversed(rows):  # chronological order for the export
         writer.writerow([
             row['date'], row['reference'], row['type_label'], row['payment_method'],
             row['narration'], row['related_vehicle'].registration_number if row['related_vehicle'] else '',
-            row['debit'], row['credit'], row['running_balance'],
+            _in_display(row['debit'], fx), _in_display(row['credit'], fx), _in_display(row['running_balance'], fx),
             row['created_by'].get_full_name() if row['created_by'] else '',
             row['reconciliation_status'], row['notes'],
         ])
@@ -3197,9 +3211,10 @@ def export_client_ledger_excel(request, client_pk):
     sheet = workbook.active
     sheet.title = 'Client Statement'
 
+    (cur, fx), _source = _statement_display(request)
     headers = [
         'Date', 'Reference', 'Type', 'Payment Method', 'Description', 'Vehicle',
-        'Debit', 'Credit', 'Running Balance', 'Created By', 'Reconciliation Status', 'Notes'
+        f'Debit ({cur})', f'Credit ({cur})', f'Running Balance ({cur})', 'Created By', 'Reconciliation Status', 'Notes'
     ]
     sheet.append(headers)
     for cell in sheet[1]:
@@ -3210,7 +3225,8 @@ def export_client_ledger_excel(request, client_pk):
             row['date'].strftime('%Y-%m-%d') if row['date'] else '',
             row['reference'] or '', row['type_label'], row['payment_method'],
             row['narration'], row['related_vehicle'].registration_number if row['related_vehicle'] else '',
-            float(row['debit']), float(row['credit']), float(row['running_balance']),
+            float(_in_display(row['debit'], fx)), float(_in_display(row['credit'], fx)),
+            float(_in_display(row['running_balance'], fx)),
             row['created_by'].get_full_name() if row['created_by'] else '',
             row['reconciliation_status'], row['notes'],
         ])
