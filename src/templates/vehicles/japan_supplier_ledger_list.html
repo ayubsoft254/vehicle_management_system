@@ -23,7 +23,7 @@
             {% url 'vehicles:party_ledger_export' 'japan_supplier' 'pdf' as export_pdf_url %}
             {% url 'vehicles:party_ledger_export' 'japan_supplier' 'excel' as export_excel_url %}
             {% url 'vehicles:party_ledger_export' 'japan_supplier' 'csv' as export_csv_url %}
-            {% include 'reports/partials/_export_bar.html' %}
+            {% include 'reports/partials/_export_bar.html' with export_currency="USD" %}
             <button onclick="document.getElementById('addSupplierModal').classList.remove('hidden')"
                     class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition">
                 <i class="fas fa-plus mr-2"></i>Add Supplier
