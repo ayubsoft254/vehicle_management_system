@@ -1520,6 +1520,7 @@ def agent_ledger_list(request):
 def agent_ledger_export(request, fmt):
     """Export the insurance agent ledger list as PDF/Excel/CSV."""
     from utils.report_kit import export_rows
+    from utils.currency import export_display
 
     agents = InsuranceAgent.objects.filter(is_active=True).order_by('name')
     headers = ['Name', 'Phone', 'Email', 'Total Selling', 'Paid', 'Outstanding']
@@ -1532,7 +1533,7 @@ def agent_ledger_export(request, fmt):
         sum(r[3] for r in rows), sum(r[4] for r in rows), sum(r[5] for r in rows),
     ]
     return export_rows(fmt, 'insurance_agent_ledger', 'Insurance Agent Ledger', headers, rows,
-                       currency_cols={4, 5, 6}, totals_row=totals_row)
+                       currency_cols={4, 5, 6}, totals_row=totals_row, display=export_display(request))
 
 
 def _insurance_agent_statement(agent, date_from, date_to):
