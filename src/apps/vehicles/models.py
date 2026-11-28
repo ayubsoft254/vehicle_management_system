@@ -1260,7 +1260,20 @@ class JapanSupplier(models.Model):
 
 # ==================== JAPAN SUPPLIER RECORD MODEL ====================
 
-class JapanSupplierRecord(models.Model):
+class _EntryCurrencyMixin:
+    """Shared by Japan supplier records/payments that may be entered in a non-USD currency."""
+
+    @property
+    def is_foreign_entry(self):
+        return self.currency != 'USD'
+
+    @property
+    def rate_label(self):
+        """'1 JPY = 0.82 KES'."""
+        return f'1 {self.currency} = {self.exchange_rate.normalize():,f} {self.rate_currency}'
+
+
+class JapanSupplierRecord(_EntryCurrencyMixin, models.Model):
     """Links a vehicle's purchase price to a Japan supplier for ledger tracking."""
 
     PAYMENT_STATUS_CHOICES = [
@@ -1293,12 +1306,14 @@ class JapanSupplierRecord(models.Model):
         'Total Amount (USD)', max_digits=12, decimal_places=2,
         validators=[MinValueValidator(Decimal('0.00'))],
     )
-    # Currency the charges/total were entered in; exchange_rate is units of it per 1 USD.
+    # Currency the charges/total were entered in, and its direct rate:
+    # 1 <currency> = exchange_rate <rate_currency> (e.g. 1 JPY = 0.82 KES).
     currency = models.CharField('Entry Currency', max_length=3, default='USD')
     exchange_rate = models.DecimalField(
-        'Exchange Rate (per 1 USD)', max_digits=16, decimal_places=6, default=Decimal('1'),
-        validators=[MinValueValidator(Decimal('0.000001'))],
+        'Exchange Rate', max_digits=24, decimal_places=10, default=Decimal('1'),
+        validators=[MinValueValidator(Decimal('0.0000000001'))],
     )
+    rate_currency = models.CharField('Rate Currency', max_length=3, default='USD')
     original_amount = models.DecimalField(
         'Total Amount (entry currency)', max_digits=14, decimal_places=2, null=True, blank=True,
     )
@@ -1394,9 +1409,6 @@ class JapanSupplierRecord(models.Model):
         total = sum((getattr(self, f) or Decimal('0.00')) for f in self.CHARGE_FIELDS)
         return total + self.auction_tax_amount + self.auction_fee_tax_amount
 
-    @property
-    def is_foreign_entry(self):
-        return self.currency != 'USD'
 
     @property
     def entered_total(self):
@@ -1422,7 +1434,7 @@ class JapanSupplierRecord(models.Model):
 
 # ==================== JAPAN SUPPLIER PAYMENT MODEL ====================
 
-class JapanSupplierPayment(models.Model):
+class JapanSupplierPayment(_EntryCurrencyMixin, models.Model):
     PAYMENT_METHOD_CHOICES = [
         ('cash', 'Cash'),
         ('bank_transfer', 'Bank Transfer / SWIFT'),
@@ -1439,12 +1451,14 @@ class JapanSupplierPayment(models.Model):
         'Amount (USD)', max_digits=12, decimal_places=2,
         validators=[MinValueValidator(Decimal('0.01'))]
     )
-    # What was actually paid when not in USD; exchange_rate is units of it per 1 USD.
+    # What was actually paid when not in USD, and its direct rate:
+    # 1 <currency> = exchange_rate <rate_currency> (e.g. 1 JPY = 0.82 KES).
     currency = models.CharField('Paid Currency', max_length=3, default='USD')
     exchange_rate = models.DecimalField(
-        'Exchange Rate (per 1 USD)', max_digits=16, decimal_places=6, default=Decimal('1'),
-        validators=[MinValueValidator(Decimal('0.000001'))],
+        'Exchange Rate', max_digits=24, decimal_places=10, default=Decimal('1'),
+        validators=[MinValueValidator(Decimal('0.0000000001'))],
     )
+    rate_currency = models.CharField('Rate Currency', max_length=3, default='USD')
     original_amount = models.DecimalField(
         'Amount Paid (paid currency)', max_digits=14, decimal_places=2, null=True, blank=True,
     )
@@ -1469,9 +1483,6 @@ class JapanSupplierPayment(models.Model):
     def __str__(self):
         return f"Payment USD {self.amount:,.0f} to {self.supplier.name} on {self.payment_date}"
 
-    @property
-    def is_foreign_entry(self):
-        return self.currency != 'USD'
 
 
 # ==================== MANUAL LEDGER ENTRY ====================
