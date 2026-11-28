@@ -285,9 +285,9 @@
                                 <span class="text-sm font-medium text-gray-600 whitespace-nowrap">1 <span data-ec-code>USD</span> =</span>
                                 <input type="number" name="japan_exchange_rate" id="japan_exchange_rate" data-ec-rate
                                     step="any" min="0" value="{{ japan_record_values.exchange_rate }}" placeholder="e.g. 0.85"
-                                    class="flex-1 min-w-0 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
-                                <select name="japan_rate_currency" id="japan_rate_currency" data-ec-quote aria-label="Convert to currency"
-                                    class="w-24 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                    class="flex-1 min-w-[7rem] px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                                <select name="japan_rate_currency" id="japan_rate_currency" data-ec-quote data-keep-width aria-label="Convert to currency"
+                                    class="w-24 shrink-0 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                                     {% include 'includes/_quote_currency_options.html' with home=brand.currency selected=japan_record_values.rate_currency %}
                                 </select>
                             </div>
@@ -408,12 +408,12 @@
                             <div class="flex items-center gap-2">
                                 <p class="text-xs font-semibold text-amber-800 uppercase tracking-wide">Other Currencies</p>
                                 <label for="fxQuote" class="text-xs text-amber-700">converted to</label>
-                                <select id="fxQuote" class="px-2 py-1 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500">
+                                <select id="fxQuote" data-keep-width class="w-24 px-2 py-1 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500">
                                     {% include 'includes/_quote_currency_options.html' with home=brand.currency %}
                                 </select>
                             </div>
                             <div class="flex items-center gap-2">
-                                <select id="fxAddSelect" aria-label="Currency to add"
+                                <select id="fxAddSelect" data-keep-width aria-label="Currency to add"
                                     class="px-2 py-1 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500">
                                     <option value="JPY">JPY</option>
                                     <option value="EUR">EUR</option>
@@ -422,7 +422,7 @@
                                     <option value="AED">AED</option>
                                     <option value="OTHER">Other…</option>
                                 </select>
-                                <input type="text" id="fxAddOther" maxlength="3" placeholder="e.g. THB" aria-label="Currency code"
+                                <input type="text" id="fxAddOther" data-keep-width maxlength="3" placeholder="e.g. THB" aria-label="Currency code"
                                     class="hidden w-20 px-2 py-1 border border-gray-300 rounded-lg text-xs uppercase focus:ring-2 focus:ring-amber-500">
                                 <button type="button" id="fxAddBtn"
                                     class="px-3 py-1 text-xs bg-white border border-amber-300 text-amber-800 rounded-lg hover:bg-amber-100 transition flex items-center gap-1">
@@ -816,7 +816,8 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll(
         'input[type="text"], input[type="number"], input[type="email"], input[type="url"], input[type="date"], textarea, select'
     ).forEach(function (el) {
-        if (!el.dataset.extraCostDescription && !el.dataset.extraCostAmount) {
+        // data-keep-width: inline controls (e.g. "1 JPY = [rate] [KES]") keep their own width
+        if (!el.dataset.extraCostDescription && !el.dataset.extraCostAmount && !el.hasAttribute('data-keep-width')) {
             el.classList.add('w-full', 'rounded-lg', 'border-gray-300', 'shadow-sm',
                              'focus:border-blue-500', 'focus:ring-blue-500', 'text-sm');
         }
@@ -1109,6 +1110,8 @@ function syncSupplierUsdToTracking() {
     if (priceEl && entry.code !== 'USD' && entry.quote === HOME_CURRENCY && entry.rate > 0 && total > 0) {
         priceEl.value = Math.round(total * entry.rate);
         priceEl.dispatchEvent(new Event('input'));
+        const equivEl = document.getElementById('usdKesEquivalent');
+        if (equivEl) equivEl.textContent = HOME_CURRENCY + ' ' + fmtMoney(total * entry.rate);
     }
 }
 
@@ -1239,7 +1242,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<div class="flex items-center gap-2 sm:col-span-2">' +
                 '  <span class="text-sm font-semibold text-gray-800 whitespace-nowrap">1 ' + code + ' =</span>' +
                 '  <input type="number" step="any" min="0" aria-label="Value of 1 ' + code + '"' +
-                '    class="flex-1 min-w-0 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500">' +
+                '    class="flex-1 min-w-[7rem] px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500">' +
                 '  <span data-fx-quote class="text-sm text-gray-600"></span>' +
                 '  <span data-fx-badge class="hidden text-[10px] font-medium uppercase bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">Supplier</span>' +
                 '</div>' +
