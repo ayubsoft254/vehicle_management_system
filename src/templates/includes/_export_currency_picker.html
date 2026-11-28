@@ -1,0 +1,73 @@
+{% comment %}
+"Download in [currency]" for ledger downloads. Param: source — the currency the
+amounts are stored in (default KES). Every <a data-export-link> on the page gets
+?currency=XXX&currency_rate=n (target units per 1 source unit, from live rates;
+without one the server uses its approximate fallback rate) — read server-side
+by utils.currency.export_display.
+{% endcomment %}
+{% firstof source "KES" as export_source %}
+<div class="inline-flex items-center gap-2" data-export-currency-picker data-source="{{ export_source }}">
+    <label for="exportCurrency" class="text-sm text-slate-600 whitespace-nowrap">Download in</label>
+    <select id="exportCurrency" data-export-currency data-keep-width
+        class="px-2 py-2 border border-slate-300 rounded-md text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500">
+        {% include 'includes/_ledger_currency_options.html' with selected=export_source %}
+    </select>
+</div>
+<script>
+(function () {
+    if (window.__exportCurrencyPicker) return;
+    window.__exportCurrencyPicker = true;
+    var CACHE_KEY = 'vms_usd_rates';
+    var rates = null;
+
+    function loadRates() {
+        try {
+            var cached = JSON.parse(window.sessionStorage.getItem(CACHE_KEY) || 'null');
+            if (cached && cached.rates && Date.now() - cached.at < 6 * 3600 * 1000) return Promise.resolve(cached.rates);
+        } catch (e) { /* fetch below */ }
+        return fetch('https://open.er-api.com/v6/latest/USD')
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d || !d.rates) throw new Error('no rates');
+                try { window.sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), rates: d.rates, asOf: d.time_last_update_utc || '' })); } catch (e) { /* ignore */ }
+                return d.rates;
+            });
+    }
+
+    function apply() {
+        var select = document.querySelector('[data-export-currency]');
+        if (!select) return;
+        var source = select.closest('[data-export-currency-picker]').getAttribute('data-source');
+        var target = select.value;
+        document.querySelectorAll('a[data-export-link]').forEach(function (a) {
+            var url = new URL(a.getAttribute('href'), window.location.href);
+            url.searchParams.delete('currency');
+            url.searchParams.delete('currency_rate');
+            if (target !== source) {
+                url.searchParams.set('currency', target);
+                var from = source === 'USD' ? 1 : rates && rates[source];
+                var to = target === 'USD' ? 1 : rates && rates[target];
+                if (from && to) url.searchParams.set('currency_rate', (to / from).toPrecision(10));
+            }
+            a.setAttribute('href', url.pathname + url.search);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var select = document.querySelector('[data-export-currency]');
+        if (!select) return;
+        var source = select.closest('[data-export-currency-picker]').getAttribute('data-source');
+        var key = 'vms_export_currency_' + source;
+        try {
+            var saved = window.localStorage.getItem(key);
+            if (saved && select.querySelector('option[value="' + saved + '"]')) select.value = saved;
+        } catch (e) { /* per-viewer only */ }
+        select.addEventListener('change', function () {
+            try { window.localStorage.setItem(key, select.value); } catch (e) { /* per-viewer only */ }
+            apply();
+        });
+        apply();
+        loadRates().then(function (r) { rates = r; apply(); }).catch(function () { /* server falls back */ });
+    });
+})();
+</script>
