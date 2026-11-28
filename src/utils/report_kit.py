@@ -455,8 +455,37 @@ def build_csv_response(filename, headers, rows, totals_row=None):
 # headers/rows table, so the view only has to build the data once.
 # ---------------------------------------------------------------------------
 
+def _apply_display_currency(headers, rows, totals_row, currency_cols, subtitle, display):
+    """Convert the money columns for `display` = ((currency, factor), source_currency),
+    label their headers with the currency and note the conversion in the subtitle."""
+    import re as _re
+
+    (currency, factor), source = display
+    factor = Decimal(str(factor))
+
+    def convert(row):
+        out = list(row)
+        for col in currency_cols:
+            i = col - 1
+            if i < len(out) and isinstance(out[i], (int, float, Decimal)) and not isinstance(out[i], bool):
+                out[i] = float((Decimal(str(out[i])) * factor).quantize(Decimal('0.01')))
+        return out
+
+    if factor != 1:
+        rows = [convert(r) for r in rows]
+        totals_row = convert(totals_row) if totals_row else totals_row
+        note = f'Amounts in {currency} (converted at 1 {source} = {factor.normalize():f} {currency})'
+        subtitle = f'{subtitle} — {note}' if subtitle else note
+    suffix = _re.compile(r'\s*\([A-Z]{3}\)$')
+    headers = [
+        f'{suffix.sub("", str(h))} ({currency})' if (i + 1) in currency_cols else h
+        for i, h in enumerate(headers)
+    ]
+    return headers, rows, totals_row, subtitle
+
+
 def export_rows(fmt, filename_base, title, headers, rows, currency_cols=None, subtitle=None,
-                totals_row=None, landscape_mode=None):
+                totals_row=None, landscape_mode=None, display=None):
     """
     Render `rows` as a PDF, Excel or CSV download depending on `fmt`.
 
@@ -465,8 +494,14 @@ def export_rows(fmt, filename_base, title, headers, rows, currency_cols=None, su
     width — switching to landscape automatically when the content is too
     wide for portrait (pass `landscape_mode` to force either way) — and
     wraps long cells rather than letting the table run off the page.
+
+    `display` is utils.currency.export_display(request, source): the money
+    columns are converted into the currency the user picked for the download.
     """
     currency_cols = currency_cols or set()
+    if display:
+        headers, rows, totals_row, subtitle = _apply_display_currency(
+            headers, rows, totals_row, currency_cols, subtitle, display)
     if fmt == 'excel':
         return build_excel_response(f'{filename_base}.xlsx', title, headers, rows,
                                     currency_cols=currency_cols, totals_row=totals_row)
