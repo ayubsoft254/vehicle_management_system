@@ -150,3 +150,12 @@ def parse_entry_currency(post_data, prefix, home='KES', home_usd_rate=None):
 def to_usd(amount, usd_per_unit):
     """Amount worth `usd_per_unit` USD per unit, as USD (2 dp, half-up)."""
     return (Decimal(amount) * Decimal(usd_per_unit)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+
+def export_display(request, source=None):
+    """For ledger downloads: (currency, factor) chosen with ?currency=&currency_rate=
+    (see parse_display_currency) plus the currency the amounts are stored in
+    (default: the company's base currency)."""
+    from apps.company.services import get_company
+    source = source or get_company().currency_code
+    return parse_display_currency(request, source), source
